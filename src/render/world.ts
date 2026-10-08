@@ -1,3 +1,5 @@
+import { aimEndpoint } from './aim.ts';
+import { surfaceLaunch } from '../world/launch.ts';
 import { bodyPosition, objectPosition } from '../world/celestial.ts';
 import { add, scale, length, type Vec } from '../physics/vector.ts';
 import type { RoutePlan, Run, Stage } from '../world/types.ts';
@@ -279,15 +281,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fillStyle = '#9ccebd';
     ctx.fillRect(a.x - 2, a.y - 2, 4, 4);
   }
-  const pad = screen(s.stage.spawn.position);
+  const surface = surfaceLaunch(s.stage, t);
+  const pad = screen(surface?.position ?? s.stage.spawn.position);
   ctx.fillStyle = '#8ab5ab';
   ctx.strokeStyle = '#101e29';
   ctx.lineWidth = 3;
   ctx.save();
   ctx.translate(pad.x, pad.y);
   ctx.rotate(-(s.stage.launchAngle ?? 0));
-  ctx.fillRect(-6, -17, 8, 34);
-  ctx.strokeRect(-6, -17, 8, 34);
+  ctx.fillRect(0, -17, 4, 34);
+  ctx.strokeRect(0, -17, 4, 34);
   ctx.restore();
   const sprite = (
     position: Vec,
@@ -302,6 +305,8 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(-Math.atan2(direction.y, direction.x));
+    // The simulation point is the base. Keep the hull and fins ahead of it.
+    ctx.translate(size / 2 + 8, 0);
     if (flame) {
       ctx.fillStyle = '#efae63';
       ctx.beginPath();
@@ -372,7 +377,14 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fillText(actor.status === 'landed' ? '✓ 회수' : actor.name, p.x, p.y + 30);
   }
   const ship = s.run?.position ?? s.stage.spawn.position,
-    v = s.run?.rocket?.direction ?? s.thrust ?? s.run?.velocity ?? s.plan?.launch ?? { x: 1, y: 0 },
+    onPad = !s.run || (s.run.rocket && !s.run.rocket.airborne),
+    v =
+      onPad && surface
+        ? surface.normal
+        : (s.run?.rocket?.direction ??
+          s.thrust ??
+          s.run?.velocity ??
+          s.plan?.launch ?? { x: 1, y: 0 }),
     count = s.stage.rocket
       ? Math.max(0, s.stage.rocket.parts.length - (s.run?.rocket?.partIndex ?? 0))
       : 1;
@@ -395,7 +407,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
 
   const arrow = (origin: Vec, vector: Vec, color: string) => {
     const a = screen(origin),
-      b = screen(add(origin, scale(vector, 2.5)));
+      b = screen(aimEndpoint(origin, vector));
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctx.lineWidth = 4;

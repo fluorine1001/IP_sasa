@@ -137,6 +137,8 @@ describe('제작자가 조합하는 판정 블록', () => {
     const hole = stage.bodies[0];
     stage.spawn = { position: { x: hole.radius + 0.01, y: 0 }, velocity: { x: 0, y: 0 } };
     const run = createRun(stage, { launch: { x: -0.5, y: 0 }, impulses: [] });
+    run.position = { ...stage.spawn.position };
+    run.velocity = { x: -0.5, y: 0 };
     tick(run, stage, 0.1);
     expect(run.status).toBe('impact');
     tick(run, stage, 1.5);

@@ -1,3 +1,4 @@
+import { PAD_CLEARANCE } from '../world/launch.ts';
 import { comparison } from '../world/conditions.ts';
 import type { Body, Goal, Stage, WorldObject } from '../world/types.ts';
 export const uid = () => crypto.randomUUID();
@@ -86,7 +87,7 @@ export function blankStage(): Stage {
     objects: [],
     goals: [goal],
     goalMode: 'all',
-    spawn: { position: { x: body.radius + 0.005, y: 0 }, velocity: { x: 0, y: 0 } },
+    spawn: { position: { x: body.radius + PAD_CLEARANCE, y: 0 }, velocity: { x: 0, y: 0 } },
     rules: {
       launchLimit: 1.1,
       maneuverBudget: 0.1,

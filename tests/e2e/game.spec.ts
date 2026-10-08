@@ -1,3 +1,4 @@
+import { toScreen, zoomAt } from '../../src/render/camera';
 import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
@@ -256,4 +257,120 @@ test('일반 블록으로 정의한 표면 착륙과 움직이는 위성 만남�
     await page.locator('#result-exit').click();
     await expect(page.locator('#editor-world')).toBeVisible();
   }
+});
+
+test('종료는 재도전 화면에 머무르며 다른 스테이지에는 비행 기록과 장비가 넘어가지 않는다', async ({
+  page,
+}) => {
+  await openGame(page);
+  await page.locator('#launch').click();
+  await page.locator('#gravity-buoy').click();
+  await page.locator('#pause').click();
+  await page.locator('#abort').click();
+  await expect(page.locator('#result-exit')).toHaveCount(0);
+  await page.locator('#result-retry').click();
+  await expect(page.locator('#hint')).toContainText('지난 비행');
+  await expect(page.locator('#note-count')).not.toHaveText('1');
+  await page.locator('#exit').click();
+  await page.locator('[data-stage="' + stages[1].id + '"]').click();
+  await expect(page.locator('.mission-panel h2')).toHaveText(stages[1].title);
+  await expect(page.locator('#inventory')).toContainText('발사 ' + stages[1].rules.attempts);
+  await expect(page.locator('#note-count')).toHaveText('1');
+  await expect(page.locator('#hint')).toContainText('0개 수정 추진 예약');
+  await expect(page.locator('#hint')).toContainText('미래 궤도');
+  await page.locator('#notes').click();
+  await expect(page.locator('#notebook article')).toHaveCount(1);
+  await page.locator('#close-notes').click();
+  await page.locator('#exit').click();
+  await page.locator('[data-stage="' + stages[0].id + '"]').click();
+  await expect(page.locator('#note-count')).toHaveText('1');
+  await expect(page.locator('#inventory')).toContainText('발사 ' + stages[0].rules.attempts);
+});
+
+for (const interrupt of ['wheel', 'resize', 'pan'] as const)
+  test(
+    '시야 변경 전후의 조준 좌표와 ' + interrupt + ' 중단이 실제 발사값을 보존한다',
+    async ({ page }) => {
+      const draft = structuredClone(stages[0]);
+      draft.referencePlans = [];
+      draft.audit.samples = 16;
+      draft.goals = [
+        {
+          ...draft.goals[0],
+          condition: {
+            kind: 'compare',
+            left: { kind: 'metric', metric: 'time', targetId: '' },
+            operator: 'gte',
+            right: { kind: 'constant', value: 0.03 },
+          },
+          dependsOn: [],
+        },
+      ];
+      await page.addInitScript(
+        (s) => localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(s)),
+        draft,
+      );
+      await editor(page);
+      await page.locator('#test-stage').click();
+      await page.setViewportSize({ width: 1100, height: 800 });
+      await page.waitForTimeout(100);
+      const canvas = page.locator('#world');
+      const b = (await canvas.boundingBox())!;
+      const c = { ...draft.camera };
+      await page.mouse.move(650, 400);
+      await page.mouse.down({ button: 'middle' });
+      await page.mouse.move(740, 350);
+      await page.mouse.up({ button: 'middle' });
+      c.x -= 90 / c.zoom;
+      c.y -= 50 / c.zoom;
+      await page.mouse.move(600, 400);
+      await page.mouse.wheel(0, -150);
+      zoomAt(c, { x: 600 - b.x, y: 400 - b.y }, b.width, b.height, Math.exp(0.15));
+      await page.waitForTimeout(100);
+      const base = toScreen(draft.spawn.position, c, b.width, b.height),
+        grab = { x: base.x + 25, y: base.y };
+      const expected = { x: 0.4, y: 0.2 };
+      await page.mouse.move(b.x + grab.x, b.y + grab.y);
+      await page.mouse.down();
+      await page.mouse.move(
+        b.x + grab.x + expected.x * 2.5 * c.zoom,
+        b.y + grab.y - expected.y * 2.5 * c.zoom,
+        { steps: 4 },
+      );
+      if (interrupt === 'wheel') await page.mouse.wheel(0, -200);
+      if (interrupt === 'resize') await page.setViewportSize({ width: 1200, height: 900 });
+      if (interrupt === 'pan') {
+        await page.keyboard.down('KeyD');
+        await page.waitForTimeout(120);
+        await page.keyboard.up('KeyD');
+      }
+      await page.waitForTimeout(100);
+      await page.mouse.move(900, 300);
+      await page.mouse.up();
+      await page.locator('#launch').click();
+      await expect(page.locator('#result')).toContainText('탐사 성공');
+      await page.locator('#result-exit').click();
+      const saved = await page.evaluate(() =>
+        JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!),
+      );
+      expect(saved.referencePlans[0].launch.x).toBeCloseTo(expected.x, 5);
+      expect(saved.referencePlans[0].launch.y).toBeCloseTo(expected.y, 5);
+    },
+  );
+
+test('발사 기회를 모두 사용해도 게시판 없이 해당 스테이지를 새로 시작한다', async ({ page }) => {
+  await openGame(page);
+  for (let i = 0; i < stages[0].rules.attempts; i++) {
+    await page.locator('#launch').click();
+    await page.locator('#abort').click();
+    await expect(page.locator('#result')).toBeVisible();
+    if (i < stages[0].rules.attempts - 1) await page.locator('#result-retry').click();
+  }
+  await expect(page.locator('#result-exit')).toHaveCount(0);
+  await page.locator('#result-restart').click();
+  await expect(page.locator('#world')).toBeVisible();
+  await expect(page.locator('.mission-panel h2')).toHaveText(stages[0].title);
+  await expect(page.locator('#inventory')).toContainText('발사 ' + stages[0].rules.attempts);
+  await expect(page.locator('#note-count')).toHaveText('1');
+  await expect(page.locator('#launch')).toBeEnabled();
 });

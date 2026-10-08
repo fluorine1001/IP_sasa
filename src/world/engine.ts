@@ -1,3 +1,4 @@
+import { surfaceLaunch, PAD_CLEARANCE } from './launch.ts';
 import { dynamicView, advanceBodies } from './dynamics.ts';
 import { poweredStep, separate, controlEngine, rocketMass, drag } from './rocket.ts';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
@@ -7,6 +8,7 @@ import { freshProgress, updateGoals } from './goals.ts';
 import type { Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
 export const WORLD_STEP = 0.01;
 export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
+  const start = surfaceLaunch(stage) ?? stage.spawn;
   const error =
     ![plan.launch.x, plan.launch.y].every(Number.isFinite) ||
     length(plan.launch) > stage.rules.launchLimit + 1e-8
@@ -21,8 +23,8 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
         : '';
   return {
     time: 0,
-    position: { ...stage.spawn.position },
-    velocity: stage.rocket ? { ...stage.spawn.velocity } : add(stage.spawn.velocity, plan.launch),
+    position: { ...start.position },
+    velocity: stage.rocket ? { ...start.velocity } : add(start.velocity, plan.launch),
     used: 0,
     status: error ? 'failed' : 'running',
     reason: error,
@@ -191,8 +193,8 @@ export function tick(
     run.time += Math.min(dt, 0.05);
     const after = bodyPosition(stage, body, run.time),
       r = length(sub(run.position, after));
-    if (r < body.radius + 0.005) {
-      run.position = add(after, scale(normal, body.radius + 0.005));
+    if (r < body.radius + PAD_CLEARANCE) {
+      run.position = add(after, scale(normal, body.radius + PAD_CLEARANCE));
       run.velocity = add(bodyVelocity(stage, body, run.time), scale(normal, 0.035));
     }
     run.impact!.age += dt;
@@ -264,8 +266,8 @@ export function tick(
     if (run.landed) {
       const body = stage.bodies.find((b) => b.id === run.landed!.bodyId)!;
       run.position = add(bodyPosition(stage, body, run.time + slice), {
-        x: Math.cos(run.landed.angle) * (body.radius + 0.005),
-        y: Math.sin(run.landed.angle) * (body.radius + 0.005),
+        x: Math.cos(run.landed.angle) * (body.radius + PAD_CLEARANCE),
+        y: Math.sin(run.landed.angle) * (body.radius + PAD_CLEARANCE),
       });
       run.velocity = bodyVelocity(stage, body, run.time + slice);
     } else
@@ -337,8 +339,8 @@ export function tick(
       if (actor.status === 'landed') {
         const body = stage.bodies.find((b) => b.id === actor.bodyId)!;
         actor.position = add(bodyPosition(stage, body, run.time), {
-          x: Math.cos(actor.angle!) * (body.radius + 0.005),
-          y: Math.sin(actor.angle!) * (body.radius + 0.005),
+          x: Math.cos(actor.angle!) * (body.radius + PAD_CLEARANCE),
+          y: Math.sin(actor.angle!) * (body.radius + PAD_CLEARANCE),
         });
         actor.velocity = bodyVelocity(stage, body, run.time);
         continue;
@@ -394,17 +396,16 @@ export function tick(
         break;
       }
     if (run.rocket && !run.rocket.airborne) {
-      const launch = stage.bodies.find((b) => b.id === stage.launchBodyId)!;
-      const center = bodyPosition(stage, launch, run.time),
-        altitude = length(sub(run.position, center)) - launch.radius;
-      if (altitude > 0.009) run.rocket.airborne = true;
-      else if (collisionBodyId === launch.id) {
-        collisionBodyId = undefined;
-        run.position = add(center, {
-          x: Math.cos(stage.launchAngle ?? 0) * (launch.radius + 0.005),
-          y: Math.sin(stage.launchAngle ?? 0) * (launch.radius + 0.005),
-        });
-        run.velocity = bodyVelocity(stage, launch, run.time);
+      const pad = surfaceLaunch(stage, run.time);
+      if (pad) {
+        const altitude =
+          length(sub(run.position, bodyPosition(stage, pad.body, run.time))) - pad.body.radius;
+        if (altitude > PAD_CLEARANCE + 1e-6) run.rocket.airborne = true;
+        else if (!collisionBodyId || collisionBodyId === pad.body.id) {
+          collisionBodyId = undefined;
+          run.position = pad.position;
+          run.velocity = pad.velocity;
+        }
       }
     }
     if (collisionBodyId) {
@@ -436,8 +437,8 @@ export function tick(
           angle: Math.atan2(run.position.y - center.y, run.position.x - center.x),
         };
         run.position = add(center, {
-          x: Math.cos(run.landed.angle) * (body.radius + 0.005),
-          y: Math.sin(run.landed.angle) * (body.radius + 0.005),
+          x: Math.cos(run.landed.angle) * (body.radius + PAD_CLEARANCE),
+          y: Math.sin(run.landed.angle) * (body.radius + PAD_CLEARANCE),
         });
         run.velocity = bodyVelocity(stage, body, run.time);
         if (run.rocket) run.rocket.throttle = 0;
@@ -468,7 +469,7 @@ export function tick(
           1 / Math.max(length(sub(run.position, center)), 1e-9),
         ),
         relative = sub(run.velocity, bodyVelocity(stage, body, run.time));
-      run.position = add(center, scale(normal, body.radius + 0.005));
+      run.position = add(center, scale(normal, body.radius + PAD_CLEARANCE));
       run.velocity = add(
         bodyVelocity(stage, body, run.time),
         scale(sub(relative, scale(normal, 1.2 * Math.min(0, dot(relative, normal)))), 0.55),

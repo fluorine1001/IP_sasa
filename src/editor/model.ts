@@ -10,6 +10,7 @@ export class EditorModel {
   private future: { stage: Stage; selection: string[] }[] = [];
   constructor(stage: Stage) {
     this.stage = structuredClone(stage);
+    syncLaunch(this.stage);
   }
   checkpoint() {
     this.past.push({ stage: structuredClone(this.stage), selection: [...this.selection] });

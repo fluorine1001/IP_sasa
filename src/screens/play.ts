@@ -1,3 +1,5 @@
+import { syncLaunch } from '../world/launch.ts';
+import { aimVector, aimEndpoint } from '../render/aim.ts';
 import { dynamicView } from '../world/dynamics.ts';
 import { controlEngine, separate, atmosphericState } from '../world/rocket.ts';
 import { controls, escape, type App, type PlayArgs, type Screen } from '../app/core.ts';
@@ -15,6 +17,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     signal = abort.signal,
     camera = { ...stage.camera },
     keys = new Set<string>();
+  syncLaunch(stage);
   let plan: RoutePlan = structuredClone(
       args.plan ?? {
         launch: {
@@ -40,7 +43,16 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     speed = stage.rocket ? 1 : 4,
     attempts = stage.rules.attempts,
     selected = '',
-    drag: undefined | { kind: 'pan' | 'launch' | 'burn'; point: Vec; x: number; y: number },
+    drag:
+      | undefined
+      | {
+          kind: 'pan' | 'launch' | 'burn';
+          point: Vec;
+          x: number;
+          y: number;
+          initial?: Vec;
+          view?: { x: number; y: number; zoom: number; width: number; height: number };
+        },
     ended = false,
     notebook = false,
     hudClock = 0,
@@ -175,6 +187,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
         : `${plan.impulses.length}개 수정 추진 예약 · ${history.length ? '지난 비행의 실제 궤적' : '미래 궤도는 표시되지 않습니다'}`;
   }
   function reset() {
+    cancelDrag();
     stash();
     run = undefined;
     paused = false;
@@ -197,6 +210,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
   }
   function start(probe = false) {
     if (run || (!probe && attempts <= 0)) return;
+    cancelDrag();
     if (!probe) attempts--;
     run = createRun(stage, plan, probe);
     paused = false;
@@ -265,9 +279,10 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     }
     el('result').hidden = false;
     el('result').innerHTML =
-      `<div class="badge">${run.probe ? '실제 비행 보고' : run.status === 'won' ? '탐사 성공!' : '다시 설계할 시간'}</div><h2>${run.status === 'won' ? '네가 그린 길로 도착했어!' : run.probe ? '새로운 기록을 얻었어' : '한 번 더 생각해보자'}</h2><p>${escape(run.reason)}</p><button id="result-retry" class="primary">기록을 보고 경로 고치기</button><button id="result-exit">${args.onReturn ? '제작 화면으로' : '임무 게시판으로'}</button>`;
+      `<div class="badge">${run.probe ? '실제 비행 보고' : run.status === 'won' ? '탐사 성공!' : '다시 설계할 시간'}</div><h2>${run.status === 'won' ? '네가 그린 길로 도착했어!' : run.probe ? '새로운 기록을 얻었어' : '한 번 더 생각해보자'}</h2><p>${escape(run.reason)}</p><button id="result-retry" class="primary">기록을 보고 경로 고치기</button>${attempts <= 0 ? '<button id="result-restart">이 스테이지 새로 시작</button>' : ''}${args.onReturn ? '<button id="result-exit">제작 화면으로</button>' : ''}`;
     el('result-retry').onclick = reset;
-    el('result-exit').onclick = exit;
+    if (args.onReturn) el('result-exit').onclick = exit;
+    if (attempts <= 0) el('result-restart').onclick = () => app.go('play', args);
     updateHud();
   }
   controls(
@@ -330,6 +345,21 @@ export function playScreen(app: App, args: PlayArgs): Screen {
       const r = canvas.getBoundingClientRect();
       return toWorld(coords(e), camera, r.width, r.height);
     };
+  const view = () => {
+    const r = canvas.getBoundingClientRect();
+    return { x: camera.x, y: camera.y, zoom: camera.zoom, width: r.width, height: r.height };
+  };
+  function cancelDrag() {
+    drag = undefined;
+    for (const id of activePointers)
+      if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+    activePointers.clear();
+  }
+  const activePointers = new Set<number>();
+  const sizeObserver = new ResizeObserver(() => {
+    if (drag) cancelDrag();
+  });
+  sizeObserver.observe(canvas);
   const pointAt = (time: number) =>
     history.reduce(
       (a, b) => (Math.abs(b.time - time) < Math.abs(a.time - time) ? b : a),
@@ -371,17 +401,42 @@ export function playScreen(app: App, args: PlayArgs): Screen {
       } else if (e.button === 0 && !run) {
         const hit = plan.impulses.find((b) => {
           const n = pointAt(b.time);
-          return n && length(sub(p, n.position)) * camera.zoom < 22;
+          return (
+            n &&
+            Math.min(
+              length(sub(p, n.position)),
+              length(sub(p, aimEndpoint(n.position, b.vector))),
+            ) *
+              camera.zoom <
+              22
+          );
         });
         if (hit) {
           selected = hit.id;
-          drag = { kind: 'burn', point: pointAt(hit.time).position, x: 0, y: 0 };
+          drag = { kind: 'burn', point: p, initial: { ...hit.vector }, x: 0, y: 0, view: view() };
         } else {
+          const handle = aimEndpoint(stage.spawn.position, plan.launch),
+            atHandle = length(sub(p, handle)) * camera.zoom < 20;
+          const rocketReach = (stage.rocket ? 28 + stage.rocket.parts.length * 9 : 37) + 20;
+          if (!atHandle && length(sub(p, stage.spawn.position)) * camera.zoom > rocketReach) {
+            toast('로켓이나 주황색 조준 손잡이에서 끌어 발사를 정하세요.');
+            return;
+          }
           selected = '';
-          drag = { kind: 'launch', point: stage.spawn.position, x: 0, y: 0 };
+          drag = {
+            kind: 'launch',
+            point: p,
+            initial: atHandle ? { ...plan.launch } : { x: 0, y: 0 },
+            x: 0,
+            y: 0,
+            view: view(),
+          };
         }
       }
-      if (drag) canvas.setPointerCapture(e.pointerId);
+      if (drag) {
+        activePointers.add(e.pointerId);
+        canvas.setPointerCapture(e.pointerId);
+      }
     },
     { signal },
   );
@@ -389,13 +444,24 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     'pointermove',
     (e) => {
       if (!drag) return;
+      if (drag.view) {
+        const current = view();
+        if (
+          Object.keys(current).some(
+            (key) =>
+              current[key as keyof typeof current] !== drag!.view![key as keyof typeof current],
+          )
+        ) {
+          cancelDrag();
+          return;
+        }
+      }
       if (drag.kind === 'pan') {
         const p = coords(e);
         camera.x = drag.x - (p.x - drag.point.x) / camera.zoom;
         camera.y = drag.y + (p.y - drag.point.y) / camera.zoom;
       } else {
-        const v = scale(sub(world(e), drag.point), 1 / 2.5),
-          limit =
+        const limit =
             drag.kind === 'launch'
               ? stage.rules.launchLimit
               : Math.max(
@@ -405,7 +471,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
                       .filter((b) => b.id !== selected)
                       .reduce((a, b) => a + length(b.vector), 0),
                 ),
-          bounded = length(v) > limit ? scale(unit(v), limit) : v;
+          bounded = aimVector(world(e), drag.point, drag.initial ?? { x: 0, y: 0 }, limit);
         if (drag.kind === 'launch') plan.launch = bounded;
         else {
           const b = plan.impulses.find((b) => b.id === selected);
@@ -420,17 +486,19 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     'pointerup',
     (e) => {
       drag = undefined;
+      activePointers.delete(e.pointerId);
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     },
     { signal },
   );
-  canvas.addEventListener('pointercancel', () => (drag = undefined), { signal });
+  canvas.addEventListener('pointercancel', cancelDrag, { signal });
   canvas.addEventListener(
     'wheel',
     (e) => {
       e.preventDefault();
       const r = canvas.getBoundingClientRect();
       following = false;
+      cancelDrag();
       zoomAt(camera, coords(e), r.width, r.height, Math.exp(-e.deltaY * 0.001));
     },
     { signal, passive: false },
@@ -477,7 +545,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
   window.addEventListener('keyup', (e) => keys.delete(e.code), { signal });
   const blur = () => {
     keys.clear();
-    drag = undefined;
+    cancelDrag();
     if (run?.status === 'running') paused = true;
     updateHud();
   };
@@ -507,7 +575,10 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     frame(dt) {
       hudClock += dt;
       jetTime = Math.max(0, jetTime - dt);
-      if (['KeyA', 'KeyD', 'KeyW', 'KeyS'].some((k) => keys.has(k))) following = false;
+      if (['KeyA', 'KeyD', 'KeyW', 'KeyS'].some((k) => keys.has(k))) {
+        following = false;
+        if (drag) cancelDrag();
+      }
       if (keys.has('KeyA')) camera.x -= (dt * 260) / camera.zoom;
       if (keys.has('KeyD')) camera.x += (dt * 260) / camera.zoom;
       if (keys.has('KeyW')) camera.y += (dt * 260) / camera.zoom;
@@ -575,6 +646,8 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     },
     dispose: () => {
       abort.abort();
+      sizeObserver.disconnect();
+      cancelDrag();
       keys.clear();
     },
   };

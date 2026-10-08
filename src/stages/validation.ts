@@ -1,5 +1,5 @@
+import { surfaceLaunch } from '../world/launch.ts';
 import { conditionIssues } from '../world/conditions.ts';
-import { bodyPosition, bodyVelocity } from '../world/celestial.ts';
 import { length, sub } from '../physics/vector.ts';
 import { type Stage } from '../world/types.ts';
 export function issues(stage: Stage): string[] {
@@ -211,10 +211,8 @@ export function issues(stage: Stage): string[] {
   if (!launch || !['planet', 'moon'].includes(launch.kind) || !Number.isFinite(stage.launchAngle))
     out.push('출발 천체와 표면 발사 위치를 지정하세요.');
   else if (
-    Math.abs(
-      length(sub(stage.spawn.position, bodyPosition(stage, launch, 0))) - (launch.radius + 0.005),
-    ) > 0.00001 ||
-    length(sub(stage.spawn.velocity, bodyVelocity(stage, launch, 0))) > 0.00001
+    length(sub(stage.spawn.position, surfaceLaunch(stage)!.position)) > 0.00001 ||
+    length(sub(stage.spawn.velocity, surfaceLaunch(stage)!.velocity)) > 0.00001
   )
     out.push('출발점은 선택한 천체의 표면 발사대여야 합니다.');
   if (

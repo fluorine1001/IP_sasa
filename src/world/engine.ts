@@ -1,4 +1,5 @@
-import { surfaceLaunch, PAD_CLEARANCE } from './launch.ts';
+import { beginImpact, advanceImpact } from './impact';
+import { surfaceLaunch, surfaceClearance } from './launch.ts';
 import { dynamicView, advanceBodies } from './dynamics.ts';
 import { poweredStep, separate, controlEngine, rocketMass, drag } from './rocket.ts';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
@@ -164,44 +165,7 @@ export function tick(
 ): void {
   let stage = dynamicView(source, run);
   if (run.status === 'impact') {
-    const body = stage.bodies.find((b) => b.id === run.impact!.bodyId)!;
-    if (body.kind === 'black-hole') {
-      run.time += dt;
-      run.position = add(
-        bodyPosition(stage, body, run.time),
-        scale(sub(run.position, bodyPosition(stage, body, run.time)), Math.exp(-dt * 2)),
-      );
-      run.impact!.age += dt;
-      if (run.impact!.age >= run.impact!.duration) {
-        run.status = 'failed';
-        run.reason = '블랙홀의 경계를 넘어 탐사체를 잃었습니다.';
-      }
-      return;
-    }
-    const center = bodyPosition(stage, body, run.time),
-      normal = scale(
-        sub(run.position, center),
-        1 / Math.max(length(sub(run.position, center)), 1e-9),
-      );
-    [run.position, run.velocity] = integrate(
-      stage,
-      run.position,
-      run.velocity,
-      run.time,
-      Math.min(dt, 0.05),
-    );
-    run.time += Math.min(dt, 0.05);
-    const after = bodyPosition(stage, body, run.time),
-      r = length(sub(run.position, after));
-    if (r < body.radius + PAD_CLEARANCE) {
-      run.position = add(after, scale(normal, body.radius + PAD_CLEARANCE));
-      run.velocity = add(bodyVelocity(stage, body, run.time), scale(normal, 0.035));
-    }
-    run.impact!.age += dt;
-    if (run.impact!.age >= run.impact!.duration) {
-      run.status = 'failed';
-      run.reason = run.impact!.reason;
-    }
+    advanceImpact(run, stage, dt);
     return;
   }
   if (run.status !== 'running') return;
@@ -266,8 +230,8 @@ export function tick(
     if (run.landed) {
       const body = stage.bodies.find((b) => b.id === run.landed!.bodyId)!;
       run.position = add(bodyPosition(stage, body, run.time + slice), {
-        x: Math.cos(run.landed.angle) * (body.radius + PAD_CLEARANCE),
-        y: Math.sin(run.landed.angle) * (body.radius + PAD_CLEARANCE),
+        x: Math.cos(run.landed.angle) * (body.radius + surfaceClearance(stage)),
+        y: Math.sin(run.landed.angle) * (body.radius + surfaceClearance(stage)),
       });
       run.velocity = bodyVelocity(stage, body, run.time + slice);
     } else
@@ -339,8 +303,8 @@ export function tick(
       if (actor.status === 'landed') {
         const body = stage.bodies.find((b) => b.id === actor.bodyId)!;
         actor.position = add(bodyPosition(stage, body, run.time), {
-          x: Math.cos(actor.angle!) * (body.radius + PAD_CLEARANCE),
-          y: Math.sin(actor.angle!) * (body.radius + PAD_CLEARANCE),
+          x: Math.cos(actor.angle!) * (body.radius + surfaceClearance(stage)),
+          y: Math.sin(actor.angle!) * (body.radius + surfaceClearance(stage)),
         });
         actor.velocity = bodyVelocity(stage, body, run.time);
         continue;
@@ -400,7 +364,7 @@ export function tick(
       if (pad) {
         const altitude =
           length(sub(run.position, bodyPosition(stage, pad.body, run.time))) - pad.body.radius;
-        if (altitude > PAD_CLEARANCE + 1e-6) run.rocket.airborne = true;
+        if (altitude > surfaceClearance(stage) + 1e-6) run.rocket.airborne = true;
         else if (!collisionBodyId || collisionBodyId === pad.body.id) {
           collisionBodyId = undefined;
           run.position = pad.position;
@@ -437,8 +401,8 @@ export function tick(
           angle: Math.atan2(run.position.y - center.y, run.position.x - center.x),
         };
         run.position = add(center, {
-          x: Math.cos(run.landed.angle) * (body.radius + PAD_CLEARANCE),
-          y: Math.sin(run.landed.angle) * (body.radius + PAD_CLEARANCE),
+          x: Math.cos(run.landed.angle) * (body.radius + surfaceClearance(stage)),
+          y: Math.sin(run.landed.angle) * (body.radius + surfaceClearance(stage)),
         });
         run.velocity = bodyVelocity(stage, body, run.time);
         if (run.rocket) run.rocket.throttle = 0;
@@ -469,7 +433,8 @@ export function tick(
           1 / Math.max(length(sub(run.position, center)), 1e-9),
         ),
         relative = sub(run.velocity, bodyVelocity(stage, body, run.time));
-      run.position = add(center, scale(normal, body.radius + PAD_CLEARANCE));
+      const incomingDirection = { ...(run.rocket?.direction ?? relative) };
+      run.position = add(center, scale(normal, body.radius + surfaceClearance(stage)));
       run.velocity = add(
         bodyVelocity(stage, body, run.time),
         scale(sub(relative, scale(normal, 1.2 * Math.min(0, dot(relative, normal)))), 0.55),
@@ -478,7 +443,7 @@ export function tick(
       run.reason = ['planet', 'moon'].includes(body.kind)
         ? '착륙 속도가 너무 컸습니다. 가까워질 때 반대 방향으로 추진해보세요.'
         : '천체와 충돌했습니다. 가까워질 때의 속력과 접근 방향을 확인해보세요.';
-      run.impact = { bodyId: body.id, age: 0, duration: 1.3, reason: run.reason };
+      run.impact = beginImpact(run, stage, body, incomingDirection);
     } else if (hazard) {
       run.status = 'failed';
       run.reason = '위험 구역에 진입했습니다. 다른 접근 방향을 찾아보세요.';

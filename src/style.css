@@ -820,3 +820,17 @@ meter::-webkit-meter-optimum-value {
   margin: 5px 0;
   color: #bbd0c7;
 }
+
+.editor-audit #randomization {
+  flex: 1.3;
+  min-width: 230px;
+  padding: 10px;
+  border-color: #e1bd6f80;
+}
+#pad-reading {
+  font-size: 12px;
+  color: #b4cfbf;
+}
+#pad-reading meter {
+  height: 10px;
+}

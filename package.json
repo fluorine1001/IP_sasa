@@ -17,7 +17,8 @@
     "format": "prettier --write src tests data docs scripts .github *.json *.html *.md *.ts",
     "format:check": "prettier --check src tests data docs scripts .github *.json *.html *.md *.ts",
     "verify": "npm run check && npm test && npm run audit:stages && npm run build && npm run format:check",
-    "audit:stages": "node scripts/audit-stages.mjs"
+    "audit:stages": "node scripts/audit-stages.mjs",
+    "generate:variations": "node scripts/generate-variations.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

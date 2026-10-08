@@ -6,7 +6,11 @@ import { syncLaunch, PAD_CLEARANCE } from '../src/world/launch';
 import { length, sub } from '../src/physics/vector';
 import { parseStage } from '../src/stages/validation';
 import { auditStage } from '../src/editor/audit';
-const first = () => structuredClone(stages[0]);
+const first = () => {
+  const s = structuredClone(stages[0]);
+  delete s.randomization;
+  return s;
+};
 describe('실제 비행의 물리 제약', () => {
   it('모든 출발은 선택한 천체 표면이며 이동 천체의 속도를 이어받는다', () => {
     for (const stage of stages) {
@@ -92,6 +96,7 @@ describe('스테이지 소스와 제작 검증', () => {
   it('원하는 출발 천체와 표면 위상을 변경할 수 있다', () => {
     const stage = structuredClone(stages[1]),
       moon = stage.bodies[1];
+    delete stage.randomization;
     stage.launchBodyId = moon.id;
     stage.launchAngle = 1.2;
     syncLaunch(stage);

@@ -1,3 +1,4 @@
+import { instantiateVariation, selectVariation } from '../world/variation';
 import { syncLaunch } from '../world/launch.ts';
 import { aimVector, aimEndpoint } from '../render/aim.ts';
 import { dynamicView } from '../world/dynamics.ts';
@@ -12,28 +13,37 @@ import { toWorld, zoomAt } from '../render/camera.ts';
 import type { Run, RoutePlan, Observation, DeviceKind } from '../world/types.ts';
 import { uid } from '../stages/factory.ts';
 export function playScreen(app: App, args: PlayArgs): Screen {
-  const stage = structuredClone(args.stage),
-    abort = new AbortController(),
+  const source = structuredClone(args.stage),
+    usedVariants = new Set<number>();
+  let stage = structuredClone(source);
+  const chooseVariant = () => {
+    const spec = selectVariation(source, usedVariants);
+    if (spec) stage = instantiateVariation(source, spec);
+    return !!spec;
+  };
+  const randomized = chooseVariant();
+  const abort = new AbortController(),
     signal = abort.signal,
     camera = { ...stage.camera },
     keys = new Set<string>();
   syncLaunch(stage);
-  let plan: RoutePlan = structuredClone(
-      args.plan ?? {
-        launch: {
-          x:
-            Math.cos((stage.launchAngle ?? 0) + (stage.rocket ? 0 : Math.PI / 2)) *
-            stage.rules.launchLimit *
-            (stage.rocket ? 1 : 0.75),
-          y:
-            Math.sin((stage.launchAngle ?? 0) + (stage.rocket ? 0 : Math.PI / 2)) *
-            stage.rules.launchLimit *
-            (stage.rocket ? 1 : 0.75),
-        },
-        impulses: [],
-        deployments: [],
+  function defaultPlan(): RoutePlan {
+    return {
+      launch: {
+        x:
+          Math.cos((stage.launchAngle ?? 0) + (stage.rocket ? 0 : Math.PI / 2)) *
+          stage.rules.launchLimit *
+          (stage.rocket ? 1 : 0.75),
+        y:
+          Math.sin((stage.launchAngle ?? 0) + (stage.rocket ? 0 : Math.PI / 2)) *
+          stage.rules.launchLimit *
+          (stage.rocket ? 1 : 0.75),
       },
-    ),
+      impulses: [],
+      deployments: [],
+    };
+  }
+  let plan: RoutePlan = structuredClone(randomized ? defaultPlan() : (args.plan ?? defaultPlan())),
     run: Run | undefined,
     history: Run['trail'] = [],
     notes: Observation[] = [],
@@ -58,7 +68,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     hudClock = 0,
     lastThrust: Vec | undefined,
     jetTime = 0;
-  app.root.innerHTML = `<canvas id="world" class="space" tabindex="0" aria-label="궤도 비행 지도"></canvas><header class="mission-panel panel"><div class="badge">${args.onReturn ? '제작 중 시험' : '탐사 임무'}</div><h2>${escape(stage.title)}</h2><p>${escape(stage.description)}</p><div id="goals"></div></header><aside class="resources panel"><div id="mode"></div><label><span id="fuel-label">수정 추진</span><meter id="fuel" min="0" max="${stage.rules.maneuverBudget}" value="${stage.rules.maneuverBudget}"></meter></label><div id="inventory"></div><div class="resource-actions"><button id="pause">시간 정지</button><button id="rate">${stage.rocket ? '1×' : '4×'}</button><button id="follow">로켓 따라가기</button></div></aside><div id="toast" class="toast"></div><footer class="flight-deck panel"><div class="hotbar"><button id="aim" class="active">↗ 첫 추진</button><button id="gravity-buoy">2 · 중력 부표</button><button id="speed-buoy">3 · 속력 부표</button><button id="brake">B · 제동</button>${stage.rocket ? '<button id="engine">E · 엔진 켜기/끄기</button><button id="separate">J · 단 분리</button><button id="vehicle">Tab · 비행체 선택</button>' : ''}<button id="notes">관측 노트 <span id="note-count">0</span></button><button id="abort">■ 비행 종료</button><button id="retry">↶ 계획으로</button><button id="exit">임무 나가기</button></div><div class="launch-row"><span id="hint"></span><button id="launch" class="primary">발사 ▶</button></div></footer><section id="notebook" class="overlay panel" hidden></section><section id="result" class="result panel" hidden></section><div class="camera-hint">WASD: 시야 이동 · 휠: 확대 · 방향키: 실제 추진</div>`;
+  app.root.innerHTML = `<canvas id="world" class="space" tabindex="0" aria-label="궤도 비행 지도"></canvas><header class="mission-panel panel"><div class="badge">${args.onReturn ? '제작 중 시험' : '탐사 임무'}</div><h2>${escape(stage.title)}</h2><p>${escape(stage.description)}</p><div id="goals"></div></header><aside class="resources panel"><div id="mode"></div><label><span id="fuel-label">수정 추진</span><meter id="fuel" min="0" max="${stage.rules.maneuverBudget}" value="${stage.rules.maneuverBudget}"></meter></label><div id="inventory"></div><label id="pad-reading"><span>발사대 중력계 · 현재 환경</span><meter id="pad-gravity" min="0" max="1" aria-label="현재 발사대의 끌림, 길수록 강함"></meter></label><div class="resource-actions"><button id="pause">시간 정지</button><button id="rate">${stage.rocket ? '1×' : '4×'}</button><button id="follow">로켓 따라가기</button></div></aside><div id="toast" class="toast"></div><footer class="flight-deck panel"><div class="hotbar"><button id="aim" class="active">↗ 첫 추진</button><button id="gravity-buoy">2 · 중력 부표</button><button id="speed-buoy">3 · 속력 부표</button><button id="brake">B · 제동</button>${stage.rocket ? '<button id="engine">E · 엔진 켜기/끄기</button><button id="separate">J · 단 분리</button><button id="vehicle">Tab · 비행체 선택</button>' : ''}<button id="notes">관측 노트 <span id="note-count">0</span></button><button id="abort">■ 비행 종료</button><button id="retry">${randomized ? '↶ 다음 시도' : '↶ 계획으로'}</button><button id="exit">임무 나가기</button></div><div class="launch-row"><span id="hint"></span><button id="launch" class="primary">발사 ▶</button></div></footer><section id="notebook" class="overlay panel" hidden></section><section id="result" class="result panel" hidden></section><div class="camera-hint">WASD: 시야 이동 · 휠: 확대 · 방향키: 실제 추진</div>`;
   const canvas = app.root.querySelector<HTMLCanvasElement>('#world')!,
     el = (id: string) => app.root.querySelector<HTMLElement>(`#${id}`)!;
 
@@ -145,6 +155,10 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     if (run) args.onTelemetry?.(run, dynamicView(stage, run));
     el('fuel-label').textContent = stage.rocket ? '선택 엔진 연료' : '수정 추진';
     el('note-count').textContent = String(notes.length + (run?.observations.length ?? 0));
+    const g = length(gravity(stage, stage.spawn.position, 0));
+    (el('pad-gravity') as HTMLMeterElement).value = g / (g + 1);
+    el('pad-reading').hidden = !!run;
+    el('fuel').setAttribute('max', String(stage.rules.maneuverBudget));
     el('mode').textContent = run
       ? `${run.probe ? '시험' : '임무'} · ${run.time.toFixed(1)}s${paused ? ' · 정지' : ''}`
       : '경로 계획 중';
@@ -188,7 +202,18 @@ export function playScreen(app: App, args: PlayArgs): Screen {
   }
   function reset() {
     cancelDrag();
-    stash();
+    if (randomized) {
+      chooseVariant();
+      syncLaunch(stage);
+      plan = defaultPlan();
+      history = [];
+      notes = [];
+      selected = '';
+      seedObservation();
+      el('inventory').textContent = '';
+      el('goals').innerHTML = '';
+      el('notebook').hidden = true;
+    } else stash();
     run = undefined;
     paused = false;
     ended = false;
@@ -199,11 +224,16 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     notebook = false;
     drawNotes();
     Object.assign(camera, stage.camera);
+    el('toast').textContent = randomized
+      ? '새 환경으로 전환했습니다. 이전 관측과 발사 명령은 사용할 수 없습니다. 현재 발사대에서 다시 판단하세요.'
+      : el('toast').textContent;
     keys.clear();
     el('result').hidden = true;
     toast(
       attempts > 0
-        ? '관측을 바탕으로 경로를 고쳐보세요.'
+        ? randomized
+          ? '새 환경입니다. 현재 발사대의 관측을 바탕으로 판단하세요.'
+          : '관측을 바탕으로 경로를 고쳐보세요.'
         : '발사 기회를 사용했습니다. 임무를 새로 시작할 수 있습니다.',
     );
     updateHud();
@@ -279,7 +309,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     }
     el('result').hidden = false;
     el('result').innerHTML =
-      `<div class="badge">${run.probe ? '실제 비행 보고' : run.status === 'won' ? '탐사 성공!' : '다시 설계할 시간'}</div><h2>${run.status === 'won' ? '네가 그린 길로 도착했어!' : run.probe ? '새로운 기록을 얻었어' : '한 번 더 생각해보자'}</h2><p>${escape(run.reason)}</p><button id="result-retry" class="primary">기록을 보고 경로 고치기</button>${attempts <= 0 ? '<button id="result-restart">이 스테이지 새로 시작</button>' : ''}${args.onReturn ? '<button id="result-exit">제작 화면으로</button>' : ''}`;
+      `<div class="badge">${run.probe ? '실제 비행 보고' : run.status === 'won' ? '탐사 성공!' : '다시 설계할 시간'}</div><h2>${run.status === 'won' ? '네가 그린 길로 도착했어!' : run.probe ? '새로운 기록을 얻었어' : '한 번 더 생각해보자'}</h2><p>${escape(run.reason)}</p><button id="result-retry" class="primary">${randomized ? '새 환경에서 다시 도전' : '기록을 보고 경로 고치기'}</button>${attempts <= 0 ? '<button id="result-restart">이 스테이지 새로 시작</button>' : ''}${args.onReturn ? '<button id="result-exit">제작 화면으로</button>' : ''}`;
     el('result-retry').onclick = reset;
     if (args.onReturn) el('result-exit').onclick = exit;
     if (attempts <= 0) el('result-restart').onclick = () => app.go('play', args);
@@ -295,7 +325,14 @@ export function playScreen(app: App, args: PlayArgs): Screen {
         el('rate').textContent = `${speed}×`;
       },
       follow: () => (following = !following),
-      retry: reset,
+      retry: () => {
+        if (randomized && run && !ended) {
+          run.status = 'aborted';
+          run.reason = '현재 시도를 종료했습니다.';
+          finish();
+        } else if (!randomized || ended) reset();
+        else toast('시도는 발사 후에만 바뀝니다.');
+      },
       abort: () => {
         if (run && (run.status === 'running' || run.status === 'impact')) {
           run.status = 'aborted';
@@ -557,18 +594,25 @@ export function playScreen(app: App, args: PlayArgs): Screen {
     },
     { signal },
   );
-  toast('로켓에서 끌어 첫 추진을 정하세요. 지난 비행의 궤적에서 수정 추진을 예약합니다.');
-  const groundForce = gravity(stage, stage.spawn.position, 0);
-  notes.push({
-    id: uid(),
-    deviceId: 'launch-pad',
-    kind: 'gravity',
-    position: { ...stage.spawn.position },
-    time: 0,
-    value: length(groundForce),
-    vector: groundForce,
-    text: '발사대 중력 관측',
-  });
+  toast(
+    randomized
+      ? '매 시도마다 환경이 바뀝니다. 현재 발사대의 관측을 읽고 로켓에서 끌어 추진을 정하세요.'
+      : '로켓에서 끌어 첫 추진을 정하세요. 지난 비행의 궤적에서 수정 추진을 예약합니다.',
+  );
+  function seedObservation() {
+    const groundForce = gravity(stage, stage.spawn.position, 0);
+    notes.push({
+      id: uid(),
+      deviceId: 'launch-pad',
+      kind: 'gravity',
+      position: { ...stage.spawn.position },
+      time: 0,
+      value: length(groundForce),
+      vector: groundForce,
+      text: randomized ? '이번 환경의 발사대 중력 관측' : '발사대 중력 관측',
+    });
+  }
+  seedObservation();
   el('note-count').textContent = String(notes.length);
   updateHud();
   return {
@@ -618,8 +662,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
         }
         tick(run, stage, step);
         if (run.status !== 'running' && run.status !== 'impact') finish();
-      }
-      if (run?.status === 'impact' && !paused) {
+      } else if (run?.status === 'impact' && !paused) {
         tick(run, stage, dt);
         if (run.status !== 'impact') finish();
       }

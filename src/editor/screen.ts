@@ -1,3 +1,5 @@
+import type { RandomizationReport } from './randomization';
+import { variationIssues } from '../world/variation';
 import { createGoalMonitor } from './goal-monitor.ts';
 import { defaultRocket } from '../world/rocket.ts';
 import { binaryPair } from '../world/dynamics.ts';
@@ -42,6 +44,7 @@ export function editorScreen(app: App): Screen {
     revision = 0,
     timer: ReturnType<typeof setTimeout> | undefined,
     result: AuditResult | undefined,
+    randomization: RandomizationReport | undefined,
     drag:
       | undefined
       | {
@@ -53,7 +56,7 @@ export function editorScreen(app: App): Screen {
           vertex?: { id: string; index: number };
         },
     status = '개발용 제작 도구 · 클릭 배치 · Shift 다중 선택 · Ctrl+D 복제 · Ctrl+Z/Y 실행 취소';
-  app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="test-reference">기준 경로 재생</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
+  app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="test-reference">기준 경로 재생</button><button id="test-random">랜덤 재시도 시험</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
     ['select', '선택 / 이동'],
     ['planet', '행성'],
     ['moon', '달'],
@@ -104,13 +107,29 @@ export function editorScreen(app: App): Screen {
     el('audit').innerHTML =
       `<div><div class="badge">${r.done ? '검사 완료' : '임의 경로 검사 중'}</div><p><b>${r.checked}/${r.total}</b> 경로 · 임의 성공 ${r.randomWins} (${(rate * 100).toFixed(2)}%) · 기준 성공 ${r.referenceWins}/${model.stage.referencePlans.length}</p><progress max="${r.total}" value="${r.checked}"></progress><p class="muted">표본 성공률은 정답 공간 전체의 크기가 아닙니다. 단순 전략과 무작위 발사·수정 추진·엔진 방향·스로틀·분리 시점을 시험합니다.</p></div><div>${[...r.errors, ...r.warnings].map((w) => `<p class="bad">△ ${escape(w)}</p>`).join('') || '<p class="good">현재 표본에서 단순 우연 성공 징후를 찾지 못했습니다. 직접 플레이로 재미와 의도를 확인하세요.</p>'}</div><div><b>발견된 성공 경로</b>${r.counterexamples.map((x, i) => `<p><button data-replay="${i}">${escape(x.label)} 재생</button></p>`).join('') || '<p>임의 성공 경로 없음</p>'}</div>`;
   }
+  function showRandomization() {
+    let panel = app.root.querySelector<HTMLElement>('#randomization');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'randomization';
+      panel.className = 'panel';
+      el('audit').append(panel);
+    }
+    const r = randomization,
+      bank = model.stage.randomization;
+    panel.innerHTML = bank
+      ? `<b>재시도 자동 변형 · 검증 ${bank.variants.length}개</b><p>중력·거리·시간·추진·목표 단위를 연동합니다. 저장한 성공 명령의 변형 간 재사용 ${bank.reuseChecks}회 검사 · 우연 발사 ${bank.randomChecks}회 검사.</p><small>길이 ${Math.min(...bank.variants.map((v) => v.lengthScale)).toFixed(2)}–${Math.max(...bank.variants.map((v) => v.lengthScale)).toFixed(2)}배 · 시간 ${Math.min(...bank.variants.map((v) => v.timeScale)).toFixed(2)}–${Math.max(...bank.variants.map((v) => v.timeScale)).toFixed(2)}배. 유한 표본 검증이며 모든 풀이의 증명은 아닙니다.</small>`
+      : `<b>재시도 자동 변형 ${r?.done ? '보류' : '검사 중'}</b><p>${escape(r?.reason ?? '문제의 단위 관계와 성공 경로에서 안전한 변형 범위를 찾습니다.')}</p><small>${r?.accepted ?? 0}/${r?.needed ?? Math.max(6, model.stage.rules.attempts)}개 · 후보 ${r?.tried ?? 0}회</small>`;
+  }
   function scheduleAudit() {
     revision++;
     worker?.terminate();
     worker = undefined;
     clearTimeout(timer);
     result = undefined;
+    randomization = undefined;
     showAudit();
+    showRandomization();
     const current = revision;
     timer = setTimeout(() => {
       worker = new Worker(new URL('./audit.worker.ts', import.meta.url), { type: 'module' });
@@ -120,8 +139,15 @@ export function editorScreen(app: App): Screen {
           message(`검사 오류: ${e.data.error}`);
           return;
         }
-        result = e.data.result;
+        if (e.data.randomization) {
+          randomization = e.data.randomization;
+          if (randomization?.bank) {
+            model.stage.randomization = randomization.bank;
+            persist();
+          }
+        } else result = e.data.result;
         showAudit();
+        showRandomization();
       };
       worker.onerror = () => message('검사 작업자 오류. 콘솔을 확인하세요.');
       worker.postMessage({ revision: current, stage: structuredClone(model.stage) });
@@ -141,7 +167,7 @@ export function editorScreen(app: App): Screen {
     }
     persist();
     app.go('play', {
-      stage: structuredClone(model.stage),
+      stage: { ...structuredClone(model.stage), randomization: undefined },
       plan,
       onReturn: () => app.go('editor'),
       onTelemetry: createGoalMonitor(app.root),
@@ -157,14 +183,16 @@ export function editorScreen(app: App): Screen {
     try {
       if (
         publish &&
-        (!result?.done ||
+        (!model.stage.randomization ||
+          variationIssues(model.stage).length ||
+          !result?.done ||
           result.errors.length ||
           !result.referenceWins ||
           result.randomWins / result.total > model.stage.audit.maxPassRate ||
           result.simpleWins.length)
       ) {
         message(
-          '게임 추가 전 성공 기준 경로와 완료된 검사가 필요합니다. 단순 성공 경로·높은 임의 성공률을 조정하세요. 초안 저장은 가능합니다.',
+          '게임 추가 전 성공 기준 경로·완료된 검사·자동 재시도 변형이 필요합니다. 단순 성공 경로·높은 임의 성공률을 조정하세요. 초안 저장은 가능합니다.',
         );
         return;
       }
@@ -211,6 +239,17 @@ export function editorScreen(app: App): Screen {
       'export-stage': exportStage,
       'import-stage': () => el('import-file').click(),
       'test-stage': () => test(),
+      'test-random': () => {
+        if (!model.stage.randomization) {
+          message('자동 변형 검증이 완료되어야 시험할 수 있습니다.');
+          return;
+        }
+        app.go('play', {
+          stage: structuredClone(model.stage),
+          onReturn: () => app.go('editor'),
+          onTelemetry: createGoalMonitor(app.root),
+        });
+      },
       'test-reference': () => {
         if (model.stage.referencePlans[0]) test(model.stage.referencePlans[0]);
         else message('F5 시험에서 성공하면 기준 경로가 저장됩니다.');

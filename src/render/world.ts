@@ -1,3 +1,4 @@
+import { impactDirection } from '../world/impact';
 import { aimEndpoint } from './aim.ts';
 import { surfaceLaunch } from '../world/launch.ts';
 import { bodyPosition, objectPosition } from '../world/celestial.ts';
@@ -378,8 +379,9 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   }
   const ship = s.run?.position ?? s.stage.spawn.position,
     onPad = !s.run || (s.run.rocket && !s.run.rocket.airborne),
-    v =
-      onPad && surface
+    v = s.run?.impact
+      ? impactDirection(s.run.impact)
+      : onPad && surface
         ? surface.normal
         : (s.run?.rocket?.direction ??
           s.thrust ??

@@ -54,6 +54,7 @@ export type RoutePlan = {
 };
 export type Stage = {
   version: 2;
+  randomization?: import('./variation').VariationBank;
   published?: boolean;
   launchBodyId?: string;
   launchAngle?: number;
@@ -69,6 +70,7 @@ export type Stage = {
   goalMode: 'all' | 'any';
   spawn: { position: Vec; velocity: Vec };
   rules: {
+    surfaceClearance?: number;
     launchLimit: number;
     maneuverBudget: number;
     maxTime: number;
@@ -117,7 +119,7 @@ export type Run = {
   bodies?: Record<string, import('./dynamics.ts').BodyState>;
   landed?: { bodyId: string; angle: number };
   touchdownSpeed?: number;
-  impact?: { bodyId: string; age: number; duration: number; reason: string };
+  impact?: import('./impact').Impact;
   buoys: { id: string; kind: DeviceKind; position: Vec; velocity: Vec; lastSample: number }[];
 };
 export type GoalContext = {

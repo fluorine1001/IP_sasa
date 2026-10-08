@@ -1,3 +1,4 @@
+import { stageFingerprint } from '../world/variation';
 import type { Condition } from '../world/conditions.ts';
 import type { Stage, Body, WorldObject, Goal } from '../world/types.ts';
 import { syncLaunch } from '../world/launch.ts';
@@ -11,6 +12,8 @@ export class EditorModel {
   constructor(stage: Stage) {
     this.stage = structuredClone(stage);
     syncLaunch(this.stage);
+    if (this.stage.randomization?.fingerprint !== stageFingerprint(this.stage))
+      delete this.stage.randomization;
   }
   checkpoint() {
     this.past.push({ stage: structuredClone(this.stage), selection: [...this.selection] });
@@ -21,6 +24,8 @@ export class EditorModel {
     this.checkpoint();
     fn(this.stage);
     syncLaunch(this.stage);
+    if (this.stage.randomization?.fingerprint !== stageFingerprint(this.stage))
+      delete this.stage.randomization;
   }
   undo() {
     const previous = this.past.pop();

@@ -1,3 +1,4 @@
+import { instantiateVariation, variationIssues } from '../world/variation';
 import { surfaceLaunch } from '../world/launch.ts';
 import { conditionIssues } from '../world/conditions.ts';
 import { length, sub } from '../physics/vector.ts';
@@ -299,6 +300,27 @@ export function issues(stage: Stage): string[] {
           }
       }
     }
+  if (
+    stage.rules.surfaceClearance !== undefined &&
+    (!Number.isFinite(stage.rules.surfaceClearance) ||
+      stage.rules.surfaceClearance <= 0 ||
+      stage.rules.surfaceClearance > 0.05)
+  )
+    out.push('발사대 지면 여유를 확인하세요.');
+  const variantErrors = variationIssues(stage);
+  out.push(...variantErrors);
+  if (stage.randomization && !variantErrors.length) {
+    for (const spec of stage.randomization.variants) {
+      try {
+        const variant = instantiateVariation(stage, spec);
+        variant.referencePlans = [spec.proof];
+        const errors = issues(variant);
+        if (errors.length) out.push('재시도 변형 ' + spec.id + ': ' + errors[0]);
+      } catch (error) {
+        out.push('재시도 변형의 목표식: ' + String(error));
+      }
+    }
+  }
   return [...new Set(out)];
 }
 export function parseStage(value: unknown): Stage {

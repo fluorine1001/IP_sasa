@@ -43,7 +43,7 @@
       "points": [
         {
           "x": 3.1,
-          "y": 0.0
+          "y": 0
         },
         {
           "x": 3.0850726526838104,
@@ -602,5 +602,386 @@
       }
     ]
   },
-  "published": true
+  "published": true,
+  "randomization": {
+    "version": 1,
+    "fingerprint": "variation-v1:7a70d1d5",
+    "variants": [
+      {
+        "id": 0,
+        "lengthScale": 0.8037230531685055,
+        "timeScale": 0.893230084143579,
+        "rotation": 0.9408915958430456,
+        "gravity": {
+          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
+        },
+        "proof": {
+          "launch": {
+            "x": 0.5890677752571956,
+            "y": 0.8080836319054718
+          },
+          "impulses": [],
+          "engineCommands": [
+            {
+              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
+              "time": 2.2152106086760677,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
+              "time": 2.2152106086760677,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": 0.5890677752571956,
+                "y": 0.8080836319054718
+              }
+            },
+            {
+              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
+              "time": 4.305369005571999,
+              "actorId": "craft",
+              "throttle": 0
+            },
+            {
+              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
+              "time": 4.305369005571999,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
+              "time": 4.305369005571999,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": -0.5890677752571956,
+                "y": -0.8080836319054718
+              }
+            },
+            {
+              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
+              "time": 4.859171657741006,
+              "actorId": "craft",
+              "throttle": 0
+            }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "lengthScale": 0.8062937406823039,
+        "timeScale": 1.1574766543810255,
+        "rotation": 2.6402980205190336,
+        "gravity": {
+          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
+        },
+        "proof": {
+          "launch": {
+            "x": -0.876961146459613,
+            "y": 0.4805612839172974
+          },
+          "impulses": [],
+          "engineCommands": [
+            {
+              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
+              "time": 2.870542102864933,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
+              "time": 2.870542102864933,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": -0.876961146459613,
+                "y": 0.4805612839172974
+              }
+            },
+            {
+              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
+              "time": 5.579037474116475,
+              "actorId": "craft",
+              "throttle": 0
+            },
+            {
+              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
+              "time": 5.579037474116475,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
+              "time": 5.579037474116475,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": 0.876961146459613,
+                "y": -0.4805612839172974
+              }
+            },
+            {
+              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
+              "time": 6.296672999832696,
+              "actorId": "craft",
+              "throttle": 0
+            }
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "lengthScale": 0.870606521749869,
+        "timeScale": 0.8657829780015163,
+        "rotation": 4.5492016579948364,
+        "gravity": {
+          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 0.98691922982689
+        },
+        "proof": {
+          "launch": {
+            "x": -0.1624640036526169,
+            "y": -0.9867144711197675
+          },
+          "impulses": [],
+          "engineCommands": [
+            {
+              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
+              "time": 2.1471417854437527,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
+              "time": 2.1471417854437527,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": -0.1624640036526169,
+                "y": -0.9867144711197675
+              }
+            },
+            {
+              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
+              "time": 4.173073953967258,
+              "actorId": "craft",
+              "throttle": 0
+            },
+            {
+              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
+              "time": 4.173073953967258,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
+              "time": 4.173073953967258,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": 0.1624640036526169,
+                "y": 0.9867144711197675
+              }
+            },
+            {
+              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
+              "time": 4.709859400328186,
+              "actorId": "craft",
+              "throttle": 0
+            }
+          ]
+        }
+      },
+      {
+        "id": 15,
+        "lengthScale": 1.2202584489248693,
+        "timeScale": 0.9152497174683958,
+        "rotation": 1.6936802195279876,
+        "gravity": {
+          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
+        },
+        "proof": {
+          "launch": {
+            "x": -0.12257485911734937,
+            "y": 0.9924592706566663
+          },
+          "impulses": [],
+          "engineCommands": [
+            {
+              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
+              "time": 2.2698192993216133,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
+              "time": 2.2698192993216133,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": -0.12257485911734937,
+                "y": 0.9924592706566663
+              }
+            },
+            {
+              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
+              "time": 4.4115036381976145,
+              "actorId": "craft",
+              "throttle": 0
+            },
+            {
+              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
+              "time": 4.4115036381976145,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
+              "time": 4.4115036381976145,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": 0.12257485911734937,
+                "y": -0.9924592706566663
+              }
+            },
+            {
+              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
+              "time": 4.9789584630280075,
+              "actorId": "craft",
+              "throttle": 0
+            }
+          ]
+        }
+      },
+      {
+        "id": 33,
+        "lengthScale": 0.9982090953737497,
+        "timeScale": 1.0801887665176764,
+        "rotation": 3.516335935837397,
+        "gravity": {
+          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
+        },
+        "proof": {
+          "launch": {
+            "x": -0.9306016199096239,
+            "y": -0.36603363919397347
+          },
+          "impulses": [],
+          "engineCommands": [
+            {
+              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
+              "time": 2.6788681409638277,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
+              "time": 2.6788681409638277,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": -0.9306016199096239,
+                "y": -0.36603363919397347
+              }
+            },
+            {
+              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
+              "time": 5.206509854615137,
+              "actorId": "craft",
+              "throttle": 0
+            },
+            {
+              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
+              "time": 5.206509854615137,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
+              "time": 5.206509854615137,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": 0.9306016199096239,
+                "y": 0.36603363919397347
+              }
+            },
+            {
+              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
+              "time": 5.876226889856082,
+              "actorId": "craft",
+              "throttle": 0
+            }
+          ]
+        }
+      },
+      {
+        "id": 49,
+        "lengthScale": 1.177628664812073,
+        "timeScale": 0.8141807201202027,
+        "rotation": 5.408325820650369,
+        "gravity": {
+          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1.0004949017427862
+        },
+        "proof": {
+          "launch": {
+            "x": 0.6411047020365134,
+            "y": -0.7674534259658194
+          },
+          "impulses": [],
+          "engineCommands": [
+            {
+              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
+              "time": 2.0191681858980957,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
+              "time": 2.0191681858980957,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": 0.6411047020365134,
+                "y": -0.7674534259658194
+              }
+            },
+            {
+              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
+              "time": 3.9243510709793297,
+              "actorId": "craft",
+              "throttle": 0
+            },
+            {
+              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
+              "time": 3.9243510709793297,
+              "actorId": "craft",
+              "separate": true
+            },
+            {
+              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
+              "time": 3.9243510709793297,
+              "actorId": "craft",
+              "throttle": 1,
+              "direction": {
+                "x": -0.6411047020365134,
+                "y": 0.7674534259658194
+              }
+            },
+            {
+              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
+              "time": 4.429143117453845,
+              "actorId": "craft",
+              "throttle": 0
+            }
+          ]
+        }
+      }
+    ],
+    "tried": 50,
+    "reuseChecks": 115,
+    "randomChecks": 96
+  }
 }

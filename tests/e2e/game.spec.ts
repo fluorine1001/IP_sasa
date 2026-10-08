@@ -1,3 +1,4 @@
+import { instantiateVariation } from '../../src/world/variation';
 import { toScreen, zoomAt } from '../../src/render/camera';
 import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, unlinkSync } from 'node:fs';
@@ -14,6 +15,14 @@ async function editor(page: Page, order = 1) {
     await page.locator('#stage-source').selectOption(stages.find((s) => s.order === order).id);
 }
 async function openGame(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(crypto, 'getRandomValues', {
+      value: (array: Uint32Array) => {
+        array.fill(0);
+        return array;
+      },
+    });
+  });
   await page.goto('/');
   await page.getByRole('button', { name: '탐사 시작' }).click();
   await expect(page.locator('#world')).toBeVisible();
@@ -47,12 +56,19 @@ test('표면에서 발사·부표 방출·정지·수동 비행 종료·기록 �
   await openGame(page);
   const box = await page.locator('#world').boundingBox();
   expect(box!.width).toBe(1440);
-  const s = stages[0],
-    x = 720 + s.spawn.position.x * s.camera.zoom,
-    y = 500 - s.spawn.position.y * s.camera.zoom;
+  const source = stages[0],
+    spec = source.randomization.variants[0],
+    s = instantiateVariation(source, spec),
+    base = toScreen(s.spawn.position, s.camera, 1440, 1000),
+    x = base.x,
+    y = base.y;
   await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.mouse.move(x, y - 1.3 * 2.5 * s.camera.zoom, { steps: 4 });
+  await page.mouse.move(
+    x + spec.proof.launch.x * 2.5 * s.camera.zoom,
+    y - spec.proof.launch.y * 2.5 * s.camera.zoom,
+    { steps: 4 },
+  );
   await page.mouse.up();
   await page.locator('#launch').click();
   await expect(page.locator('#follow')).toHaveText('추적 중 · 시야 풀기');
@@ -67,10 +83,11 @@ test('표면에서 발사·부표 방출·정지·수동 비행 종료·기록 �
   await expect(page.locator('#result')).toContainText('직접 비행을 종료');
   await page.locator('#result-retry').click();
   await expect(page.locator('#inventory')).toContainText('발사 4');
-  await expect(page.locator('#hint')).toContainText('실제 궤적');
+  await expect(page.locator('#hint')).toContainText('미래 궤도');
+  await expect(page.locator('#toast')).toContainText('새 환경');
   await page.locator('#notes').click();
   await expect(page.locator('#notebook')).toContainText('발사대 중력 관측');
-  await expect(page.locator('#notebook article')).toHaveCount(2);
+  await expect(page.locator('#notebook article')).toHaveCount(1);
 });
 
 test('발사 후 추적 카메라를 자유 시점으로 바꾸고 되돌릴 수 있다', async ({ page }) => {
@@ -269,8 +286,8 @@ test('종료는 재도전 화면에 머무르며 다른 스테이지에는 비�
   await page.locator('#abort').click();
   await expect(page.locator('#result-exit')).toHaveCount(0);
   await page.locator('#result-retry').click();
-  await expect(page.locator('#hint')).toContainText('지난 비행');
-  await expect(page.locator('#note-count')).not.toHaveText('1');
+  await expect(page.locator('#hint')).toContainText('미래 궤도');
+  await expect(page.locator('#note-count')).toHaveText('1');
   await page.locator('#exit').click();
   await page.locator('[data-stage="' + stages[1].id + '"]').click();
   await expect(page.locator('.mission-panel h2')).toHaveText(stages[1].title);
@@ -293,6 +310,7 @@ for (const interrupt of ['wheel', 'resize', 'pan'] as const)
     async ({ page }) => {
       const draft = structuredClone(stages[0]);
       draft.referencePlans = [];
+      delete draft.randomization;
       draft.audit.samples = 16;
       draft.goals = [
         {
@@ -373,4 +391,64 @@ test('발사 기회를 모두 사용해도 게시판 없이 해당 스테이지�
   await expect(page.locator('#inventory')).toContainText('발사 ' + stages[0].rules.attempts);
   await expect(page.locator('#note-count')).toHaveText('1');
   await expect(page.locator('#launch')).toBeEnabled();
+});
+
+test('실제 랜덤 재시도가 물리 환경·부표·계획을 교체한다', async ({ page }) => {
+  await openGame(page);
+  const first = await page.locator('#pad-gravity').getAttribute('value');
+  await page.locator('#gravity-buoy').click();
+  await page.locator('#launch').click();
+  await page.locator('#speed-buoy').click();
+  await page.locator('#pause').click();
+  await page.locator('#abort').click();
+  await page.locator('#result-retry').click();
+  const second = await page.locator('#pad-gravity').getAttribute('value');
+  expect(second).not.toBe(first);
+  await expect(page.locator('#note-count')).toHaveText('1');
+  await expect(page.locator('#hint')).toContainText('0개 수정 추진');
+  await expect(page.locator('#inventory')).toContainText('부표 4');
+  // Preflight retries cannot consume the variant pool or bypass attempt limits.
+  await page.locator('#retry').click();
+  await expect(page.locator('#pad-gravity')).toHaveAttribute('value', second!);
+  await page.locator('#notes').click();
+  await expect(page.locator('#notebook article')).toHaveCount(1);
+  await page.locator('#close-notes').click();
+});
+
+test('충돌 화면에서 자세는 한 번의 감쇠 회전만 보이고 실패 화면으로 끝난다', async ({ page }) => {
+  const draft = structuredClone(stages[0]);
+  delete draft.randomization;
+  draft.referencePlans = [{ launch: { x: -0.6, y: 0 }, impulses: [] }];
+  draft.audit.samples = 16;
+  await page.addInitScript(
+    (s) => localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(s)),
+    draft,
+  );
+  await editor(page);
+  await page.locator('#test-reference').click();
+  await page.locator('#launch').click();
+  // The engine regression checks the angle; this exercises the actual animation lifecycle.
+  await expect(page.locator('#result')).toContainText('착륙 속도가 너무 컸습니다');
+  await expect(page.locator('#result-exit')).toBeVisible();
+});
+
+test('성공 경로에서 Worker가 재시도 변형을 자동 생성한다', async ({ page }) => {
+  test.setTimeout(60000);
+  const draft = structuredClone(stages[0]);
+  delete draft.randomization;
+  draft.audit.samples = 16;
+  await page.addInitScript(
+    (s) => localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(s)),
+    draft,
+  );
+  await editor(page);
+  await expect(page.locator('#randomization')).toContainText('검증 6개', { timeout: 45000 });
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!),
+  );
+  expect(saved.randomization.variants).toHaveLength(6);
+  expect(saved.randomization.randomChecks).toBeGreaterThanOrEqual(384);
+  await page.locator('#test-random').click();
+  await expect(page.locator('#world')).toBeVisible();
+  await expect(page.locator('#toast')).toContainText('매 시도마다 환경');
 });

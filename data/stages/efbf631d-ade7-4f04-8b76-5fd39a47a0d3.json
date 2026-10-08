@@ -1,0 +1,206 @@
+{
+  "version": 2,
+  "id": "efbf631d-ade7-4f04-8b76-5fd39a47a0d3",
+  "order": 6,
+  "title": "지구에서 태양 너머로",
+  "description": "지구 표면에서 출발해 외곽 항로를 지나 태양계 밖으로 날아가세요. 방향을 놓치거나 빠르기가 부족하면 성공할 수 없습니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "45c92fb0-73fd-4e44-94cf-ca89864e6549",
+      "name": "태양",
+      "kind": "star",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.4,
+      "mu": 2,
+      "color": "#eaaa55",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    },
+    {
+      "id": "e4545460-52ec-42bb-a440-89a67145436c",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.09,
+      "mu": 0.005,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "45c92fb0-73fd-4e44-94cf-ca89864e6549",
+        "radius": 3,
+        "phase": 0
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "878baa77-3d72-4f8b-8fa9-df6e5e50db32",
+      "kind": "gate",
+      "name": "외곽 항로",
+      "position": {
+        "x": 2.533982653893412,
+        "y": 6.05383792398862
+      },
+      "radius": 0.06,
+      "angle": 1.8690495489706378,
+      "sensor": "gravity"
+    }
+  ],
+  "goals": [
+    {
+      "id": "91f05c4c-f076-48d0-9f05-545dc640a9b2",
+      "title": "외곽 항로 통과",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 100,
+      "dependsOn": [],
+      "condition": {
+        "kind": "event",
+        "event": "gate",
+        "targetId": "878baa77-3d72-4f8b-8fa9-df6e5e50db32"
+      }
+    },
+    {
+      "id": "7eabc981-1403-41ae-ad58-a1bc333a0122",
+      "title": "태양계의 바깥으로",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 100,
+      "dependsOn": ["91f05c4c-f076-48d0-9f05-545dc640a9b2"],
+      "condition": {
+        "kind": "hold",
+        "duration": 0.5,
+        "child": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "distance",
+                "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+              },
+              "operator": "gte",
+              "right": {
+                "kind": "constant",
+                "value": 10
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "radialSpeed",
+                "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+              },
+              "operator": "gt",
+              "right": {
+                "kind": "constant",
+                "value": 0
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "energy",
+                "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+              },
+              "operator": "gte",
+              "right": {
+                "kind": "constant",
+                "value": 0
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "speed",
+                "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+              },
+              "operator": "gte",
+              "right": {
+                "kind": "constant",
+                "value": 0
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "speed",
+                "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 3
+              }
+            }
+          ]
+        }
+      },
+      "display": {
+        "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549",
+        "min": 10,
+        "max": 10
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 3.095,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0.816496580927726
+    }
+  },
+  "rules": {
+    "launchLimit": 0.65,
+    "maneuverBudget": 0.05,
+    "maxTime": 100,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 3,
+    "y": 0,
+    "zoom": 170
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.35,
+        "y": 0.4
+      },
+      "impulses": []
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "e4545460-52ec-42bb-a440-89a67145436c",
+  "launchAngle": 0
+}

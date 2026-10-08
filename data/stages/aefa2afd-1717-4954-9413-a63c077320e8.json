@@ -1,0 +1,362 @@
+{
+  "version": 2,
+  "id": "aefa2afd-1717-4954-9413-a63c077320e8",
+  "order": 1,
+  "title": "표면에서 첫 번째 궤도로",
+  "description": "지구 표면에서 출발해 목표 띠에서 한 바퀴를 유지하세요. 멀리 올라갈 때는 빠르기가 줄고, 옆으로 밀면 궤도가 달라집니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "ffe05052-9a08-42d7-9aa3-c856825202f3",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.8,
+      "mu": 1.05,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "8ea46fda-c257-4709-bf48-12f69916339d",
+      "title": "목표 띠에서 한 바퀴",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 65,
+      "dependsOn": [],
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "divide",
+                  "args": [
+                    {
+                      "kind": "calculate",
+                      "operation": "abs",
+                      "args": [
+                        {
+                          "kind": "calculate",
+                          "operation": "subtract",
+                          "args": [
+                            {
+                              "kind": "metric",
+                              "metric": "distance",
+                              "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                            },
+                            {
+                              "kind": "constant",
+                              "value": 2.0
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "constant",
+                      "value": 0.10000000000000009
+                    }
+                  ]
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 1.25
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "energy",
+                  "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                },
+                "operator": "lt",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          },
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "coverage",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "divide",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "abs",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                              },
+                              {
+                                "kind": "constant",
+                                "value": 2.0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "constant",
+                        "value": 0.10000000000000009
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.999999999
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "rms",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "divide",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "abs",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                              },
+                              {
+                                "kind": "constant",
+                                "value": 2.0
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "constant",
+                        "value": 0.10000000000000009
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 1.15
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "fractionPositive",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "subtract",
+                    "args": [
+                      {
+                        "kind": "constant",
+                        "value": 2
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "divide",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "abs",
+                            "args": [
+                              {
+                                "kind": "calculate",
+                                "operation": "subtract",
+                                "args": [
+                                  {
+                                    "kind": "metric",
+                                    "metric": "distance",
+                                    "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                                  },
+                                  {
+                                    "kind": "constant",
+                                    "value": 2.0
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "constant",
+                            "value": 0.10000000000000009
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.92
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "fractionPositive",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "multiply",
+                    "args": [
+                      {
+                        "kind": "constant",
+                        "value": -1
+                      },
+                      {
+                        "kind": "metric",
+                        "metric": "energy",
+                        "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.98
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "display": {
+        "targetId": "ffe05052-9a08-42d7-9aa3-c856825202f3",
+        "min": 1.9,
+        "max": 2.1
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 0.805,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 1.6,
+    "maneuverBudget": 0.25,
+    "maxTime": 65,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 85
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0,
+        "y": 1.3638301032641986
+      },
+      "impulses": [
+        {
+          "id": "93244a5b-012d-42e6-aed2-5210ac5f3468",
+          "time": 5.092247786270281,
+          "vector": {
+            "x": 0,
+            "y": -0.17562722074563197
+          }
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "ffe05052-9a08-42d7-9aa3-c856825202f3",
+  "launchAngle": 0
+}

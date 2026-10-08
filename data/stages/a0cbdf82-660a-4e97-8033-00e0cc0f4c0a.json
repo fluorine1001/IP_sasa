@@ -1,0 +1,400 @@
+{
+  "version": 2,
+  "id": "a0cbdf82-660a-4e97-8033-00e0cc0f4c0a",
+  "order": 3,
+  "title": "지구에서 화성의 위성으로",
+  "description": "지구에서 탈출해 화성에 접근한 뒤 화성 주위를 도세요. 화성과의 속도 차이를 줄이고 옆으로 움직임을 남겨야 합니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "ff2ce58f-5fa7-48ed-8c42-3fac8bbc64a3",
+      "name": "태양",
+      "kind": "star",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.4,
+      "mu": 2,
+      "color": "#eaaa55",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    },
+    {
+      "id": "7f8ebeda-2469-4885-bebc-97545bf7e0d8",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.09,
+      "mu": 0.005,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "ff2ce58f-5fa7-48ed-8c42-3fac8bbc64a3",
+        "radius": 3,
+        "phase": 0
+      }
+    },
+    {
+      "id": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1",
+      "name": "화성",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.1,
+      "mu": 0.007,
+      "color": "#b97056",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "ff2ce58f-5fa7-48ed-8c42-3fac8bbc64a3",
+        "radius": 5,
+        "phase": 0.35116983047201417
+      }
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "993ac92e-3fe6-419a-97c0-a80222d76aba",
+      "title": "화성 가까이에서 한 바퀴",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 100,
+      "dependsOn": [],
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "divide",
+                  "args": [
+                    {
+                      "kind": "calculate",
+                      "operation": "abs",
+                      "args": [
+                        {
+                          "kind": "calculate",
+                          "operation": "subtract",
+                          "args": [
+                            {
+                              "kind": "metric",
+                              "metric": "distance",
+                              "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                            },
+                            {
+                              "kind": "constant",
+                              "value": 0.19
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "constant",
+                      "value": 0.03
+                    }
+                  ]
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 1.25
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "energy",
+                  "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                },
+                "operator": "lt",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          },
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "coverage",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "divide",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "abs",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                              },
+                              {
+                                "kind": "constant",
+                                "value": 0.19
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "constant",
+                        "value": 0.03
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.999999999
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "rms",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "divide",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "abs",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                              },
+                              {
+                                "kind": "constant",
+                                "value": 0.19
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "constant",
+                        "value": 0.03
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 1.15
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "fractionPositive",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "subtract",
+                    "args": [
+                      {
+                        "kind": "constant",
+                        "value": 2
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "divide",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "abs",
+                            "args": [
+                              {
+                                "kind": "calculate",
+                                "operation": "subtract",
+                                "args": [
+                                  {
+                                    "kind": "metric",
+                                    "metric": "distance",
+                                    "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                                  },
+                                  {
+                                    "kind": "constant",
+                                    "value": 0.19
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "constant",
+                            "value": 0.03
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.92
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "fractionPositive",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "multiply",
+                    "args": [
+                      {
+                        "kind": "constant",
+                        "value": -1
+                      },
+                      {
+                        "kind": "metric",
+                        "metric": "energy",
+                        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "angularTravel",
+                    "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 6.283185307179586
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.98
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "display": {
+        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1",
+        "min": 0.16,
+        "max": 0.22
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 3.095,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0.816496580927726
+    }
+  },
+  "rules": {
+    "launchLimit": 0.65,
+    "maneuverBudget": 0.65,
+    "maxTime": 100,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 3,
+    "y": 0,
+    "zoom": 170
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.35,
+        "y": 0.25
+      },
+      "impulses": [
+        {
+          "id": "0fb0a954-0e7f-4a04-98cc-458864618954",
+          "time": 74.21000000000106,
+          "vector": {
+            "x": -0.4826775372598255,
+            "y": -0.42040304821240637
+          }
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "7f8ebeda-2469-4885-bebc-97545bf7e0d8",
+  "launchAngle": 0
+}

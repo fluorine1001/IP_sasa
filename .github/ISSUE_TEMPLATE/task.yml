@@ -1,0 +1,21 @@
+name: 개발 작업
+description: 담당 범위와 완료 기준이 있는 작은 작업
+body:
+  - type: textarea
+    id: result
+    attributes:
+      label: 원하는 플레이 결과
+      placeholder: 예를 들어 방향 센서 기록을 지도 위 화살표로 표시한다.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 담당 영역
+      options: [물리 엔진, 임무와 센서, UI와 입력, 그래픽과 사운드, 검증과 문서]
+  - type: textarea
+    id: completion
+    attributes:
+      label: 완료 기준과 변경할 파일
+    validations:
+      required: true

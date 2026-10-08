@@ -1,0 +1,414 @@
+{
+  "version": 2,
+  "id": "ac6286eb-23b2-4638-841d-fca4c00dec3e",
+  "order": 5,
+  "title": "달의 도움을 빌려",
+  "description": "지구 표면에서 출발해 움직이는 달에서 에너지를 얻고 출구로 나가세요. 달 근처에서는 추진하지 않아야 합니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "f7382d0e-4101-49fb-9df0-e6171174f5e4",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.8,
+      "mu": 1.05,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    },
+    {
+      "id": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7",
+      "name": "달",
+      "kind": "moon",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.15,
+      "mu": 0.035,
+      "color": "#b6bcb2",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "f7382d0e-4101-49fb-9df0-e6171174f5e4",
+        "radius": 3.4,
+        "phase": 2.774329011082064
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "69c90d42-dbfb-4a66-8341-1489f9230939",
+      "kind": "gate",
+      "name": "에너지 획득 뒤 이탈 항로",
+      "position": {
+        "x": -3.3561351719975145,
+        "y": 0.2120495321065059
+      },
+      "radius": 0.09,
+      "angle": -1.9338790723004395,
+      "sensor": "gravity"
+    }
+  ],
+  "goals": [
+    {
+      "id": "18a4e868-7909-4562-a4b2-b6c5b607d466",
+      "title": "달 근처에서 추진 없이 에너지 얻기",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 65,
+      "dependsOn": [],
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "capture",
+                "key": "entry_speed",
+                "value": {
+                  "kind": "metric",
+                  "metric": "speed",
+                  "targetId": ""
+                },
+                "when": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0.7
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "radialSpeed",
+                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "capture",
+                "key": "entry_energy",
+                "value": {
+                  "kind": "metric",
+                  "metric": "energy",
+                  "targetId": "f7382d0e-4101-49fb-9df0-e6171174f5e4"
+                },
+                "when": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0.7
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "radialSpeed",
+                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "capture",
+                "key": "entry_budget",
+                "value": {
+                  "kind": "metric",
+                  "metric": "thrustUsed",
+                  "targetId": ""
+                },
+                "when": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0.7
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "radialSpeed",
+                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "distance",
+                  "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.7
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "radialSpeed",
+                  "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                },
+                "operator": "gt",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "min",
+                  "value": {
+                    "kind": "metric",
+                    "metric": "altitude",
+                    "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "time",
+                    "targetId": ""
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 65
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.2290031712880072
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "min",
+                  "value": {
+                    "kind": "metric",
+                    "metric": "altitude",
+                    "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "time",
+                    "targetId": ""
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 65
+                  }
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.2790031712880072
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "subtract",
+                  "args": [
+                    {
+                      "kind": "metric",
+                      "metric": "speed",
+                      "targetId": ""
+                    },
+                    {
+                      "kind": "recorded",
+                      "key": "entry_speed"
+                    }
+                  ]
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.005
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "subtract",
+                  "args": [
+                    {
+                      "kind": "metric",
+                      "metric": "energy",
+                      "targetId": "f7382d0e-4101-49fb-9df0-e6171174f5e4"
+                    },
+                    {
+                      "kind": "recorded",
+                      "key": "entry_energy"
+                    }
+                  ]
+                },
+                "operator": "gt",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.001
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "subtract",
+                  "args": [
+                    {
+                      "kind": "metric",
+                      "metric": "thrustUsed",
+                      "targetId": ""
+                    },
+                    {
+                      "kind": "recorded",
+                      "key": "entry_budget"
+                    }
+                  ]
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 1e-6
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "display": {
+        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7",
+        "min": 0.7,
+        "max": 0.7
+      }
+    },
+    {
+      "id": "db02f539-1d4d-4cb2-a814-1de996be7ca7",
+      "title": "표시된 이탈 항로 지나기",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 65,
+      "dependsOn": ["18a4e868-7909-4562-a4b2-b6c5b607d466"],
+      "condition": {
+        "kind": "event",
+        "event": "gate",
+        "targetId": "69c90d42-dbfb-4a66-8341-1489f9230939"
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 0.805,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 1.8,
+    "maneuverBudget": 0.12,
+    "maxTime": 65,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 85
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.1923733916422984,
+        "y": 1.3977051517069856
+      },
+      "impulses": []
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "f7382d0e-4101-49fb-9df0-e6171174f5e4",
+  "launchAngle": 0
+}

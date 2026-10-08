@@ -1,0 +1,141 @@
+{
+  "version": 2,
+  "id": "87a30e7d-7ffe-4c70-8d9a-258882d5e7cc",
+  "order": 4,
+  "title": "발사해서 우편 위성과 만나기",
+  "description": "지구 표면에서 출발해 우편 위성에 접근하세요. 같은 곳에 도착하는 것과 같은 속도로 날아가는 것은 다릅니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "2be2629e-ada7-43da-8cb7-db47a6a08fcc",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.8,
+      "mu": 1.05,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    }
+  ],
+  "objects": [
+    {
+      "id": "d8c96f5a-3681-4963-b530-0bb4835bde8d",
+      "kind": "station",
+      "name": "우편 위성",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.1,
+      "angle": 0,
+      "sensor": "gravity",
+      "motion": {
+        "parentId": "2be2629e-ada7-43da-8cb7-db47a6a08fcc",
+        "radius": 4,
+        "phase": 1.6792303607289567
+      }
+    }
+  ],
+  "goals": [
+    {
+      "id": "51003559-3bd2-4375-b2f4-a6845f178994",
+      "title": "같은 위치와 속도로 0.5초 유지",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 65,
+      "dependsOn": [],
+      "condition": {
+        "kind": "hold",
+        "duration": 0.5,
+        "child": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "distance",
+                "targetId": "d8c96f5a-3681-4963-b530-0bb4835bde8d"
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.08
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "speed",
+                "targetId": "d8c96f5a-3681-4963-b530-0bb4835bde8d"
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.018
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 0.805,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 1.8,
+    "maneuverBudget": 0.5,
+    "maxTime": 65,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 85
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0,
+        "y": 1.473652234116544
+      },
+      "impulses": [
+        {
+          "id": "e841b158-571c-41e7-bf85-be57b886d2c9",
+          "time": 11.416955746240594,
+          "vector": {
+            "x": 0,
+            "y": -0.2157750261820255
+          }
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "2be2629e-ada7-43da-8cb7-db47a6a08fcc",
+  "launchAngle": 0
+}

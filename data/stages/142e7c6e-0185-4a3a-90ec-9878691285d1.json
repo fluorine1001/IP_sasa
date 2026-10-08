@@ -1,0 +1,130 @@
+{
+  "version": 2,
+  "id": "142e7c6e-0185-4a3a-90ec-9878691285d1",
+  "order": 2,
+  "title": "지구에서 달에 내려놓기",
+  "description": "지구 표면에서 출발해 달에 부드럽게 착륙하세요. 달에 가까워질 때 달과의 속도 차이를 줄여야 합니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.8,
+      "mu": 1.05,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    },
+    {
+      "id": "917e4015-cde1-4de5-bd48-e983c45aab1c",
+      "name": "달",
+      "kind": "moon",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.25,
+      "mu": 0.01,
+      "color": "#b6bcb2",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
+        "radius": 3.4,
+        "phase": 1.677901710801062
+      }
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "9c4ca3d8-1f04-4fe0-acbf-fbcfe68a7603",
+      "title": "달 표면에 천천히 착륙",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 65,
+      "dependsOn": [],
+      "condition": {
+        "kind": "all",
+        "children": [
+          {
+            "kind": "event",
+            "event": "collision",
+            "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+          },
+          {
+            "kind": "compare",
+            "left": {
+              "kind": "metric",
+              "metric": "touchdownSpeed",
+              "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+            },
+            "operator": "lte",
+            "right": {
+              "kind": "constant",
+              "value": 0.16
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 0.805,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 1.8,
+    "maneuverBudget": 0.7,
+    "maxTime": 65,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 85
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.011450594297976164,
+        "y": 1.4312937521985976
+      },
+      "impulses": [
+        {
+          "id": "f53a1f7e-6bfc-4a15-87ea-e85b0b8cc384",
+          "time": 9.174999999999887,
+          "vector": {
+            "x": 0.028084027852770796,
+            "y": -0.29057627761381827
+          }
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
+  "launchAngle": 0
+}

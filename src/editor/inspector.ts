@@ -9,6 +9,12 @@ type Field = {
   options?: [string, string][];
 };
 const number = (path: string, label: string): Field => ({ path, label, type: 'number' });
+const numericAttributes = (path: string) =>
+  path.startsWith('rules.commandLimits.')
+    ? 'min="0" max="64" step="1"'
+    : path === 'rules.timelineDuration'
+      ? 'min="0.01" step="any"'
+      : 'step="any"';
 const position: Field[] = [number('position.x', '위치 X'), number('position.y', '위치 Y')];
 export function getPath(object: unknown, path: string): unknown {
   return path.split('.').reduce((v, k) => (v as Record<string, unknown>)?.[k], object);
@@ -16,11 +22,12 @@ export function getPath(object: unknown, path: string): unknown {
 export function setPath(object: unknown, path: string, value: unknown) {
   const parts = path.split('.'),
     key = parts.pop()!,
-    target = parts.reduce((v, k) => (v as Record<string, unknown>)[k], object) as Record<
+    target = parts.reduce((v, k) => ((v as Record<string, unknown>)[k] ??= {}), object) as Record<
       string,
       unknown
     >;
-  target[key] = value;
+  if (value === undefined) delete target[key];
+  else target[key] = value;
 }
 export function inspector(model: EditorModel): string {
   const stage = model.stage,
@@ -53,10 +60,20 @@ export function inspector(model: EditorModel): string {
       },
       number('rules.launchLimit', '발사 Δv 한도'),
       number('rules.maneuverBudget', '수정 추진 Δv 예산'),
-      number('rules.maxTime', '최대 비행 시간'),
+      { path: 'rules.maxTimeUnlimited', label: '전체 임무 시간 무제한', type: 'checkbox' },
+      number('rules.maxTime', '전체 임무 제한 시간 (초 · 무제한 선택 시 초기 표시 길이)'),
+      { path: 'rules.timelineUnlimited', label: '타임라인 예약 시간 무제한', type: 'checkbox' },
+      number('rules.timelineDuration', '타임라인 길이 (초 · 무제한 선택 시 초기 표시 길이)'),
+      ...(['ignite', 'stop', 'turn', 'separate', 'push'] as const).map((key, i) =>
+        number(
+          'rules.commandLimits.' + key,
+          ['엔진 출력', '엔진 끄기', '방향 회전', '단 분리', '수정 추진'][i] +
+            ' 최대 예약 횟수 (0은 사용 불가 · 빈칸은 무제한)',
+        ),
+      ),
       number('rules.worldRadius', '탐사 범위 반지름'),
-      number('rules.sensorSlots', '방출 부표 개수'),
       number('rules.attempts', '임무 발사 횟수'),
+      number('audit.timeLimit', '자동 검사 시간 (초 · 빈칸은 초기 임무 표시 길이)'),
       number('audit.samples', '임의 경로 표본 수'),
       number('audit.maxPassRate', '허용 임의 성공 비율 (0~1)'),
       number('audit.seed', '검사 난수 시드'),
@@ -99,6 +116,7 @@ export function inspector(model: EditorModel): string {
       { path: 'title', label: '목표 문구' },
       ...position,
       number('startTime', '목표 시작 시각'),
+      { path: 'endTimeUnlimited', label: '이 목표의 종료 시각 무제한', type: 'checkbox' },
       number('endTime', '목표 종료 시각'),
     ];
     if (entity.display)
@@ -139,18 +157,18 @@ export function inspector(model: EditorModel): string {
   }
   const fieldHtml = (f: Field, target: unknown) => {
     const value = getPath(target, f.path) ?? '';
-    return `<label>${escape(f.label)}<input data-field="${f.path}" type="${f.type ?? 'number'}" step="any" value="${escape(value)}"></label>`;
+    return `<label>${escape(f.label)}<input data-field="${f.path}" type="${f.type ?? 'number'}" ${numericAttributes(f.path)} value="${escape(value)}"></label>`;
   };
   const rocketHtml =
     !entity || id === 'spawn'
-      ? `<details open><summary>로켓 추진·단 분리</summary><button id="toggle-rocket">${stage.rocket ? '3단 추진 모델 해제' : '실제 연료를 쓰는 3단 로켓 구성'}</button>${stage.rocket ? fieldHtml(number('rocket.payloadMass', '탑재체 질량'), stage) + stage.rocket.parts.map((part, i) => `<details><summary>${escape(part.name)}</summary>${[{ path: `rocket.parts.${i}.name`, label: '이름', type: 'text' as const }, ...(['dryMass', 'fuelMass', 'thrust', 'exhaustSpeed', 'area', 'maxQ', 'maxHeat', 'ignitionLimit', 'maxLandingSpeed'] as const).map((key, j) => number(`rocket.parts.${i}.${key}`, ['빈 단 질량', '연료 질량', '최대 추력', '배기 속력', '항력 면적 (CdA)', '대기 동압 한계', '가열 한계', '재점화 한도', '회수 최대 접촉 속력'][j]))].map((f) => fieldHtml(f, stage)).join('')}</details>`).join('') : ''}</details>`
+      ? `<details open><summary>로켓 추진·단 분리</summary><button id="toggle-rocket">${stage.rocket ? '3단 추진 모델 해제' : '실제 연료를 쓰는 3단 로켓 구성'}</button>${stage.rocket ? fieldHtml(number('rocket.payloadMass', '탑재체 질량'), stage) + stage.rocket.parts.map((part, i) => `<details><summary>${escape(part.name)}</summary>${[{ path: `rocket.parts.${i}.name`, label: '이름', type: 'text' as const }, ...(['dryMass', 'fuelMass', 'thrust', 'exhaustSpeed', 'area', 'maxQ', 'maxHeat', 'ignitionLimit', 'maxLandingSpeed', 'turnRate'] as const).map((key, j) => number(`rocket.parts.${i}.${key}`, ['빈 단 질량', '연료 질량', '최대 추력', '배기 속력', '항력 면적 (CdA)', '대기 동압 한계', '가열 한계', '재점화 한도', '회수 최대 접촉 속력', '회전 속도 (rad/초)'][j]))].map((f) => fieldHtml(f, stage)).join('')}</details>`).join('') : ''}</details>`
       : '';
   const html = fields
     .map((f) => {
       const value = getPath(target, f.path) ?? '',
         label = escape(f.label),
         path = escape(f.path);
-      return `<label>${label}${f.options ? `<select data-field="${path}">${f.options.map(([v, l]) => `<option value="${escape(v)}" ${v === value ? 'selected' : ''}>${escape(l)}</option>`).join('')}</select>` : f.type === 'textarea' ? `<textarea data-field="${path}">${escape(value)}</textarea>` : `<input data-field="${path}" type="${f.type ?? 'text'}" ${f.type === 'checkbox' ? (value ? 'checked' : '') : `value="${escape(value)}"`} ${f.type === 'number' ? 'step="any"' : ''}>`}</label>`;
+      return `<label>${label}${f.options ? `<select data-field="${path}">${f.options.map(([v, l]) => `<option value="${escape(v)}" ${v === value ? 'selected' : ''}>${escape(l)}</option>`).join('')}</select>` : f.type === 'textarea' ? `<textarea data-field="${path}">${escape(value)}</textarea>` : `<input data-field="${path}" type="${f.type ?? 'text'}" ${f.type === 'checkbox' ? (value ? 'checked' : '') : `value="${escape(value)}"`} ${f.type === 'number' ? numericAttributes(f.path) : ''}>`}</label>`;
     })
     .join('');
   return `<div class="badge">${entity ? '선택 오브젝트' : id === 'spawn' ? '출발 장치' : '스테이지 규칙'}${model.selection.size > 1 ? ` · ${model.selection.size}개 선택` : ''}</div>${html}${entity && 'mu' in entity ? `<button id="toggle-atmosphere">${entity.atmosphere ? '대기 해제' : '대기 추가'}</button><button id="toggle-dynamic">${entity.dynamic ? '상호 중력 운동 해제' : '상호 중력 운동 사용'}</button>` : ''}${rocketHtml}${entity && 'sensor' in entity && entity.kind === 'path' ? `<label>경로 점 좌표 (중심에 상대적)<textarea id="path-points">${escape(JSON.stringify(entity.points))}</textarea></label><p class="muted">지도에서 경로 점을 끌어 수정하세요. 임무 조건에서 ‘목표 경로에서 벗어난 거리’를 고르고 이 경로를 대상으로 지정할 수 있습니다.</p>` : ''}${entity && 'condition' in entity ? `<button id="toggle-display">표시 영역 추가 / 해제</button><h3>목표 조건 블록</h3><p class="muted">비행체·기준 대상 → 물리량·계산·순간 기록·구간 통계 → 비교·유지·순서. 각 임무는 이 공통 블록으로 만듭니다. 수치는 축척 단위 u와 게임 시간 t를 사용합니다.</p>${conditionBuilder(entity.condition, 'condition', stage)}` : ''}${entity && ('mu' in entity || 'sensor' in entity) ? `<button id="toggle-motion">${entity.motion ? '공전 해제' : '천체 주위에 공전시키기'}</button>` : ''}${

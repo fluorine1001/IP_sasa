@@ -35,7 +35,9 @@ export function expressionBuilder(e: Expression, path: string, stage: Stage): st
         path,
         'metric',
         e.metric,
-        Object.entries(metrics).map(([id, m]) => [id, `${m.label} [${m.unit}]`]),
+        Object.entries(metrics)
+          .filter(([id]) => id !== 'buoys')
+          .map(([id, m]) => [id, `${m.label} [${m.unit}]`]),
       ) +
       (metrics[e.metric]?.target
         ? select(path, 'targetId', e.targetId, [
@@ -105,7 +107,6 @@ export function conditionBuilder(c: Condition, path: string, stage: Stage): stri
       select(path, 'event', c.event, [
         ['collision', '천체 표면에 접촉'],
         ['gate', '게이트 통과'],
-        ['deployment', '부표 방출'],
         ['burn', '추진 실행'],
         ['separation', '로켓 단 분리'],
       ]) +

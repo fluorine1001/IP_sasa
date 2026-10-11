@@ -29,7 +29,7 @@ export function newObject(kind: WorldObject['kind'] = 'sensor'): WorldObject {
     kind,
     name:
       kind === 'sensor'
-        ? '관측 부표'
+        ? '고정 관측 구역'
         : kind === 'gate'
           ? '통과 게이트'
           : kind === 'hazard'
@@ -92,8 +92,10 @@ export function blankStage(): Stage {
       launchLimit: 1.1,
       maneuverBudget: 0.1,
       maxTime: 40,
+      timelineDuration: 20,
+      commandLimits: { ignite: 6, stop: 6, turn: 8, separate: 3, push: 8 },
       worldRadius: 14,
-      sensorSlots: 5,
+      sensorSlots: 0,
       attempts: 3,
     },
     camera: { x: 0, y: 0, zoom: 60 },

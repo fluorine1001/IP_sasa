@@ -93,9 +93,20 @@ export function replayAt(
   state.position = mix(a.position, continuousEnd);
   state.velocity = mix(a.velocity, b.velocity);
   state.time = time;
+  const mixAngle = (p: typeof a.position, q: typeof p) => {
+    const x = Math.atan2(p.y, p.x),
+      y = Math.atan2(q.y, q.x);
+    const angle = x + Math.atan2(Math.sin(y - x), Math.cos(y - x)) * alpha;
+    return { x: Math.cos(angle), y: Math.sin(angle) };
+  };
+  if (state.rocket && b.rocket && a.rocket?.partIndex === b.rocket.partIndex)
+    state.rocket.direction = mixAngle(state.rocket.direction, b.rocket.direction);
   for (const actor of state.detached) {
     const next = b.detached.find((x) => x.id === actor.id);
-    if (next && next.status === actor.status) actor.position = mix(actor.position, next.position);
+    if (next && next.status === actor.status) {
+      actor.position = mix(actor.position, next.position);
+      actor.direction = mixAngle(actor.direction, next.direction);
+    }
   }
   for (const [id, body] of Object.entries(state.bodies ?? {})) {
     const next = b.bodies?.[id];

@@ -1,21 +1,28 @@
 name: 개발 작업
-description: 담당 범위와 완료 기준이 있는 작은 작업
+description: 네 역할별 담당 파일과 완료 기준
 body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: 담당 역할
+      options: [스테이지 제작 (에디터), 게임 시스템 개발, 튜토리얼 작성, 설정 탭 개발]
+    validations:
+      required: true
   - type: textarea
     id: result
     attributes:
-      label: 원하는 플레이 결과
-      placeholder: 예를 들어 방향 센서 기록을 지도 위 화살표로 표시한다.
+      label: 원하는 결과와 완료 기준
     validations:
       required: true
-  - type: dropdown
-    id: area
-    attributes:
-      label: 담당 영역
-      options: [물리 엔진, 임무와 센서, UI와 입력, 그래픽과 사운드, 검증과 문서]
   - type: textarea
-    id: completion
+    id: scope
     attributes:
-      label: 완료 기준과 변경할 파일
+      label: 담당 파일 / 스테이지 UUID
+      placeholder: 맡은 경로와 UUID, 겹치는 담당자를 확인합니다.
     validations:
       required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: 공용 계약 변경과 협의할 담당자
+      placeholder: 없으면 없음. App/Settings/Stage/hull/main/공용 스타일은 선행 PR로 조율합니다.

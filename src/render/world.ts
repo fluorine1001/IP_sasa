@@ -303,21 +303,6 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     }
     ctx.restore();
   }
-  for (const buoy of s.run?.buoys ?? []) {
-    if (buoy.lastSample === Infinity) continue;
-    const p = screen(buoy.position);
-    ctx.fillStyle = buoy.kind === 'gravity' ? '#8bdfcf' : '#ecd476';
-    ctx.strokeStyle = '#0c1721';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.rect(p.x - 5, p.y - 5, 10, 10);
-    ctx.fill();
-    ctx.stroke();
-    ctx.strokeStyle = '#9cddd944';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 15, 0, 7);
-    ctx.stroke();
-  }
   for (const note of (s.observations ?? [])
     .filter((n) => n.kind === 'gravity')
     .filter((_, i) => i % 4 === 0)) {

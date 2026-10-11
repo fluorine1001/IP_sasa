@@ -1,3 +1,4 @@
+import './style.css';
 import { variationIssues } from '../world/variation';
 import { createGoalMonitor } from './goal-monitor.ts';
 import { defaultRocket } from '../world/rocket.ts';
@@ -59,13 +60,13 @@ export function editorScreen(app: App): Screen {
         },
     status =
       '개발용 제작 도구 · 클릭 배치 · 빈 곳 드래그 영역 선택 · Shift 다중 선택 · Ctrl+D 복제 · Ctrl+Z/Y 실행 취소';
-  app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="test-reference">기준 경로 재생</button><button id="focus-selection">선택 위치로</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
+  app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="focus-selection">선택 위치로</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
     ['select', '선택 / 이동'],
     ['planet', '행성'],
     ['moon', '달'],
     ['star', '태양'],
     ['black-hole', '블랙홀'],
-    ['sensor', '관측 장치'],
+    ['sensor', '고정 관측 구역'],
     ['gate', '통과 게이트'],
     ['hazard', '위험 구역'],
     ['station', '정거장'],
@@ -222,10 +223,6 @@ export function editorScreen(app: App): Screen {
         const id = [...model.selection][0];
         const entity = id === 'spawn' ? model.stage.spawn : model.entity(id);
         if (entity) Object.assign(camera, entity.position);
-      },
-      'test-reference': () => {
-        if (model.stage.referencePlans[0]) test(model.stage.referencePlans[0]);
-        else message('F5 시험에서 성공하면 기준 경로가 저장됩니다.');
       },
       'exit-editor': () => app.go('title'),
       undo: () => {
@@ -391,7 +388,13 @@ export function editorScreen(app: App): Screen {
             target,
             path,
             input.type === 'number'
-              ? Number(input.value)
+              ? input.value === '' &&
+                (path === 'rules.timelineDuration' ||
+                  path === 'audit.timeLimit' ||
+                  path.startsWith('rules.commandLimits.') ||
+                  path.endsWith('.turnRate'))
+                ? undefined
+                : Number(input.value)
               : input.type === 'checkbox'
                 ? input.checked
                 : input.value,

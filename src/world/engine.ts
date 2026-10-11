@@ -1,3 +1,5 @@
+import { missionTimeLimit } from './program';
+import { planConstraints } from './program';
 import { captureFrame } from './replay';
 import { craftHull, hullSize, sweepHull, settleHull } from './hull';
 import { collectEvidence, emptyEvidence } from './evidence';
@@ -21,10 +23,10 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
             (b) =>
               ![b.time, b.vector.x, b.vector.y].every(Number.isFinite) ||
               b.time < 0 ||
-              b.time > stage.rules.maxTime,
+              b.time > missionTimeLimit(stage),
           )
         ? '추진 계획이 유효하지 않습니다.'
-        : '';
+        : (planConstraints(stage, plan)[0] ?? '');
   const run: Run = {
     evidence: emptyEvidence(),
     time: 0,
@@ -89,28 +91,6 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
   }
   captureFrame(run, true);
   return run;
-}
-export function deploySensor(
-  run: Run,
-  stage: Stage,
-  kind: WorldObject['sensor'],
-  id: string,
-): boolean {
-  if (
-    run.status !== 'running' ||
-    run.buoys.length >= stage.rules.sensorSlots ||
-    run.applied.has(id)
-  )
-    return false;
-  run.applied.add(id);
-  run.buoys.push({
-    id,
-    kind,
-    position: { ...run.position },
-    velocity: { ...run.velocity },
-    lastSample: -1,
-  });
-  return true;
 }
 function integrate(
   stage: Stage,
@@ -221,22 +201,15 @@ export function tick(
           return;
         }
       }
-    for (const release of run.plan.deployments ?? [])
-      if (release.time <= run.time + 1e-8 && !run.applied.has(release.id))
-        deploySensor(run, stage, release.kind, release.id);
     if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
-    const nextCommand = [
-      ...run.plan.impulses,
-      ...(run.plan.deployments ?? []),
-      ...(run.plan.engineCommands ?? []),
-    ]
+    const nextCommand = [...run.plan.impulses, ...(run.plan.engineCommands ?? [])]
       .filter((b) => !run.applied.has(b.id) && b.time > run.time + 1e-8)
       .reduce((n, b) => Math.min(n, b.time), Infinity);
     const slice = Math.min(
       remaining,
       WORLD_STEP,
       nextCommand - run.time,
-      stage.rules.maxTime - run.time,
+      missionTimeLimit(stage) - run.time,
     );
     if (slice < 1e-9) {
       run.status = run.probe ? 'observed' : 'failed';
@@ -291,57 +264,6 @@ export function tick(
     run.time += slice;
     remaining -= slice;
     stage = dynamicView(source, run);
-    for (const buoy of run.buoys) {
-      if (buoy.lastSample === Infinity) continue;
-      const previous = { ...buoy.position };
-      [buoy.position, buoy.velocity] = integrate(
-        stage,
-        buoy.position,
-        buoy.velocity,
-        previousTime,
-        slice,
-      );
-      if (
-        stage.bodies.some((b) =>
-          segmentHitsCircle(
-            sub(previous, bodyPosition(stage, b, previousTime)),
-            sub(buoy.position, bodyPosition(stage, b, run.time)),
-            b.radius,
-          ),
-        )
-      ) {
-        buoy.lastSample = Infinity;
-        continue;
-      }
-      if (record && run.time - buoy.lastSample > 0.75 && run.observations.length < 1000) {
-        buoy.lastSample = run.time;
-        const vector =
-          buoy.kind === 'gravity'
-            ? gravity(stage, buoy.position, run.time)
-            : buoy.kind === 'distance'
-              ? buoy.position
-              : buoy.velocity;
-        run.observations.push({
-          id: `${buoy.id}-${run.observations.length}`,
-          deviceId: buoy.id,
-          kind: buoy.kind,
-          position: { ...buoy.position },
-          time: run.time,
-          value: buoy.kind === 'clock' ? run.time : length(vector),
-          vector: { ...vector },
-          text:
-            buoy.kind === 'gravity'
-              ? '궤적에서 읽은 중력'
-              : buoy.kind === 'speed'
-                ? '부표의 빠르기'
-                : buoy.kind === 'distance'
-                  ? '부표 위치'
-                  : buoy.kind === 'direction'
-                    ? '부표 진행 방향'
-                    : '비행 시간',
-        });
-      }
-    }
     for (const actor of run.detached) {
       actor.age += slice;
       if (actor.status === 'landed') {
@@ -578,7 +500,7 @@ export function tick(
       !Number.isFinite(run.position.x) ||
       !Number.isFinite(run.position.y) ||
       length(run.position) > stage.rules.worldRadius ||
-      run.time >= stage.rules.maxTime - 1e-8
+      run.time >= missionTimeLimit(stage) - 1e-8
     ) {
       run.status = run.probe ? 'observed' : 'failed';
       run.reason = run.probe
@@ -588,10 +510,23 @@ export function tick(
     if (record) captureFrame(run, run.status !== 'running');
   }
 }
-export function execute(stage: Stage, plan: RoutePlan, record = false): Run {
+// Batch execution is bounded independently of unlimited real-time gameplay.
+export function execute(
+  stage: Stage,
+  plan: RoutePlan,
+  record = false,
+  horizon = stage.audit.timeLimit ?? stage.rules.maxTime,
+): Run {
+  if (!Number.isFinite(horizon) || horizon <= 0)
+    throw new Error('자동 검사 시간은 유한한 양수여야 합니다.');
   const run = createRun(stage, plan);
-  while (run.status === 'running' || run.status === 'impact')
-    tick(run, stage, 0.1, stage.objects, record);
+  while ((run.status === 'running' || run.status === 'impact') && run.time < horizon - 1e-8)
+    tick(run, stage, Math.min(0.1, horizon - run.time), stage.objects, record);
+  if (run.status === 'running' || run.status === 'impact') {
+    run.status = 'observed';
+    run.reason = '자동 검사 시간에 도달했습니다. 무제한 임무의 실패 판정은 아닙니다.';
+    if (record) captureFrame(run, true);
+  }
   return run;
 }
 export function calibrate(stage: Stage, readings: Observation[]): Record<string, number> {

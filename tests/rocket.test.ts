@@ -65,7 +65,7 @@ describe('3단 추진과 대기권 병목', () => {
     separate(run, stage);
     expect(controlEngine(run, stage, 'craft', 1, { x: 0, y: 1 })).toBe(true);
     tick(run, stage, 0.2);
-    expect(run.position.y).toBeGreaterThan(run.detached[0].position.y);
+    expect(run.velocity.y).toBeGreaterThan(run.detached[0].velocity.y);
     expect(run.detached[0].fuel).toBe(stage.rocket!.parts[0].fuelMass);
   });
   it('부스터의 남은 연료와 재점화 횟수가 독립적으로 제한된다', () => {

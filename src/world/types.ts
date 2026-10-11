@@ -35,6 +35,7 @@ export type Goal = {
   position: Vec;
   startTime: number;
   endTime: number;
+  endTimeUnlimited?: boolean;
   dependsOn: string[];
   display?: { targetId: string; min: number; max: number };
 };
@@ -75,13 +76,18 @@ export type Stage = {
     launchLimit: number;
     maneuverBudget: number;
     maxTime: number;
+    maxTimeUnlimited?: boolean;
+    /** Planning rail duration; remaining mission time is observation/coasting. */
+    timelineDuration?: number;
+    timelineUnlimited?: boolean;
+    commandLimits?: Partial<Record<'ignite' | 'stop' | 'turn' | 'separate' | 'push', number>>;
     worldRadius: number;
     sensorSlots: number;
     attempts: number;
   };
   camera: { x: number; y: number; zoom: number };
   referencePlans: RoutePlan[];
-  audit: { samples: number; maxPassRate: number; seed: number };
+  audit: { samples: number; maxPassRate: number; seed: number; timeLimit?: number };
 };
 export type GoalProgress = {
   complete: boolean;

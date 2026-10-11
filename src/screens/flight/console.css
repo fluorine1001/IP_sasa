@@ -644,9 +644,7 @@
 .flight-deck {
   backdrop-filter: none;
 }
-.flight-deck[data-phase='flight'] #dock-tools,
 .flight-deck[data-phase='flight'] #aim,
-.flight-deck[data-phase='replay'] #dock-tools,
 .flight-deck[data-phase='replay'] #aim {
   display: none;
 }

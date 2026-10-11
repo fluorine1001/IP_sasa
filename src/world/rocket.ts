@@ -1,4 +1,4 @@
-import { ROCKET_SEGMENT_LENGTH } from './hull';
+import { craftHull, ROCKET_SEGMENT_LENGTH } from './hull';
 import type { Vec } from '../physics/vector.ts';
 import type { Stage, Run } from './types.ts';
 import { bodyPosition, bodyVelocity } from './celestial.ts';
@@ -15,6 +15,8 @@ export type RocketPart = {
   maxHeat: number;
   ignitionLimit: number;
   maxLandingSpeed?: number;
+  /** Maximum attitude speed, radians per second. */
+  turnRate?: number;
 };
 export type RocketConfig = { payloadMass: number; parts: RocketPart[] };
 export type Detached = {
@@ -25,6 +27,7 @@ export type Detached = {
   fuel: number;
   dryMass: number;
   direction: Vec;
+  targetDirection?: Vec;
   throttle: number;
   ignitions: number;
   heat: number;
@@ -41,6 +44,7 @@ export type RocketState = {
   ignitions: number[];
   throttle: number;
   direction: Vec;
+  targetDirection?: Vec;
   heat: number;
   stress: number;
   airborne: boolean;
@@ -148,7 +152,7 @@ export function controlEngine(
         booster ? stage.rocket.parts.findIndex((p) => p.id === booster.id) : run.rocket.partIndex
       ];
   if (!part || (actorId !== 'craft' && !booster)) return false;
-  if (direction && length(direction) > 1e-8) state.direction = unit(direction);
+  if (direction && length(direction) > 1e-8) state.targetDirection = unit(direction);
   if (throttle !== undefined) {
     const value = Math.max(0, Math.min(1, throttle)),
       fuel = booster ? booster.fuel : run.rocket.fuel[run.rocket.partIndex],
@@ -184,6 +188,7 @@ export function separate(run: Run, stage: Stage): boolean {
     fuel: run.rocket.fuel[index],
     dryMass: part.dryMass,
     direction: { ...run.rocket.direction },
+    targetDirection: run.rocket.targetDirection ? { ...run.rocket.targetDirection } : undefined,
     throttle: 0,
     ignitions: run.rocket.ignitions[index],
     heat: run.rocket.heat,
@@ -204,12 +209,46 @@ export function separate(run: Run, stage: Stage): boolean {
   run.rocket.stress = 0;
   return true;
 }
+/** Upper stages have faster attitude controllers; authors can override each part. */
+export function attitudeRate(stage: Stage, index: number, fuel?: number[]) {
+  const config = stage.rocket;
+  if (!config) return 0;
+  const part = config.parts[index];
+  const nominal = part?.turnRate ?? [Math.PI / 2, (Math.PI * 2) / 3, Math.PI][Math.min(index, 2)];
+  const fullMass =
+    config.payloadMass + config.parts.slice(index).reduce((m, p) => m + p.dryMass + p.fuelMass, 0);
+  const mass = fuel
+    ? config.payloadMass +
+      config.parts.slice(index).reduce((m, p, i) => m + p.dryMass + fuel[index + i], 0)
+    : fullMass;
+  return nominal * Math.min(1.35, Math.sqrt(fullMass / Math.max(mass, 1e-6)));
+}
+export function turnTowards(current: Vec, target: Vec, radians: number): Vec {
+  const a = Math.atan2(current.y, current.x),
+    b = Math.atan2(target.y, target.x);
+  const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
+  const angle = a + Math.sign(delta) * Math.min(Math.abs(delta), Math.max(0, radians));
+  return { x: Math.cos(angle), y: Math.sin(angle) };
+}
 export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached) {
   if (!run.rocket || !stage.rocket) return '';
   const state = actor ?? run.rocket,
     index = actor ? stage.rocket.parts.findIndex((p) => p.id === actor.id) : run.rocket.partIndex,
     part = stage.rocket.parts[index];
   if (!part) return '';
+  if (state.targetDirection) {
+    const old = state.direction;
+    state.direction = turnTowards(
+      old,
+      state.targetDirection,
+      attitudeRate(stage, index, actor ? undefined : run.rocket.fuel) * dt,
+    );
+    // Body-centre pivot without linear impulse.
+    const extent = actor ? ROCKET_SEGMENT_LENGTH : craftHull(stage, run).length;
+    if (actor) actor.position = add(actor.position, scale(sub(old, state.direction), extent / 2));
+    else if (run.rocket.airborne)
+      run.position = add(run.position, scale(sub(old, state.direction), extent / 2));
+  }
   const before = actor ? actor.dryMass + actor.fuel : rocketMass(stage, run),
     fuel = actor ? actor.fuel : run.rocket.fuel[index],
     spent = Math.min(fuel, (part.thrust * state.throttle * dt) / part.exhaustSpeed),

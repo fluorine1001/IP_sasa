@@ -1,0 +1,289 @@
+/* Direct timeline authoring. Values describe hardware and commands, never a solution. */
+.power-meter {
+  height: 7px;
+  background: #102430;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 7px 0;
+}
+.power-meter span {
+  display: block;
+  height: 100%;
+  background: #e8b46a;
+}
+.engine-calibration {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  margin-top: 8px;
+  gap: 5px;
+}
+.engine-calibration i {
+  display: block;
+  height: 4px;
+  background: #98d9bd;
+  border-radius: 2px;
+  max-width: calc(100% - 22px);
+}
+.engine-calibration i:after {
+  content: '›';
+  float: right;
+  margin-top: -9px;
+  color: #98d9bd;
+  font-size: 20px;
+}
+.calibration-rocket {
+  transform: rotate(90deg);
+  color: #e8d9ad;
+}
+.timeline-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.timeline-ticks i {
+  position: absolute;
+  top: 74px;
+  font-size: 9px;
+  color: #b3c9bc;
+  font-style: normal;
+  transform: translateX(-50%);
+}
+.timeline-ticks i:before {
+  content: '';
+  display: block;
+  height: 8px;
+  border-left: 1px solid #8daa8b66;
+  margin-left: 50%;
+}
+.flight-deck .timeline-track {
+  height: 98px;
+}
+.flight-deck[data-phase='plan'] .timeline-legend {
+  display: none;
+}
+.flight-deck .timeline-event span {
+  display: none;
+}
+#timeline-palette {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 4px 0 2px;
+  flex-wrap: wrap;
+}
+#timeline-palette[hidden] {
+  display: none;
+}
+#timeline-palette button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 31px;
+  padding: 4px 9px;
+  font-size: 11px;
+  color: #d6e6db;
+  background: #19323e;
+  border: 1px solid #73938b;
+  border-radius: 5px;
+  touch-action: none;
+}
+#timeline-palette svg {
+  width: 19px;
+  height: 19px;
+}
+#timeline-palette small {
+  color: #9db8ad;
+  font-size: 10px;
+  margin-left: auto;
+}
+#timeline-palette button[aria-pressed='true'] {
+  border-color: #efc685;
+  background: #536056;
+  color: #ffebba;
+}
+#timeline-drop {
+  position: absolute;
+  top: 2px;
+  bottom: 12px;
+  z-index: 10;
+  border-left: 2px dashed #efc685;
+  pointer-events: none;
+}
+#timeline-drop svg {
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  background: #263c47;
+}
+#timeline-drop span {
+  position: absolute;
+  top: 30px;
+  left: 4px;
+  white-space: nowrap;
+  color: #efc685;
+  font-size: 11px;
+}
+.timeline-event[aria-pressed='true'] {
+  outline: 2px solid #edc27b;
+  z-index: 5;
+}
+#command-popover {
+  position: fixed;
+  width: 310px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - var(--deck-offset, 225px) - 28px);
+  overflow: auto;
+  z-index: 12;
+  padding: 13px;
+  background: #263f4b;
+  color: #dce6d8;
+  border: 2px solid #8caa99;
+  border-radius: 9px;
+  box-shadow: 0 5px 0 #0a1b25aa;
+}
+#command-popover[hidden] {
+  display: none;
+}
+#command-popover header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+#command-popover header b {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #eed7a5;
+  font-size: 14px;
+}
+#command-popover svg {
+  width: 22px;
+  height: 22px;
+}
+#command-popover header button {
+  padding: 1px 8px;
+  font-size: 18px;
+  background: #14303c;
+  color: #dce6d8;
+  border: 1px solid #6c8d83;
+  box-shadow: none;
+}
+#command-popover fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+#command-popover label {
+  display: block;
+  margin: 12px 0;
+  font-size: 12px;
+}
+#command-popover input[type='range'] {
+  display: block;
+  width: 100%;
+  accent-color: #eabd70;
+  margin: 10px 0 4px;
+  cursor: ew-resize;
+}
+#command-popover input[type='number'],
+#command-popover select {
+  background: #16313d;
+  color: #edddaf;
+  border: 1px solid #79988d;
+  border-radius: 4px;
+  padding: 5px;
+  max-width: 100%;
+}
+#command-popover input[type='number'] {
+  width: 74px;
+}
+#command-popover output {
+  float: right;
+  font-weight: bold;
+  color: #efc685;
+}
+.range-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #a8c3b3;
+}
+#command-popover p,
+#command-popover small {
+  line-height: 1.65;
+  font-size: 11px;
+  color: #b4cdc0;
+}
+#command-popover fieldset:disabled {
+  opacity: 0.65;
+}
+.popover-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.popover-actions button {
+  padding: 5px 8px;
+  font-size: 10px;
+  background: #36555d;
+  color: #e6dcc0;
+  border: 1px solid #74988a;
+  box-shadow: none;
+}
+.popover-actions [data-remove] {
+  color: #ffd0c3;
+  background: #704741;
+}
+@media (max-width: 650px) {
+  #timeline-palette {
+    gap: 5px;
+  }
+  #timeline-palette button {
+    font-size: 10px;
+    padding: 4px 7px;
+  }
+  #timeline-palette small {
+    display: none;
+  }
+  .flight-deck .timeline-track {
+    height: 92px;
+  }
+}
+
+.tool-count {
+  font-size: 10px;
+  color: #a8c9c8;
+}
+#timeline-selection {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #e4d4aa;
+}
+#timeline-selection button {
+  min-width: 28px;
+  padding: 3px 8px;
+  background: #7b3737;
+  color: white;
+}
+#timeline-selection[hidden] {
+  display: none;
+}
+
+#timeline-extend {
+  position: absolute;
+  right: 12px;
+  bottom: 45px;
+  padding: 3px 8px;
+  font-size: 11px;
+  background: #234652;
+  color: #baddcd;
+}
+#timeline-extend[hidden] {
+  display: none;
+}

@@ -1,3 +1,4 @@
+import { planningTimeLimit, planConstraints } from '../world/program';
 import { learningDesign, readingText } from '../world/evidence';
 import { bodyPosition } from '../world/celestial.ts';
 import type { Stage, RoutePlan } from '../world/types.ts';
@@ -25,6 +26,19 @@ export function seeded(seed: number) {
     return (value >>> 0) / 4294967296;
   };
 }
+// Keep random candidates legal without making one forbidden tool discard other tools.
+export function constrainAuditPlan(stage: Stage, source: RoutePlan): RoutePlan {
+  const result: RoutePlan = { ...structuredClone(source), impulses: [], engineCommands: [] };
+  for (const impulse of source.impulses) {
+    result.impulses.push(structuredClone(impulse));
+    if (planConstraints(stage, result).length) result.impulses.pop();
+  }
+  for (const command of source.engineCommands ?? []) {
+    result.engineCommands!.push(structuredClone(command));
+    if (planConstraints(stage, result).length) result.engineCommands!.pop();
+  }
+  return result;
+}
 export function* auditStage(stage: Stage): Generator<AuditResult> {
   const result: AuditResult = {
     checked: 0,
@@ -42,6 +56,12 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     yield result;
     return;
   }
+  if (stage.rules.maxTimeUnlimited)
+    result.warnings.push(
+      '무제한 임무: 자동 검사는 ' +
+        (stage.audit.timeLimit ?? stage.rules.maxTime) +
+        '초까지의 표본만 확인합니다.',
+    );
   for (const p of stage.referencePlans)
     if (execute(stage, p).status === 'won') result.referenceWins++;
   if (!result.referenceWins)
@@ -120,6 +140,10 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
   }
   yield structuredClone(result);
   const random = seeded(stage.audit.seed || 1);
+  const samplingDuration = Math.min(
+    planningTimeLimit(stage),
+    stage.audit.timeLimit ?? stage.rules.maxTime,
+  );
   for (let i = 0; i < result.total; i++) {
     const angle = random() * 2 * Math.PI,
       amount = Math.sqrt(random()) * limit,
@@ -132,7 +156,7 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
         m = random() * stage.rules.maneuverBudget;
       plan.impulses.push({
         id: `audit-${i}`,
-        time: random() * stage.rules.maxTime,
+        time: random() * samplingDuration,
         vector: { x: Math.cos(a) * m, y: Math.sin(a) * m },
       });
     }
@@ -140,7 +164,7 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
       plan.engineCommands = [];
       let time = 0;
       for (let j = 0; j < stage.rocket.parts.length * 3; j++) {
-        time += random() * Math.min(stage.rules.maxTime / (stage.rocket.parts.length * 3), 4);
+        time += random() * Math.min(samplingDuration / (stage.rocket.parts.length * 3), 4);
         const a = random() * Math.PI * 2;
         plan.engineCommands.push({
           id: `engine-${i}-${j}`,
@@ -158,10 +182,11 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
           });
       }
     }
-    if (execute(stage, plan).status === 'won') {
+    const legalPlan = constrainAuditPlan(stage, plan);
+    if (execute(stage, legalPlan).status === 'won') {
       result.randomWins++;
       if (result.counterexamples.length < 8)
-        result.counterexamples.push({ label: `임의 경로 ${i + 1}`, plan });
+        result.counterexamples.push({ label: `임의 경로 ${i + 1}`, plan: legalPlan });
     }
     result.checked++;
     if (i % 8 === 7) yield structuredClone(result);

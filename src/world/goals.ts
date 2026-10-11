@@ -21,7 +21,7 @@ export function updateGoals(c: GoalContext): void {
   for (const g of c.stage.goals) {
     const p = c.run.goals[g.id];
     if (p.complete || g.dependsOn.some((id) => !c.run.goals[id]?.complete)) continue;
-    if (c.run.time < g.startTime || c.run.time > g.endTime) continue;
+    if (c.run.time < g.startTime || (!g.endTimeUnlimited && c.run.time > g.endTime)) continue;
     if (evaluateCondition(g.condition, c, p)) {
       p.complete = true;
       p.ratio = 1;

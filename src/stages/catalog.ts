@@ -5,4 +5,6 @@ export const stages: Stage[] = Object.values(files)
   .map(parseStage)
   .sort((a, b) => a.order - b.order);
 
-export const catalog = stages.filter((s) => s.published !== false);
+export const catalog = stages
+  .filter((s) => s.published !== false)
+  .map((s) => ({ ...s, referencePlans: [] }));

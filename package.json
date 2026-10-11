@@ -16,9 +16,10 @@
     "check": "tsc --noEmit",
     "format": "prettier --write src tests data docs scripts .github *.json *.html *.md *.ts",
     "format:check": "prettier --check src tests data docs scripts .github *.json *.html *.md *.ts",
-    "verify": "npm run check && npm test && npm run audit:stages && npm run build && npm run format:check",
+    "verify": "npm run check && npm run check:boundaries && npm test && npm run audit:stages && npm run build && npm run format:check",
     "audit:stages": "node scripts/audit-stages.mjs",
-    "generate:variations": "node scripts/generate-variations.mjs"
+    "generate:variations": "node scripts/generate-variations.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

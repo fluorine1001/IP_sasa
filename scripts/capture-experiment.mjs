@@ -13,7 +13,32 @@ page.on('pageerror', (e) => errors.push(e.message));
 try {
   await page.goto('http://127.0.0.1:5173/?editor=1');
   await page.locator('#stage-source').selectOption(stage.id);
-  await page.locator('#test-reference').click();
+  await page.locator('#test-stage').click();
+  await page.locator('#program-toggle').click();
+  for (const c of stage.referencePlans[0].engineCommands) {
+    await page.locator('[data-time="new"]').fill(String(c.time));
+    const kind = c.separate
+      ? 'separate'
+      : c.throttle !== undefined
+        ? c.throttle
+          ? 'ignite'
+          : 'stop'
+        : 'turn';
+    await page.locator('[data-add="' + kind + '"]').click();
+    if (c.direction && c.throttle === undefined)
+      await page
+        .locator('.program-command')
+        .last()
+        .locator('[data-angle]')
+        .evaluate(
+          (e, n) => {
+            e.value = String(n);
+            e.dispatchEvent(new Event('input', { bubbles: true }));
+          },
+          (Math.atan2(c.direction.y, c.direction.x) * 180) / Math.PI,
+        );
+  }
+  await page.locator('#program-close').click();
   await page.locator('#program-toggle').click();
   await page.screenshot({ path: 'test-results/screens/flight-program.png' });
   await page.locator('#program-close').click();

@@ -1,3 +1,5 @@
+import { missionTimeLimit } from '../world/program';
+import { planConstraints } from '../world/program';
 import { instantiateVariation, variationIssues } from '../world/variation';
 import { surfaceLaunch } from '../world/launch.ts';
 import { conditionIssues } from '../world/conditions.ts';
@@ -105,8 +107,8 @@ export function issues(stage: Stage): string[] {
       !g.title.trim() ||
       ![g.startTime, g.endTime, g.position?.x, g.position?.y].every(Number.isFinite) ||
       g.startTime < 0 ||
-      g.endTime > stage.rules?.maxTime ||
-      g.startTime > g.endTime
+      (!g.endTimeUnlimited && g.endTime > missionTimeLimit(stage)) ||
+      (!g.endTimeUnlimited && g.startTime > g.endTime)
     )
       out.push(`${g.title}: 목표 시간과 위치를 확인하세요.`);
     if (
@@ -163,7 +165,9 @@ export function issues(stage: Stage): string[] {
           part.maxHeat <= 0 ||
           !Number.isInteger(part.ignitionLimit) ||
           part.ignitionLimit < 1 ||
-          part.ignitionLimit > 20
+          part.ignitionLimit > 20 ||
+          (part.turnRate !== undefined &&
+            (!Number.isFinite(part.turnRate) || part.turnRate <= 0 || part.turnRate > Math.PI * 4))
         )
           out.push('로켓 단의 질량·추력·연료·재점화·보호 한계를 확인하세요.');
   }
@@ -177,6 +181,38 @@ export function issues(stage: Stage): string[] {
   )
     out.push('스테이지 순서와 설명을 확인하세요.');
   const r = stage.rules;
+  if (
+    r.timelineDuration !== undefined &&
+    (!Number.isFinite(r.timelineDuration) ||
+      r.timelineDuration <= 0 ||
+      (!r.maxTimeUnlimited && !r.timelineUnlimited && r.timelineDuration > r.maxTime))
+  )
+    out.push('타임라인 길이는 0초보다 크고 전체 임무 시간 이하여야 합니다.');
+  for (const flag of [
+    r.maxTimeUnlimited,
+    r.timelineUnlimited,
+    ...stage.goals.map((g) => g.endTimeUnlimited),
+  ])
+    if (flag !== undefined && typeof flag !== 'boolean')
+      out.push('무제한 시간 옵션은 참/거짓이어야 합니다.');
+  if (
+    stage.audit.timeLimit !== undefined &&
+    (!Number.isFinite(stage.audit.timeLimit) ||
+      stage.audit.timeLimit <= 0 ||
+      stage.audit.timeLimit > 600)
+  )
+    out.push('자동 검사 시간은 0~600초 사이의 유한한 양수여야 합니다.');
+  if (
+    r.commandLimits &&
+    Object.entries(r.commandLimits).some(
+      ([key, value]) =>
+        !['ignite', 'stop', 'turn', 'separate', 'push'].includes(key) ||
+        !Number.isInteger(value) ||
+        value! < 0 ||
+        value! > 64,
+    )
+  )
+    out.push('예약별 한도는 0~64 사이 정수로 지정하세요.');
   if (
     !r ||
     ![r.launchLimit, r.maneuverBudget, r.maxTime, r.worldRadius, r.sensorSlots, r.attempts].every(
@@ -241,6 +277,11 @@ export function issues(stage: Stage): string[] {
         out.push('기준 경로의 발사 추진과 명령을 확인하세요.');
         continue;
       }
+      if (plan.engineCommands !== undefined && !Array.isArray(plan.engineCommands)) {
+        out.push('엔진 명령 목록을 확인하세요.');
+        continue;
+      }
+      out.push(...planConstraints(stage, plan));
       const ids = new Set<string>();
       let cost = 0;
       for (const burn of plan.impulses) {
@@ -250,7 +291,7 @@ export function issues(stage: Stage): string[] {
           !burn.vector ||
           ![burn.time, burn.vector?.x, burn.vector?.y].every(Number.isFinite) ||
           burn.time < 0 ||
-          burn.time > stage.rules.maxTime
+          burn.time > missionTimeLimit(stage)
         )
           out.push('기준 경로의 추진 시각·ID·벡터를 확인하세요.');
         ids.add(burn.id);
@@ -268,7 +309,7 @@ export function issues(stage: Stage): string[] {
               ids.has(command.id) ||
               !Number.isFinite(command.time) ||
               command.time < 0 ||
-              command.time > stage.rules.maxTime ||
+              command.time > missionTimeLimit(stage) ||
               (command.throttle !== undefined &&
                 (!Number.isFinite(command.throttle) ||
                   command.throttle < 0 ||
@@ -292,7 +333,7 @@ export function issues(stage: Stage): string[] {
               ids.has(release.id) ||
               !Number.isFinite(release.time) ||
               release.time < 0 ||
-              release.time > stage.rules.maxTime ||
+              release.time > missionTimeLimit(stage) ||
               !['speed', 'gravity', 'distance', 'direction', 'clock'].includes(release.kind)
             )
               out.push('기준 경로의 부표 명령을 확인하세요.');

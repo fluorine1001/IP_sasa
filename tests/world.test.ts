@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { stages } from '../src/stages/catalog';
-import { createRun, tick, execute, impulse, deploySensor } from '../src/world/engine';
+import { createRun, tick, execute, impulse } from '../src/world/engine';
 import { bodyPosition, bodyVelocity } from '../src/world/celestial';
 import { syncLaunch, PAD_CLEARANCE } from '../src/world/launch';
 import { length, sub } from '../src/physics/vector';
@@ -22,17 +22,14 @@ describe('실제 비행의 물리 제약', () => {
       expect(stage.spawn.velocity).toEqual(bodyVelocity(stage, body, 0));
     }
   });
-  it('부표는 위치와 속도를 이어받으며 로켓만 추진하면 다른 궤적을 간다', () => {
+  it('이전 파일의 부표 방출 예약은 더 이상 실행하거나 표시하지 않는다', () => {
     const stage = first(),
-      run = createRun(stage, stage.referencePlans[0]);
-    expect(deploySensor(run, stage, 'gravity', 'buoy')).toBe(true);
-    expect(run.buoys[0].position).toEqual(run.position);
-    expect(run.buoys[0].velocity).toEqual(run.velocity);
+      p = structuredClone(stage.referencePlans[0]);
+    p.deployments = [{ id: 'old-buoy', time: 0.1, kind: 'gravity' }];
+    const run = createRun(stage, p);
     tick(run, stage, 0.2);
-    expect(length(sub(run.position, run.buoys[0].position))).toBeLessThan(1e-12);
-    expect(impulse(run, stage, { x: 0.1, y: 0 }, 'burn')).toBe(true);
-    tick(run, stage, 0.2);
-    expect(length(sub(run.position, run.buoys[0].position))).toBeGreaterThan(0.015);
+    expect(run.buoys).toEqual([]);
+    expect(run.applied.has('old-buoy')).toBe(false);
   });
   it('제동은 추진 예산을 사용하며 제한보다 큰 정지는 불가능하다', () => {
     const stage = first(),
@@ -53,18 +50,6 @@ describe('실제 비행의 물리 제약', () => {
     expect(run.position.y).toBeGreaterThan(0.3);
     expect(run.velocity.x).toBeLessThan(0);
     expect(run.used).toBe(0);
-  });
-  it('부표 슬롯이 제한되고 파손된 부표가 계속 관측하지 않는다', () => {
-    const stage = first(),
-      run = createRun(stage, { launch: { x: -0.2, y: 0 }, impulses: [] });
-    stage.rules.sensorSlots = 1;
-    expect(deploySensor(run, stage, 'gravity', 'one')).toBe(true);
-    expect(deploySensor(run, stage, 'gravity', 'two')).toBe(false);
-    tick(run, stage, 0.2);
-    expect(run.status).toBe('impact');
-    tick(run, stage, 1.5);
-    expect(run.status).toBe('failed');
-    expect(run.buoys[0].lastSample).toBe(Infinity);
   });
   it('동일한 추진 시각이 재생의 프레임 크기에 영향을 받지 않는다', () => {
     const stage = first(),

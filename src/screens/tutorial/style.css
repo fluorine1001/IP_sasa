@@ -1,0 +1,41 @@
+.help-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 30px 0;
+}
+
+.help-grid article,
+.control-card {
+  padding: 22px;
+  border: 3px solid var(--ink);
+  background: #30434e;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #081824;
+}
+
+.help-grid b {
+  font-size: 18px;
+  color: #eecb86;
+}
+
+.help-grid p {
+  margin: 12px 0 0;
+}
+
+.control-card {
+  line-height: 2.1;
+  margin-bottom: 20px;
+}
+
+.control-card b {
+  display: inline-block;
+  width: 54px;
+  color: #edca87;
+}
+
+@media (max-width: 650px) {
+  .help-grid {
+    grid-template-columns: 1fr;
+  }
+}

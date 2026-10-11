@@ -1,39 +1,39 @@
 # IP_sasa 협업
 
-GitHub Desktop으로 `fluorine1001/IP_sasa`를 각자의 폴더에 clone합니다. Node.js 24와 `npm ci`로 동일한 lockfile을 사용합니다. 공유 폴더에서 동시에 수정하지 않습니다.
+각자 별도 clone과 개인 브랜치를 사용합니다. 공유 폴더를 동시에 수정하지 않습니다. 네 역할과 담당 UUID/기능은 GitHub Issue에서 정합니다.
 
-## 작업 흐름
+| 역할          | 기본 변경 위치                                                                    | 합의할 변경                       |
+| ------------- | --------------------------------------------------------------------------------- | --------------------------------- |
+| 스테이지 제작 | data/stages/<자신의 UUID>.json, 전용 자산                                         | 타인 UUID, 목표/물리의 새 기능    |
+| 게임 시스템   | screens/flight/, world/, physics/, render/, editor/, stages/, title.ts, stages.ts | 화면 계약, 치수, 새 설정          |
+| 튜토리얼      | screens/tutorial/ 코드·CSS                                                        | 새 입력/전환 계약                 |
+| 설정 탭       | screens/settings/ 코드·CSS                                                        | Settings 타입·저장·게임 적용 지점 |
 
-1. Issue에 원하는 플레이 결과, 담당 모듈, 완료 기준을 적습니다.
-2. 최신 팀 기준 브랜치를 받아 개인 브랜치를 만듭니다.
-3. 담당 모듈을 수정합니다. 공용 타입·물리 의미의 변경은 영향 범위를 알립니다.
-4. `npm run format`, `npm run verify`, `npm run test:e2e`를 실행하고 직접 플레이합니다.
-5. 파일을 확인해 commit하고 자기 브랜치를 publish합니다.
-6. PR에 플레이 변화와 검증을 설명하고 리뷰 뒤 병합합니다.
+src/main.ts, app/core.ts, style.css, world/types.ts, world/hull.ts, package/lockfile, Vite/CI는 공용입니다. 계약 변경은 작은 선행 PR로 조율한 뒤 기능 PR을 진행합니다. 튜토리얼/설정 내용 수정과 새 스테이지 추가는 공용 파일을 바꿀 필요가 없습니다.
 
-Codex 브랜치는 `codex/`로 시작합니다. 강제 push와 다른 사람의 기록 재작성은 하지 않습니다.
+check:boundaries는 튜토리얼/설정의 다른 화면·물리 직접 의존성과 모델의 UI 의존성을 검사합니다. 담당이 겹친 변경은 PR 순서를 조율해야 합니다.
 
-## 충돌을 줄이는 단위
+## GitHub Desktop 순서
 
-| 담당             | 기본 변경 위치                                                    |
-| ---------------- | ----------------------------------------------------------------- |
-| 메뉴·도움말·설정 | `src/screens/title.ts`, `help.ts`, `settings.ts`                  |
-| 비행 조작·HUD    | `src/screens/play.ts`, `flight-timeline.ts`                       |
-| 비행 기록·재생   | `src/world/replay.ts`, `evidence.ts`                              |
-| 렌더링·카메라    | `src/render/`                                                     |
-| 추진·대기·중력   | `src/world/rocket.ts`, `celestial.ts`, `dynamics.ts`, `engine.ts` |
-| 물리량·수식·조건 | `src/world/metrics.ts`, `expressions.ts`, `conditions.ts`         |
-| 제작·설계 검사   | `src/editor/`                                                     |
-| 스테이지         | `data/stages/<UUID>.json` 한 파일씩                               |
+1. Fetch origin / Pull로 기준 브랜치를 받습니다. 현재 codex/game-workshop, main 병합 후에는 팀이 정한 main입니다.
+2. Issue에 역할·파일·UUID·원하는 결과·완료 기준을 적습니다.
+3. 개인 브랜치를 만듭니다. stage/<이름>, tutorial/<기능>, settings/<기능>. Codex 작업은 codex/ 접두사입니다.
+4. 담당 파일을 수정하고 관련 화면을 직접 확인합니다.
+5. npm run format, npm run verify, npm run test:e2e를 실행합니다.
+6. Changes에서 생성물/불필요한 파일을 제외하고 commit, Publish branch 또는 Push origin으로 자기 브랜치에 올립니다.
+7. PR에 결과·공용 계약·검증·화면을 적고 담당자 리뷰 후 병합합니다.
 
-`src/world/types.ts`와 `src/app/core.ts`와 `src/world/hull.ts`는 공용 계약입니다. 각 화면은 이벤트를 `dispose()`에서 정리합니다. 물리·판정은 DOM과 렌더러를 참조하지 않습니다.
+## 충돌 예방
 
-새 스테이지는 새 UUID를 사용합니다. 초안 저장 파일은 `published:false`이며 캠페인에 나타나지 않습니다. 성공 경로와 반례 검사를 거쳐 게임에 추가합니다.
+- 새 스테이지는 새 UUID를 발급하고 파일명=내부 ID를 유지합니다. 목록은 자동 발견됩니다.
+- 같은 UUID는 한 사람이 맡습니다. 공동 변경은 한 PR을 먼저 병합하고 다음 작업을 받습니다.
+- JSON 충돌에서 목표/참조를 무작정 합치지 않습니다. 담당자가 버전을 확인하고 에디터로 재검증합니다.
+- 초안은 published:false입니다. 테스트 파일을 불필요하게 공개하지 않습니다.
+- 화면 CSS는 자신의 폴더에 제한하고 이벤트/타이머는 dispose에서 정리합니다.
+- 로켓 아트 변경은 hull 치수와 함께 리뷰합니다.
 
-기존 블록으로 표현 가능한 임무를 새 엔진 분기로 추가하지 않습니다. 새 물리량은 `metrics.ts`에 이름·단위·조회 함수를 추가합니다. 새 현상은 물리 모듈에 구현하고 상태를 조회 함수로 노출합니다.
+강제 push나 타인의 기록 재작성은 하지 않습니다. main 보호 규칙·실제 리뷰어는 GitHub 관리자가 설정해야 하며 CI만으로 활성화되지 않습니다. 가짜 CODEOWNERS 계정을 만들지 않습니다.
 
-## 팀 기준 브랜치
+hello.py는 기존 파일입니다. 로컬 main과 origin/main의 서로 다른 Hello World 변경은 첫 병합 때 사람이 확인하며 게임 작업으로 덮어쓰지 않습니다.
 
-게임 작업은 `codex/game-workshop`에서 진행합니다. 로컬 main과 origin/main에는 서로 다른 Hello World 커밋이 있으므로 첫 병합 때 `hello.py`의 원하는 내용을 확인해야 합니다. 게임 작업으로 이 파일을 덮어쓰지 않습니다.
-
-main 보호 규칙(리뷰·CI 필수)은 관리자가 GitHub에서 설정합니다. CI 파일만으로 활성화되지 않습니다. 비밀키·토큰·의존성 폴더·빌드·테스트 결과물은 commit하지 않습니다.
+.env/비밀키/node_modules/dist/test-results는 commit하지 않습니다. 배포 빌드는 기준 계획을 제거하지만 제작 JSON에는 검증 계획이 있습니다. 공개 저장소의 소스도 공개되므로 검증 데이터까지 숨기려면 별도 제작 저장소가 필요합니다.

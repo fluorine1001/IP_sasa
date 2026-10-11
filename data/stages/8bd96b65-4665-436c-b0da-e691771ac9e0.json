@@ -4,7 +4,7 @@
   "launchAngle": 0,
   "id": "8bd96b65-4665-436c-b0da-e691771ac9e0",
   "title": "대기권의 문을 지나",
-  "description": "대기 속에서는 부스터를, 공기가 옅어지면 상단을 활용하세요. 상단 연료를 남기고 목표 고도에서 속력을 낮춰 안정적으로 비행해야 합니다.",
+  "description": "대기권을 지나 지정된 고도 구역에서 연료를 남긴 채 안정적으로 비행하세요. 기체의 단별 특성과 실제 관측을 활용해 비행 순서를 설계합니다.",
   "order": 1,
   "theme": "frontier",
   "bodies": [
@@ -538,18 +538,23 @@
           "separate": true
         },
         {
-          "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
-          "time": 4.819999999999942,
+          "id": "96e5b42c-588a-4c62-9547-a60a88f0ea0c",
+          "time": 4.82,
           "actorId": "craft",
-          "throttle": 1,
           "direction": {
             "x": -1,
             "y": 0
           }
         },
         {
-          "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
-          "time": 5.4399999999999284,
+          "id": "28e85330-1e7e-46a3-8c20-5ffb6c7664e7",
+          "time": 5.82,
+          "actorId": "craft",
+          "throttle": 1
+        },
+        {
+          "id": "e5fdf6e4-82a8-4900-87f0-1247f259649a",
+          "time": 6.32,
           "actorId": "craft",
           "throttle": 0
         }
@@ -574,7 +579,8 @@
         "area": 0.12,
         "maxQ": 0.18,
         "maxHeat": 1.5,
-        "ignitionLimit": 2
+        "ignitionLimit": 2,
+        "turnRate": 1.5707963267948966
       },
       {
         "id": "30bcf420-34f2-4b28-b513-ad759a57c7b7",
@@ -586,7 +592,8 @@
         "area": 0.07,
         "maxQ": 0.012,
         "maxHeat": 0.35,
-        "ignitionLimit": 2
+        "ignitionLimit": 2,
+        "turnRate": 2.0943951023931953
       },
       {
         "id": "ad883032-bed8-47c9-9ea3-e9c00f930604",
@@ -598,13 +605,14 @@
         "area": 0.025,
         "maxQ": 0.002,
         "maxHeat": 0.15,
-        "ignitionLimit": 4
+        "ignitionLimit": 4,
+        "turnRate": 3.141592653589793
       }
     ]
   },
   "published": true,
   "learning": {
-    "briefing": "먼저 출력계로 지면을 떠날 힘을 확인하세요. 1단은 두꺼운 공기를 버티고, 2단은 높이 올라가며, 가벼운 3단은 너무 빨라진 비행을 낮춥니다. 실제 비행의 시간·고도·연료를 읽고 다음 시도의 분리·점화·제동 시각을 예약하세요.",
+    "briefing": "엔진 출력은 분사하는 힘, 방향은 기체가 바라볼 목표입니다. 회전과 분리는 실제 시간이 걸리는 조작입니다. 같은 환경에서 한 가지씩 바꾸고 실제 기록의 차이를 비교하세요.",
     "instruments": [
       {
         "id": "height",

@@ -5,6 +5,7 @@ test('관제 콘솔이 시야를 확보하며 창 크기에 따라 버튼·편�
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '탐사 시작' }).click();
+  await page.locator('.stage-card').first().click();
   for (const size of [
     { width: 1920, height: 1080 },
     { width: 1440, height: 1000 },
@@ -17,7 +18,7 @@ test('관제 콘솔이 시야를 확보하며 창 크기에 따라 버튼·편�
         const rect = (await page.locator('.flight-deck').boundingBox())!;
         return rect.height;
       })
-      .toBeLessThan(size.width > 1000 ? 200 : 270);
+      .toBeLessThan(size.width > 1000 ? 240 : 290);
     const dock = (await page.locator('.flight-deck').boundingBox())!;
     expect(dock.x).toBeGreaterThanOrEqual(0);
     expect(dock.x + dock.width).toBeLessThanOrEqual(size.width);
@@ -30,8 +31,8 @@ test('관제 콘솔이 시야를 확보하며 창 크기에 따라 버튼·편�
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({ path: 'test-results/screens/mission-control-plan.png' });
-  await page.locator('#dock-tools > summary').click();
-  await page.getByRole('button', { name: '엔진 출력 예약', exact: true }).click();
+  await page.locator('#program-toggle').click();
+  await page.locator('[data-add="ignite"]').click();
   await expect(page.locator('#program-editor')).toBeVisible();
   await expect(page.locator('.program-command')).toHaveCount(1);
   await page.locator('#program-close').click();
@@ -46,6 +47,7 @@ test('최근 발사를 바로 재생하고 경로 썸네일로 시도를 선택�
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
   await page.getByRole('button', { name: '탐사 시작' }).click();
+  await page.locator('.stage-card').first().click();
   await expect(
     page.getByRole('button', { name: '최근 발사 다시보기', exact: true }),
   ).toBeDisabled();

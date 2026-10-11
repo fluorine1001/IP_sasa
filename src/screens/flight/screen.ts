@@ -1,29 +1,31 @@
-import './flight-console.css';
-import { controlButton, controlIcon, setControl } from './flight-controls';
-import { flightTimeline } from './flight-timeline';
-import { replayAt } from '../world/replay';
-import { launchReadout } from '../world/program';
+import { planConstraints } from '../../world/program';
+import './base.css';
+import './console.css';
+import { controlButton, controlIcon, setControl } from './controls';
+import { flightTimeline } from './timeline';
+import { replayAt } from '../../world/replay';
+import { propulsionReadout } from './propulsion';
 import {
   learningDesign,
   readingText,
   recordTrial,
   compareTrials,
   type Trial,
-} from '../world/evidence';
-import { bodyPosition } from '../world/celestial';
-import { syncLaunch } from '../world/launch.ts';
-import { aimVector, aimEndpoint } from '../render/aim.ts';
-import { dynamicView } from '../world/dynamics.ts';
-import { atmosphericState } from '../world/rocket.ts';
-import { controls, escape, type App, type PlayArgs, type Screen } from '../app/core.ts';
-import { sound } from '../app/sound.ts';
-import { sub, scale, length, unit, type Vec } from '../physics/vector.ts';
-import { createRun, tick } from '../world/engine.ts';
-import { gravity } from '../world/celestial.ts';
-import { drawWorld } from '../render/world.ts';
-import { toWorld, zoomAt } from '../render/camera.ts';
-import type { Run, RoutePlan, Observation, DeviceKind } from '../world/types.ts';
-import { uid } from '../stages/factory.ts';
+} from '../../world/evidence';
+import { bodyPosition } from '../../world/celestial';
+import { syncLaunch } from '../../world/launch.ts';
+import { aimVector, aimEndpoint } from '../../render/aim.ts';
+import { dynamicView } from '../../world/dynamics.ts';
+import { atmosphericState } from '../../world/rocket.ts';
+import { controls, escape, type App, type PlayArgs, type Screen } from '../../app/core.ts';
+import { sound } from '../../app/sound.ts';
+import { sub, scale, length, unit, type Vec } from '../../physics/vector.ts';
+import { createRun, tick } from '../../world/engine.ts';
+import { gravity } from '../../world/celestial.ts';
+import { drawWorld } from '../../render/world.ts';
+import { toWorld, zoomAt } from '../../render/camera.ts';
+import type { Run, RoutePlan, Observation } from '../../world/types.ts';
+import { uid } from '../../stages/factory.ts';
 export function playScreen(app: App, args: PlayArgs): Screen {
   const stage = structuredClone(args.stage);
   const design = learningDesign(stage);
@@ -99,11 +101,6 @@ ${controlButton('exit', 'close', '임무 나가기', 'mission-exit')}
 <footer class="flight-deck panel" aria-label="지상 관제석">
 <div class="dock-toolbar">
 <div class="dock-plan-tools"><div id="dock-plan"></div>${controlButton('aim', 'aim', '발사 방향·출력')}
-<details id="dock-tools" class="dock-popup"><summary title="비행 조작 예약">${controlIcon('add')}<span>예약</span></summary><div class="dock-menu">
-${controlButton('gravity-buoy', 'sensor', '중력 부표 방출 예약', 'with-label')}
-${controlButton('speed-buoy', 'speed', '속력 부표 방출 예약', 'with-label')}
-${stage.rocket ? controlButton('engine', 'engine', '엔진 출력 예약', 'with-label') + controlButton('separate', 'separate', '단 분리 예약', 'with-label') : ''}
-</div></details>
 <details id="experiment-tools" class="dock-popup"><summary title="첫 추진 미세 조절">${controlIcon('sliders')}<span>출력</span></summary><div class="dock-menu"><span id="launch-strength"></span><button id="lock-angle">방향 고정</button><button id="weaker">첫 추진 −</button><button id="stronger">첫 추진 +</button><button id="clear-burns">전체 예약 지우기</button></div></details></div>
 <div class="dock-transport"><div id="dock-replay"></div>${controlButton('pause', 'pause', '시간 정지')}<button id="rate" class="console-button rate-button" title="시간 배속" data-tip="시간 배속">${stage.rocket ? '1×' : '4×'}</button>${controlButton('follow', 'follow', '로켓 따라가기')}${stage.rocket ? controlButton('vehicle', 'vehicle', '비행체 추적 전환') : ''}</div>
 <div class="dock-flight-actions"><button id="notes" class="console-button with-label" aria-label="비행 기록 · 다시보기 선택" title="이전 발사 선택·다시보기·관측 비교">${controlIcon('records')}<span class="control-label">비행 기록</span><span id="trial-count" class="count-badge">0</span><span class="sr-only"> · 관측 <span id="note-count">0</span>개</span></button>
@@ -174,14 +171,6 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       },
       { signal },
     );
-    popup.addEventListener(
-      'click',
-      (e) => {
-        if ((e.target as HTMLElement).closest('button') && popup.id === 'dock-tools')
-          popup.open = false;
-      },
-      { signal },
-    );
   });
   function beginReplay(index: number) {
     if (!trials[index]?.frames.length) return;
@@ -245,37 +234,26 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   }
   function drawNotes() {
     el('notebook').hidden = !notebook;
-    const groups = new Map<string, Observation[]>();
-    for (const r of notes) {
-      const a = groups.get(r.deviceId) ?? [];
-      a.push(r);
-      groups.set(r.deviceId, a);
-    }
     el('notebook').innerHTML =
       ledgerHtml() +
-      `<details class="sensor-archive"><summary>부표 관측 · ${notes.length}개</summary><h3>측정 기록</h3><p>부표도 중력에 끌리고 관성으로 움직입니다. 로켓만 추진하면 서로 다른 경로가 생깁니다.</p>${
-        [...groups.values()]
-          .map((a) => {
-            const first = a[0],
-              last = a.at(-1)!,
-              change = last.value / Math.max(first.value, 1e-8);
-            return `<article><b>${escape(first.text)}</b><p>${first.kind === 'gravity' ? '끌리는 방향과 경로의 휘어짐을 읽었습니다.' : first.kind === 'speed' ? '추진 없이도 중력에 따라 빠르기가 변합니다.' : '부표 이동 기록입니다.'} ${a.length > 1 ? `처음보다 ${change > 1.08 ? '강해짐 / 빨라짐' : change < 0.92 ? '약해짐 / 느려짐' : '비슷함'}` : '더 긴 기록을 비교해 보세요.'}</p><small>${first.time.toFixed(1)} → ${last.time.toFixed(1)} 초 · ${a.length}회 관측</small></article>`;
-          })
-          .join('') ||
-        '<p>발사 전에 중력 부표 방출을 예약하면 실제 측정 기록을 모을 수 있습니다.</p>'
-      }<button id="apply-observations" class="primary">중력 기록 해석하기</button><p class="muted">실제로 지나온 경로만 남습니다.</p></details>`;
+      '<details class="sensor-archive"><summary>실제 측정 기록 · ' +
+      notes.length +
+      '개</summary>' +
+      notes
+        .slice(-30)
+        .map(
+          (n) =>
+            '<p>' +
+            escape(n.text) +
+            ' · ' +
+            n.time.toFixed(1) +
+            '초 · ' +
+            n.value.toFixed(2) +
+            '</p>',
+        )
+        .join('') +
+      '</details>';
     wireLedger();
-    el('close-notes').onclick = () => {
-      notebook = false;
-      drawNotes();
-    };
-    el('apply-observations').onclick = () => {
-      if (notes.some((r) => r.kind === 'gravity')) {
-        toast('중력 관측을 읽었습니다. 가까워질수록 휘어짐이 커지는지 실제 기록으로 비교해보세요.');
-        notebook = false;
-        drawNotes();
-      } else toast('중력 기록이 부족합니다. 중력 부표를 방출하고 조금 더 날아보세요.');
-    };
   }
   function adjustStrength(delta: number) {
     if (run || replayIndex >= 0) return;
@@ -389,7 +367,6 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     el('trial-count').textContent = String(trials.length);
     (el('latest-replay') as HTMLButtonElement).disabled = trials.length === 0;
     if (run || replayIndex >= 0) {
-      (el('dock-tools') as HTMLDetailsElement).open = false;
       (el('experiment-tools') as HTMLDetailsElement).open = false;
     }
     timeline.update();
@@ -397,8 +374,6 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     (el('aim') as HTMLButtonElement).title = '발사 전에 주황 손잡이로 방향과 출력을 조절합니다.';
     for (const id of [
       'aim',
-      'gravity-buoy',
-      'speed-buoy',
       'engine',
       'separate',
       'weaker',
@@ -411,20 +386,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     }
     el('initial-output').hidden = locked;
     if (!locked) {
-      const r = launchReadout(stage, plan);
-      el('initial-output').innerHTML = r.powered
-        ? '<b>첫 엔진 출력 ' +
-          Math.round(r.throttle * 100) +
-          '%</b><p class="' +
-          (r.lift > 1 ? 'lift-ready' : 'lift-low') +
-          '">' +
-          (r.lift > 1 ? '↑ 떠오를 수 있음' : '↓ 뜨기에는 힘 부족') +
-          ' · 무게의 ' +
-          r.lift.toFixed(2) +
-          '배</p><small>1단 연료 ' +
-          (Number.isFinite(r.fuelSeconds) ? '약 ' + r.fuelSeconds.toFixed(1) + '초' : '소모 없음') +
-          ' · 계획에서 출력·방향 조절</small>'
-        : '<b>첫 속력 눈금 ' + r.speed.toFixed(2) + '</b><p>주황 화살표 = 첫 추진 방향·세기</p>';
+      el('initial-output').innerHTML = propulsionReadout(stage, plan);
     }
     (el('pause') as HTMLButtonElement).disabled = !run && replayIndex < 0;
     (el('follow') as HTMLButtonElement).disabled = !run && replayIndex < 0;
@@ -520,8 +482,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       following ? '추적 중 · 시야 풀기' : '로켓 따라가기',
       following,
     );
-    el('inventory').textContent =
-      `발사 ${attempts} · 부표 ${stage.rules.sensorSlots - (run?.buoys.length ?? plan.deployments?.length ?? 0)}`;
+    el('inventory').textContent = `남은 발사 ${attempts}`;
     el('goals').innerHTML = stage.goals
       .map((g) => {
         const p = run?.goals[g.id];
@@ -550,7 +511,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     (el('launch') as HTMLButtonElement).disabled = !!run || attempts <= 0;
     if (!stage.rocket || !run)
       el('hint').textContent = run
-        ? '놓은 부표도 관성으로 계속 움직입니다'
+        ? '실제 비행 관측을 기록합니다'
         : `${plan.impulses.length + (plan.engineCommands?.length ?? 0)}개 비행 조작 예약 · ${history.length ? '지난 비행의 실제 궤적' : '미래 궤도는 표시되지 않습니다'}`;
   }
   function reset() {
@@ -580,6 +541,11 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   }
   function start(probe = false) {
     if (run || replayIndex >= 0 || (!probe && attempts <= 0)) return;
+    const errors = planConstraints(stage, plan);
+    if (errors.length) {
+      toast(errors[0]);
+      return;
+    }
     timeline.close();
     cancelDrag();
     if (!probe) attempts--;
@@ -593,23 +559,9 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     sound(app.settings.volume, 'launch');
     toast(
       probe
-        ? '실제 비행 중. 2로 부표를 방출해 기록을 모으세요.'
+        ? '제작 시험 비행 중 · 실제 관측 기록 수집'
         : '예약한 순서대로 실제 비행합니다. 조작은 확정되었습니다. 정지해서 관측하거나 기록을 남기고 다음 계획으로 돌아가세요.',
     );
-    updateHud();
-  }
-  function buoy(kind: DeviceKind) {
-    if (run || replayIndex >= 0) return;
-    {
-      const releases = (plan.deployments ??= []);
-      if (releases.length >= stage.rules.sensorSlots) {
-        toast('장비 슬롯이 모두 예약되었습니다.');
-        return;
-      }
-      releases.push({ id: uid(), time: 0.25, kind });
-      plan.deployments = releases;
-      toast(`발사 직후 ${kind === 'gravity' ? '중력' : '속력'} 부표 방출을 예약했습니다.`);
-    }
     updateHud();
   }
   function togglePause() {
@@ -656,11 +608,6 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       };
     updateHud();
   }
-  function addInPlanner(kind: string) {
-    if (run || replayIndex >= 0) return;
-    if (el('program-editor').hidden) el('program-toggle').click();
-    app.root.querySelector<HTMLButtonElement>('[data-add="' + kind + '"]')?.click();
-  }
   controls(
     app.root,
     {
@@ -693,16 +640,12 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
           finish();
         }
       },
-      engine: () => addInPlanner('ignite'),
-      separate: () => addInPlanner('separate'),
       vehicle: cycleVehicle,
       exit,
       aim: () => {
         selected = '';
         toast('로켓에서 끌어 첫 추진을 정하세요.');
       },
-      'gravity-buoy': () => buoy('gravity'),
-      'speed-buoy': () => buoy('speed'),
       'latest-replay': () => beginReplay(trials.length - 1),
       notes: () => {
         if (replayIndex >= 0) return;
@@ -753,24 +696,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     (e) => {
       e.preventDefault();
       if (run || replayIndex >= 0) return;
-      if (stage.rocket) {
-        toast('비행 계획에서 엔진·방향·분리 시각을 예약하세요.');
-        return;
-      }
-      const p = world(e),
-        nearest = history.reduce(
-          (a, b) => (length(sub(b.position, p)) < length(sub(a.position, p)) ? b : a),
-          history[0],
-        );
-      if (!nearest || length(sub(nearest.position, p)) * camera.zoom > 30) {
-        toast('이전 비행에서 실제로 지나온 궤적 위를 우클릭하세요.');
-        return;
-      }
-      const command = { id: uid(), time: nearest.time, vector: { x: 0, y: 0 } };
-      plan.impulses.push(command);
-      selected = command.id;
-      toast('노드에서 끌어 수정 추진을 정하세요. 반대로 끌면 제동합니다.');
-      updateHud();
+      toast('시간선 아래의 조작을 끌어 놓고 실행 시각과 값을 지정하세요.');
     },
     { signal },
   );
@@ -915,8 +841,6 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         keys.clear();
         updateHud();
       }
-      if (e.code === 'Digit2') buoy('gravity');
-      if (e.code === 'Digit3') buoy('speed');
       if (e.code === 'KeyC') following = !following;
 
       if (e.code === 'Tab' && stage.rocket) {
@@ -954,9 +878,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     },
     { signal },
   );
-  toast(
-    '같은 환경에서 실제 발사를 비교하세요. 지난 경로의 점을 우클릭하면 그 시각의 수정 추진을 예약합니다.',
-  );
+  toast('시간선에 조작을 끌어 놓고 클릭해 값을 지정하세요. 같은 환경에서 실제 발사를 비교합니다.');
   function seedObservation() {
     const groundForce = gravity(stage, stage.spawn.position, 0);
     notes.push({

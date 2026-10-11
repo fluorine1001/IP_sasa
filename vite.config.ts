@@ -43,7 +43,21 @@ function stageWorkshop(): Plugin {
     },
   };
 }
+export function playerStages(): Plugin {
+  return {
+    name: 'player-stages-without-proofs',
+    apply: 'build',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.replace(/\\/g, '/').includes('/data/stages/') || !id.endsWith('.json')) return;
+      const stage = JSON.parse(code);
+      stage.referencePlans = [];
+      delete stage.randomization;
+      return { code: JSON.stringify(stage), map: null };
+    },
+  };
+}
 export default defineConfig({
-  plugins: [stageWorkshop()],
+  plugins: [playerStages(), stageWorkshop()],
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
 });

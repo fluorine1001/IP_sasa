@@ -6,7 +6,14 @@ import { replayAt, captureFrame } from '../src/world/replay';
 import { launchReadout, programWarnings, programEvents } from '../src/world/program';
 import { craftHull, hullSize, hullGap, sweepHull } from '../src/world/hull';
 import { impactDirection } from '../src/world/impact';
-import { separate, rocketMass } from '../src/world/rocket';
+import {
+  separate,
+  rocketMass,
+  controlEngine,
+  poweredStep,
+  attitudeRate,
+  turnTowards,
+} from '../src/world/rocket';
 import { add, scale, length, sub } from '../src/physics/vector';
 const powered = stages.find((s) => s.rocket)!;
 it('발사 전 출력 안내가 실제 첫 엔진의 무게·연료 사용과 일치한다', () => {
@@ -22,9 +29,9 @@ it('발사 전 출력 안내가 실제 첫 엔진의 무게·연료 사용과 �
   const initialFuel = run.rocket!.fuel[0];
   tick(run, s, 0.1, [], false);
   expect(initialFuel - run.rocket!.fuel[0]).toBeCloseTo((part.thrust * 0.1) / part.exhaustSpeed, 8);
-  expect(programWarnings(s, { launch: { x: 0.1, y: 0 }, impulses: [] })).toContainEqual(
-    expect.stringContaining('떠나지'),
-  );
+  expect(r.acceleration).toBeCloseTo(part.thrust / mass);
+  expect(Object.hasOwn(r, 'lift')).toBe(false);
+  expect(programWarnings(s, { launch: { x: 0.1, y: 0 }, impulses: [] })).toEqual([]);
 });
 it('같은 시각의 분리→재점화 예약은 작성 순서대로 실행된다', () => {
   const p = structuredClone(powered.referencePlans[0]),
@@ -148,4 +155,55 @@ it('계획된 방향으로 충돌한 전체 몸체는 반동과 정착 내내 �
   expect(t.frames.some((f) => f.status === 'impact')).toBe(true);
   const view = replayAt(t.frames, t.duration, t.flightPlan)!;
   expect(view.impact).toBeDefined();
+});
+
+it('방향 예약은 순간 회전이 아니며 단별 성능과 시간에 따라 몸체 중심을 보존하며 움직인다', () => {
+  const s = structuredClone(powered),
+    r = createRun(s, { launch: { x: 1, y: 0 }, impulses: [] });
+  r.rocket!.airborne = true;
+  r.rocket!.throttle = 0;
+  r.position = { x: 4, y: 0 };
+  const centre = add(r.position, scale(r.rocket!.direction, craftHull(s, r).length / 2));
+  expect(controlEngine(r, s, 'craft', undefined, { x: 0, y: 1 })).toBe(true);
+  expect(r.rocket!.direction).toEqual({ x: 1, y: 0 });
+  poweredStep(r, s, 0.25);
+  const angle = Math.atan2(r.rocket!.direction.y, r.rocket!.direction.x);
+  expect(angle).toBeCloseTo(attitudeRate(s, 0) * 0.25);
+  expect(
+    length(sub(centre, add(r.position, scale(r.rocket!.direction, craftHull(s, r).length / 2)))),
+  ).toBeLessThan(1e-9);
+  expect(r.velocity).toEqual({ x: 0, y: 0 });
+  expect(attitudeRate(s, 2)).toBeGreaterThan(attitudeRate(s, 0));
+  for (let i = 0; i < 10; i++) poweredStep(r, s, 0.25);
+  expect(r.rocket!.direction.y).toBeCloseTo(1);
+});
+it('회전 성능은 제작값을 따르며 각도 경계에서는 짧은 쪽으로 회전한다', () => {
+  const s = structuredClone(powered);
+  s.rocket!.parts[0].turnRate = 0.2;
+  expect(attitudeRate(s, 0)).toBe(0.2);
+  const v = turnTowards(
+    { x: Math.cos((170 * Math.PI) / 180), y: Math.sin((170 * Math.PI) / 180) },
+    { x: Math.cos((-170 * Math.PI) / 180), y: Math.sin((-170 * Math.PI) / 180) },
+    (10 * Math.PI) / 180,
+  );
+  expect(v.x).toBeCloseTo(-1);
+  expect(Math.abs(v.y)).toBeLessThan(1e-8);
+});
+it('회전은 긴 프레임과 작은 프레임에서 같은 목표 방향으로 도달한다', () => {
+  const s = structuredClone(powered);
+  s.goals = [];
+  s.goalMode = 'any';
+  const p = {
+    launch: { x: 1, y: 0 },
+    impulses: [],
+    engineCommands: [{ id: 'turn', time: 0, actorId: 'craft', direction: { x: 0, y: 1 } }],
+  };
+  const a = createRun(s, p),
+    b = createRun(s, p);
+  a.position = b.position = { x: 4, y: 0 };
+  a.rocket!.airborne = b.rocket!.airborne = true;
+  tick(a, s, 0.3, [], false);
+  for (let i = 0; i < 30; i++) tick(b, s, 0.01, [], false);
+  expect(a.rocket!.direction.x).toBeCloseTo(b.rocket!.direction.x, 8);
+  expect(a.rocket!.direction.y).toBeCloseTo(b.rocket!.direction.y, 8);
 });

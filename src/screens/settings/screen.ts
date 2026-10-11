@@ -1,4 +1,5 @@
-import { controls, type App, type Screen } from '../app/core.ts';
+import './style.css';
+import { controls, type App, type Screen } from '../../app/core.ts';
 export function settingsScreen(app: App): Screen {
   const abort = new AbortController(),
     s = app.settings;

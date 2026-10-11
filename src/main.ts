@@ -9,10 +9,10 @@ import {
   type Settings,
 } from './app/core.ts';
 import { titleScreen } from './screens/title.ts';
-import { helpScreen } from './screens/help.ts';
-import { settingsScreen } from './screens/settings.ts';
+import { helpScreen } from './screens/tutorial/screen.ts';
+import { settingsScreen } from './screens/settings/screen.ts';
 import { stagesScreen } from './screens/stages.ts';
-import { playScreen } from './screens/play.ts';
+import { playScreen } from './screens/flight/screen.ts';
 const saved = readSaved<Partial<Settings>>('orbit-settings-v1', {});
 const settings: Settings = {
   volume:

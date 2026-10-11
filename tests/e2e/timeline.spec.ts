@@ -1,3 +1,4 @@
+import { testAuthorPlan } from './helpers';
 import { test, expect } from '@playwright/test';
 import { readdirSync, readFileSync } from 'node:fs';
 const stages = readdirSync('data/stages')
@@ -7,29 +8,31 @@ const powered = stages.find((s) => s.rocket);
 async function openReference(page: any) {
   await page.goto('/?editor=1');
   await page.locator('#stage-source').selectOption(powered.id);
-  await page.locator('#test-reference').click();
+  await testAuthorPlan(page);
   await expect(page.locator('#world')).toBeVisible();
 }
 test('발사 전 예약 편집·실시간 진행·비행 중 편집 잠금', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openReference(page);
-  await expect(page.locator('#initial-output')).toContainText('무게의');
+  await expect(page.locator('#initial-output')).toContainText('추진 가속');
   await page.locator('#program-toggle').click();
-  await expect(page.locator('.program-command')).toHaveCount(6);
-  await expect(page.locator('#launch-readout')).toContainText('연료 약');
+  await expect(page.locator('.program-command')).toHaveCount(
+    powered.referencePlans[0].engineCommands.length,
+  );
+  await expect(page.locator('#launch-readout')).toContainText('분사');
   await page.locator('#program-launch-power').evaluate((e: HTMLInputElement) => {
     e.value = '10';
     e.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(page.locator('#program-warnings')).toContainText('떠나지 못합니다');
+  await expect(page.locator('#program-warnings')).not.toContainText('떠나지 못합니다');
   await page.locator('#program-launch-power').evaluate((e: HTMLInputElement) => {
     e.value = '100';
     e.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await page.locator('#launch').click();
   await expect(page.locator('#world')).toHaveAttribute('data-phase', 'flight');
-  await expect(page.locator('#gravity-buoy')).toBeDisabled();
+  await expect(page.locator('#gravity-buoy')).toHaveCount(0);
   await expect(page.locator('#engine')).toBeDisabled();
   await expect(page.locator('#separate')).toBeDisabled();
   await page.locator('#program-toggle').click();

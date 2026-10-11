@@ -1,16 +1,14 @@
-# 팀 작업 분담
+# 네 역할의 작업 보드
 
-| 영역             | 공용 계약             | 완료 기준                               |
-| ---------------- | --------------------- | --------------------------------------- |
-| 메뉴·도움말·설정 | App, Screen           | 전환·설정 저장·구독 정리                |
-| 비행 화면        | Run, RoutePlan        | 사전 계획·비행 잠금·카메라·기록 재생    |
-| 물리             | Stage, Run            | 보존·예산·몸체 충돌·실제 분리·대기·손상 |
-| 목표             | Condition, Expression | 유형 추가 없이 조합·경계 조건           |
-| 제작 도구        | Stage JSON v2         | undo/redo·참조·저장·반례                |
-| 스테이지         | 개인 UUID 파일        | 기준 성공·실패·우연 성공 검사           |
+담당 이름·현재 UUID·기능은 GitHub Issue에서 정합니다. 이 파일은 공용 진행표가 아니라 역할 경계입니다.
 
-담당은 GitHub Issue에서 정합니다. 공통 파일 변경이 겹치면 PR 순서를 맞춥니다. 각자 별도 clone과 기능 브랜치를 사용합니다.
+| 역할          | 독립 단위           | 완료 기준                                              |
+| ------------- | ------------------- | ------------------------------------------------------ |
+| 스테이지 제작 | 자신의 UUID JSON    | 시험·기준 성공·실패 단서·우연 성공 검사·시간/횟수 확인 |
+| 게임 시스템   | 물리/관제/제작 기능 | 회귀·실제 조작·상태/몸체/재생 계약 유지                |
+| 튜토리얼      | tutorial/ 코드·CSS  | 조작 설명·정답 미노출·독립 화면·종료 정리              |
+| 설정 탭       | settings/ 코드·CSS  | 저장/불러오기/기본값/효과·독립 화면·종료 정리          |
 
-새 임무는 먼저 물리량·기록·시간/이동량 통계의 조합으로 표현합니다. 부족한 현상이나 조회량이 있을 때만 물리 계약을 확장합니다.
+새 Settings 속성처럼 공용 계약이 필요하면 선행 PR을 조율합니다. [Git 절차](../CONTRIBUTING.md)를 따릅니다.
 
-관제 콘솔 배치와 상태 전환은 screens/play.ts, 독립 스타일은 screens/flight-console.css, 공용 SVG 조작 아이콘은 screens/flight-controls.ts, 타임라인 UI는 screens/flight-timeline.ts, 기록 재생은 world/replay.ts, 로켓 아트는 render/rocket-sprite.ts로 담당을 나눕니다. 아트와 충돌 크기는 world/hull.ts를 공유하므로 치수 변경은 두 담당이 함께 리뷰합니다. public/assets/rockets의 PNG는 동일 렌더러에서 내보내며 직접 다른 크기로 수정하지 않습니다. [발사 계획 계약](flight-program.md)을 공용 기준으로 사용합니다.
+게임 시스템 내부는 flight/screen.ts(세션), timeline.ts(진행 바), planner.ts(계획), propulsion.ts(기체 안내), world/replay.ts(재생), render/rocket-sprite.ts(아트)로 나눕니다. hull.ts 치수는 그림·충돌 담당이 함께 확인합니다.

@@ -1,3 +1,4 @@
+import { testAuthorPlan } from './helpers';
 import { toScreen, zoomAt } from '../../src/render/camera';
 import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, unlinkSync } from 'node:fs';
@@ -32,10 +33,11 @@ async function openGame(page: Page) {
   );
   await page.goto('/');
   await page.getByRole('button', { name: '탐사 시작' }).click();
+  await page.locator('[data-stage="' + baseline.id + '"]').click();
   await expect(page.locator('#world')).toBeVisible();
 }
 
-test('시작은 다음 임무, 선택은 게시판, 도움말과 설정은 독립 화면', async ({ page }) => {
+test('탐사 시작은 스테이지 목록을 열고 도움말과 설정은 독립 화면', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
@@ -47,19 +49,21 @@ test('시작은 다음 임무, 선택은 게시판, 도움말과 설정은 독�
   await page.locator('#volume').fill('0');
   await page.locator('#grid').check();
   await page.locator('#back').click();
-  await page.getByRole('button', { name: '스테이지 선택', exact: true }).click();
+  await expect(page.locator('#stages')).toHaveCount(0);
+  await page.getByRole('button', { name: '탐사 시작' }).click();
   await expect(page.locator('.stage-card')).toHaveCount(
     stages.filter((s) => s.published !== false).length,
   );
   await page.locator('#back').click();
   await page.getByRole('button', { name: '탐사 시작' }).click();
+  await page.locator('.stage-card').first().click();
   await expect(page.locator('#world')).toBeVisible();
   await expect(page.locator('#probe')).toHaveCount(0);
   await expect(page.locator('#hint')).toContainText('미래 궤도는 표시되지 않습니다');
   expect(errors).toEqual([]);
 });
 
-test('표면에서 발사·부표 방출·정지·수동 비행 종료·기록 확인', async ({ page }) => {
+test('표면에서 발사·정지·수동 비행 종료·기록 확인', async ({ page }) => {
   await openGame(page);
   const box = await page.locator('#world').boundingBox();
   expect(box!.width).toBe(1440);
@@ -77,12 +81,11 @@ test('표면에서 발사·부표 방출·정지·수동 비행 종료·기록 �
     { steps: 4 },
   );
   await page.mouse.up();
-  await page.locator('#dock-tools > summary').click();
-  await page.locator('#gravity-buoy').click();
   await page.locator('#launch').click();
   await expect(page.locator('#follow')).toHaveText('추적 중 · 시야 풀기');
-  await expect(page.locator('#gravity-buoy')).toBeDisabled();
-  await page.locator('#pause').click();
+  await expect(page.locator('#gravity-buoy')).toHaveCount(0);
+  if (!(await page.locator('#mode').textContent())!.includes('정지'))
+    await page.locator('#pause').click();
   await expect(page.locator('#mode')).toContainText('정지');
   const time = await page.locator('#mode').textContent();
   await page.waitForTimeout(200);
@@ -115,7 +118,7 @@ test('개발 기준 경로로 궤도 클리어와 제작 화면 복귀', async (
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await editor(page);
-  await page.locator('#test-reference').click();
+  await testAuthorPlan(page);
   await page.locator('#rate').click();
   await page.locator('#launch').click();
   await expect(page.locator('#mode')).toContainText('정지', { timeout: 12000 });
@@ -128,14 +131,14 @@ test('개발 기준 경로로 궤도 클리어와 제작 화면 복귀', async (
 
 test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리는 차단한다', async ({ page }) => {
   await editor(page, 1);
-  await page.locator('#test-reference').click();
+  await testAuthorPlan(page);
   await page.locator('#launch').click();
   await expect(page.locator('#separate')).toBeDisabled();
   await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
   await page.locator('#result-exit').click();
   await page.locator('#test-stage').click();
-  await page.locator('#dock-tools > summary').click();
-  await page.locator('#separate').click();
+  await page.locator('#program-toggle').click();
+  await page.locator('[data-add="separate"]').click();
   await expect(page.locator('.program-command')).toHaveCount(1);
   await page.locator('#program-close').click();
   await page.locator('#launch').click();
@@ -268,7 +271,7 @@ test('개발 판정 관찰창은 시험에서만 나타나고 실제 값과 기�
   await page.locator('#launch').click();
   await expect(page.locator('#goal-monitor')).toHaveCount(0);
   await editor(page, 6);
-  await page.locator('#test-reference').click();
+  await testAuthorPlan(page);
   await page.locator('#launch').click();
   await page.locator('#goal-monitor summary').click();
   await expect(page.locator('#goal-monitor')).toContainText('entry_speed');
@@ -280,7 +283,7 @@ test('일반 블록으로 정의한 표면 착륙과 움직이는 위성 만남�
 }) => {
   for (const order of [3, 5]) {
     await editor(page, order);
-    await page.locator('#test-reference').click();
+    await testAuthorPlan(page);
     await page.locator('#rate').click();
     await page.locator('#launch').click();
     await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 12000 });
@@ -293,9 +296,6 @@ test('종료는 재도전 화면에 머무르며 다른 스테이지에는 비�
   page,
 }) => {
   await openGame(page);
-  await page.locator('#dock-tools > summary').click();
-  await page.locator('#gravity-buoy').click();
-  await expect(page.locator('#toast')).toContainText('예약');
   await page.locator('#launch').click();
   await page.locator('#pause').click();
   await page.locator('#abort').click();
@@ -421,11 +421,9 @@ test('발사 기회를 모두 사용해도 게시판 없이 해당 스테이지�
 test('재시도는 같은 환경·실험 기록·조작을 보존하고 세기만 바꿀 수 있다', async ({ page }) => {
   await openGame(page);
   const first = await page.locator('#pad-gravity').getAttribute('value');
-  await page.locator('#dock-tools > summary').click();
-  await page.locator('#gravity-buoy').click();
   await page.locator('#launch').click();
   await page.waitForTimeout(200);
-  await expect(page.locator('#speed-buoy')).toBeDisabled();
+  await expect(page.locator('#speed-buoy')).toHaveCount(0);
   await page.locator('#pause').click();
   await page.locator('#abort').click();
   const notes = Number(await page.locator('#note-count').textContent());
@@ -463,7 +461,7 @@ test('충돌 화면에서 자세는 한 번의 감쇠 회전만 보이고 실패
     draft,
   );
   await editor(page, 2, true);
-  await page.locator('#test-reference').click();
+  await testAuthorPlan(page);
   await page.locator('#launch').click();
   // The engine regression checks the angle; this exercises the actual animation lifecycle.
   await expect(page.locator('#result')).toContainText('착륙 속도가 너무 컸습니다');
@@ -507,6 +505,7 @@ test('실제 관측으로 높이와 시각을 좁히고 다음 타임라인의 �
   test.setTimeout(90000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  test.setTimeout(60000); // Several real flights, not a single interaction.
   await openGame(page);
   await page.locator('#launch').click();
   await expect(page.locator('#result')).toBeVisible({ timeout: 20000 });
@@ -532,7 +531,10 @@ test('실제 관측으로 높이와 시각을 좁히고 다음 타임라인의 �
   await page.locator('[data-add="push"]').click();
   const command = page.locator('.program-command').last();
   await command.locator('[data-push]').fill('.175');
-  await command.locator('[data-angle]').fill('-90');
+  await command.locator('[data-angle]').evaluate((e: HTMLInputElement) => {
+    e.value = '-90';
+    e.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   await page.locator('#program-close').click();
   await page.locator('#launch').click();
   await expect(page.locator('#mode')).toContainText('정지', { timeout: 16000 });

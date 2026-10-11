@@ -9,6 +9,7 @@ await page.goto('http://127.0.0.1:5173/');
 await page.getByRole('button', { name: '탐사 시작' }).waitFor();
 await page.screenshot({ path: 'test-results/screens/title.png' });
 await page.getByRole('button', { name: '탐사 시작' }).click();
+await page.locator('.stage-card').first().click();
 await page.locator('#world').waitFor();
 await page.waitForTimeout(250);
 await page.screenshot({ path: 'test-results/screens/play.png' });

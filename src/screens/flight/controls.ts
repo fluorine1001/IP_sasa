@@ -1,4 +1,4 @@
-import { escape } from '../app/core';
+import { escape } from '../../app/core';
 const glyphs: Record<string, string> = {
   aim: '<path d="M5 19L19 5M9 5h10v10"/><circle cx="5" cy="19" r="2"/>',
   sensor: '<circle cx="12" cy="12" r="4"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M5 5l3 3m8 8 3 3"/>',

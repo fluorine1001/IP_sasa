@@ -21,7 +21,7 @@ let report;
 for (const r of generateRandomization(structuredClone(legacyStage))) report = r;
 const bank = report!.bank!;
 it('충돌은 한 번 반동 후 가라앉고 자세가 속도 부호에 따라 뒤집히지 않는다', () => {
-  const stage = stages[0],
+  const stage = stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!,
     run = createRun(stage, { launch: { x: -0.5, y: 0 }, impulses: [] });
   tick(run, stage, 0.1);
   expect(run.status).toBe('impact');
@@ -41,7 +41,7 @@ it('충돌은 한 번 반동 후 가라앉고 자세가 속도 부호에 따라 
   expect(run.status).toBe('failed');
 });
 it('충돌 연출은 프레임 간격에 의존하지 않고 지면 재충돌을 반복하지 않는다', () => {
-  const stage = stages[0],
+  const stage = stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!,
     a = createRun(stage, { launch: { x: -0.5, y: 0.2 }, impulses: [] });
   tick(a, stage, 0.1);
   const b = structuredClone(a);

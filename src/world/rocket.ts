@@ -1,3 +1,4 @@
+import { ROCKET_SEGMENT_LENGTH } from './hull';
 import type { Vec } from '../physics/vector.ts';
 import type { Stage, Run } from './types.ts';
 import { bodyPosition, bodyVelocity } from './celestial.ts';
@@ -166,11 +167,20 @@ export function separate(run: Run, stage: Stage): boolean {
   const index = run.rocket.partIndex,
     part = stage.rocket.parts[index];
   if (!part) return false;
+  const totalMass = rocketMass(stage, run),
+    detachedMass = part.dryMass + run.rocket.fuel[index];
+  // Springs supply a small relative separation speed while conserving total momentum.
+  const separationSpeed = 0.025;
+  const upperMass = Math.max(1e-9, totalMass - detachedMass);
+  const previousVelocity = { ...run.velocity };
   run.detached.push({
     id: part.id,
     name: part.name,
     position: { ...run.position },
-    velocity: { ...run.velocity },
+    velocity: sub(
+      previousVelocity,
+      scale(run.rocket.direction, (separationSpeed * upperMass) / totalMass),
+    ),
     fuel: run.rocket.fuel[index],
     dryMass: part.dryMass,
     direction: { ...run.rocket.direction },
@@ -182,6 +192,12 @@ export function separate(run: Run, stage: Stage): boolean {
     age: 0,
   });
   run.rocket.separatedAt[part.id] = run.time;
+  // The detached segment occupied the bottom 0.12 world units. Keep the upper nose fixed.
+  run.position = add(run.position, scale(run.rocket.direction, ROCKET_SEGMENT_LENGTH));
+  run.velocity = add(
+    previousVelocity,
+    scale(run.rocket.direction, (separationSpeed * detachedMass) / totalMass),
+  );
   run.rocket.partIndex++;
   run.rocket.throttle = 0;
   run.rocket.heat = 0;

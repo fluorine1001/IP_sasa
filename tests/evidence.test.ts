@@ -4,7 +4,7 @@ import { createRun, tick, execute, impulse } from '../src/world/engine';
 import { learningDesign, readingText, recordTrial, compareTrials } from '../src/world/evidence';
 import { scale, unit, length } from '../src/physics/vector';
 import { parseStage } from '../src/stages/validation';
-const stage = stages[0];
+const stage = stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!;
 function flightToTurn(strength: number, dt = 0.1) {
   const run = createRun(stage, { launch: { x: 0, y: strength }, impulses: [] });
   while (run.status === 'running' && !run.evidence.cues.length)
@@ -32,15 +32,20 @@ it('공식을 모르는 플레이어도 낮음 / 지나침의 두 실제 실험�
   expect(readingText(instrument, chosen.evidence.readings.peak)).toContain('근처');
   expect(chosen.status).toBe('running');
   expect(chosen.time).toBeCloseTo(chosen.evidence.cues[0].time, 8);
-  for (let i = 0; i < 7; i++) {
-    const vector = scale(unit(chosen.velocity), stage.rules.maneuverBudget * 0.1),
-      id = 'small-' + i;
-    expect(impulse(chosen, stage, vector, id)).toBe(true);
-    chosen.plan.impulses.push({ id, time: chosen.time, vector });
-  }
-  while (chosen.status === 'running' || chosen.status === 'impact') tick(chosen, stage, 0.2);
-  expect(chosen.status).toBe('won');
-  expect(execute(stage, recordTrial(chosen, 3).plan).status).toBe('won');
+  // Observe first, then reserve the same finite correction in a new flight.
+  const next = {
+    launch: { x: 0, y: 1.36 },
+    impulses: [
+      {
+        id: 'planned-correction',
+        time: chosen.time,
+        vector: scale(unit(chosen.velocity), stage.rules.maneuverBudget * 0.7),
+      },
+    ],
+  };
+  const solved = execute(stage, next, true);
+  expect(solved.status).toBe('won');
+  expect(execute(stage, recordTrial(solved, 4).plan).status).toBe('won');
 });
 it('정지 단서는 렌더링 배속에 상관없이 최초 감지 물리 시각에서 멈춘다', () => {
   const a = flightToTurn(1.36, 0.05),
@@ -73,7 +78,7 @@ it('사용자 단서의 수식·범위·참조를 검증하고 목표 메모리�
 });
 
 it('움직이는 목표도 같은 시각의 실제 위치를 기록해서 비교하며 관측 종료 이후 위치를 만들지 않는다', () => {
-  const rendezvous = stages.find((s) => s.order === 4)!;
+  const rendezvous = stages.find((s) => s.title === '발사해서 우편 위성과 만나기')!;
   const run = createRun(rendezvous, rendezvous.referencePlans[0]);
   tick(run, rendezvous, 0.5);
   const station = rendezvous.objects.find((o) => o.kind === 'station')!;

@@ -138,7 +138,7 @@ export function inspector(model: EditorModel): string {
       );
   }
   const fieldHtml = (f: Field, target: unknown) => {
-    const value = getPath(target, f.path);
+    const value = getPath(target, f.path) ?? '';
     return `<label>${escape(f.label)}<input data-field="${f.path}" type="${f.type ?? 'number'}" step="any" value="${escape(value)}"></label>`;
   };
   const rocketHtml =
@@ -147,7 +147,7 @@ export function inspector(model: EditorModel): string {
       : '';
   const html = fields
     .map((f) => {
-      const value = getPath(target, f.path),
+      const value = getPath(target, f.path) ?? '',
         label = escape(f.label),
         path = escape(f.path);
       return `<label>${label}${f.options ? `<select data-field="${path}">${f.options.map(([v, l]) => `<option value="${escape(v)}" ${v === value ? 'selected' : ''}>${escape(l)}</option>`).join('')}</select>` : f.type === 'textarea' ? `<textarea data-field="${path}">${escape(value)}</textarea>` : `<input data-field="${path}" type="${f.type ?? 'text'}" ${f.type === 'checkbox' ? (value ? 'checked' : '') : `value="${escape(value)}"`} ${f.type === 'number' ? 'step="any"' : ''}>`}</label>`;

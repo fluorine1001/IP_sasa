@@ -1,3 +1,4 @@
+import { craftHull, settleHull } from './hull';
 import { add, scale, sub, length, dot, type Vec } from '../physics/vector';
 import { bodyPosition, bodyVelocity } from './celestial';
 import { surfaceClearance } from './launch';
@@ -40,7 +41,7 @@ export function impactDirection(impact: Impact): Vec {
 export function advanceImpact(run: Run, stage: Stage, dt: number) {
   const impact = run.impact!,
     body = stage.bodies.find((b) => b.id === impact.bodyId)!;
-  impact.age = Math.min(impact.duration, impact.age + Math.max(0, dt));
+  impact.age = Math.min(impact.duration, Math.round((impact.age + Math.max(0, dt)) * 1e12) / 1e12);
   run.time += Math.max(0, dt);
   const center = bodyPosition(stage, body, run.time);
   if (body.kind === 'black-hole')
@@ -53,6 +54,14 @@ export function advanceImpact(run: Run, stage: Stage, dt: number) {
       x: Math.cos(angle) * (body.radius + surfaceClearance(stage) + height),
       y: Math.sin(angle) * (body.radius + surfaceClearance(stage) + height),
     });
+    run.position = settleHull(
+      run.position,
+      impactDirection(impact),
+      craftHull(stage, run),
+      center,
+      body.radius,
+      surfaceClearance(stage),
+    );
     run.velocity = bodyVelocity(stage, body, run.time);
   }
   if (impact.age >= impact.duration) {

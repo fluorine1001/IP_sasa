@@ -18,14 +18,15 @@ Codex 브랜치는 `codex/`로 시작합니다. 강제 push와 다른 사람의 
 | 담당             | 기본 변경 위치                                                    |
 | ---------------- | ----------------------------------------------------------------- |
 | 메뉴·도움말·설정 | `src/screens/title.ts`, `help.ts`, `settings.ts`                  |
-| 비행 조작·HUD    | `src/screens/play.ts`                                             |
+| 비행 조작·HUD    | `src/screens/play.ts`, `flight-timeline.ts`                       |
+| 비행 기록·재생   | `src/world/replay.ts`, `evidence.ts`                              |
 | 렌더링·카메라    | `src/render/`                                                     |
 | 추진·대기·중력   | `src/world/rocket.ts`, `celestial.ts`, `dynamics.ts`, `engine.ts` |
 | 물리량·수식·조건 | `src/world/metrics.ts`, `expressions.ts`, `conditions.ts`         |
 | 제작·설계 검사   | `src/editor/`                                                     |
 | 스테이지         | `data/stages/<UUID>.json` 한 파일씩                               |
 
-`src/world/types.ts`와 `src/app/core.ts`는 공용 계약입니다. 각 화면은 이벤트를 `dispose()`에서 정리합니다. 물리·판정은 DOM과 렌더러를 참조하지 않습니다.
+`src/world/types.ts`와 `src/app/core.ts`와 `src/world/hull.ts`는 공용 계약입니다. 각 화면은 이벤트를 `dispose()`에서 정리합니다. 물리·판정은 DOM과 렌더러를 참조하지 않습니다.
 
 새 스테이지는 새 UUID를 사용합니다. 초안 저장 파일은 `published:false`이며 캠페인에 나타나지 않습니다. 성공 경로와 반례 검사를 거쳐 게임에 추가합니다.
 

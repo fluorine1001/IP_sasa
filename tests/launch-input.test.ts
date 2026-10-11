@@ -8,7 +8,7 @@ import { aimVector } from '../src/render/aim';
 import { toScreen, toWorld, zoomAt } from '../src/render/camera';
 import { length, sub } from '../src/physics/vector';
 it('오래된 지면 좌표를 복구하고 모든 방향·행성 크기 편집을 표면에 고정한다', () => {
-  const s = structuredClone(stages[0]);
+  const s = structuredClone(stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!);
   s.spawn.position = { x: 0, y: 0 };
   const model = new EditorModel(s);
   for (const angle of [0, Math.PI / 2, Math.PI, Math.PI * 1.5, 0.71]) {
@@ -26,12 +26,12 @@ it('오래된 지면 좌표를 복구하고 모든 방향·행성 크기 편집�
   }
 });
 it('좌표와 발사각이 불일치하는 스테이지는 저장 검증에서 거부한다', () => {
-  const s = structuredClone(stages[0]);
+  const s = structuredClone(stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!);
   s.spawn.position = { x: -s.spawn.position.x, y: -s.spawn.position.y };
   expect(() => parseStage(s)).toThrow();
 });
 it('표면의 정상 외향 발사는 즉시 충돌하지 않으며 복귀 충돌은 그대로 발생한다', () => {
-  const s = structuredClone(stages[0]);
+  const s = structuredClone(stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!);
   s.spawn.position = { x: 0, y: 0 };
   const run = createRun(s, { launch: { x: 0.4, y: 0 }, impulses: [] });
   tick(run, s, 0.02);
@@ -42,7 +42,7 @@ it('표면의 정상 외향 발사는 즉시 충돌하지 않으며 복귀 충�
   expect(run.status).toBe('impact');
 });
 it('추력이 부족한 다단 로켓은 연료를 쓰며 발사대에 머무르고 이륙 뒤에는 충돌한다', () => {
-  const s = structuredClone(stages.find((s) => s.order === 8)!);
+  const s = structuredClone(stages.find((s) => s.rocket)!);
   const pad = surfaceLaunch(s)!;
   const run = createRun(s, { launch: pad.normal, impulses: [] });
   s.rocket!.parts[0].thrust = 0.0001;

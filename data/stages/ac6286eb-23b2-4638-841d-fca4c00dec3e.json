@@ -1,7 +1,7 @@
 {
   "version": 2,
   "id": "ac6286eb-23b2-4638-841d-fca4c00dec3e",
-  "order": 5,
+  "order": 6,
   "title": "달의 도움을 빌려",
   "description": "지구 표면에서 출발해 움직이는 달에서 에너지를 얻고 출구로 나가세요. 달 근처에서는 추진하지 않아야 합니다.",
   "theme": "frontier",
@@ -411,117 +411,6 @@
   "published": true,
   "launchBodyId": "f7382d0e-4101-49fb-9df0-e6171174f5e4",
   "launchAngle": 0,
-  "randomization": {
-    "version": 1,
-    "fingerprint": "variation-v1:1806e0c4",
-    "variants": [
-      {
-        "id": 0,
-        "lengthScale": 0.8037230531685055,
-        "timeScale": 0.893230084143579,
-        "rotation": 0.9408915958430456,
-        "gravity": {
-          "f7382d0e-4101-49fb-9df0-e6171174f5e4": 1,
-          "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": -0.9143181758287046,
-            "y": 0.8807155169043539
-          },
-          "impulses": []
-        }
-      },
-      {
-        "id": 3,
-        "lengthScale": 0.924895421275869,
-        "timeScale": 0.7205485831247642,
-        "rotation": 5.238374515119182,
-        "gravity": {
-          "f7382d0e-4101-49fb-9df0-e6171174f5e4": 1,
-          "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": 1.6755597637442772,
-            "y": 0.6871996574394479
-          },
-          "impulses": []
-        }
-      },
-      {
-        "id": 6,
-        "lengthScale": 1.1844167585950345,
-        "timeScale": 0.8787884474033489,
-        "rotation": 2.0144609464528473,
-        "gravity": {
-          "f7382d0e-4101-49fb-9df0-e6171174f5e4": 1,
-          "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": -1.8127186673893672,
-            "y": -0.5744513856145746
-          },
-          "impulses": []
-        }
-      },
-      {
-        "id": 18,
-        "lengthScale": 1.2961060479283333,
-        "timeScale": 1.2518336534732952,
-        "rotation": 3.9004103415751774,
-        "gravity": {
-          "f7382d0e-4101-49fb-9df0-e6171174f5e4": 1,
-          "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": 0.8511897577634944,
-            "y": -1.187161028876622
-          },
-          "impulses": []
-        }
-      },
-      {
-        "id": 21,
-        "lengthScale": 0.8131785897072404,
-        "timeScale": 1.4292715375660918,
-        "rotation": 3.6061813334816972,
-        "gravity": {
-          "f7382d0e-4101-49fb-9df0-e6171174f5e4": 1,
-          "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": 0.25845290289389367,
-            "y": -0.7599701998218015
-          },
-          "impulses": []
-        }
-      },
-      {
-        "id": 24,
-        "lengthScale": 0.921279338048771,
-        "timeScale": 1.4223733964492566,
-        "rotation": 5.291233939509238,
-        "gravity": {
-          "f7382d0e-4101-49fb-9df0-e6171174f5e4": 1,
-          "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": 0.8259875844059016,
-            "y": 0.3909487781589803
-          },
-          "impulses": []
-        }
-      }
-    ],
-    "tried": 25,
-    "reuseChecks": 36,
-    "randomChecks": 96
-  },
   "learning": {
     "briefing": "달이 당기는 방향을 지나가며 길이 휘어집니다. 달의 어느 쪽을 지나갔는지 실제 경로를 겹쳐보고, 달 근처에서의 빠르기와 뒤쪽 게이트 접근을 비교하세요.",
     "instruments": [

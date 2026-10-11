@@ -7,7 +7,7 @@ import { length, sub } from '../src/physics/vector';
 import { parseStage } from '../src/stages/validation';
 import { auditStage } from '../src/editor/audit';
 const first = () => {
-  const s = structuredClone(stages[0]);
+  const s = structuredClone(stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!);
   delete s.randomization;
   return s;
 };
@@ -94,7 +94,7 @@ describe('스테이지 소스와 제작 검증', () => {
     expect(() => parseStage(stage)).toThrow('표면 발사대');
   });
   it('원하는 출발 천체와 표면 위상을 변경할 수 있다', () => {
-    const stage = structuredClone(stages[1]),
+    const stage = structuredClone(stages.find((s) => s.title === '지구에서 달에 내려놓기')!),
       moon = stage.bodies[1];
     delete stage.randomization;
     stage.launchBodyId = moon.id;

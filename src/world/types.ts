@@ -114,8 +114,11 @@ export type Run = {
   observations: Observation[];
   sampled: Set<string>;
   goals: Record<string, GoalProgress>;
+  frames?: import('./replay').FlightFrame[];
+  initialPlan?: RoutePlan;
   lastTrail: number;
   plan: RoutePlan;
+  attitude?: Vec;
   rocket?: RocketState;
   detached: Detached[];
   bodies?: Record<string, import('./dynamics.ts').BodyState>;

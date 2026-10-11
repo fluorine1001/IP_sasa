@@ -12,7 +12,9 @@ import {
 import { freshProgress } from '../src/world/goals';
 import type { GoalContext } from '../src/world/types';
 function context(): GoalContext {
-  const stage = structuredClone(stages[0]),
+  const stage = structuredClone(
+      stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!,
+    ),
     run = createRun(stage, { launch: { x: 0.1, y: 0.6 }, impulses: [] });
   return { stage, run, before: { ...run.position }, previousTime: 0, dt: 0.1 };
 }
@@ -102,7 +104,9 @@ describe('제작자가 조합하는 판정 블록', () => {
     expect(evaluateCondition(node, c, p)).toBe(true);
   });
   it('천체 접촉과 상대속력으로 착륙을 정의할 수 있으며 빠른 충돌은 실패한다', () => {
-    const stage = structuredClone(stages[0]),
+    const stage = structuredClone(
+        stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!,
+      ),
       id = stage.launchBodyId!,
       goal = {
         ...stage.goals[0],
@@ -119,7 +123,9 @@ describe('제작자가 조합하는 판정 블록', () => {
     expect(execute(stage, { launch: { x: -1, y: 0 }, impulses: [] }).status).toBe('failed');
   });
   it('충돌한 순간의 일반 속력 조건만으로는 성공하지 않는다', () => {
-    const stage = structuredClone(stages[0]);
+    const stage = structuredClone(
+      stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!,
+    );
     stage.goals = [
       {
         ...stage.goals[0],

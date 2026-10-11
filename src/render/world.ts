@@ -1,3 +1,5 @@
+import { paintRocket } from './rocket-sprite';
+import { hullSize } from '../world/hull';
 import { impactDirection } from '../world/impact';
 import { aimEndpoint } from './aim.ts';
 import { surfaceLaunch } from '../world/launch.ts';
@@ -8,6 +10,8 @@ import { toScreen, type Camera } from './camera.ts';
 export type DrawState = {
   stage: Stage;
   camera: Camera;
+  replay?: boolean;
+  reducedMotion?: boolean;
   run?: Run;
   history?: Run['trail'];
   histories?: Run['trail'][];
@@ -347,64 +351,21 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     flame: boolean,
     selected: boolean,
     booster = false,
+    firstPart = 0,
   ) => {
     const p = screen(position),
-      size = booster ? 26 : count ? 28 + count * 9 : 20;
+      hull = hullSize(count, booster),
+      size = hull.length * c.zoom,
+      r = hull.radius * c.zoom;
     ctx.save();
+    if (s.replay) ctx.globalAlpha = 0.72;
     ctx.translate(p.x, p.y);
     ctx.rotate(-Math.atan2(direction.y, direction.x));
-    // The simulation point is the base. Keep the hull and fins ahead of it.
-    ctx.translate(size / 2 + 8, 0);
-    if (flame) {
-      ctx.fillStyle = '#efae63';
-      ctx.beginPath();
-      ctx.moveTo(-size / 2, -5);
-      ctx.lineTo(-size / 2 - 17, 0);
-      ctx.lineTo(-size / 2, 5);
-      ctx.fill();
-    }
-    ctx.fillStyle = '#e8dcc1';
-    ctx.strokeStyle = '#0b1723';
-    ctx.lineWidth = 3;
-    ctx.fillRect(-size / 2, -7, size - 7, 14);
-    ctx.strokeRect(-size / 2, -7, size - 7, 14);
-    ctx.beginPath();
-    ctx.moveTo(size / 2 - 7, -7);
-    ctx.lineTo(size / 2 + 4, 0);
-    ctx.lineTo(size / 2 - 7, 7);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#bc7860';
-    ctx.beginPath();
-    ctx.moveTo(-size / 2 + 7, -7);
-    ctx.lineTo(-size / 2 - 4, -14);
-    ctx.lineTo(-size / 2, -3);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-size / 2 + 7, 7);
-    ctx.lineTo(-size / 2 - 4, 14);
-    ctx.lineTo(-size / 2, 3);
-    ctx.fill();
-    ctx.stroke();
-    for (let i = 1; i < count; i++) {
-      ctx.strokeStyle = '#657881';
-      ctx.beginPath();
-      ctx.moveTo(-size / 2 + (i * size) / count, -7);
-      ctx.lineTo(-size / 2 + (i * size) / count, 7);
-      ctx.stroke();
-    }
-    ctx.fillStyle = '#80c4cd';
-    ctx.strokeStyle = '#172a36';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(size / 2 - 7, 0, 3, 0, 7);
-    ctx.fill();
-    ctx.stroke();
-    if (selected) {
+    paintRocket(ctx, count, firstPart, booster, c.zoom, flame);
+    if (selected && s.run && !s.run.impact && !s.run.landed && (s.run.rocket?.airborne ?? true)) {
       ctx.strokeStyle = '#9fd5b755';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(-size / 2 - 7, -20, size + 18, 40);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-4, -r - 6, size + 8, r * 2 + 12);
     }
     ctx.restore();
   };
@@ -417,6 +378,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       actor.throttle > 0,
       actor.id === s.controlledId,
       true,
+      s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
     );
     const p = screen(actor.position);
     ctx.fillStyle = '#baceb5';
@@ -432,12 +394,21 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         ? surface.normal
         : (s.run?.rocket?.direction ??
           s.thrust ??
+          s.run?.attitude ??
           s.run?.velocity ??
           s.plan?.launch ?? { x: 1, y: 0 }),
     count = s.stage.rocket
       ? Math.max(0, s.stage.rocket.parts.length - (s.run?.rocket?.partIndex ?? 0))
       : 1;
-  sprite(ship, v, count, !!s.thrust || !!s.run?.rocket?.throttle, s.controlledId === 'craft');
+  sprite(
+    ship,
+    v,
+    count,
+    !!s.thrust || !!s.run?.rocket?.throttle,
+    s.controlledId === 'craft',
+    false,
+    s.run?.rocket?.partIndex ?? 0,
+  );
   const p = screen(ship);
   if (s.run?.impact) {
     const age = s.run.impact.age;
@@ -488,6 +459,20 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   if (s.selected?.has('spawn')) {
     ctx.strokeStyle = '#ffcf73';
     ctx.strokeRect(p.x - 22, p.y - 22, 44, 44);
+  }
+  if (s.replay) {
+    const seed = s.reducedMotion ? 0 : Math.floor(performance.now() / 110);
+    ctx.save();
+    ctx.fillStyle = '#d5e3dd';
+    ctx.globalAlpha = 0.045;
+    for (let i = 0; i < 650; i++) {
+      const x = (i * 7919 + seed * 137) % Math.max(1, Math.floor(w));
+      const y = (i * 3571 + seed * 71) % Math.max(1, Math.floor(h));
+      ctx.fillRect(x, y, 2, 1);
+    }
+    ctx.globalAlpha = 0.025;
+    for (let y = 0; y < h; y += 4) ctx.fillRect(0, y, w, 1);
+    ctx.restore();
   }
   return { w, h, screen };
 }

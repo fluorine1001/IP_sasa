@@ -1,3 +1,5 @@
+import { captureFrame } from './replay';
+import { craftHull, hullSize, sweepHull, settleHull } from './hull';
 import { collectEvidence, emptyEvidence } from './evidence';
 import { beginImpact, advanceImpact } from './impact';
 import { surfaceLaunch, surfaceClearance } from './launch.ts';
@@ -23,11 +25,14 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
           )
         ? '추진 계획이 유효하지 않습니다.'
         : '';
-  return {
+  const run: Run = {
     evidence: emptyEvidence(),
     time: 0,
     position: { ...start.position },
     velocity: stage.rocket ? { ...start.velocity } : add(start.velocity, plan.launch),
+    attitude:
+      surfaceLaunch(stage)?.normal ??
+      (length(plan.launch) ? scale(plan.launch, 1 / length(plan.launch)) : { x: 1, y: 0 }),
     used: 0,
     status: error ? 'failed' : 'running',
     reason: error,
@@ -39,6 +44,8 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
     goals: Object.fromEntries(stage.goals.map((g) => [g.id, freshProgress()])),
     lastTrail: -1,
     plan: structuredClone(plan),
+    initialPlan: structuredClone(plan),
+    frames: [],
     buoys: [],
     detached: [],
     bodies: stage.bodies.some((b) => b.dynamic)
@@ -55,7 +62,7 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
       ? {
           partIndex: 0,
           fuel: stage.rocket.parts.map((p) => p.fuelMass),
-          ignitions: stage.rocket.parts.map((_, i) => (i === 0 ? 1 : 0)),
+          ignitions: stage.rocket.parts.map((_, i) => (i === 0 && length(plan.launch) > 0 ? 1 : 0)),
           direction:
             length(plan.launch) > 1e-8
               ? scale(plan.launch, 1 / length(plan.launch))
@@ -68,6 +75,20 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
         }
       : undefined,
   };
+  if (!stage.rocket) {
+    const pad = surfaceLaunch(stage);
+    if (pad)
+      run.position = settleHull(
+        run.position,
+        run.attitude!,
+        craftHull(stage, run),
+        bodyPosition(stage, pad.body, 0),
+        pad.body.radius,
+        surfaceClearance(stage),
+      );
+  }
+  captureFrame(run, true);
+  return run;
 }
 export function deploySensor(
   run: Run,
@@ -169,16 +190,27 @@ export function tick(
   let stage = dynamicView(source, run);
   if (run.status === 'impact') {
     advanceImpact(run, stage, dt);
+    if (record) captureFrame(run, run.status !== 'impact');
     return;
   }
   if (run.status !== 'running') return;
   let remaining = dt;
   while (remaining > 1e-9 && run.status === 'running') {
+    const appliedBefore = run.applied.size;
     for (const command of run.plan.engineCommands ?? [])
       if (command.time <= run.time + 1e-8 && !run.applied.has(command.id)) {
+        const accepted = command.separate
+          ? separate(run, stage)
+          : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
+        if (!accepted) {
+          run.status = 'failed';
+          run.reason =
+            command.time.toFixed(2) +
+            '초의 예약을 실행하지 못했습니다. 남은 단, 연료와 재점화 횟수를 계획에서 확인하세요.';
+          if (record) captureFrame(run, true);
+          return;
+        }
         run.applied.add(command.id);
-        if (command.separate) separate(run, stage);
-        else controlEngine(run, stage, command.actorId, command.throttle, command.direction);
       }
     for (const command of run.plan.impulses)
       if (command.time <= run.time + 1e-8 && !run.applied.has(command.id)) {
@@ -192,6 +224,7 @@ export function tick(
     for (const release of run.plan.deployments ?? [])
       if (release.time <= run.time + 1e-8 && !run.applied.has(release.id))
         deploySensor(run, stage, release.kind, release.id);
+    if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
     const nextCommand = [
       ...run.plan.impulses,
       ...(run.plan.deployments ?? []),
@@ -236,6 +269,14 @@ export function tick(
         x: Math.cos(run.landed.angle) * (body.radius + surfaceClearance(stage)),
         y: Math.sin(run.landed.angle) * (body.radius + surfaceClearance(stage)),
       });
+      run.position = settleHull(
+        run.position,
+        run.rocket?.direction ?? run.attitude ?? run.velocity,
+        craftHull(stage, run),
+        bodyPosition(stage, body, run.time + slice),
+        body.radius,
+        surfaceClearance(stage),
+      );
       run.velocity = bodyVelocity(stage, body, run.time + slice);
     } else
       [run.position, run.velocity] = integrate(
@@ -309,6 +350,14 @@ export function tick(
           x: Math.cos(actor.angle!) * (body.radius + surfaceClearance(stage)),
           y: Math.sin(actor.angle!) * (body.radius + surfaceClearance(stage)),
         });
+        actor.position = settleHull(
+          actor.position,
+          actor.direction,
+          hullSize(1, true),
+          bodyPosition(stage, body, run.time),
+          body.radius,
+          surfaceClearance(stage),
+        );
         actor.velocity = bodyVelocity(stage, body, run.time);
         continue;
       }
@@ -327,13 +376,24 @@ export function tick(
       );
       for (const b of stage.bodies) {
         if (b.kind === 'barycenter') continue;
-        if (
-          segmentHitsCircle(
-            sub(previous, bodyPosition(stage, b, previousTime)),
-            sub(actor.position, bodyPosition(stage, b, run.time)),
+        const contact = sweepHull(
+          previous,
+          actor.position,
+          actor.direction,
+          hullSize(1, true),
+          bodyPosition(stage, b, previousTime),
+          bodyPosition(stage, b, run.time),
+          b.radius,
+        );
+        if (contact !== undefined) {
+          actor.position = settleHull(
+            add(previous, scale(sub(actor.position, previous), contact)),
+            actor.direction,
+            hullSize(1, true),
+            bodyPosition(stage, b, run.time),
             b.radius,
-          )
-        ) {
+            surfaceClearance(stage),
+          );
           actor.bodyId = b.id;
           actor.angle = Math.atan2(
             actor.position.y - bodyPosition(stage, b, run.time).y,
@@ -349,19 +409,56 @@ export function tick(
       if (damage || length(actor.position) > stage.rules.worldRadius) actor.status = 'crashed';
     }
     let collisionBodyId: string | undefined;
-    for (const body of stage.bodies)
-      if (
-        body.kind !== 'barycenter' &&
-        !run.landed &&
-        segmentHitsCircle(
-          sub(before, bodyPosition(stage, body, previousTime)),
-          sub(run.position, bodyPosition(stage, body, run.time)),
-          body.radius,
-        )
-      ) {
-        collisionBodyId = body.id;
-        break;
+    let contactTime = Infinity;
+    // Compact cold-gas craft hold local vertical attitude; translational jets need not rotate the hull.
+    // Powered multi-stage vehicles use the player's planned engine attitude instead.
+    if (!run.rocket && !run.landed) {
+      const nearest = stage.bodies
+        .filter((b) => b.kind !== 'barycenter')
+        .sort(
+          (a, b) =>
+            length(sub(run.position, bodyPosition(stage, a, run.time))) -
+            a.radius -
+            length(sub(run.position, bodyPosition(stage, b, run.time))) +
+            b.radius,
+        )[0];
+      if (nearest) {
+        const d = sub(run.position, bodyPosition(stage, nearest, run.time));
+        run.attitude = scale(d, 1 / Math.max(length(d), 1e-9));
       }
+    }
+    // The pad holds the same upright pose painted by the renderer until lift-off.
+    const incomingPose =
+      run.rocket && !run.rocket.airborne
+        ? (surfaceLaunch(stage, run.time)?.normal ?? run.rocket.direction)
+        : (run.rocket?.direction ?? run.attitude ?? run.velocity);
+    for (const body of stage.bodies) {
+      if (body.kind === 'barycenter' || run.landed) continue;
+      const contact = sweepHull(
+        before,
+        run.position,
+        incomingPose,
+        craftHull(stage, run),
+        bodyPosition(stage, body, previousTime),
+        bodyPosition(stage, body, run.time),
+        body.radius,
+      );
+      if (contact !== undefined && contact < contactTime) {
+        contactTime = contact;
+        collisionBodyId = body.id;
+      }
+    }
+    if (collisionBodyId) {
+      const body = stage.bodies.find((b) => b.id === collisionBodyId)!;
+      run.position = settleHull(
+        add(before, scale(sub(run.position, before), contactTime)),
+        incomingPose,
+        craftHull(stage, run),
+        bodyPosition(stage, body, run.time),
+        body.radius,
+        surfaceClearance(stage),
+      );
+    }
     if (run.rocket && !run.rocket.airborne) {
       const pad = surfaceLaunch(stage, run.time);
       if (pad) {
@@ -419,6 +516,14 @@ export function tick(
           x: Math.cos(run.landed.angle) * (body.radius + surfaceClearance(stage)),
           y: Math.sin(run.landed.angle) * (body.radius + surfaceClearance(stage)),
         });
+        run.position = settleHull(
+          run.position,
+          incomingPose,
+          craftHull(stage, run),
+          center,
+          body.radius,
+          surfaceClearance(stage),
+        );
         run.velocity = bodyVelocity(stage, body, run.time);
         if (run.rocket) run.rocket.throttle = 0;
       }
@@ -448,8 +553,15 @@ export function tick(
           1 / Math.max(length(sub(run.position, center)), 1e-9),
         ),
         relative = sub(run.velocity, bodyVelocity(stage, body, run.time));
-      const incomingDirection = { ...(run.rocket?.direction ?? relative) };
-      run.position = add(center, scale(normal, body.radius + surfaceClearance(stage)));
+      const incomingDirection = { ...incomingPose };
+      run.position = settleHull(
+        run.position,
+        incomingDirection,
+        craftHull(stage, run),
+        center,
+        body.radius,
+        surfaceClearance(stage),
+      );
       run.velocity = add(
         bodyVelocity(stage, body, run.time),
         scale(sub(relative, scale(normal, 1.2 * Math.min(0, dot(relative, normal)))), 0.55),
@@ -473,6 +585,7 @@ export function tick(
         ? '시험 비행의 기록을 가져왔습니다.'
         : '시간 또는 탐사 범위를 벗어났습니다.';
     }
+    if (record) captureFrame(run, run.status !== 'running');
   }
 }
 export function execute(stage: Stage, plan: RoutePlan, record = false): Run {

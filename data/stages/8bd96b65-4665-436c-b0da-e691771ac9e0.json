@@ -5,7 +5,7 @@
   "id": "8bd96b65-4665-436c-b0da-e691771ac9e0",
   "title": "대기권의 문을 지나",
   "description": "대기 속에서는 부스터를, 공기가 옅어지면 상단을 활용하세요. 상단 연료를 남기고 목표 고도에서 속력을 낮춰 안정적으로 비행해야 합니다.",
-  "order": 8,
+  "order": 1,
   "theme": "frontier",
   "bodies": [
     {
@@ -313,7 +313,7 @@
         "y": 0
       },
       "startTime": 0,
-      "endTime": 60,
+      "endTime": 18,
       "dependsOn": [],
       "condition": {
         "kind": "sequence",
@@ -491,15 +491,15 @@
   "rules": {
     "launchLimit": 1,
     "maneuverBudget": 0.05,
-    "maxTime": 60,
+    "maxTime": 18,
     "worldRadius": 20,
     "sensorSlots": 3,
     "attempts": 6
   },
   "camera": {
-    "x": 0,
-    "y": 0,
-    "zoom": 105
+    "x": 0.8,
+    "y": -0.6,
+    "zoom": 160
   },
   "referencePlans": [
     {
@@ -603,389 +603,8 @@
     ]
   },
   "published": true,
-  "randomization": {
-    "version": 1,
-    "fingerprint": "variation-v1:7a70d1d5",
-    "variants": [
-      {
-        "id": 0,
-        "lengthScale": 0.8037230531685055,
-        "timeScale": 0.893230084143579,
-        "rotation": 0.9408915958430456,
-        "gravity": {
-          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": 0.5890677752571956,
-            "y": 0.8080836319054718
-          },
-          "impulses": [],
-          "engineCommands": [
-            {
-              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
-              "time": 2.2152106086760677,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
-              "time": 2.2152106086760677,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": 0.5890677752571956,
-                "y": 0.8080836319054718
-              }
-            },
-            {
-              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
-              "time": 4.305369005571999,
-              "actorId": "craft",
-              "throttle": 0
-            },
-            {
-              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
-              "time": 4.305369005571999,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
-              "time": 4.305369005571999,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": -0.5890677752571956,
-                "y": -0.8080836319054718
-              }
-            },
-            {
-              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
-              "time": 4.859171657741006,
-              "actorId": "craft",
-              "throttle": 0
-            }
-          ]
-        }
-      },
-      {
-        "id": 3,
-        "lengthScale": 0.8062937406823039,
-        "timeScale": 1.1574766543810255,
-        "rotation": 2.6402980205190336,
-        "gravity": {
-          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": -0.876961146459613,
-            "y": 0.4805612839172974
-          },
-          "impulses": [],
-          "engineCommands": [
-            {
-              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
-              "time": 2.870542102864933,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
-              "time": 2.870542102864933,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": -0.876961146459613,
-                "y": 0.4805612839172974
-              }
-            },
-            {
-              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
-              "time": 5.579037474116475,
-              "actorId": "craft",
-              "throttle": 0
-            },
-            {
-              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
-              "time": 5.579037474116475,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
-              "time": 5.579037474116475,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": 0.876961146459613,
-                "y": -0.4805612839172974
-              }
-            },
-            {
-              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
-              "time": 6.296672999832696,
-              "actorId": "craft",
-              "throttle": 0
-            }
-          ]
-        }
-      },
-      {
-        "id": 7,
-        "lengthScale": 0.870606521749869,
-        "timeScale": 0.8657829780015163,
-        "rotation": 4.5492016579948364,
-        "gravity": {
-          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 0.98691922982689
-        },
-        "proof": {
-          "launch": {
-            "x": -0.1624640036526169,
-            "y": -0.9867144711197675
-          },
-          "impulses": [],
-          "engineCommands": [
-            {
-              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
-              "time": 2.1471417854437527,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
-              "time": 2.1471417854437527,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": -0.1624640036526169,
-                "y": -0.9867144711197675
-              }
-            },
-            {
-              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
-              "time": 4.173073953967258,
-              "actorId": "craft",
-              "throttle": 0
-            },
-            {
-              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
-              "time": 4.173073953967258,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
-              "time": 4.173073953967258,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": 0.1624640036526169,
-                "y": 0.9867144711197675
-              }
-            },
-            {
-              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
-              "time": 4.709859400328186,
-              "actorId": "craft",
-              "throttle": 0
-            }
-          ]
-        }
-      },
-      {
-        "id": 15,
-        "lengthScale": 1.2202584489248693,
-        "timeScale": 0.9152497174683958,
-        "rotation": 1.6936802195279876,
-        "gravity": {
-          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": -0.12257485911734937,
-            "y": 0.9924592706566663
-          },
-          "impulses": [],
-          "engineCommands": [
-            {
-              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
-              "time": 2.2698192993216133,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
-              "time": 2.2698192993216133,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": -0.12257485911734937,
-                "y": 0.9924592706566663
-              }
-            },
-            {
-              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
-              "time": 4.4115036381976145,
-              "actorId": "craft",
-              "throttle": 0
-            },
-            {
-              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
-              "time": 4.4115036381976145,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
-              "time": 4.4115036381976145,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": 0.12257485911734937,
-                "y": -0.9924592706566663
-              }
-            },
-            {
-              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
-              "time": 4.9789584630280075,
-              "actorId": "craft",
-              "throttle": 0
-            }
-          ]
-        }
-      },
-      {
-        "id": 33,
-        "lengthScale": 0.9982090953737497,
-        "timeScale": 1.0801887665176764,
-        "rotation": 3.516335935837397,
-        "gravity": {
-          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1
-        },
-        "proof": {
-          "launch": {
-            "x": -0.9306016199096239,
-            "y": -0.36603363919397347
-          },
-          "impulses": [],
-          "engineCommands": [
-            {
-              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
-              "time": 2.6788681409638277,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
-              "time": 2.6788681409638277,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": -0.9306016199096239,
-                "y": -0.36603363919397347
-              }
-            },
-            {
-              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
-              "time": 5.206509854615137,
-              "actorId": "craft",
-              "throttle": 0
-            },
-            {
-              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
-              "time": 5.206509854615137,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
-              "time": 5.206509854615137,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": 0.9306016199096239,
-                "y": 0.36603363919397347
-              }
-            },
-            {
-              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
-              "time": 5.876226889856082,
-              "actorId": "craft",
-              "throttle": 0
-            }
-          ]
-        }
-      },
-      {
-        "id": 49,
-        "lengthScale": 1.177628664812073,
-        "timeScale": 0.8141807201202027,
-        "rotation": 5.408325820650369,
-        "gravity": {
-          "3163b4bb-1fa7-48a6-8350-83b63159c4b7": 1.0004949017427862
-        },
-        "proof": {
-          "launch": {
-            "x": 0.6411047020365134,
-            "y": -0.7674534259658194
-          },
-          "impulses": [],
-          "engineCommands": [
-            {
-              "id": "36c80a4d-50b1-4527-a4f7-dcb0bd926bed",
-              "time": 2.0191681858980957,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "8779048a-9ed6-46ad-925d-45c6580e0e08",
-              "time": 2.0191681858980957,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": 0.6411047020365134,
-                "y": -0.7674534259658194
-              }
-            },
-            {
-              "id": "f273f563-af58-4253-b45c-51cc81b6999f",
-              "time": 3.9243510709793297,
-              "actorId": "craft",
-              "throttle": 0
-            },
-            {
-              "id": "e14e7859-332a-4449-8b4f-b9e4c87e99aa",
-              "time": 3.9243510709793297,
-              "actorId": "craft",
-              "separate": true
-            },
-            {
-              "id": "4a5f9fdf-6439-431b-870b-0a5f230d06dc",
-              "time": 3.9243510709793297,
-              "actorId": "craft",
-              "throttle": 1,
-              "direction": {
-                "x": -0.6411047020365134,
-                "y": 0.7674534259658194
-              }
-            },
-            {
-              "id": "56b9e2dd-0c2f-4fe7-8b21-14c75b8f1bbd",
-              "time": 4.429143117453845,
-              "actorId": "craft",
-              "throttle": 0
-            }
-          ]
-        }
-      }
-    ],
-    "tried": 50,
-    "reuseChecks": 115,
-    "randomChecks": 96
-  },
   "learning": {
-    "briefing": "공기가 두꺼운 낮은 곳에서는 엔진을 세게 켜도 쉽게 빨라지지 않습니다. 같은 발사를 반복하며 엔진 세기나 단 분리 시점 한 가지씩 바꿔, 올라간 높이·공기 부담·남은 연료를 비교하세요.",
+    "briefing": "먼저 출력계로 지면을 떠날 힘을 확인하세요. 1단은 두꺼운 공기를 버티고, 2단은 높이 올라가며, 가벼운 3단은 너무 빨라진 비행을 낮춥니다. 실제 비행의 시간·고도·연료를 읽고 다음 시도의 분리·점화·제동 시각을 예약하세요.",
     "instruments": [
       {
         "id": "height",
@@ -1078,6 +697,43 @@
         }
       }
     ],
-    "cues": []
+    "cues": [
+      {
+        "id": "booster-empty",
+        "message": "1단 연료가 거의 다 썼습니다. 지금의 시각과 높이를 기록하고, 다음 계획에서 빈 단 분리와 다음 엔진 점화를 예약하세요. 비행 중 계획은 바꿀 수 없습니다.",
+        "pause": true,
+        "when": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "fuel",
+                "targetId": ""
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.01
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "separatedStages",
+                "targetId": ""
+              },
+              "operator": "eq",
+              "right": {
+                "kind": "constant",
+                "value": 0
+              }
+            }
+          ]
+        }
+      }
+    ]
   }
 }

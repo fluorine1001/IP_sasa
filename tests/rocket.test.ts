@@ -51,7 +51,10 @@ describe('3단 추진과 대기권 병목', () => {
       p = { ...run.position };
     expect(separate(run, stage)).toBe(true);
     const actor = run.detached[0];
-    expect(actor.velocity).toEqual(v);
+    const upperMass = rocketMass(stage, run),
+      lowerMass = actor.dryMass + actor.fuel;
+    expect(actor.velocity.x * lowerMass + run.velocity.x * upperMass).toBeCloseTo(v.x * mass, 10);
+    expect(actor.velocity.y * lowerMass + run.velocity.y * upperMass).toBeCloseTo(v.y * mass, 10);
     expect(actor.position).toEqual(p);
     expect(rocketMass(stage, run) + actor.dryMass + actor.fuel).toBeCloseTo(mass, 10);
     expect(run.rocket!.throttle).toBe(0);

@@ -1,3 +1,4 @@
+import { captureFrame, type FlightFrame } from './replay';
 import { evaluateCondition, expressionValue, type Condition, type Expression } from './conditions';
 import type { GoalContext, GoalProgress, RoutePlan, Run, Stage } from './types';
 import { length } from '../physics/vector';
@@ -24,6 +25,10 @@ export type EvidenceState = {
 };
 export type Trial = {
   number: number;
+  scheduledPlan: RoutePlan;
+  flightPlan: RoutePlan;
+  appliedIds: string[];
+  frames: FlightFrame[];
   plan: RoutePlan;
   status: Run['status'];
   reason: string;
@@ -97,12 +102,17 @@ export function readingText(i: Instrument, r?: Reading): string {
 }
 export function recordTrial(run: Run, number: number): Trial {
   // Unexecuted future commands must not masquerade as experimental interventions.
+  captureFrame(run, true);
   const plan = structuredClone(run.plan);
   plan.impulses = plan.impulses.filter((x) => run.applied.has(x.id));
   plan.engineCommands = plan.engineCommands?.filter((x) => run.applied.has(x.id));
   plan.deployments = plan.deployments?.filter((x) => run.applied.has(x.id));
   return {
     number,
+    scheduledPlan: structuredClone(run.initialPlan ?? run.plan),
+    flightPlan: structuredClone(run.plan),
+    appliedIds: [...run.applied],
+    frames: structuredClone(run.frames ?? []),
     plan,
     status: run.status,
     reason: run.reason,

@@ -1,3 +1,4 @@
+import { setControl } from './flight-controls';
 import { escape } from '../app/core';
 import { length, scale } from '../physics/vector';
 import {
@@ -49,14 +50,18 @@ export function flightTimeline(
     dragId = '',
     dragged = false;
   root.innerHTML =
-    '<section id="flight-timeline" class="flight-timeline panel" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div class="timeline-rail"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
+    '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div class="timeline-rail"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
     stage.rules.maxTime +
     '" step="0.01" value="0"></div><div class="timeline-caption"><span class="timeline-legend">' +
     (['ignite', 'stop', 'turn', 'separate', 'sensor'] as const)
       .map((k, i) => '<i>' + eventIcon(k) + ['점화', '끄기', '방향', '분리', '부표'][i] + '</i>')
       .join('') +
     '</span><span id="timeline-explanation"></span></div></section><aside id="program-editor" class="program-editor panel" hidden aria-label="발사 전 비행 계획"><div class="program-title"><h2>비행 순서 설계</h2><button id="program-close">접기</button></div><p id="program-contract">발사 전에 확정합니다. 비행 중에는 조작을 추가하거나 바꿀 수 없습니다.</p><div id="launch-readout"></div><div id="program-fields"></div><div id="program-warnings"></div></aside>';
-  const el = (id: string) => root.querySelector<HTMLElement>('#' + id)!;
+  // Toolbar controls may be mounted into the shared console; keep their node references.
+  const nodes = new Map(
+    [...root.querySelectorAll<HTMLElement>('[id]')].map((node) => [node.id, node]),
+  );
+  const el = (id: string) => nodes.get(id) ?? root.querySelector<HTMLElement>('#' + id)!;
   const editable = () => get().phase === 'plan';
   function open() {
     editorOpen = !editorOpen;
@@ -461,7 +466,7 @@ export function flightTimeline(
       const original = new Set(
         programEvents(state.scheduled ?? plan).map((e) => e.id.replace(':turn', '')),
       );
-      const events = programEvents(plan),
+      const events = programEvents(plan).filter((e) => !e.id.endsWith(':turn')),
         slots = new Map<number, number>();
       el('timeline-markers').innerHTML = events
         .map((e) => {
@@ -489,7 +494,18 @@ export function flightTimeline(
             e.actorId === 'craft'
               ? '주 로켓'
               : (stage.rocket?.parts.find((p) => p.id === e.actorId)?.name ?? e.actorId);
-          const label = e.time.toFixed(2) + '초 · ' + e.label + ' · ' + actor + ' · ' + result;
+          const combinedDirection = plan.engineCommands?.find(
+            (c) => c.id === id && c.throttle !== undefined,
+          )?.direction;
+          const label =
+            e.time.toFixed(2) +
+            '초 · ' +
+            e.label +
+            (combinedDirection ? ' · 방향 ' + degrees(combinedDirection) + '°' : '') +
+            ' · ' +
+            actor +
+            ' · ' +
+            result;
           return (
             '<button data-event="' +
             e.id +
@@ -508,9 +524,11 @@ export function flightTimeline(
             escape(label) +
             '">' +
             eventIcon(e.kind) +
-            '<span>' +
-            e.time.toFixed(1) +
-            's</span></button>'
+            (combinedDirection
+              ? '<i class="timeline-direction">' + eventIcon('turn') + '</i>'
+              : '') +
+            (row === 0 ? '<span>' + e.time.toFixed(1) + 's</span>' : '') +
+            '</button>'
           );
         })
         .join('');
@@ -527,7 +545,22 @@ export function flightTimeline(
         : state.phase === 'flight'
           ? '비행 중 · 계획 확정됨'
           : '발사 전 · 예약 설계';
-    el('program-toggle').textContent = state.phase === 'plan' ? '비행 계획 편집' : '당시 계획 확인';
+    setControl(
+      root.ownerDocument.body,
+      'program-toggle',
+      state.phase === 'plan' ? 'sliders' : 'records',
+      state.phase === 'plan' ? '비행 계획' : '당시 계획',
+    );
+    el('program-toggle').className = 'console-button with-label plan-command';
+    setControl(
+      root.ownerDocument.body,
+      'replay-toggle',
+      state.playing ? 'pause' : 'play',
+      state.playing ? '다시보기 일시정지' : '다시보기 재생',
+    );
+    el('replay-toggle').className = 'console-button';
+    setControl(root.ownerDocument.body, 'replay-exit', 'close', '다시보기 닫기');
+    el('replay-exit').className = 'console-button replay-close';
     el('program-contract').textContent = editable()
       ? '발사 전에 확정합니다. 비행 중에는 조작을 추가하거나 바꿀 수 없습니다.'
       : '읽기 전용입니다. 이 비행에서 확정했던 계획입니다.';
@@ -535,7 +568,7 @@ export function flightTimeline(
     slider.value = String(state.time);
     slider.setAttribute('aria-valuetext', state.time.toFixed(2) + '초');
     el('replay-toggle').hidden = el('replay-exit').hidden = state.phase !== 'replay';
-    el('replay-toggle').textContent = state.playing ? '❚❚ 다시보기 일시정지' : '▶ 다시보기 재생';
+
     el('timeline-explanation').textContent =
       state.phase === 'plan'
         ? '픽토그램을 끌어 시각 변경 · 클릭해 조작 편집'

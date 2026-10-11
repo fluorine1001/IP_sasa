@@ -77,6 +77,7 @@ test('표면에서 발사·부표 방출·정지·수동 비행 종료·기록 �
     { steps: 4 },
   );
   await page.mouse.up();
+  await page.locator('#dock-tools > summary').click();
   await page.locator('#gravity-buoy').click();
   await page.locator('#launch').click();
   await expect(page.locator('#follow')).toHaveText('추적 중 · 시야 풀기');
@@ -133,6 +134,7 @@ test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리�
   await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
   await page.locator('#result-exit').click();
   await page.locator('#test-stage').click();
+  await page.locator('#dock-tools > summary').click();
   await page.locator('#separate').click();
   await expect(page.locator('.program-command')).toHaveCount(1);
   await page.locator('#program-close').click();
@@ -291,6 +293,7 @@ test('종료는 재도전 화면에 머무르며 다른 스테이지에는 비�
   page,
 }) => {
   await openGame(page);
+  await page.locator('#dock-tools > summary').click();
   await page.locator('#gravity-buoy').click();
   await expect(page.locator('#toast')).toContainText('예약');
   await page.locator('#launch').click();
@@ -418,6 +421,7 @@ test('발사 기회를 모두 사용해도 게시판 없이 해당 스테이지�
 test('재시도는 같은 환경·실험 기록·조작을 보존하고 세기만 바꿀 수 있다', async ({ page }) => {
   await openGame(page);
   const first = await page.locator('#pad-gravity').getAttribute('value');
+  await page.locator('#dock-tools > summary').click();
   await page.locator('#gravity-buoy').click();
   await page.locator('#launch').click();
   await page.waitForTimeout(200);
@@ -428,11 +432,12 @@ test('재시도는 같은 환경·실험 기록·조작을 보존하고 세기�
   await page.locator('#result-retry').click();
   await expect(page.locator('#pad-gravity')).toHaveAttribute('value', first!);
   expect(Number(await page.locator('#note-count').textContent())).toBe(notes);
-  await page.locator('#open-ledger').click();
+  await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(1);
   await expect(page.locator('.trial-card')).toContainText('가장 높이 올라간 곳');
   await page.locator('[data-trial-copy="0"]').click();
   await expect(page.locator('#toast')).toContainText('실제 조작을 복사');
+  await page.locator('#experiment-tools > summary').click();
   await page.locator('#lock-angle').click();
   await page.locator('#stronger').click();
   await expect(page.locator('#lock-angle')).toHaveText('방향 고정됨');
@@ -443,6 +448,7 @@ test('재시도는 같은 환경·실험 기록·조작을 보존하고 세기�
   await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(2);
   await expect(page.locator('#trial-comparison')).toContainText('첫 추진만 강해졌습니다');
+  await page.locator('.archive-comparison > summary').click();
   await expect(page.locator('#replay-time')).toBeVisible();
   await page.locator('#close-notes').click();
 });
@@ -506,6 +512,7 @@ test('실제 관측으로 높이와 시각을 좁히고 다음 타임라인의 �
   await expect(page.locator('#result')).toBeVisible({ timeout: 20000 });
   await expect(page.locator('#result')).toContainText('목표 띠까지 못 올라감');
   await page.locator('#result-retry').click();
+  await page.locator('#experiment-tools > summary').click();
   await page.locator('#lock-angle').click();
   for (let i = 0; i < 5; i++) await page.locator('#stronger').click();
   await page.locator('#launch').click();
@@ -513,6 +520,7 @@ test('실제 관측으로 높이와 시각을 좁히고 다음 타임라인의 �
   await expect(page.locator('#experiment-summary')).toContainText('목표 띠보다 멀리');
   await page.locator('#abort').click();
   await page.locator('#result-retry').click();
+  await page.locator('#experiment-tools > summary').click();
   await page.locator('#weaker').click();
   await page.locator('#launch').click();
   await expect(page.locator('#mode')).toContainText('정지', { timeout: 16000 });

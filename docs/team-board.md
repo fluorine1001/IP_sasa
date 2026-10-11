@@ -13,4 +13,4 @@
 
 새 임무는 먼저 물리량·기록·시간/이동량 통계의 조합으로 표현합니다. 부족한 현상이나 조회량이 있을 때만 물리 계약을 확장합니다.
 
-타임라인 UI는 screens/flight-timeline.ts, 기록 재생은 world/replay.ts, 로켓 아트는 render/rocket-sprite.ts로 담당을 나눕니다. 아트와 충돌 크기는 world/hull.ts를 공유하므로 치수 변경은 두 담당이 함께 리뷰합니다. public/assets/rockets의 PNG는 동일 렌더러에서 내보내며 직접 다른 크기로 수정하지 않습니다. [발사 계획 계약](flight-program.md)을 공용 기준으로 사용합니다.
+관제 콘솔 배치와 상태 전환은 screens/play.ts, 독립 스타일은 screens/flight-console.css, 공용 SVG 조작 아이콘은 screens/flight-controls.ts, 타임라인 UI는 screens/flight-timeline.ts, 기록 재생은 world/replay.ts, 로켓 아트는 render/rocket-sprite.ts로 담당을 나눕니다. 아트와 충돌 크기는 world/hull.ts를 공유하므로 치수 변경은 두 담당이 함께 리뷰합니다. public/assets/rockets의 PNG는 동일 렌더러에서 내보내며 직접 다른 크기로 수정하지 않습니다. [발사 계획 계약](flight-program.md)을 공용 기준으로 사용합니다.

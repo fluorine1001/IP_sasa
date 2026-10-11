@@ -983,5 +983,101 @@
     "tried": 50,
     "reuseChecks": 115,
     "randomChecks": 96
+  },
+  "learning": {
+    "briefing": "공기가 두꺼운 낮은 곳에서는 엔진을 세게 켜도 쉽게 빨라지지 않습니다. 같은 발사를 반복하며 엔진 세기나 단 분리 시점 한 가지씩 바꿔, 올라간 높이·공기 부담·남은 연료를 비교하세요.",
+    "instruments": [
+      {
+        "id": "height",
+        "label": "가장 높이 올라간 곳",
+        "value": {
+          "kind": "metric",
+          "metric": "altitude",
+          "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 1.4,
+          "max": 6,
+          "below": "대기권을 못 벗어남",
+          "inside": "대기권 밖까지 도달",
+          "above": "아주 멀리 나감"
+        }
+      },
+      {
+        "id": "air",
+        "label": "공기가 가장 세게 누른 순간",
+        "value": {
+          "kind": "metric",
+          "metric": "dynamicPressure",
+          "targetId": ""
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 0,
+          "max": 0.0014,
+          "below": "관측 확인",
+          "inside": "공기 부담에 여유가 있음",
+          "above": "엔진 세기나 방향을 조정할 필요"
+        }
+      },
+      {
+        "id": "fuel",
+        "label": "비행 끝에 남은 엔진 연료",
+        "value": {
+          "kind": "metric",
+          "metric": "fuel",
+          "targetId": ""
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "last",
+        "range": {
+          "min": 0.05,
+          "max": 99,
+          "below": "남은 연료가 거의 없음",
+          "inside": "추가 조작 여유가 남음",
+          "above": "관측 확인"
+        }
+      }
+    ],
+    "cues": []
   }
 }

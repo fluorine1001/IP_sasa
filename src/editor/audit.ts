@@ -1,9 +1,11 @@
+import { learningDesign, readingText } from '../world/evidence';
 import { bodyPosition } from '../world/celestial.ts';
 import type { Stage, RoutePlan } from '../world/types.ts';
 import { execute } from '../world/engine.ts';
 import { issues } from '../stages/validation.ts';
 import { length, scale, unit, sub } from '../physics/vector.ts';
 export type AuditResult = {
+  feedback?: { nearbyWins: number; nearbyTotal: number; distinctReports: number };
   checked: number;
   total: number;
   randomWins: number;
@@ -77,6 +79,45 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     result.warnings.push(
       `단순 전략으로 성공: ${result.simpleWins.join(', ')}. 입문 임무라면 허용하고 고급 퍼즐에서는 조건을 조정하세요.`,
     );
+  if (stage.learning) {
+    const design = learningDesign(stage),
+      reports = new Set<string>();
+    let nearbyWins = 0,
+      nearbyTotal = 0;
+    const reference = stage.referencePlans.find((p) => execute(stage, p).status === 'won');
+    if (reference) {
+      for (const factor of [0.98, 1, 1.02])
+        for (const timeShift of [-0.15, 0, 0.15]) {
+          const p = structuredClone(reference);
+          p.launch = scale(p.launch, factor);
+          p.impulses.forEach((b) => (b.time = Math.max(0, b.time + timeShift)));
+          if (length(p.launch) > stage.rules.launchLimit) continue;
+          nearbyTotal++;
+          if (execute(stage, p).status === 'won') nearbyWins++;
+        }
+      for (const factor of [0.8, 0.9, 1, 1.1]) {
+        const p = structuredClone(reference);
+        p.launch = scale(
+          p.launch,
+          Math.min(factor, stage.rules.launchLimit / Math.max(length(p.launch), 1e-9)),
+        );
+        p.impulses = [];
+        const r = execute(stage, p, true);
+        reports.add(
+          design.instruments.map((i) => readingText(i, r.evidence.readings[i.id])).join(' / '),
+        );
+      }
+    }
+    result.feedback = { nearbyWins, nearbyTotal, distinctReports: reports.size };
+    if (nearbyTotal && nearbyWins <= 1)
+      result.warnings.push(
+        '기준 풀이 근처의 작은 세기·시각 차이도 대부분 실패합니다. 손으로 조작 가능한 허용 범위를 확인하세요.',
+      );
+    if (reports.size < 2)
+      result.warnings.push(
+        '서로 다른 첫 추진의 관측 안내가 구분되지 않습니다. 실패의 원인을 좁힐 단서를 추가하세요.',
+      );
+  }
   yield structuredClone(result);
   const random = seeded(stage.audit.seed || 1);
   for (let i = 0; i < result.total; i++) {

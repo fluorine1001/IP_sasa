@@ -10,6 +10,10 @@ export type DrawState = {
   camera: Camera;
   run?: Run;
   history?: Run['trail'];
+  histories?: Run['trail'][];
+  historyLabel?: string;
+  historyLabels?: string[];
+  replayTime?: number;
   plan?: RoutePlan;
   grid?: boolean;
   trails?: boolean;
@@ -104,7 +108,50 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.stroke();
     ctx.setLineDash([]);
   };
-  if (s.history?.length)
+  for (const [i, trail] of (s.histories ?? []).entries()) {
+    if (s.trails !== false)
+      path(
+        [s.stage.spawn.position, ...trail.map((v) => v.position)],
+        ['#79c7d64d', '#b6a1de4d', '#d0cc764d'][i % 3],
+        true,
+      );
+  }
+  if (s.replayTime !== undefined)
+    for (const [i, trail] of [s.history ?? [], ...(s.histories ?? [])].entries()) {
+      if (!trail.length || s.replayTime > trail.at(-1)!.time) continue;
+      const sample = trail.reduce((a, b) =>
+        Math.abs(b.time - s.replayTime!) < Math.abs(a.time - s.replayTime!) ? b : a,
+      );
+      if (i === 0)
+        for (const [id, position] of Object.entries(sample.targets ?? {})) {
+          const target =
+            s.stage.bodies.find((b) => b.id === id) ?? s.stage.objects.find((o) => o.id === id);
+          if (!target) continue;
+          const p = screen(position);
+          ctx.strokeStyle = '#a4cab3aa';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 5]);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, Math.max(6, target.radius * c.zoom), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#a4cab3';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(`${target.name} · 기록 ${sample.time.toFixed(1)}초`, p.x + 8, p.y - 8);
+        }
+      const q = screen(sample.position);
+      ctx.fillStyle = ['#ffe1a1', '#79c7d6', '#b6a1de', '#d0cc76'][i % 4];
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '12px sans-serif';
+      ctx.fillText(
+        `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
+        q.x + 10,
+        q.y - 10,
+      );
+    }
+  if (s.history?.length && s.trails !== false)
     path([s.stage.spawn.position, ...s.history.map((v) => v.position)], '#aab8ae80', true);
   if (s.run && s.trails !== false)
     path(

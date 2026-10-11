@@ -48,42 +48,42 @@ export class EditorModel {
       (x) => x.id === id,
     );
   }
+  copy(): Entity[] {
+    return structuredClone(
+      [...this.stage.bodies, ...this.stage.objects, ...this.stage.goals].filter((e) =>
+        this.selection.has(e.id),
+      ),
+    );
+  }
   duplicate() {
+    this.paste(this.copy());
+  }
+  paste(entities: Entity[]) {
+    if (!entities.length) return;
     this.change((s) => {
-      const remap = new Map(
-        [...this.selection].filter((id) => id !== 'spawn').map((id) => [id, uid()]),
-      );
-      const copies: Entity[] = [];
-      for (const collection of [s.bodies, s.objects, s.goals])
-        for (const e of [...collection])
-          if (remap.has(e.id)) {
-            const copy = structuredClone(e);
-            copy.id = remap.get(e.id)!;
-            copy.position.x += 0.3;
-            copy.position.y += 0.3;
-            if ('motion' in copy && copy.motion)
-              copy.motion.parentId = remap.get(copy.motion.parentId) ?? copy.motion.parentId;
-            if ('dependsOn' in copy) {
-              copy.dependsOn = copy.dependsOn.map((id) => remap.get(id) ?? id);
-            }
-            if ('condition' in copy && copy.condition) {
-              const remapCondition = (node: unknown): void => {
-                if (!node || typeof node !== 'object') return;
-                const record = node as Record<string, unknown>;
-                for (const key of ['targetId', 'actorId'])
-                  if (typeof record[key] === 'string')
-                    record[key] = remap.get(record[key] as string) ?? record[key];
-                for (const value of Object.values(record))
-                  if (Array.isArray(value)) value.forEach(remapCondition);
-                  else if (typeof value === 'object') remapCondition(value);
-              };
-              remapCondition(copy.condition);
-              if (copy.display)
-                copy.display.targetId = remap.get(copy.display.targetId) ?? copy.display.targetId;
-            }
-            (collection as Entity[]).push(copy);
-            copies.push(copy);
-          }
+      const remap = new Map(entities.map((e) => [e.id, uid()]));
+      const references = (node: unknown): void => {
+        if (!node || typeof node !== 'object') return;
+        if (Array.isArray(node)) {
+          node.forEach(references);
+          return;
+        }
+        const r = node as Record<string, unknown>;
+        for (const key of ['targetId', 'actorId', 'parentId'])
+          if (typeof r[key] === 'string') r[key] = remap.get(r[key] as string) ?? r[key];
+        Object.values(r).forEach(references);
+      };
+      const copies = structuredClone(entities);
+      for (const e of copies) {
+        e.id = remap.get(e.id)!;
+        e.position.x += 0.3;
+        e.position.y += 0.3;
+        references(e);
+        if ('dependsOn' in e) e.dependsOn = e.dependsOn.map((id) => remap.get(id) ?? id);
+        if ('mu' in e) s.bodies.push(e);
+        else if ('condition' in e) s.goals.push(e);
+        else s.objects.push(e);
+      }
       this.selection = new Set(copies.map((e) => e.id));
     });
   }

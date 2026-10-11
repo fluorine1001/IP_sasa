@@ -2,6 +2,9 @@ import { it, expect } from 'vitest';
 import { gravity } from '../src/world/celestial';
 import { length } from '../src/physics/vector';
 import { stages } from '../src/stages/catalog';
+import variationSource from './fixtures/variation-source.json';
+import type { Stage } from '../src/world/types';
+const legacyStage = variationSource as Stage;
 import { createRun, tick, execute } from '../src/world/engine';
 import { impactDirection } from '../src/world/impact';
 import { scaleConditions } from '../src/world/dimensions';
@@ -15,8 +18,7 @@ import { generateRandomization } from '../src/editor/randomization';
 import { EditorModel } from '../src/editor/model';
 import type { Condition } from '../src/world/conditions';
 let report;
-for (const r of generateRandomization({ ...structuredClone(stages[0]), randomization: undefined }))
-  report = r;
+for (const r of generateRandomization(structuredClone(legacyStage))) report = r;
 const bank = report!.bank!;
 it('충돌은 한 번 반동 후 가라앉고 자세가 속도 부호에 따라 뒤집히지 않는다', () => {
   const stage = stages[0],
@@ -95,10 +97,10 @@ it('자동 생성한 모든 변형은 풀 수 있고 이전 변형의 성공 명
   expect(bank).toBeDefined();
   expect(bank.variants).toHaveLength(6);
   for (const v of bank.variants) {
-    const world = instantiateVariation(stages[0], v);
+    const world = instantiateVariation(legacyStage, v);
     expect(execute(world, v.proof).status).toBe('won');
     for (const old of bank.variants.filter((o) => o.id !== v.id)) {
-      const oldWorld = instantiateVariation(stages[0], old);
+      const oldWorld = instantiateVariation(legacyStage, old);
       expect(
         Math.abs(
           Math.log(
@@ -113,7 +115,7 @@ it('자동 생성한 모든 변형은 풀 수 있고 이전 변형의 성공 명
   }
 });
 it('재시도는 중복 없이 추첨되며 물리 설계를 바꾸면 자동 변형을 폐기한다', () => {
-  const stage = structuredClone(stages[0]);
+  const stage = structuredClone(legacyStage);
   stage.randomization = bank;
   expect(variationIssues(stage)).toEqual([]);
   expect(bank.fingerprint).toBe(stageFingerprint(stage));
@@ -128,7 +130,7 @@ it('재시도는 중복 없이 추첨되며 물리 설계를 바꾸면 자동 �
   expect(model.stage.randomization).toBeDefined();
 });
 it('풀이가 없거나 너무 넓어 과거 명령이 통하는 문제에는 임의로 랜덤화를 붙이지 않는다', () => {
-  const stage = structuredClone(stages[0]);
+  const stage = structuredClone(legacyStage);
   delete stage.randomization;
   stage.referencePlans = [];
   let r;

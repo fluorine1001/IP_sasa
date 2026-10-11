@@ -291,5 +291,90 @@
     "tried": 25,
     "reuseChecks": 36,
     "randomChecks": 96
+  },
+  "learning": {
+    "briefing": "먼저 달 가까이 가는 방향을 찾으세요. 가까이 도달한 발사를 복사한 뒤, 접근 중 반대로 미는 시각만 바꾸며 비교해보세요.",
+    "instruments": [
+      {
+        "id": "approach",
+        "label": "달에 가장 가까웠던 높이",
+        "value": {
+          "kind": "metric",
+          "metric": "altitude",
+          "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0,
+          "max": 0.12,
+          "below": "지면을 통과",
+          "inside": "착륙 지면 근처",
+          "above": "달까지 아직 멂"
+        }
+      },
+      {
+        "id": "contact",
+        "label": "닿은 순간의 빠르기",
+        "value": {
+          "kind": "metric",
+          "metric": "touchdownSpeed",
+          "targetId": ""
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "last",
+        "range": {
+          "min": 0,
+          "max": 0.18,
+          "below": "관측 확인",
+          "inside": "부드러운 접촉",
+          "above": "충돌할 만큼 빠름"
+        }
+      }
+    ],
+    "cues": [
+      {
+        "id": "near",
+        "message": "실제로 달 가까이 왔습니다. 아직 빨리 다가온다면 반대 방향 추진에도 시간이 필요합니다. 같은 접근을 복사해서 제동 시작 시각을 비교하세요.",
+        "pause": false,
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "altitude",
+            "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+          },
+          "operator": "lte",
+          "right": {
+            "kind": "constant",
+            "value": 0.5
+          }
+        }
+      }
+    ]
   }
 }

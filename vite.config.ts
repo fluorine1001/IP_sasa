@@ -32,8 +32,6 @@ function stageWorkshop(): Plugin {
             directory = path.resolve(server.config.root, 'data/stages'),
             file = path.join(directory, `${stage.id}.json`),
             temporary = path.join(directory, `${stage.id}.json.pending`);
-          if (stage.published !== false && !stage.randomization)
-            throw new Error('게임 추가에는 자동 재시도 변형 검증이 필요합니다.');
           await mkdir(directory, { recursive: true });
           await writeFile(temporary, JSON.stringify(stage, null, 2) + '\n');
           await rename(temporary, file);

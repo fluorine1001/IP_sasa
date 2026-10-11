@@ -1,3 +1,4 @@
+import { collectEvidence, emptyEvidence } from './evidence';
 import { beginImpact, advanceImpact } from './impact';
 import { surfaceLaunch, surfaceClearance } from './launch.ts';
 import { dynamicView, advanceBodies } from './dynamics.ts';
@@ -23,6 +24,7 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
         ? '추진 계획이 유효하지 않습니다.'
         : '';
   return {
+    evidence: emptyEvidence(),
     time: 0,
     position: { ...start.position },
     velocity: stage.rocket ? { ...start.velocity } : add(start.velocity, plan.launch),
@@ -162,6 +164,7 @@ export function tick(
   dt = WORLD_STEP,
   objects = source.objects,
   record = true,
+  stopAtCue = false,
 ): void {
   let stage = dynamicView(source, run);
   if (run.status === 'impact') {
@@ -376,13 +379,25 @@ export function tick(
       const b = stage.bodies.find((b) => b.id === collisionBodyId)!;
       run.touchdownSpeed = length(sub(run.velocity, bodyVelocity(stage, b, run.time)));
     }
-    updateGoals({ stage, run, before, beforeActors, dt: slice, previousTime, collisionBodyId });
+    const context = { stage, run, before, beforeActors, dt: slice, previousTime, collisionBodyId };
+    updateGoals(context);
+    const cueCount = run.evidence.cues.length;
+    if (record) collectEvidence(context);
+    if (stopAtCue && run.evidence.cues.slice(cueCount).some((c) => c.pause)) remaining = 0;
     if (record) {
       observe(stage, run, objects, before);
       if (run.time - run.lastTrail >= 0.05) {
         run.trail.push({
           position: { ...run.position },
           velocity: { ...run.velocity },
+          targets: Object.fromEntries([
+            ...stage.bodies
+              .filter((b) => b.motion || b.dynamic)
+              .map((b) => [b.id, bodyPosition(stage, b, run.time)]),
+            ...objects
+              .filter((o) => o.motion)
+              .map((o) => [o.id, objectPosition(stage, o, run.time)]),
+          ]),
           time: run.time,
         });
         run.lastTrail = run.time;

@@ -1,3 +1,4 @@
+import { blankStage } from '../src/stages/factory';
 import { it, expect } from 'vitest';
 import { EditorModel, cloneCondition } from '../src/editor/model';
 import { stages } from '../src/stages/catalog';
@@ -75,4 +76,29 @@ it('기록을 포함한 블록 복제는 이름과 내부 참조를 함께 바�
       copy.children[1].left.key,
   ).toBe('start_copy2');
   expect(branch.children[0].kind === 'capture' && branch.children[0].key).toBe('start');
+});
+
+it('다른 스테이지에 장면 묶음을 붙이면 UUID와 내부 목표·공전 참조를 재연결하고 실행 취소된다', () => {
+  const source = new EditorModel(blankStage());
+  const body = source.stage.bodies[0];
+  source.stage.goals[0].condition = {
+    kind: 'compare',
+    left: { kind: 'metric', metric: 'distance', targetId: body.id },
+    operator: 'gte',
+    right: { kind: 'constant', value: 1 },
+  };
+  source.selection = new Set([body.id, source.stage.goals[0].id]);
+  const destination = new EditorModel(blankStage()),
+    count = destination.stage.bodies.length;
+  destination.paste(source.copy());
+  const copy = destination.stage.goals.at(-1)!,
+    copiedBody = destination.stage.bodies.at(-1)!;
+  expect(copiedBody.id).not.toBe(body.id);
+  expect(
+    copy.condition.kind === 'compare' &&
+      copy.condition.left.kind === 'metric' &&
+      copy.condition.left.targetId,
+  ).toBe(copiedBody.id);
+  destination.undo();
+  expect(destination.stage.bodies).toHaveLength(count);
 });

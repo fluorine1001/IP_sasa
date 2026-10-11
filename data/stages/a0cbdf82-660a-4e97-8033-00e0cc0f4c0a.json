@@ -567,5 +567,71 @@
     "tried": 31,
     "reuseChecks": 36,
     "randomChecks": 96
+  },
+  "learning": {
+    "briefing": "먼저 화성 곁을 지나가는 접근을 찾으세요. 도착만으로는 머무르지 못합니다. 같은 접근에서 밀거나 제동하는 시각을 바꿔, 가까워졌다 멀어지는 기록을 비교하세요.",
+    "instruments": [
+      {
+        "id": "approach",
+        "label": "화성에 가장 가까웠던 거리",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0.16,
+          "max": 0.22,
+          "below": "목표 띠보다 안쪽",
+          "inside": "화성 목표 띠 근처",
+          "above": "화성을 멀리 지나감"
+        }
+      },
+      {
+        "id": "depart",
+        "label": "화성 곁에 온 뒤 가장 멀어진 거리",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "distance",
+            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+          },
+          "operator": "lte",
+          "right": {
+            "kind": "constant",
+            "value": 0.5
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 0.16,
+          "max": 0.26,
+          "below": "띠 안쪽",
+          "inside": "화성 곁에 머묾",
+          "above": "다시 멀어짐"
+        }
+      }
+    ],
+    "cues": []
   }
 }

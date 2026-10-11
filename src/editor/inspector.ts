@@ -1,3 +1,4 @@
+import { learningInspector } from './learning-inspector';
 import { conditionBuilder } from './condition-builder.ts';
 import { escape } from '../app/core.ts';
 import type { EditorModel } from './model.ts';
@@ -164,5 +165,5 @@ export function inspector(model: EditorModel): string {
             '',
           )}</details><p class="muted">표시 영역은 안내용이며 판정에 영향을 주지 않습니다. 실제 성공 범위는 위의 조건 블록으로 정합니다.</p>`
       : ''
-  }<details><summary>목표 목록 · 클릭해서 편집</summary>${stage.goals.map((g) => `<button data-select-goal="${g.id}">${escape(g.title)}</button>`).join('')}</details><details><summary>설계 순서</summary><p>1. 목표와 물리 제약을 정합니다.<br>2. 직접 시험해 성공 경로를 저장합니다.<br>3. 임의 경로와 단순 전략을 검사합니다.<br>4. 반례를 재생해 목표 조건을 조정합니다.</p><p>검사는 유한한 표본입니다. 재미·유일해·모든 경로의 안전성을 증명하지 않습니다.</p></details>`;
+  }${!entity && id !== 'spawn' ? learningInspector(stage) : ''}<details><summary>장면 목록 · 클릭 선택 / 이동</summary><button data-select-goal="spawn">발사대</button>${[...stage.bodies, ...stage.objects].map((e) => `<button data-select-goal="${e.id}">${escape(e.name)}</button>`).join('')}</details><details><summary>목표 목록 · 클릭해서 편집</summary>${stage.goals.map((g) => `<button data-select-goal="${g.id}">${escape(g.title)}</button>`).join('')}</details><details><summary>설계 순서</summary><p>1. 장면·목표·물리 제약을 만듭니다.<br>2. 실패에서 배울 관측·단서를 설계합니다.<br>3. F5로 여러 시도를 비교하며 성공 경로를 저장합니다.<br>4. 임의 성공 반례와 단서 없는 막힘을 확인한 뒤 공개합니다.</p><p>검사는 유한한 표본입니다. 재미·유일해·모든 경로의 안전성을 증명하지 않습니다.</p></details>`;
 }

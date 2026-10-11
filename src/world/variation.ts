@@ -20,6 +20,7 @@ export type VariationBank = {
 };
 export function stageFingerprint(stage: Stage) {
   const {
+    learning: learning_,
     randomization: _,
     published: __,
     camera: ___,
@@ -108,6 +109,46 @@ export function instantiateVariation(source: Stage, spec: Variation): Stage {
       g.display.max *= l;
     }
   });
+  if (s.learning) {
+    for (const i of s.learning.instruments) {
+      const scaled = scaleConditions(
+        {
+          kind: 'all',
+          children: [
+            i.when,
+            {
+              kind: 'compare',
+              left: i.value,
+              operator: 'gte',
+              right: { kind: 'constant', value: i.range.min },
+            },
+            {
+              kind: 'compare',
+              left: i.value,
+              operator: 'lte',
+              right: { kind: 'constant', value: i.range.max },
+            },
+          ],
+        },
+        l,
+        t,
+      );
+      if (r && !scaled.rotationSafe) throw Error('축에 고정된 관측은 회전할 수 없습니다.');
+      const children = (
+        scaled.condition as Extract<
+          import('./conditions').Condition,
+          { kind: 'all' | 'any' | 'sequence' }
+        >
+      ).children;
+      i.when = children[0];
+      const low = children[1] as Extract<import('./conditions').Condition, { kind: 'compare' }>,
+        high = children[2] as typeof low;
+      i.value = low.left;
+      i.range.min = (low.right as { value: number }).value;
+      i.range.max = (high.right as { value: number }).value;
+    }
+    for (const c of s.learning.cues) c.when = scaleConditions(c.when, l, t).condition;
+  }
   s.spawn.position = position(s.spawn.position);
   s.spawn.velocity = velocity(s.spawn.velocity);
   s.launchAngle = (s.launchAngle ?? 0) + r;

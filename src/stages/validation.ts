@@ -307,6 +307,64 @@ export function issues(stage: Stage): string[] {
       stage.rules.surfaceClearance > 0.05)
   )
     out.push('발사대 지면 여유를 확인하세요.');
+  if (stage.learning) {
+    const d = stage.learning;
+    if (
+      typeof d.briefing !== 'string' ||
+      !Array.isArray(d.instruments) ||
+      !Array.isArray(d.cues) ||
+      d.instruments.length > 32 ||
+      d.cues.length > 32
+    )
+      out.push('단서 설계는 안내 문구와 관측·상황 단서 각 32개 이내여야 합니다.');
+    else {
+      const evidenceIds = new Set<string>();
+      for (const i of [...d.instruments, ...d.cues]) {
+        if (
+          !i.id ||
+          evidenceIds.has(i.id) ||
+          Object.hasOwn(Object.prototype, i.id) ||
+          i.id === '__proto__' ||
+          i.id === 'prototype'
+        )
+          out.push('관측·단서 ID를 확인하세요.');
+        evidenceIds.add(i.id);
+      }
+      for (const i of d.instruments) {
+        if (
+          typeof i.label !== 'string' ||
+          !['min', 'max', 'last'].includes(i.summary) ||
+          !i.range ||
+          ![i.range.min, i.range.max].every(Number.isFinite) ||
+          i.range.min > i.range.max ||
+          [i.range.below, i.range.inside, i.range.above].some((x) => typeof x !== 'string')
+        )
+          out.push('관측 이름·집계·안내 범위를 확인하세요.');
+        out.push(
+          ...conditionIssues(
+            {
+              kind: 'all',
+              children: [
+                i.when,
+                {
+                  kind: 'compare',
+                  left: i.value,
+                  operator: 'gte',
+                  right: { kind: 'constant', value: 0 },
+                },
+              ],
+            },
+            ids,
+          ),
+        );
+      }
+      for (const c of d.cues) {
+        if (typeof c.message !== 'string' || typeof c.pause !== 'boolean')
+          out.push('상황 단서의 문구와 정지 설정을 확인하세요.');
+        out.push(...conditionIssues(c.when, ids));
+      }
+    }
+  }
   const variantErrors = variationIssues(stage);
   out.push(...variantErrors);
   if (stage.randomization && !variantErrors.length) {

@@ -340,7 +340,7 @@
                 "operator": "lte",
                 "right": {
                   "kind": "constant",
-                  "value": 0.000001
+                  "value": 1e-6
                 }
               }
             ]
@@ -521,5 +521,71 @@
     "tried": 25,
     "reuseChecks": 36,
     "randomChecks": 96
+  },
+  "learning": {
+    "briefing": "달이 당기는 방향을 지나가며 길이 휘어집니다. 달의 어느 쪽을 지나갔는지 실제 경로를 겹쳐보고, 달 근처에서의 빠르기와 뒤쪽 게이트 접근을 비교하세요.",
+    "instruments": [
+      {
+        "id": "approach",
+        "label": "달에 가장 가까웠던 거리",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0.2,
+          "max": 0.7,
+          "below": "달에 너무 가까움",
+          "inside": "달의 영향이 큰 곳",
+          "above": "달을 멀리 지나감"
+        }
+      },
+      {
+        "id": "exit",
+        "label": "탈출 게이트에 가장 가까웠던 간격",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "69c90d42-dbfb-4a66-8341-1489f9230939"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0,
+          "max": 0.09,
+          "below": "관측 확인",
+          "inside": "게이트 근처에 도달",
+          "above": "게이트를 비껴감"
+        }
+      }
+    ],
+    "cues": []
   }
 }

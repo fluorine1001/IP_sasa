@@ -54,6 +54,7 @@ export type RoutePlan = {
 };
 export type Stage = {
   version: 2;
+  learning?: import('./evidence').LearningDesign;
   randomization?: import('./variation').VariationBank;
   published?: boolean;
   launchBodyId?: string;
@@ -100,6 +101,7 @@ export type Observation = {
   text: string;
 };
 export type Run = {
+  evidence: import('./evidence').EvidenceState;
   time: number;
   position: Vec;
   velocity: Vec;
@@ -108,7 +110,7 @@ export type Run = {
   reason: string;
   probe: boolean;
   applied: Set<string>;
-  trail: { position: Vec; time: number; velocity: Vec }[];
+  trail: { position: Vec; time: number; velocity: Vec; targets?: Record<string, Vec> }[];
   observations: Observation[];
   sampled: Set<string>;
   goals: Record<string, GoalProgress>;

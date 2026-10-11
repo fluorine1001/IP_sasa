@@ -313,5 +313,71 @@
     "tried": 9,
     "reuseChecks": 43,
     "randomChecks": 448
+  },
+  "learning": {
+    "briefing": "바깥으로 가다가 다시 돌아온 실제 경로와, 끝까지 멀어지는 경로를 구분하세요. 같은 방향의 추진 세기를 비교하되, 표시된 게이트를 지나가는 방향도 함께 맞춰야 합니다.",
+    "instruments": [
+      {
+        "id": "exit",
+        "label": "외곽 게이트에 가장 가까웠던 간격",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "878baa77-3d72-4f8b-8fa9-df6e5e50db32"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0,
+          "max": 0.06,
+          "below": "관측 확인",
+          "inside": "게이트에 도달",
+          "above": "게이트를 놓침"
+        }
+      },
+      {
+        "id": "reach",
+        "label": "중심에서 가장 멀어진 곳",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "e4545460-52ec-42bb-a440-89a67145436c"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 10,
+          "max": 24,
+          "below": "외곽에 아직 못 미침",
+          "inside": "외곽으로 나아감",
+          "above": "탐사 범위 밖"
+        }
+      }
+    ],
+    "cues": []
   }
 }

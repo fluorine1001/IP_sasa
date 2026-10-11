@@ -1,0 +1,28 @@
+name: 개발 작업
+description: 네 역할별 담당 파일과 완료 기준
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: 담당 역할
+      options: [스테이지 제작 (에디터), 게임 시스템 개발, 튜토리얼 작성, 설정 탭 개발]
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 원하는 결과와 완료 기준
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 담당 파일 / 스테이지 UUID
+      placeholder: 맡은 경로와 UUID, 겹치는 담당자를 확인합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: 공용 계약 변경과 협의할 담당자
+      placeholder: 없으면 없음. App/Settings/Stage/hull/main/공용 스타일은 선행 PR로 조율합니다.

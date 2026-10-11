@@ -1,0 +1,235 @@
+{
+  "version": 2,
+  "id": "4b8dc121-43af-4bdc-8eb7-7d3351e8ca93",
+  "order": 8,
+  "title": "검은 별의 중력 우물",
+  "description": "블랙홀 주위를 도는 미라의 표면에서 출발해 중력 우물을 벗어나세요. 검은 경계 안으로 들어가면 돌아올 수 없습니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "45c92fb0-73fd-4e44-94cf-ca89864e6549",
+      "name": "검은 별",
+      "kind": "black-hole",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.4,
+      "mu": 2,
+      "color": "#84618f",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    },
+    {
+      "id": "e4545460-52ec-42bb-a440-89a67145436c",
+      "name": "미라",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.09,
+      "mu": 0.005,
+      "color": "#b29371",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "45c92fb0-73fd-4e44-94cf-ca89864e6549",
+        "radius": 3,
+        "phase": 0
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "878baa77-3d72-4f8b-8fa9-df6e5e50db32",
+      "kind": "gate",
+      "name": "외곽 항로",
+      "position": {
+        "x": 2.533982653893412,
+        "y": 6.05383792398862
+      },
+      "radius": 0.06,
+      "angle": 1.8690495489706378,
+      "sensor": "gravity"
+    }
+  ],
+  "goals": [
+    {
+      "id": "914c9b2f-3cde-48e0-b860-3d1662d18441",
+      "title": "항로 통과 후 바깥에서 탈출 상태 유지",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 100,
+      "dependsOn": [],
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "event",
+            "event": "gate",
+            "targetId": "878baa77-3d72-4f8b-8fa9-df6e5e50db32"
+          },
+          {
+            "kind": "hold",
+            "duration": 0.5,
+            "child": {
+              "kind": "all",
+              "children": [
+                {
+                  "kind": "compare",
+                  "left": {
+                    "kind": "metric",
+                    "metric": "distance",
+                    "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+                  },
+                  "operator": "gte",
+                  "right": {
+                    "kind": "constant",
+                    "value": 10
+                  }
+                },
+                {
+                  "kind": "compare",
+                  "left": {
+                    "kind": "metric",
+                    "metric": "energy",
+                    "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+                  },
+                  "operator": "gt",
+                  "right": {
+                    "kind": "constant",
+                    "value": 0
+                  }
+                },
+                {
+                  "kind": "compare",
+                  "left": {
+                    "kind": "metric",
+                    "metric": "radialSpeed",
+                    "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
+                  },
+                  "operator": "gt",
+                  "right": {
+                    "kind": "constant",
+                    "value": 0
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 3.095,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0.816496580927726
+    }
+  },
+  "rules": {
+    "launchLimit": 0.65,
+    "maneuverBudget": 0.05,
+    "maxTime": 100,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 3,
+    "y": 0,
+    "zoom": 170
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.35,
+        "y": 0.4
+      },
+      "impulses": []
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "e4545460-52ec-42bb-a440-89a67145436c",
+  "launchAngle": 0,
+  "learning": {
+    "briefing": "바깥으로 가다가 다시 돌아온 실제 경로와, 끝까지 멀어지는 경로를 구분하세요. 같은 방향의 추진 세기를 비교하되, 표시된 게이트를 지나가는 방향도 함께 맞춰야 합니다.",
+    "instruments": [
+      {
+        "id": "exit",
+        "label": "외곽 게이트에 가장 가까웠던 간격",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "878baa77-3d72-4f8b-8fa9-df6e5e50db32"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0,
+          "max": 0.06,
+          "below": "관측 확인",
+          "inside": "게이트에 도달",
+          "above": "게이트를 놓침"
+        }
+      },
+      {
+        "id": "reach",
+        "label": "중심에서 가장 멀어진 곳",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "e4545460-52ec-42bb-a440-89a67145436c"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 10,
+          "max": 24,
+          "below": "외곽에 아직 못 미침",
+          "inside": "외곽으로 나아감",
+          "above": "탐사 범위 밖"
+        }
+      }
+    ],
+    "cues": []
+  }
+}

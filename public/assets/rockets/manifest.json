@@ -1,0 +1,124 @@
+{
+  "description": "Original procedural rocket artwork. The game renderer and collision capsule share src/world/hull.ts. Origin is the base; +X points to the nose.",
+  "assets": [
+    {
+      "name": "three-stage",
+      "width": 300,
+      "height": 66,
+      "origin": {
+        "x": 12,
+        "y": 33
+      },
+      "pixelsPerWorldUnit": 600,
+      "hull": {
+        "length": 0.45999999999999996,
+        "radius": 0.035
+      },
+      "partsRemaining": 3,
+      "firstPart": 0,
+      "booster": false
+    },
+    {
+      "name": "two-stage",
+      "width": 228,
+      "height": 66,
+      "origin": {
+        "x": 12,
+        "y": 33
+      },
+      "pixelsPerWorldUnit": 600,
+      "hull": {
+        "length": 0.33999999999999997,
+        "radius": 0.035
+      },
+      "partsRemaining": 2,
+      "firstPart": 1,
+      "booster": false
+    },
+    {
+      "name": "one-stage",
+      "width": 156,
+      "height": 66,
+      "origin": {
+        "x": 12,
+        "y": 33
+      },
+      "pixelsPerWorldUnit": 600,
+      "hull": {
+        "length": 0.22,
+        "radius": 0.035
+      },
+      "partsRemaining": 1,
+      "firstPart": 2,
+      "booster": false
+    },
+    {
+      "name": "payload",
+      "width": 84,
+      "height": 66,
+      "origin": {
+        "x": 12,
+        "y": 33
+      },
+      "pixelsPerWorldUnit": 600,
+      "hull": {
+        "length": 0.1,
+        "radius": 0.035
+      },
+      "partsRemaining": 0,
+      "firstPart": 3,
+      "booster": false
+    },
+    {
+      "name": "booster-1",
+      "width": 96,
+      "height": 66,
+      "origin": {
+        "x": 12,
+        "y": 33
+      },
+      "pixelsPerWorldUnit": 600,
+      "hull": {
+        "length": 0.12,
+        "radius": 0.035
+      },
+      "partsRemaining": 1,
+      "firstPart": 0,
+      "booster": true
+    },
+    {
+      "name": "booster-2",
+      "width": 96,
+      "height": 66,
+      "origin": {
+        "x": 12,
+        "y": 33
+      },
+      "pixelsPerWorldUnit": 600,
+      "hull": {
+        "length": 0.12,
+        "radius": 0.035
+      },
+      "partsRemaining": 1,
+      "firstPart": 1,
+      "booster": true
+    },
+    {
+      "name": "booster-3",
+      "width": 96,
+      "height": 66,
+      "origin": {
+        "x": 12,
+        "y": 33
+      },
+      "pixelsPerWorldUnit": 600,
+      "hull": {
+        "length": 0.12,
+        "radius": 0.035
+      },
+      "partsRemaining": 1,
+      "firstPart": 2,
+      "booster": true
+    }
+  ]
+}

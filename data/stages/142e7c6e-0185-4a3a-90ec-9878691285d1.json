@@ -1,0 +1,215 @@
+{
+  "version": 2,
+  "id": "142e7c6e-0185-4a3a-90ec-9878691285d1",
+  "order": 3,
+  "title": "지구에서 달에 내려놓기",
+  "description": "지구 표면에서 출발해 달에 부드럽게 착륙하세요. 달에 가까워질 때 달과의 속도 차이를 줄여야 합니다.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.8,
+      "mu": 1.05,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    },
+    {
+      "id": "917e4015-cde1-4de5-bd48-e983c45aab1c",
+      "name": "달",
+      "kind": "moon",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.25,
+      "mu": 0.01,
+      "color": "#b6bcb2",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
+        "radius": 3.4,
+        "phase": 1.677901710801062
+      }
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "9c4ca3d8-1f04-4fe0-acbf-fbcfe68a7603",
+      "title": "달 표면에 천천히 착륙",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 65,
+      "dependsOn": [],
+      "condition": {
+        "kind": "all",
+        "children": [
+          {
+            "kind": "event",
+            "event": "collision",
+            "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+          },
+          {
+            "kind": "compare",
+            "left": {
+              "kind": "metric",
+              "metric": "touchdownSpeed",
+              "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+            },
+            "operator": "lte",
+            "right": {
+              "kind": "constant",
+              "value": 0.16
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 0.805,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 1.8,
+    "maneuverBudget": 0.7,
+    "maxTime": 65,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 85
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.011450594297976164,
+        "y": 1.4312937521985976
+      },
+      "impulses": [
+        {
+          "id": "f53a1f7e-6bfc-4a15-87ea-e85b0b8cc384",
+          "time": 9.174999999999887,
+          "vector": {
+            "x": 0.028084027852770796,
+            "y": -0.29057627761381827
+          }
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
+  "launchAngle": 0,
+  "learning": {
+    "briefing": "먼저 달 가까이 가는 방향을 찾으세요. 가까이 도달한 발사를 복사한 뒤, 접근 중 반대로 미는 시각만 바꾸며 비교해보세요.",
+    "instruments": [
+      {
+        "id": "approach",
+        "label": "달에 가장 가까웠던 높이",
+        "value": {
+          "kind": "metric",
+          "metric": "altitude",
+          "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0,
+          "max": 0.12,
+          "below": "지면을 통과",
+          "inside": "착륙 지면 근처",
+          "above": "달까지 아직 멂"
+        }
+      },
+      {
+        "id": "contact",
+        "label": "닿은 순간의 빠르기",
+        "value": {
+          "kind": "metric",
+          "metric": "touchdownSpeed",
+          "targetId": ""
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "last",
+        "range": {
+          "min": 0,
+          "max": 0.18,
+          "below": "관측 확인",
+          "inside": "부드러운 접촉",
+          "above": "충돌할 만큼 빠름"
+        }
+      }
+    ],
+    "cues": [
+      {
+        "id": "near",
+        "message": "실제로 달 가까이 왔습니다. 아직 빨리 다가온다면 반대 방향 추진에도 시간이 필요합니다. 같은 접근을 복사해서 제동 시작 시각을 비교하세요.",
+        "pause": false,
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "altitude",
+            "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+          },
+          "operator": "lte",
+          "right": {
+            "kind": "constant",
+            "value": 0.5
+          }
+        }
+      }
+    ]
+  }
+}

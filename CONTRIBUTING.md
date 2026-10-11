@@ -34,6 +34,6 @@ check:boundaries는 튜토리얼/설정의 다른 화면·물리 직접 의존�
 
 강제 push나 타인의 기록 재작성은 하지 않습니다. main 보호 규칙·실제 리뷰어는 GitHub 관리자가 설정해야 하며 CI만으로 활성화되지 않습니다. 가짜 CODEOWNERS 계정을 만들지 않습니다.
 
-hello.py는 기존 파일입니다. 로컬 main과 origin/main의 서로 다른 Hello World 변경은 첫 병합 때 사람이 확인하며 게임 작업으로 덮어쓰지 않습니다.
+게임 작업 브랜치는 원격 main 이력과 연결되어 있습니다. 기존 hello.py는 원격 main 내용을 유지합니다. 개인 clone의 main이 원격과 갈라져 있다면 자신의 커밋을 먼저 확인하며 강제 push로 덮어쓰지 않습니다.
 
 .env/비밀키/node_modules/dist/test-results는 commit하지 않습니다. 배포 빌드는 기준 계획을 제거하지만 제작 JSON에는 검증 계획이 있습니다. 공개 저장소의 소스도 공개되므로 검증 데이터까지 숨기려면 별도 제작 저장소가 필요합니다.

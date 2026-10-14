@@ -1,5 +1,5 @@
 import { installAuthoredGoals } from './authored-goals';
-import { placeSpawn } from './spawn-placement';
+import { placeSpawn, placementSnapshot, followSpawn } from './spawn-placement';
 import { markerGuide, markerGuides } from './marker-guide';
 import {
   placementTarget,
@@ -109,6 +109,8 @@ export function editorScreen(app: App): Screen {
             launchBodyId: Stage['launchBodyId'];
             launchAngle: Stage['launchAngle'];
           };
+          bodyOriginals?: Map<string, Stage['bodies'][number]>;
+          directSpawn?: boolean;
         },
     status = '';
   app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="focus-selection">선택 위치로</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
@@ -1358,12 +1360,21 @@ export function editorScreen(app: App): Screen {
           }
           model.checkpoint();
           drag = { pan: false, start: p, cx: camera.x, cy: camera.y, positions };
-          if (positions.has('spawn'))
+          if (
+            positions.has('spawn') ||
+            [...positions.keys()].some((id) => model.stage.bodies.some((b) => b.id === id))
+          )
             drag.spawnOriginal = {
               spawn: structuredClone(model.stage.spawn),
               launchBodyId: model.stage.launchBodyId,
               launchAngle: model.stage.launchAngle,
             };
+          drag.bodyOriginals = new Map(
+            model.stage.bodies
+              .filter((b) => positions.has(b.id))
+              .map((b) => [b.id, structuredClone(b)]),
+          );
+          drag.directSpawn = hit === 'spawn';
           const entity = model.entity(hit);
           if (entity && 'points' in entity && entity.points) {
             const index = entity.points.findIndex(
@@ -1456,21 +1467,25 @@ export function editorScreen(app: App): Screen {
         }
       } else {
         const delta = sub(world(e), drag.start);
+        const before = drag.bodyOriginals?.size ? placementSnapshot(model.stage) : undefined;
+        let bodiesMoved = false;
         for (const [id, original] of drag.positions) {
+          if (id === 'spawn') continue;
           const entity = id === 'spawn' ? model.stage.spawn : model.entity(id);
           if (entity) {
             const point = snapped({ x: original.x + delta.x, y: original.y + delta.y });
-            if (id === 'spawn') {
-              placeSpawn(
-                model.stage,
-                { x: original.x + delta.x, y: original.y + delta.y },
-                drag.spawnOriginal?.spawn.velocity,
-              );
-            } else if ('motion' in entity && entity.motion) {
+            if ('mu' in entity) bodiesMoved = true;
+            if ('motion' in entity && entity.motion) {
               const parent = model.stage.bodies.find((b) => b.id === entity.motion!.parentId)!;
               const center = bodyPosition(model.stage, parent, 0);
               entity.motion.radius = length(sub(point, center));
               entity.motion.phase = Math.atan2(point.y - center.y, point.x - center.x);
+            } else if ('dynamic' in entity && entity.dynamic) {
+              const epoch = entity.dynamic.epoch ?? 0;
+              entity.position = {
+                x: point.x + entity.dynamic.velocity.x * epoch,
+                y: point.y + entity.dynamic.velocity.y * epoch,
+              };
             } else if ('marker' in entity && entity.marker?.managed !== false && entity.marker) {
               const source = structuredClone(entity);
               source.position = point;
@@ -1488,6 +1503,15 @@ export function editorScreen(app: App): Screen {
             } else entity.position = point;
           }
         }
+        const spawnPosition = drag.positions.get('spawn');
+        if (spawnPosition)
+          placeSpawn(
+            model.stage,
+            { x: spawnPosition.x + delta.x, y: spawnPosition.y + delta.y },
+            drag.spawnOriginal?.spawn.velocity,
+            drag.directSpawn ? world(e) : undefined,
+          );
+        else if (bodiesMoved && before) followSpawn(model.stage, before);
         drawInspector();
       }
     },
@@ -1529,6 +1553,10 @@ export function editorScreen(app: App): Screen {
   canvas.addEventListener(
     'pointercancel',
     () => {
+      for (const [id, original] of drag?.bodyOriginals ?? []) {
+        const body = model.stage.bodies.find((b) => b.id === id);
+        if (body) Object.assign(body, structuredClone(original));
+      }
       if (drag?.spawnOriginal) Object.assign(model.stage, structuredClone(drag.spawnOriginal));
       if (drag?.marker) {
         const goal = model.stage.goals.find((g) => g.id === drag!.marker!.goalId);

@@ -49,7 +49,7 @@ flowchart LR
 
 undo/redo는 선택 상태도 저장합니다. UUID 복제는 대상·비행체·선행 참조를 바꿉니다. 변경 후 이전 검사 Worker를 종료하고 새 스냅샷을 검사합니다. 저장 API는 공통 StageStorage로 파일의 원자 교체 또는 PostgreSQL 트랜잭션을 수행하며 revision을 다시 확인합니다. 제작 비밀 키는 서버 환경 변수와 편집 탭 메모리에만 보관합니다. [무료 운영·이전 계약](free-hosting.md)을 참고합니다.
 
-판정 배치 가이드는 editor/marker-authoring.ts의 순수 후보/제약 계산과 marker-feedback.ts의 지도 표현으로 분리합니다. 미리보기는 Stage를 변경하지 않고, 드래그 종료의 유효 후보만 하나의 undo 작업으로 반영합니다. 물리 시험 Worker는 포인터 이동마다 재시작하지 않습니다. 조절한 그림은 공통 compileMarker를 통해 실제 Condition과 함께 갱신하며 판정 엔진에 미션 이름 분기를 추가하지 않습니다. 출발 위치 드래그는 editor/spawn-placement.ts가 실제 표면 접촉만 연결하며 자유 공간 해제·다른 천체 재연결을 같은 함수로 처리합니다.
+판정 배치 가이드는 editor/marker-authoring.ts의 순수 후보/제약 계산과 marker-feedback.ts의 지도 표현으로 분리합니다. 미리보기는 Stage를 변경하지 않고, 드래그 종료의 유효 후보만 하나의 undo 작업으로 반영합니다. 물리 시험 Worker는 포인터 이동마다 재시작하지 않습니다. 조절한 그림은 공통 compileMarker를 통해 실제 Condition과 함께 갱신하며 판정 엔진에 미션 이름 분기를 추가하지 않습니다. editor/spawn-placement.ts는 로켓 내부 진입의 표면 투영과 천체 이동의 연속 hull 접촉을 같은 표면 연결 계약으로 처리합니다. 붙은 로켓은 매 입력에서 천체를 따라가고, 밖으로 끌면 연결을 해제합니다. 천체가 움직이는 드래그에서만 초기 위치 스냅샷을 계산하며 비행 엔진의 상태나 실제 물리 적분은 변경하지 않습니다.
 
 ## 재시도와 충돌 연출
 

@@ -1,4 +1,6 @@
 import { representativeReplay } from './representative-replay';
+import { issues } from '../stages/validation';
+import { physicalPlanKey } from './solution-groups';
 import { escape } from '../app/core';
 import {
   searchTemplates,
@@ -11,7 +13,7 @@ export function solutionSearchPanel(
   root: HTMLElement,
   signal: AbortSignal,
   getStage: () => Stage,
-  changed: (stage?: Stage) => void,
+  changed: (stage?: Stage, preserveSearch?: boolean) => void,
 ) {
   const panel = document.createElement('section');
   panel.id = 'solution-search';
@@ -28,14 +30,25 @@ export function solutionSearchPanel(
   let enabled = true,
     paused = false,
     budgetValue = 512,
-    maxCommands: number | undefined,
-    familyPage = 0;
+    maxCommands: number | undefined;
+  let chosenFamily = -1;
+  let rendered = '';
   const auxiliary = new Set<Worker>();
   function template() {
     return templates.find((item) => item.id === selected) ?? templates[0];
   }
   function form() {
-    panel.innerHTML = `<div class="search-config"><header><b>유효해 탐색</b><button id="search-stop">중지</button></header><label><input id="search-auto" type="checkbox" ${enabled ? 'checked' : ''}> 수정 후 자동 탐색</label><select id="search-layout" aria-label="조사할 예약 구성"><option value="all" ${selected === 'all' ? 'selected' : ''}>전체 조작 구성 탐색</option>${templates.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${escape(item.label)} · 범위 조사</option>`).join('')}</select><label>검사 예산<input id="search-budget" type="number" min="16" max="8192" value="${budgetValue}"></label><label>조사할 예약 최대 개수<input id="search-depth" type="number" min="0" max="256" value="${maxCommands ?? ''}" placeholder="빈칸: 스테이지 한도 · 무제한은 6"></label><details><summary>변수 범위 · 고정 / 탐색</summary><div id="search-parameters"></div></details><button id="search-run">탐색 시작</button></div><div class="search-results"><div id="search-status">준비 중</div><progress id="search-progress" max="512" value="0"></progress><small id="search-coverage"></small><small>그룹은 같은 조작 순서·대상에서 중간 성공 표본으로 연결한 집합입니다. 경계 안의 모든 값이 성공한다는 증명은 아니며 미검사 구간이 남습니다.</small><div id="search-families"></div><nav id="search-pages"></nav></div>`;
+    const audit = root.querySelector<HTMLElement>('#audit');
+    panel.innerHTML = `<div class="search-config"><header><b>풀이 탐색</b><button id="search-run">탐색</button><button id="search-stop">중지</button></header><label><input id="search-auto" type="checkbox" ${enabled ? 'checked' : ''}> 변경 후 자동</label><details class="search-options"><summary>탐색 범위·예산</summary><select id="search-layout" aria-label="조사할 예약 구성"><option value="all" ${selected === 'all' ? 'selected' : ''}>모든 허용 조작</option>${templates.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${escape(item.label)} · 범위 조사</option>`).join('')}</select><label>이번 조사 횟수<input id="search-budget" type="number" min="16" max="8192" value="${budgetValue}"></label><label>예약 개수 상한<input id="search-depth" type="number" min="0" max="256" value="${maxCommands ?? ''}" placeholder="스테이지 한도 사용"></label><details><summary>변수 범위·고정</summary><div id="search-parameters"></div></details></details><button id="search-continue" hidden>더 조사</button></div><div class="search-results"><div class="search-heading"><b id="search-status">준비 중</b><progress id="search-progress" max="512" value="0"></progress></div><details class="coverage-details"><summary>탐색 진행 정보</summary><small id="search-coverage"></small><p>비슷한 실제 비행을 하나의 풀이로 묶습니다. 시각 차이만으로 나누지 않습니다.</p></details><div id="search-families"></div><nav id="search-pages" hidden></nav></div>`;
+    playback.mount(panel.querySelector('.search-results')!);
+    if (audit) {
+      audit.className = 'integrated-audit';
+      const review = document.createElement('details');
+      review.className = 'design-review';
+      review.innerHTML = '<summary>설계 검사·공개 준비</summary>';
+      review.append(audit);
+      panel.querySelector('.search-results')!.append(review);
+    }
     parameters();
   }
   function parameters() {
@@ -57,34 +70,41 @@ export function solutionSearchPanel(
         : '물리 엔진에서 검사 중…';
       return;
     }
-    status.textContent = `${paused ? '탐색 중지' : result.done ? '이번 검사 완료' : '조사 중'} · ${result.evaluated}/${result.budget} · 성공 ${result.successes} · 연결 집합 ${result.families.length} · ${(result.evaluated / Math.max(0.001, result.elapsed / 1000)).toFixed(0)}회/초`;
+    status.textContent = `${paused ? '탐색 중지' : result.done ? '이번 검사 완료' : '조사 중'} · ${result.evaluated}/${result.budget} · 성공 ${result.successes} · 풀이 그룹 ${result.families.length} · ${(result.evaluated / Math.max(0.001, result.elapsed / 1000)).toFixed(0)}회/초`;
     const progress = panel.querySelector<HTMLProgressElement>('#search-progress')!;
     progress.max = result.budget;
     progress.value = result.evaluated;
     const scope = result.scope;
     panel.querySelector('#search-coverage')!.textContent = scope
-      ? `예약 구성 ${scope.programs}개 조사 / ${scope.total ?? '집계 한도 초과'}개 · 최대 ${scope.maxCommands}개 예약 · ${scope.horizon}초까지 · ${scope.bounded ? '스테이지 예약 개수 범위 전체' : '이보다 긴 예약 구성은 미검사'} · ${scope.exhausted ? '구성 열거 완료 (연속 값은 미검사 구간 있음)' : '미조사 구성 남음'}`
+      ? `예약 길이 ${scope.maxCommands}개까지 · 시간 창 ${scope.horizon}초 · 정밀도 ${result.coverage?.divisions ?? '-'} · 이어서 조사하면 기존 위치부터 진행`
       : '선택한 구성·변수 범위만 조사 중';
-    const pages = Math.max(1, Math.ceil(result.families.length / 24));
-    familyPage = Math.min(familyPage, pages - 1);
-    panel.querySelector('#search-pages')!.innerHTML =
-      pages > 1
-        ? `<button id="search-prev" ${familyPage === 0 ? 'disabled' : ''}>이전 집합</button><span>${familyPage + 1}/${pages}</span><button id="search-next" ${familyPage === pages - 1 ? 'disabled' : ''}>다음 집합</button>`
-        : '';
-    if (selected === 'all' && result.done && result.continuable && worker && !paused)
-      panel
-        .querySelector('#search-pages')!
-        .insertAdjacentHTML('beforeend', '<button id="search-continue">이어서 더 조사</button>');
+    const more = panel.querySelector<HTMLButtonElement>('#search-continue')!;
+    more.hidden = !(selected === 'all' && result.done && result.continuable && worker && !paused);
+    const signature = JSON.stringify(result.families.map((f) => [f.id, f.count])) + result.done;
+    if (signature === rendered) return;
+    rendered = signature;
+    const opened = new Set(
+      [...panel.querySelectorAll<HTMLDetailsElement>('[data-family-details][open]')].map(
+        (d) => d.dataset.familyDetails,
+      ),
+    );
     panel.querySelector('#search-families')!.innerHTML =
       result.families
-        .slice(familyPage * 24, (familyPage + 1) * 24)
         .map(
-          (family, index) =>
-            `<article class="solution-family"><div><b>집합 ${familyPage * 24 + index + 1}</b><span>${family.count}개 성공 표본</span></div><small>${escape(family.template)}</small><small>검사한 연결 ${family.connections ?? 0}개${(family.layouts ?? 1) > 1 ? ` · 동일 비행을 공유한 구성 ${family.layouts}개` : ''} · 연결 구간은 ¼·½·¾ 지점에서 실제 성공 확인</small><button data-family-path="${family.id}">실제 경로 보기</button><button data-family-test="${family.id}">대표 비행 재생</button><details><summary>확인한 변수 범위 · 성공 표본 간격</summary>${family.ranges.map((range) => `<div>${escape(range.label)} <b>${range.min.toFixed(2)}~${range.max.toFixed(2)}</b>${range.max > range.min ? `<meter max="${range.max - range.min}" value="${range.gap ?? range.max - range.min}" title="확인한 범위 내 가장 큰 표본 간격"></meter><small>가장 큰 성공 표본 간격 ${(range.gap ?? range.max - range.min).toFixed(3)} · 표본 사이의 성공은 보장하지 않음</small>` : '<small>단일 값만 확인</small>'}</div>`).join('')}</details><button data-family-save="${family.id}">성공 비행 보관</button><button data-family-block="${family.id}" ${result?.done ? '' : 'disabled'}>차단 수정안 검사</button><div data-family-proposals="${family.id}"></div></article>`,
+          (family, index) => `
+      <article class="solution-family ${family.id === chosenFamily ? 'selected' : ''}" data-family-card="${family.id}">
+      <header><button data-family-path="${family.id}" aria-pressed="${family.id === chosenFamily}"><b>풀이 ${index + 1}</b><span>${family.count}개 확인</span></button><button data-family-test="${family.id}" title="선택한 실제 기록 재생">▶ 재생</button></header>
+      <small>${escape(family.template)}</small>
+      <details data-family-details="${family.id}" ${opened.has(String(family.id)) ? 'open' : ''}><summary>예약 범위·제작 작업</summary>
+      <div class="family-ranges">${family.ranges.map((r) => `<div><span>${escape(r.label)}</span><b>${r.min.toFixed(2)}–${r.max.toFixed(2)}</b></div>`).join('')}</div>
+      <small>확인한 연결 ${family.connections ?? 0}개 · 표시 범위 전체의 성공 보장은 아님</small>
+      <div class="family-actions"><button data-family-save="${family.id}">성공 기록 보관</button><button data-family-block="${family.id}" ${result!.done ? '' : 'disabled'}>차단안 검사</button></div><div data-family-proposals="${family.id}"></div>
+      </details></article>`,
         )
         .join('') ||
-      '<p>현재 검사 표본에는 성공이 없습니다. 미검사 구간의 실패를 뜻하지 않습니다.</p>';
+      '<p class="search-empty">아직 성공 기록이 없습니다. 더 조사하거나 실제 비행으로 조건·기체 성능을 확인하세요.</p>';
   }
+
   function invalidate() {
     revision++;
     worker?.terminate();
@@ -96,10 +116,16 @@ export function solutionSearchPanel(
     history = [];
     playback.reset();
     paused = false;
-    familyPage = 0;
+    chosenFamily = -1;
+    rendered = '';
   }
   function run() {
     invalidate();
+    const errors = issues(getStage());
+    if (errors.length) {
+      panel.querySelector('#search-status')!.textContent = errors[0];
+      return;
+    }
     const current = revision,
       choice = template();
     if (!choice) return;
@@ -112,7 +138,7 @@ export function solutionSearchPanel(
         return;
       }
       result = event.data.result;
-      if (result?.done) playback.setFamilies(result.families);
+      if (result) playback.setFamilies(result.families);
       show();
     };
     worker.onerror = () => {
@@ -147,7 +173,12 @@ export function solutionSearchPanel(
         }
       }
     form();
-    if (enabled) timer = setTimeout(run, 750);
+    const ready = !issues(getStage()).length;
+    panel.querySelector<HTMLButtonElement>('#search-run')!.disabled = !ready;
+    if (!ready)
+      panel.querySelector('#search-status')!.textContent =
+        '기체와 판정을 배치하면 탐색할 수 있습니다.';
+    if (enabled && ready) timer = setTimeout(run, 750);
   }
   panel.addEventListener(
     'change',
@@ -203,14 +234,6 @@ export function solutionSearchPanel(
         show();
         return;
       }
-      if (button.id === 'search-prev') {
-        familyPage--;
-        show();
-      }
-      if (button.id === 'search-next') {
-        familyPage++;
-        show();
-      }
       if (button.id === 'search-stop') {
         revision++;
         worker?.terminate();
@@ -233,15 +256,32 @@ export function solutionSearchPanel(
           ),
       );
       if (!family) return;
+      if (button.dataset.familyPath !== undefined || button.dataset.familyTest !== undefined) {
+        chosenFamily = family.id;
+        panel.querySelectorAll<HTMLElement>('[data-family-card]').forEach((card) => {
+          const selected = Number(card.dataset.familyCard) === chosenFamily;
+          card.classList.toggle('selected', selected);
+          card.querySelector('[data-family-path]')?.setAttribute('aria-pressed', String(selected));
+        });
+      }
       if (button.dataset.familySave !== undefined) {
         const stage = structuredClone(getStage());
+        const duplicate = stage.referencePlans.some(
+          (p) => physicalPlanKey(stage, p) === physicalPlanKey(stage, family.representative),
+        );
+        if (!duplicate && stage.referencePlans.length >= 30) {
+          button.textContent = '보관 한도 30개';
+          return;
+        }
+        if (!duplicate) stage.referencePlans.push(structuredClone(family.representative));
         if (
-          !stage.referencePlans.some(
-            (p) => JSON.stringify(p) === JSON.stringify(family.representative),
-          )
+          family.horizon &&
+          family.horizon <= 600 &&
+          family.horizon > (stage.audit.timeLimit ?? stage.rules.maxTime)
         )
-          stage.referencePlans.push(structuredClone(family.representative));
-        changed(stage);
+          stage.audit.timeLimit = family.horizon;
+        changed(stage, true);
+        button.textContent = '초안에 보관됨';
         return;
       }
       if (button.dataset.familyTest !== undefined) playback.select(family, true);

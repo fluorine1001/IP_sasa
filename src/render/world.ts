@@ -358,6 +358,8 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fillStyle = '#9ccebd';
     ctx.fillRect(a.x - 2, a.y - 2, 4, 4);
   }
+  // Incomplete drafts must not paint an implicit spacecraft at the origin.
+  if (s.stage.spawn.placed === false && !s.run) return { ctx, w, h };
   const surface = surfaceLaunch(s.stage, t);
   const pad = screen(surface?.position ?? s.stage.spawn.position);
   ctx.fillStyle = '#8ab5ab';
@@ -366,8 +368,10 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   ctx.save();
   ctx.translate(pad.x, pad.y);
   ctx.rotate(-(s.stage.launchAngle ?? 0));
-  ctx.fillRect(0, -17, 4, 34);
-  ctx.strokeRect(0, -17, 4, 34);
+  if (surface) {
+    ctx.fillRect(0, -17, 4, 34);
+    ctx.strokeRect(0, -17, 4, 34);
+  }
   ctx.restore();
   const sprite = (
     position: Vec,

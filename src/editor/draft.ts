@@ -3,7 +3,7 @@ import type { Stage } from '../world/types';
 export function restoreDraft(raw: string | null, fallback: Stage) {
   if (raw === null) return { stage: structuredClone(fallback) };
   try {
-    return { stage: parseStage(JSON.parse(raw)) };
+    return { stage: parseStage(JSON.parse(raw), true) };
   } catch (error) {
     return {
       stage: structuredClone(fallback),

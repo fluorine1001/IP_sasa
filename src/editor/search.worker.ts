@@ -26,7 +26,11 @@ self.onmessage = (
       if (!session || session.revision !== event.data.revision) return;
       const extra = Math.max(
         0,
-        Math.min(8192 - session.quota.total, Math.floor(event.data.extraBudget ?? 512)),
+        Math.min(
+          8192,
+          Number.MAX_SAFE_INTEGER - session.quota.total,
+          Math.floor(event.data.extraBudget ?? 512),
+        ),
       );
       if (!Number.isFinite(extra) || !extra) return;
       session.quota.remaining += extra;

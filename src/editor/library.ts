@@ -54,7 +54,7 @@ export function stageLibrary(
       const data = await request('');
       writeSaved('orbit-stage-server-v1', base);
       entries = data.stages.map((entry: Entry) => ({
-        stage: parseStage(entry.stage),
+        stage: parseStage(entry.stage, true),
         revision: entry.revision,
       }));
       draw();

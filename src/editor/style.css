@@ -1,8 +1,8 @@
 .editor {
   height: 100dvh;
   display: grid;
-  grid-template-columns: 180px 1fr 305px;
-  grid-template-rows: auto minmax(260px, 1fr) 150px 90px;
+  grid-template-columns: 190px minmax(300px, 1fr) 330px;
+  grid-template-rows: auto minmax(300px, 1fr) minmax(220px, 34dvh);
   background: #142332;
   gap: 8px;
   padding: 8px;
@@ -433,16 +433,19 @@
 .editor-search {
   grid-column: 1/-1;
   grid-row: 3;
-  display: flex;
+  display: block;
   gap: 18px;
   padding: 12px;
   overflow: auto;
   font-size: 12px;
 }
 .search-config {
-  width: 245px;
-  flex-shrink: 0;
-  overflow: auto;
+  width: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  overflow: visible;
 }
 .search-config header {
   display: flex;
@@ -455,7 +458,7 @@
 .search-results {
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  overflow: visible;
 }
 .search-results > small {
   color: #b1c5c0;
@@ -467,11 +470,14 @@
   font-size: 11px;
 }
 #search-families {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 10px;
-  overflow: auto;
+  overflow: visible;
 }
 .solution-family {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 112px;
   min-width: 240px;
   padding: 9px;
   background: #152c36;
@@ -682,5 +688,292 @@
   }
   .search-config {
     width: 140px;
+  }
+}
+
+/* Workshop hierarchy: one result scroller, contextual properties, no second replay tab. */
+.editor {
+  font-family: inherit;
+}
+.editor [hidden] {
+  display: none !important;
+}
+.editor button {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.editor-top button {
+  font-size: 13px;
+  padding: 9px 12px;
+}
+.editor-inspector {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.editor-inspector label {
+  margin: 10px 0;
+}
+.editor-palette button.marker-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 7px 10px;
+}
+.marker-tool .marker-diagram {
+  width: 42px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.marker-tool span {
+  font-size: 14px;
+}
+.marker-tool small {
+  display: block;
+  font-size: 11px;
+  color: #456353;
+}
+.marker-tool .marker-diagram {
+  stroke: #41675b;
+}
+.marker-guide {
+  border-bottom: 1px solid #72988755;
+  padding: 0 0 12px;
+  margin: 0 0 12px;
+}
+.marker-guide .marker-diagram {
+  display: block;
+  width: 150px;
+  max-width: 100%;
+  height: 80px;
+  margin: auto;
+}
+.marker-guide h3 {
+  font-size: 16px;
+  margin: 8px 0;
+}
+.marker-guide p {
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 6px 0;
+}
+.guide-pass {
+  color: #add4b9;
+}
+.guide-fail {
+  color: #dfaa98;
+}
+.placement-prompt {
+  color: #efc879;
+}
+.marker-help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.marker-help {
+  padding: 24px;
+}
+.guide-combinations {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.representative-replay {
+  position: static;
+  max-width: none;
+  z-index: auto;
+  margin: 10px 0;
+  padding: 12px;
+  background: #1b3742;
+}
+.reservation-bar {
+  position: relative;
+  margin: 8px 18px;
+  border-bottom: 2px solid #6c9587;
+  min-height: 36px;
+}
+.reservation-bar button {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid #76978c;
+  background: #23414c;
+  color: #edc879;
+}
+.reservation-bar svg,
+.reservation-detail > svg {
+  width: 24px;
+  height: 24px;
+}
+.reservation-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: #102832;
+  border-radius: 8px;
+}
+.reservation-detail small {
+  display: block;
+  color: #a2c2b7;
+}
+.reservation-power {
+  width: 100px;
+  position: relative;
+  height: 22px;
+  background: #294854;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.reservation-power i {
+  display: block;
+  height: 100%;
+  background: #bf8e36;
+}
+.reservation-power span {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  line-height: 22px;
+  color: #fff0cb;
+}
+.reservation-direction {
+  width: 50px;
+  height: 50px;
+}
+.search-config {
+  width: auto;
+}
+.search-config header {
+  gap: 12px;
+}
+.search-options > label {
+  display: block;
+  margin: 10px 0;
+}
+.search-options[open] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #597f73;
+  border-radius: 8px;
+}
+.search-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.search-heading progress {
+  flex: 1;
+  min-width: 100px;
+  max-width: 250px;
+  height: 8px;
+}
+.coverage-details,
+.design-review {
+  font-size: 12px;
+  color: #acc4b7;
+}
+.integrated-audit {
+  font-size: 13px;
+}
+.integrated-audit small {
+  display: block;
+}
+.integrated-audit .bad {
+  color: #e1a595;
+}
+.solution-family {
+  min-width: 0;
+}
+.solution-family.selected {
+  border-color: #efc574;
+  background: #25434c;
+}
+.solution-family header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.solution-family [data-family-path] {
+  flex: 1;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+.solution-family [data-family-path] span {
+  color: #9dc2b0;
+}
+.solution-family > small {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #acc1ba;
+}
+.family-ranges {
+  display: grid;
+  gap: 6px;
+}
+.family-ranges > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.family-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.solution-family [data-family-proposals] > div {
+  padding: 12px 0;
+  border-bottom: 1px solid #6b948255;
+}
+.editor-status:empty {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .editor {
+    grid-template-columns: 150px minmax(220px, 1fr) 280px;
+  }
+  .editor-inspector {
+    padding: 12px;
+  }
+}
+@media (max-width: 680px) {
+  .editor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 120px minmax(300px, 45dvh) 220px minmax(360px, 50dvh) minmax(360px, 55dvh);
+    width: 100%;
+  }
+  .editor-search {
+    display: block;
+    grid-row: 5;
+  }
+  .search-config {
+    width: auto;
+  }
+  .search-results {
+    overflow: visible;
+  }
+  #search-families {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .marker-help-grid {
+    grid-template-columns: 1fr;
+  }
+  .representative-replay output {
+    font-size: 11px;
+  }
+  .representative-replay input[type='range'] {
+    width: 100%;
   }
 }

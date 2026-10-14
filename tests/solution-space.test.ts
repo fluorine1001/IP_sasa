@@ -7,6 +7,7 @@ import { parameterPlan, searchParameters } from '../src/editor/solution-search';
 import { commandUsage, planConstraints } from '../src/world/program';
 import { blockerProposals } from '../src/editor/blockers';
 import { physicalPlanKey } from '../src/editor/solution-groups';
+import { issues } from '../src/stages/validation';
 
 it('위성 분리 순서와 서로 다른 위성 대상을 모두 조사하고 경로 키를 섞지 않는다', () => {
   const s = blankStage();
@@ -110,7 +111,9 @@ it('전역 탐색은 기준 계획이 없어도 임의의 다른 조작 구성�
     kind: 'compare',
     left: { kind: 'metric', metric: 'time', targetId: '' },
     operator: 'gte',
-    right: { kind: 'constant', value: 0.05 },
+    // Finish after both seed bookings, so they are genuinely executed, not an
+    // irrelevant suffix that the solver must verify and remove.
+    right: { kind: 'constant', value: 0.19 },
   };
   const report = [...globalSearch(stage, [], 40)].at(-1)!;
   expect(report.evaluated).toBeLessThanOrEqual(40);
@@ -122,6 +125,8 @@ it('전역 탐색은 기준 계획이 없어도 임의의 다른 조작 구성�
 it('차단안은 특정 검증 기록을 특권적으로 보존하지 않고 다른 해에 대한 영향을 반환한다', () => {
   const stage = blankStage();
   stage.rules.maxTime = 0.12;
+  stage.rules.timelineDuration = 0.12;
+  stage.goals[0].endTime = 0.12;
   stage.audit.timeLimit = 0.12;
   stage.goals[0].condition = {
     kind: 'hold',
@@ -135,6 +140,7 @@ it('차단안은 특정 검증 기록을 특권적으로 보존하지 않고 다
   };
   const plan = { launch: { x: 0, y: 0 }, impulses: [] };
   stage.referencePlans = [plan];
+  expect(issues(stage)).toEqual([]);
   const proposals = blockerProposals(stage, {
     id: 0,
     template: '',

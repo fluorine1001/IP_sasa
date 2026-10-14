@@ -350,9 +350,23 @@ export function compileMarker(
   return { condition: compiled.condition, display, marker };
 }
 export function createMarker(stage: Stage, kind: GoalMarker['kind'], position: Vec): Goal {
-  const target = stage.bodies.reduce((best, b) =>
-    length(sub(position, b.position)) < length(sub(position, best.position)) ? b : best,
-  );
+  if (!stage.bodies.length && ['orbit', 'surface', 'passage'].includes(kind))
+    throw Error('이 판정은 기준 천체가 필요합니다. 천체를 먼저 배치하세요.');
+  const target = stage.bodies.length
+    ? stage.bodies.reduce((best, b) =>
+        length(sub(position, b.position)) < length(sub(position, best.position)) ? b : best,
+      )
+    : {
+        id: 'origin',
+        name: '고정 좌표',
+        kind: 'barycenter' as const,
+        position: { x: 0, y: 0 },
+        radius: 0,
+        mu: 0,
+        color: '#93bbaa',
+        hiddenGravity: false,
+        estimateMu: 0,
+      };
   const radius = Math.max(
     target.radius + 0.4,
     length(sub(position, bodyPosition(stage, target, 0))),
@@ -375,7 +389,8 @@ export function createMarker(stage: Stage, kind: GoalMarker['kind'], position: V
       targetId: target.id,
       actorIds: ['craft'],
       radius: kind === 'area' ? 0.4 : radius,
-      width: kind === 'velocity' ? Math.sqrt(target.mu / radius) * 0.15 : radius * 0.18,
+      width:
+        kind === 'velocity' ? Math.max(0.03, Math.sqrt(target.mu / radius) * 0.15) : radius * 0.18,
       minor: radius,
       vector: { x: 0, y: Math.sqrt(target.mu / radius) },
       metric: 'landed',

@@ -26,7 +26,7 @@ export function playerStage(stage: Stage): Stage {
 }
 export function workshopApi(
   root: string,
-  parse: (value: unknown) => Stage,
+  parse: (value: unknown, allowIncomplete?: boolean) => Stage,
   audit: (stage: Stage) => Iterable<PublicationCheck> | Promise<PublicationCheck>,
   token = process.env.STAGE_EDITOR_TOKEN ?? '',
   storage: StageStorage = fileStageStorage(root),
@@ -103,10 +103,12 @@ export function workshopApi(
       return send(400, { error: 'UUID 경로가 아닙니다.' });
     try {
       if (req.method === 'GET' && (publicRead || !id)) {
-        const entries = (await storage.list()).map(({ raw, revision }) => {
-          const stage = parse(JSON.parse(raw));
-          return { stage: publicRead ? playerStage(stage) : stage, revision };
-        });
+        const entries = (await storage.list())
+          .filter(({ raw }) => !publicRead || JSON.parse(raw).published !== false)
+          .map(({ raw, revision }) => {
+            const stage = parse(JSON.parse(raw), !publicRead);
+            return { stage: publicRead ? playerStage(stage) : stage, revision };
+          });
         return send(200, {
           stages: entries
             .filter((entry) => !publicRead || entry.stage.published !== false)
@@ -117,7 +119,7 @@ export function workshopApi(
         const entry = await storage.get(id);
         if (!entry) return send(404, { error: '스테이지가 없습니다.' });
         res.setHeader('ETag', entry.revision);
-        return send(200, { stage: parse(JSON.parse(entry.raw)), revision: entry.revision });
+        return send(200, { stage: parse(JSON.parse(entry.raw), true), revision: entry.revision });
       }
       if (!['POST', 'PUT', 'DELETE'].includes(req.method ?? ''))
         return send(405, { error: '지원하지 않은 요청입니다.' });
@@ -134,7 +136,7 @@ export function workshopApi(
         }
       }
       raw += decoder.end();
-      const data = req.method === 'DELETE' ? undefined : parse(JSON.parse(raw));
+      const data = req.method === 'DELETE' ? undefined : parse(JSON.parse(raw), true);
       if (data && id && data.id !== id)
         return send(400, { error: '경로와 스테이지 ID가 다릅니다.' });
       if (data?.published) {

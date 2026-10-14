@@ -505,6 +505,7 @@ test('개발용 제작 도구에서 관측·상황 단서·장면을 편집하�
   );
   await editor(page, 2, true);
   await expect(page.locator('#test-random')).toHaveCount(0);
+  await page.getByText('관측·단서 설계', { exact: true }).click();
   await expect(page.locator('#learning-design')).toBeVisible();
   await page.locator('#add-instrument').click();
   const latest = page.locator('#learning-design details').nth(2);

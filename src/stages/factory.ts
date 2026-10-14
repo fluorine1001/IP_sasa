@@ -112,3 +112,16 @@ export function blankStage(): Stage {
     audit: { samples: 128, maxPassRate: 0.01, seed: 31415 },
   };
 }
+/** A new workshop document contains no pre-authored world, vehicle, or objective. */
+export function emptyStage(): Stage {
+  const stage = blankStage();
+  stage.bodies = [];
+  stage.goals = [];
+  stage.rocket = undefined;
+  stage.launchBodyId = undefined;
+  stage.launchAngle = 0;
+  stage.spawn = { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 }, placed: false };
+  stage.published = false;
+  stage.description = '';
+  return stage;
+}

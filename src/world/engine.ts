@@ -104,7 +104,7 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
           throttle: Math.min(1, length(plan.launch) / stage.rules.launchLimit),
           heat: 0,
           stress: 0,
-          airborne: false,
+          airborne: !surfaceLaunch(stage),
           separatedAt: {},
         }
       : undefined,

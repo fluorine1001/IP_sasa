@@ -1,5 +1,6 @@
 import type { Stage, RoutePlan } from '../world/types';
 import type { SolutionFamily } from './solution-search';
+import { similarFlights } from './flight-shape';
 
 /** Exact controls, ignoring record IDs. Never round physical values or erase no-ops. */
 export function physicalPlanKey(stage: Stage, plan: RoutePlan) {
@@ -37,6 +38,17 @@ export function mergeOverlappingFamilies(stage: Stage, families: SolutionFamily[
       else owners.set(key, i);
     }
   });
+  // Cluster comparable actual flights in buckets of executed action structure.
+  // Clocks never form a grouping key. Missing recordings do not imply similarity.
+  const styles = new Map<string, number[]>();
+  families.forEach((family, i) => {
+    if (!family.shape) return;
+    const anchors = styles.get(family.shape.style) ?? [];
+    const anchor = anchors.find((at) => similarFlights(families[at].shape!, family.shape!));
+    if (anchor !== undefined) parent[find(i)] = find(anchor);
+    else anchors.push(i);
+    styles.set(family.shape.style, anchors);
+  });
   const groups = new Map<number, SolutionFamily[]>();
   families.forEach((family, i) => {
     const id = find(i),
@@ -69,6 +81,9 @@ export function mergeOverlappingFamilies(stage: Stage, families: SolutionFamily[
       return {
         ...first,
         count: group.reduce((n, f) => n + f.count, 0),
+        horizon: Math.max(
+          ...group.map((f) => f.horizon ?? stage.audit.timeLimit ?? stage.rules.maxTime),
+        ),
         ranges: [...ranges.values()],
         samples: [...unique.values()],
         layouts: group.length,

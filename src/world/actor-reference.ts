@@ -2,6 +2,7 @@ import { bodyPosition, objectPosition } from './celestial';
 import type { Stage, Run } from './types';
 /** Same scene reference in authoring (initial placement) and actual/replayed flight. */
 export function referencePosition(stage: Stage, id: string, time = 0, run?: Run) {
+  if (id === 'origin') return { x: 0, y: 0 };
   const body = stage.bodies.find((b) => b.id === id);
   if (body) return bodyPosition(stage, body, time);
   const object = stage.objects.find((o) => o.id === id);

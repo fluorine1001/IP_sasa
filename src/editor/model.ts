@@ -97,6 +97,11 @@ export class EditorModel {
   }
   delete() {
     this.change((s) => {
+      if (this.selection.has('spawn')) {
+        s.spawn.placed = false;
+        s.rocket = undefined;
+        s.launchBodyId = undefined;
+      }
       s.bodies = s.bodies.filter((e) => !this.selection.has(e.id));
       s.objects = s.objects.filter((e) => !this.selection.has(e.id));
       s.goals = s.goals.filter((e) => !this.selection.has(e.id));

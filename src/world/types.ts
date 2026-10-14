@@ -87,7 +87,11 @@ export type Stage = {
   objects: WorldObject[];
   goals: Goal[];
   goalMode: 'all' | 'any';
-  spawn: { position: Vec; velocity: Vec };
+  spawn: {
+    position: Vec;
+    velocity: Vec;
+    /** Incomplete editor drafts only. Absent means placed. */ placed?: boolean;
+  };
   rules: {
     surfaceClearance?: number;
     launchLimit: number;

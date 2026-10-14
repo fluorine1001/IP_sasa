@@ -1,4 +1,5 @@
 import { installAuthoredGoals } from './authored-goals';
+import { markerGuide } from './marker-guide';
 import { goalReferences } from '../world/goals';
 import { markerAxis } from './marker-inspector';
 import './style.css';
@@ -34,7 +35,7 @@ import { syncLaunch } from '../world/launch.ts';
 import { replaceBlockKind } from './condition-builder.ts';
 import { controls, escape, readSaved, writeSaved, type App, type Screen } from '../app/core.ts';
 import { stages } from '../stages/catalog.ts';
-import { blankStage, newBody, newObject, newGoal, uid } from '../stages/factory.ts';
+import { blankStage, emptyStage, newBody, newObject, newGoal, uid } from '../stages/factory.ts';
 import { parseStage, issues } from '../stages/validation.ts';
 import { EditorModel, cloneCondition, type Entity } from './model.ts';
 import { inspector, setPath, getPath } from './inspector.ts';
@@ -48,9 +49,9 @@ let activeModel: EditorModel | undefined;
 let clipboard: Entity[] = [];
 function initialStage() {
   try {
-    return restoreDraft(localStorage.getItem('orbit-editor-draft-v2'), stages[0] ?? blankStage());
+    return restoreDraft(localStorage.getItem('orbit-editor-draft-v2'), emptyStage());
   } catch {
-    return { stage: structuredClone(stages[0] ?? blankStage()) };
+    return { stage: emptyStage() };
   }
 }
 export function editorScreen(app: App): Screen {
@@ -85,8 +86,7 @@ export function editorScreen(app: App): Screen {
           end?: Vec;
           vertex?: { id: string; index: number };
         },
-    status =
-      '개발용 제작 도구 · 클릭 배치 · 빈 곳 드래그 영역 선택 · Shift 다중 선택 · Ctrl+D 복제 · Ctrl+Z/Y 실행 취소';
+    status = '';
   app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="focus-selection">선택 위치로</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
     ['select', '선택 / 이동'],
     ['planet', '행성'],
@@ -160,9 +160,9 @@ export function editorScreen(app: App): Screen {
     app.root,
     signal,
     () => model.stage,
-    (next) => {
+    (next, preserveSearch) => {
       if (next) model.change(() => Object.assign(model.stage, next));
-      changed();
+      changed(!preserveSearch);
     },
   );
   const mission = missionBuilder(
@@ -209,9 +209,20 @@ export function editorScreen(app: App): Screen {
   let inspectedSelection = '';
   function drawInspector() {
     const key = [...model.selection].join('|');
+    const expanded = new Set(
+      [...el('inspector').querySelectorAll<HTMLDetailsElement>('details[open]')].map(
+        (d) => d.querySelector('summary')?.textContent,
+      ),
+    );
     const advancedOpen =
       el('inspector').querySelector<HTMLDetailsElement>('#condition-advanced')?.open ?? false;
     el('inspector').innerHTML = inspector(model);
+    if (key === inspectedSelection)
+      el('inspector')
+        .querySelectorAll<HTMLDetailsElement>('details')
+        .forEach((d) => {
+          if (expanded.has(d.querySelector('summary')?.textContent)) d.open = true;
+        });
     if (key === inspectedSelection && advancedOpen) {
       const details = el('inspector').querySelector<HTMLDetailsElement>('#condition-advanced');
       if (details) details.open = true;
@@ -228,7 +239,7 @@ export function editorScreen(app: App): Screen {
       return;
     }
     el('audit').innerHTML =
-      `<div><div class="badge">${r.done ? '검사 완료' : '성공 비행 조사 중'}</div><p><b>${r.checked}/${r.total}</b> 표본 조사 · 확인한 성공 ${r.successes.length}개</p><progress max="${r.total}" value="${r.checked}"></progress><small>모든 성공은 같은 조건으로 판정합니다. 연결 집합과 대표 재생은 유효해 탐색에서 확인하세요.</small></div><div>${[...r.errors, ...physicalDesignIssues(model.stage), ...r.warnings].map((w) => `<p class="bad">△ ${escape(w)}</p>`).join('') || '<p class="good">현재 설계 검사에서 오류를 발견하지 않았습니다.</p>'}</div><div>${r.feedback ? `<b>조작 여유</b><p>근처 변경 성공 ${r.feedback.nearbyWins}/${r.feedback.nearbyTotal} · 관측 ${r.feedback.distinctReports}종</p>` : ''}<small>표본은 연속 해 전체의 증명이 아닙니다.</small></div>`;
+      `<div><b>${r.done ? '설계 검사 결과' : '설계 검사 중'}</b><small>${r.checked}/${r.total} 표본</small></div><div>${[...r.errors, ...physicalDesignIssues(model.stage), ...r.warnings].map((w) => `<p class="bad">△ ${escape(w)}</p>`).join('') || '<p class="good">형식·설계 검사에서 오류 없음</p>'}</div>${r.feedback ? `<div><b>조작 여유</b><p>근처 변경 성공 ${r.feedback.nearbyWins}/${r.feedback.nearbyTotal} · 관측 ${r.feedback.distinctReports}종</p></div>` : ''}`;
   }
 
   function scheduleAudit() {
@@ -262,7 +273,7 @@ export function editorScreen(app: App): Screen {
       }),
     );
   let graphLinks = links();
-  function changed() {
+  function changed(refreshSearch = true) {
     graphLinks = links();
     syncLaunch(model.stage);
     const intentWarnings = [
@@ -274,7 +285,7 @@ export function editorScreen(app: App): Screen {
     persist();
     drawInspector();
     scheduleAudit();
-    search.refresh();
+    if (refreshSearch) search.refresh();
   }
   function test(plan?: Stage['referencePlans'][number]) {
     const errors = issues(model.stage);
@@ -316,7 +327,7 @@ export function editorScreen(app: App): Screen {
         message(physicalDesignIssues(model.stage)[0]);
         return;
       }
-      const data = parseStage({ ...model.stage, published: publish });
+      const data = parseStage({ ...model.stage, published: publish }, !publish);
       model.stage = data;
       persist();
       await library.save(data);
@@ -343,7 +354,7 @@ export function editorScreen(app: App): Screen {
     app.root,
     {
       'new-stage': () => {
-        model = new EditorModel(blankStage());
+        model = new EditorModel(emptyStage());
         Object.assign(camera, model.stage.camera);
         changed();
         message('새 스테이지를 만들었습니다.');
@@ -419,7 +430,7 @@ export function editorScreen(app: App): Screen {
       if (!file) return;
       try {
         if (file.size > 1_000_000) throw new Error('파일이 너무 큽니다.');
-        model = new EditorModel(parseStage(JSON.parse(await file.text())));
+        model = new EditorModel(parseStage(JSON.parse(await file.text()), true));
         Object.assign(camera, model.stage.camera);
         changed();
         message('스테이지를 불러왔습니다.');
@@ -434,10 +445,16 @@ export function editorScreen(app: App): Screen {
       'click',
       () => {
         tool = b.dataset.tool!;
+        if (tool.startsWith('marker:'))
+          el('inspector').innerHTML =
+            markerGuide(tool.slice(7) as GoalMarker['kind']) +
+            '<p class="placement-prompt">지도에서 판정을 배치할 위치를 클릭하세요.</p>';
         app.root
           .querySelectorAll('[data-tool]')
           .forEach((x) => x.classList.toggle('active', x === b));
         message(`배치 도구: ${b.textContent}. 지도에서 클릭하세요.`);
+        if (innerWidth < 680 && tool !== 'select')
+          canvas.scrollIntoView({ block: 'center', behavior: 'instant' });
       },
       { signal },
     ),
@@ -988,7 +1005,11 @@ export function editorScreen(app: App): Screen {
     snapped = (p: Vec): Vec =>
       snap ? { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 } : p;
   function locate(p: Vec) {
-    if (length(sub(p, model.stage.spawn.position)) * camera.zoom < 20) return 'spawn';
+    if (
+      model.stage.spawn.placed !== false &&
+      length(sub(p, model.stage.spawn.position)) * camera.zoom < 20
+    )
+      return 'spawn';
     const objects = [...model.stage.objects].reverse();
     for (const o of objects)
       if (
@@ -1090,11 +1111,21 @@ export function editorScreen(app: App): Screen {
             }
             tool = 'select';
           } else if (tool === 'spawn') {
-            const b = s.bodies.find((b) => b.id === s.launchBodyId);
+            const b = s.bodies.find(
+              (b) =>
+                ['planet', 'moon'].includes(b.kind) &&
+                Math.abs(length(sub(p, bodyPosition(s, b, 0))) - b.radius) * camera.zoom < 18,
+            );
+            s.spawn.placed = true;
+            s.rocket ??= defaultRocket();
             if (b) {
+              s.launchBodyId = b.id;
               const center = bodyPosition(s, b, 0);
               s.launchAngle = Math.atan2(p.y - center.y, p.x - center.x);
               syncLaunch(s);
+            } else {
+              s.launchBodyId = undefined;
+              s.spawn.position = snapped(p);
             }
             model.selection = new Set(['spawn']);
           } else if (tool.startsWith('goal:')) {
@@ -1294,10 +1325,12 @@ export function editorScreen(app: App): Screen {
           if (entity) {
             const point = snapped({ x: original.x + delta.x, y: original.y + delta.y });
             if (id === 'spawn') {
-              const body = model.stage.bodies.find((b) => b.id === model.stage.launchBodyId)!;
-              const center = bodyPosition(model.stage, body, 0);
-              model.stage.launchAngle = Math.atan2(point.y - center.y, point.x - center.x);
-              syncLaunch(model.stage);
+              const body = model.stage.bodies.find((b) => b.id === model.stage.launchBodyId);
+              if (body) {
+                const center = bodyPosition(model.stage, body, 0);
+                model.stage.launchAngle = Math.atan2(point.y - center.y, point.x - center.x);
+                syncLaunch(model.stage);
+              } else model.stage.spawn.position = point;
             } else if ('motion' in entity && entity.motion) {
               const parent = model.stage.bodies.find((b) => b.id === entity.motion!.parentId)!;
               const center = bodyPosition(model.stage, parent, 0);

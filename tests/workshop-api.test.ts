@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { workshopApi, type PublicationCheck } from '../scripts/workshop-api';
-import { blankStage } from '../src/stages/factory';
+import { blankStage, emptyStage } from '../src/stages/factory';
 import { parseStage } from '../src/stages/validation';
 it('공유 API는 공개 목록에서 검증 계획을 숨기고 저장 충돌·복구 가능한 삭제를 처리한다', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'orbit-workshop-'));
@@ -87,6 +87,18 @@ it('공유 API는 공개 목록에서 검증 계획을 숨기고 저장 충돌·
     ).toBe(true);
     expect((await readdir(path.join(root, '.stage-workshop/trash'))).length).toBe(1);
     expect((await (await fetch(base + '/api/stages')).json()).stages).toHaveLength(0);
+    const draft = emptyStage();
+    const incomplete = await fetch(base + '/api/workshop/stages', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(draft),
+    });
+    expect(incomplete.status).toBe(200);
+    const privateList = await (await fetch(base + '/api/workshop/stages', { headers })).json();
+    expect(privateList.stages).toHaveLength(1);
+    expect(privateList.stages[0].stage.spawn.placed).toBe(false);
+    const publicList = await (await fetch(base + '/api/stages')).json();
+    expect(publicList.stages).toHaveLength(0);
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await rm(root, { recursive: true, force: true });

@@ -112,6 +112,7 @@ export function expressionValue(
     if (
       definition.targetId &&
       definition.targetId !== 'craft' &&
+      definition.targetId !== 'origin' &&
       !c.stage.bodies.some((b) => b.id === definition.targetId) &&
       !c.stage.objects.some((o) => o.id === definition.targetId) &&
       !c.run.detached.some((a) => a.id === definition.targetId && a.status !== 'crashed')

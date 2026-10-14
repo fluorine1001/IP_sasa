@@ -2,9 +2,9 @@ import { execute, createRun, tick } from '../world/engine';
 self.onmessage = (event) => {
   try {
     const stage = event.data.stage,
-      horizon = stage.audit.timeLimit ?? stage.rules.maxTime;
+      horizon = event.data.horizon ?? stage.audit.timeLimit ?? stage.rules.maxTime;
     const run = event.data.video
-      ? execute(stage, event.data.plan, true)
+      ? execute(stage, event.data.plan, true, horizon)
       : createRun(stage, event.data.plan);
     if (!event.data.video)
       while ((run.status === 'running' || run.status === 'impact') && run.time < horizon - 1e-8) {

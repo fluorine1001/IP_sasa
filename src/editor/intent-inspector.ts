@@ -15,7 +15,7 @@ export function intentInspector(stage: Stage, goal: Goal) {
   const initial: MissionIntent = intent ?? {
     kind: 'orbit',
     actorId: 'craft',
-    targetId: stage.bodies[0].id,
+    targetId: stage.bodies[0]?.id ?? stage.objects[0]?.id ?? '',
   };
   let values: Record<string, unknown> = {},
     basis: string[] = [];

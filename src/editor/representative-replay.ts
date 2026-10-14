@@ -4,6 +4,8 @@ import { dynamicView } from '../world/dynamics';
 import { physicalPlanKey } from './solution-groups';
 import type { Stage, Run, RoutePlan } from '../world/types';
 import type { SolutionFamily } from './solution-search';
+import { reservationBar, reservationDetail } from './reservation-view';
+import { programEvents } from '../world/program';
 
 /** One recorder at a time. Background paths contain no frames; video is captured on selection. */
 export function representativeReplay(
@@ -19,6 +21,7 @@ export function representativeReplay(
     selected = '',
     playing = false,
     cursor = 0;
+  let reservation = -1;
   let video: Run | undefined,
     worker: Worker | undefined,
     active = false,
@@ -27,7 +30,7 @@ export function representativeReplay(
     closed = false,
     autoplay = false;
   const paths = new Map<string, Run['trail']>();
-  const queue: { key: string; plan: RoutePlan; video: boolean }[] = [];
+  const queue: { key: string; plan: RoutePlan; video: boolean; horizon?: number }[] = [];
   const keyOf = (family: SolutionFamily) => physicalPlanKey(getStage(), family.representative);
   function pump() {
     if (active || !queue.length || signal.aborted) return;
@@ -58,20 +61,40 @@ export function representativeReplay(
       draw();
       pump();
     };
-    worker.postMessage({ stage: structuredClone(getStage()), plan: job.plan, video: job.video });
+    worker.postMessage({
+      stage: structuredClone(getStage()),
+      plan: job.plan,
+      video: job.video,
+      horizon: job.horizon,
+    });
   }
   function draw() {
-    panel.hidden = closed || !families.length;
-    panel.innerHTML = `<header><b>대표 비행 다시보기</b><button data-video-close aria-label="대표 다시보기 닫기">×</button></header><select aria-label="대표 비행 선택">${families.map((f, i) => `<option value="${escape(keyOf(f))}" ${keyOf(f) === selected ? 'selected' : ''}>집합 ${i + 1} · ${f.count}개 성공 표본</option>`).join('')}</select><div><button data-video-play ${video ? '' : 'disabled'}>${playing ? 'Ⅱ 정지' : '▶ 재생'}</button><input aria-label="대표 비행 재생 시각" type="range" min="0" max="${video?.time ?? 0}" step="0.05" value="${cursor}"><output>${cursor.toFixed(1)} / ${(video?.time ?? 0).toFixed(1)}초</output></div><small>${video ? '실제 기록 재생' : active ? '대표 경로 기록 중…' : '집합을 선택해 실제 비행을 재생하세요.'}</small>`;
+    panel.hidden = closed || !families.length || !selected;
+    const family = families.find((f) => keyOf(f) === selected);
+    const end = Math.max(
+      video?.time ?? 0,
+      ...(family ? programEvents(family.representative).map((e) => e.time) : []),
+      1,
+    );
+    panel.innerHTML = `<header><b>선택한 풀이 · ${families.indexOf(family!) + 1}</b><button data-video-close aria-label="대표 다시보기 닫기">장면으로</button></header>${family ? reservationBar(family.representative, end) : ''}<div><button data-video-play ${video ? '' : 'disabled'}>${playing ? 'Ⅱ 정지' : '▶ 재생'}</button><input aria-label="대표 비행 재생 시각" type="range" min="0" max="${video?.time ?? 0}" step="0.05" value="${cursor}"><output>${cursor.toFixed(1)} / ${(video?.time ?? 0).toFixed(1)}초</output></div><div data-reservation-detail>${family && reservation >= 0 ? reservationDetail(getStage(), family.representative, reservation) : '<small>예약 그림을 누르면 설정이 표시됩니다.</small>'}</div><small>${video ? '실제 기록' : active ? '기록 중…' : '풀이를 선택하세요.'}</small>`;
   }
   function select(family: SolutionFamily, start = false) {
+    families = families.some((f) => f.id === family.id)
+      ? families.map((f) => (f.id === family.id ? family : f))
+      : [...families, family];
     closed = false;
     autoplay = start;
     selected = keyOf(family);
     video = undefined;
     playing = false;
     cursor = 0;
-    queue.unshift({ key: selected, plan: structuredClone(family.representative), video: true });
+    reservation = -1;
+    queue.unshift({
+      key: selected,
+      plan: structuredClone(family.representative),
+      video: true,
+      horizon: family.horizon,
+    });
     draw();
     pump();
   }
@@ -100,6 +123,16 @@ export function representativeReplay(
     'click',
     (event) => {
       const target = (event.target as HTMLElement).closest('button');
+      if (target?.dataset.reservation !== undefined) {
+        reservation = Number(target.dataset.reservation);
+        const family = families.find((f) => keyOf(f) === selected);
+        if (family)
+          panel.querySelector('[data-reservation-detail]')!.innerHTML = reservationDetail(
+            getStage(),
+            family.representative,
+            reservation,
+          );
+      }
       if (target?.hasAttribute('data-video-close')) {
         closed = true;
         video = undefined;
@@ -136,18 +169,33 @@ export function representativeReplay(
     { once: true },
   );
   return {
+    mount(destination: HTMLElement) {
+      destination.prepend(panel);
+    },
     reset,
     select,
     setFamilies(next: SolutionFamily[]) {
-      families = next;
-      for (const family of next) {
+      const current = families.find((f) => keyOf(f) === selected);
+      families = next.map((f) =>
+        f.id === current?.id
+          ? { ...f, representative: current.representative, trail: current.trail }
+          : f,
+      );
+      const liveKeys = new Set(families.map(keyOf));
+      for (const key of paths.keys()) if (!liveKeys.has(key)) paths.delete(key);
+      for (const family of families) {
         const key = keyOf(family);
         if (family.trail.length) paths.set(key, family.trail);
         if (!paths.has(key) && key !== activeKey && !queue.some((job) => job.key === key))
-          queue.push({ key, plan: structuredClone(family.representative), video: false });
+          queue.push({
+            key,
+            plan: structuredClone(family.representative),
+            video: false,
+            horizon: family.horizon,
+          });
       }
-      if (next.length && !next.some((f) => keyOf(f) === selected)) {
-        selected = keyOf(next[0]);
+      if (families.length && !families.some((f) => keyOf(f) === selected)) {
+        selected = '';
         video = undefined;
         playing = false;
       }

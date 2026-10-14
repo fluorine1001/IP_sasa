@@ -7,7 +7,7 @@ import { surfaceLaunch } from '../world/launch.ts';
 import { conditionIssues, conditionCost } from '../world/conditions.ts';
 import { length, sub } from '../physics/vector.ts';
 import { type Stage } from '../world/types.ts';
-export function issues(stage: Stage): string[] {
+export function issues(stage: Stage, allowIncomplete = false): string[] {
   const out: string[] = [];
   if (stage.version !== 2) out.push('지원하지 않는 스테이지 버전입니다.');
   if (stage.track !== undefined && !['campaign', 'tutorial'].includes(stage.track))
@@ -37,8 +37,10 @@ export function issues(stage: Stage): string[] {
   if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(stage.id))
     out.push('스테이지 ID는 UUID여야 합니다.');
   if (!stage.title?.trim()) out.push('스테이지 이름이 필요합니다.');
-  if (!stage.bodies?.length || !stage.goals?.length)
-    out.push('천체와 목표를 하나 이상 배치하세요.');
+  if (!Array.isArray(stage.bodies) || !Array.isArray(stage.goals))
+    out.push('장면과 목표 목록을 확인하세요.');
+  if (!allowIncomplete && !stage.goals?.length) out.push('판정 오브젝트를 하나 이상 배치하세요.');
+  if (!allowIncomplete && stage.spawn?.placed === false) out.push('로켓과 출발 위치를 배치하세요.');
   const records = [
     ...(stage.bodies ?? []),
     ...(stage.objects ?? []),
@@ -51,7 +53,7 @@ export function issues(stage: Stage): string[] {
     if (
       typeof r.id !== 'string' ||
       !/^[a-z0-9_:-]{1,128}$/i.test(r.id) ||
-      ['__proto__', 'constructor', 'prototype'].includes(r.id) ||
+      ['__proto__', 'constructor', 'prototype', 'origin'].includes(r.id) ||
       ids.has(r.id)
     )
       out.push('오브젝트 ID는 안전한 영문·숫자 식별자로 서로 달라야 합니다.');
@@ -59,6 +61,7 @@ export function issues(stage: Stage): string[] {
   }
   if (stage.bodies?.length > 64 || stage.objects?.length > 1000 || stage.goals?.length > 100)
     out.push('이 버전의 제작 범위를 초과했습니다 (천체 64, 오브젝트 1000, 목표 100).');
+  ids.add('origin');
   for (const b of stage.bodies ?? []) {
     if (
       b.dynamic &&
@@ -182,7 +185,7 @@ export function issues(stage: Stage): string[] {
     }
     if (goalReferences(g.condition).some((id) => !stage.goals.some((goal) => goal.id === id)))
       out.push('연결 판정의 대상이 이 장면에 없습니다.');
-    out.push(...conditionIssues(g.condition, new Set(records.map((r) => r.id))));
+    out.push(...conditionIssues(g.condition, ids));
     if (
       typeof g.title !== 'string' ||
       !g.title.trim() ||
@@ -362,11 +365,15 @@ export function issues(stage: Stage): string[] {
   )
     out.push('시작 위치와 카메라를 확인하세요.');
   const launch = stage.bodies.find((b) => b.id === stage.launchBodyId);
-  if (!launch || !['planet', 'moon'].includes(launch.kind) || !Number.isFinite(stage.launchAngle))
+  if (
+    stage.launchBodyId &&
+    (!launch || !['planet', 'moon'].includes(launch.kind) || !Number.isFinite(stage.launchAngle))
+  )
     out.push('출발 천체와 표면 발사 위치를 지정하세요.');
   else if (
-    length(sub(stage.spawn.position, surfaceLaunch(stage)!.position)) > 0.00001 ||
-    length(sub(stage.spawn.velocity, surfaceLaunch(stage)!.velocity)) > 0.00001
+    launch &&
+    (length(sub(stage.spawn.position, surfaceLaunch(stage)!.position)) > 0.00001 ||
+      length(sub(stage.spawn.velocity, surfaceLaunch(stage)!.velocity)) > 0.00001)
   )
     out.push('출발점은 선택한 천체의 표면 발사대여야 합니다.');
   if (
@@ -549,11 +556,11 @@ export function issues(stage: Stage): string[] {
   }
   return [...new Set(out)];
 }
-export function parseStage(value: unknown): Stage {
+export function parseStage(value: unknown, allowIncomplete = false): Stage {
   if (!value || typeof value !== 'object') throw new Error('스테이지 객체가 필요합니다.');
   const stage = value as Stage;
   try {
-    const errors = issues(stage);
+    const errors = issues(stage, allowIncomplete && stage.published === false);
     if (errors.length) throw new Error(errors.join('\n'));
     return stage;
   } catch (error) {

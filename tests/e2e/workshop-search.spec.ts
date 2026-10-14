@@ -23,11 +23,14 @@ test('독립 제작소는 기록 없이 전체 구성 탐색과 기존 결과를
   );
   await page.goto('/editor.html');
   await page.locator('#search-auto').uncheck();
+  await page.getByText('탐색 범위·예산', { exact: true }).click();
   await page.locator('#search-budget').fill('32');
   await page.locator('#search-run').click();
   await expect(page.locator('#search-status')).toContainText('이번 검사 완료');
   await expect(page.locator('#search-status')).toContainText('32/32');
-  await expect(page.locator('#search-coverage')).toContainText('스테이지 예약 개수 범위 전체');
+  await expect(page.locator('#search-coverage')).toContainText('예약 길이 4개까지');
+  await expect(page.locator('#search-coverage')).toContainText('시간 창 0.4초');
+  await expect(page.locator('#search-coverage')).not.toContainText('범위 전체');
   expect(await page.locator('.solution-family').count()).toBeGreaterThan(0);
   await expect(page.locator('#search-layout')).toHaveValue('all');
   await page.locator('#search-continue').click();

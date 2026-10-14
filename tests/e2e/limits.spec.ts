@@ -1,4 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { blankStage } from '../../src/stages/factory';
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(
+    (s) => localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(s)),
+    blankStage(),
+  );
+});
 test('개발 에디터의 계획 길이·종류별 한도를 실제 타임라인에 적용한다', async ({ page }) => {
   await page.goto('/?editor=1');
   await page.locator('#stage-properties').click();
@@ -9,6 +16,7 @@ test('개발 에디터의 계획 길이·종류별 한도를 실제 타임라인
   const missionTime = await field('maxTime').inputValue();
   await field('timelineDuration').fill('12');
   await field('timelineDuration').press('Tab');
+  await page.getByText('종류별 예약 한도', { exact: true }).click();
   await field('commandLimits.turn').fill('1');
   await field('commandLimits.turn').press('Tab');
   await field('commandLimits.stop').fill('0');
@@ -51,6 +59,7 @@ test('개발 에디터의 계획 길이·종류별 한도를 실제 타임라인
   await page.locator('#abort').click();
   await page.locator('#exit').click();
   await page.locator('#stage-properties').click();
+  await page.getByText('종류별 예약 한도', { exact: true }).click();
   await field('commandLimits.turn').fill('');
   await field('commandLimits.turn').press('Tab');
   await field('timelineDuration').fill('');
@@ -75,6 +84,7 @@ test('두 무제한 옵션을 저장하고 시간선을 확장하며 표시 시�
   await field('rules.maxTime').press('Tab');
   await field('rules.timelineDuration').fill('0.5');
   await field('rules.timelineDuration').press('Tab');
+  await page.getByText('표시·목표 묶음·검사 설정', { exact: true }).click();
   await field('audit.timeLimit').fill('2');
   await field('audit.timeLimit').press('Tab');
   let draft = await page.evaluate(() => JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!));

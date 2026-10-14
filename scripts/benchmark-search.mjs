@@ -62,6 +62,37 @@ try {
         }),
       );
     }
+  const { landingSearchStage } = await runtime.ssrLoadModule('/tests/fixtures/landing-search.ts');
+  const { globalSearch } = await runtime.ssrLoadModule('/src/editor/global-search.ts');
+  const { searchTemplates } = await runtime.ssrLoadModule('/src/editor/solution-search.ts');
+  const stage = landingSearchStage();
+  const iterator = globalSearch(stage, searchTemplates(stage), 512);
+  const started = performance.now();
+  let report,
+    yields = 0,
+    maxSliceMs = 0;
+  while (true) {
+    const slice = performance.now(),
+      next = iterator.next();
+    maxSliceMs = Math.max(maxSliceMs, performance.now() - slice);
+    if (next.done) break;
+    report = next.value;
+    yields++;
+  }
+  console.log(
+    JSON.stringify({
+      case: 'powered-earth-moon',
+      trials: report.evaluated,
+      successes: report.successes,
+      families: report.families.length,
+      ms: Math.round(performance.now() - started),
+      yields,
+      maxSliceMs: Math.round(maxSliceMs),
+      heapMb: Math.round(process.memoryUsage().heapUsed / 1048576),
+      physicsStep: 0.01,
+      horizon: 24,
+    }),
+  );
 } finally {
   await runtime.close();
 }

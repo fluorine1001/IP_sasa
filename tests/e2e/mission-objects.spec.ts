@@ -70,6 +70,7 @@ test('대표 경로 선택은 강조만 하고 재생 버튼으로 실제 기록
   );
   await page.goto('/editor.html');
   await page.locator('#search-auto').uncheck();
+  await page.getByText('탐색 범위·예산', { exact: true }).click();
   await page.locator('#search-budget').fill('16');
   await page.locator('#search-run').click();
   await expect(page.locator('#search-status')).toContainText('이번 검사 완료', { timeout: 15000 });
@@ -86,6 +87,8 @@ test('대표 경로 선택은 강조만 하고 재생 버튼으로 실제 기록
   await expect(page.locator('#audit')).not.toContainText('기준 성공');
 });
 test('390px 제작소에서 지도와 판정 도구가 화면 폭 안에 남는다', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/editor.html');
   await page.locator('#search-auto').uncheck();
@@ -98,6 +101,7 @@ test('390px 제작소에서 지도와 판정 도구가 화면 폭 안에 남는�
   const r = (await page.locator('#editor-world').boundingBox())!;
   await page.mouse.click(r.x + r.width * 0.75, r.y + r.height * 0.5);
   await expect(page.locator('.marker-inspector')).toBeVisible();
+  expect(errors).toEqual([]);
   await page.screenshot({
     path: 'test-results/screens/mission-objects-editor-390.png',
     fullPage: true,

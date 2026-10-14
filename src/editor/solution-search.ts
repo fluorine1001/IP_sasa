@@ -2,6 +2,9 @@ import { createRun, tick, execute } from '../world/engine';
 import { planConstraints, planningTimeLimit, programEvents, commandNames } from '../world/program';
 import { length } from '../physics/vector';
 import type { Stage, RoutePlan, Run } from '../world/types';
+import { searchFitness } from './search-fitness';
+import { flightShape, type FlightShape } from './flight-shape';
+import { craftCenter } from '../world/craft-center';
 export type SearchParameter = {
   key: string;
   label: string;
@@ -25,6 +28,8 @@ export type SearchSample = {
   score: number;
   time: number;
   suffixVerified?: boolean;
+  shape?: FlightShape;
+  trail?: Run['trail'];
 };
 export type SolutionFamily = {
   id: number;
@@ -36,6 +41,8 @@ export type SolutionFamily = {
   samples: RoutePlan[];
   connections?: number;
   layouts?: number;
+  shape?: FlightShape;
+  horizon?: number;
 };
 export type SearchReport = {
   evaluated: number;
@@ -56,6 +63,11 @@ export type SearchReport = {
     horizon: number;
   };
   families: SolutionFamily[];
+  /** A physical trial is suspended, not finished or classified as failure. */
+  pending?: boolean;
+  quality?: number;
+  profiles?: { program: string; evaluated: number; quality: number }[];
+  coverage?: { divisions: number | string; checked: string; total?: string; exhausted: boolean };
 };
 const vector = (angle: number, power = 1) => ({
   x: Math.cos(angle) * power,
@@ -66,7 +78,7 @@ export function searchParameters(stage: Stage, plan: RoutePlan): SearchParameter
   const add = (key: string, label: string, min: number, max: number, value: number) =>
     result.push({ key, label, min, max, value, enabled: max > min });
   add('launch.power', '첫 출력', 0, stage.rules.launchLimit, length(plan.launch));
-  if (!stage.rocket)
+  if (!stage.rocket && stage.rules.launchLimit > 0)
     add(
       'launch.angle',
       '발사 방향 (도)',
@@ -114,7 +126,14 @@ export function searchParameters(stage: Stage, plan: RoutePlan): SearchParameter
       (Math.atan2(impulse.vector.y, impulse.vector.x) * 180) / Math.PI,
     );
   }
-  return result;
+  // Preserve the mixed action word instead of moving impulses behind all engines.
+  const timeOf = (p: SearchParameter) =>
+    p.key.startsWith('launch.')
+      ? -1
+      : p.key.startsWith('command.')
+        ? plan.engineCommands![Number(p.key.split('.')[1])].time
+        : plan.impulses[Number(p.key.split('.')[1])].time;
+  return result.sort((a, b) => timeOf(a) - timeOf(b));
 }
 export function searchTemplates(stage: Stage): SearchTemplate[] {
   const h = Math.min(planningTimeLimit(stage), stage.audit.timeLimit ?? stage.rules.maxTime);
@@ -252,27 +271,6 @@ function seedCoordinates(template: SearchTemplate) {
   }
   return result;
 }
-function parameterValue(plan: RoutePlan, p: SearchParameter) {
-  const [kind, index, field] = p.key.split('.');
-  if (kind === 'launch')
-    return index === 'power'
-      ? length(plan.launch)
-      : (Math.atan2(plan.launch.y, plan.launch.x) * 180) / Math.PI;
-  if (kind === 'command') {
-    const command = plan.engineCommands![Number(index)];
-    return field === 'time'
-      ? command.time
-      : field === 'power'
-        ? command.throttle!
-        : (Math.atan2(command.direction!.y, command.direction!.x) * 180) / Math.PI;
-  }
-  const push = plan.impulses[Number(index)];
-  return field === 'time'
-    ? push.time
-    : field === 'power'
-      ? length(push.vector)
-      : (Math.atan2(push.vector.y, push.vector.x) * 180) / Math.PI;
-}
 type Cell = {
   lo: number[];
   hi: number[];
@@ -336,9 +334,21 @@ export function* searchSolutions(
     cells: Cell[] = [];
   const best = new Heap<Cell>((cell) => cell.sample.score + cell.size * 0.03),
     broad = new Heap<Cell>((cell) => cell.volume);
+  const trailOwners: SearchSample[] = [];
+  const point = (run: Run) => ({
+    position: craftCenter(stage, run),
+    velocity: { ...run.velocity },
+    time: run.time,
+  });
+  const appendTrace = (trace: Run['trail'], run: Run, force = false) => {
+    if (!force && run.time - trace.at(-1)!.time < 0.2) return;
+    trace.push(point(run));
+    if (trace.length > 128) trace.splice(0, trace.length, ...trace.filter((_, i) => i % 2 === 0));
+  };
   let evaluated = 0,
     cached = 0,
-    illegal = 0;
+    illegal = 0,
+    quality = 0;
   const find = (id: number): number => {
     while (parents[id] !== id) {
       parents[id] = parents[parents[id]];
@@ -348,31 +358,28 @@ export function* searchSolutions(
   };
   const topology = (sample: SearchSample) =>
     JSON.stringify(
-      [...(sample.plan.engineCommands ?? [])]
-        .sort((a, b) => a.time - b.time)
-        .map((command) => [
-          command.actorId,
-          command.releasePayload
-            ? 'deploy:' + command.releasePayload
-            : command.separate
-              ? 'separate'
-              : command.throttle === 0
-                ? 'stop'
-                : command.throttle
-                  ? 'ignite'
-                  : 'turn',
-          !!command.direction,
-        ])
-        .concat(sample.plan.impulses.map(() => ['craft', 'push', true])),
+      programEvents(sample.plan)
+        .filter((e) => e.id !== 'launch')
+        .map((e) => [e.kind, e.actorId]),
     );
+  const parameterCache = new WeakMap<RoutePlan, Map<string, SearchParameter>>();
+  function planParameters(plan: RoutePlan) {
+    let parameters = parameterCache.get(plan);
+    if (!parameters) {
+      parameters = new Map(searchParameters(stage, plan).map((p) => [p.key, p]));
+      parameterCache.set(plan, parameters);
+    }
+    return parameters;
+  }
   const join = (a: SearchSample, b: SearchSample) => {
     if (a.won && b.won && topology(a) === topology(b) && find(a.id) !== find(b.id)) {
       connections.push([a.id, b.id]);
       parents[find(b.id)] = find(a.id);
     }
   };
-  const evaluate = (values: number[]): SearchSample | undefined => {
-    const key = values.map((v) => v.toPrecision(12)).join(',');
+  function* evaluate(values: number[]): Generator<SearchReport, SearchSample | undefined> {
+    // Rounding a cache key would silently discard distinct physical controls.
+    const key = JSON.stringify(values);
     const previous = cache.get(key);
     if (previous) {
       cached++;
@@ -400,6 +407,9 @@ export function* searchSolutions(
     else {
       const run = createRun(stage, plan),
         horizon = stage.audit.timeLimit ?? stage.rules.maxTime;
+      let finalRun = run,
+        trace = [point(run)],
+        steps = 0;
       while ((run.status === 'running' || run.status === 'impact') && run.time < horizon - 1e-8) {
         tick(run, stage, Math.min(0.1, horizon - run.time), stage.objects, false);
         const ratios = (run.goalRoots ?? Object.keys(run.goals))
@@ -409,7 +419,14 @@ export function* searchSolutions(
           stage.goalMode === 'any'
             ? Math.max(0, ...ratios)
             : ratios.reduce((a, b) => a + b, 0) / Math.max(1, ratios.length);
-        sample.score = Math.max(sample.score, score * 0.9);
+        sample.score = Math.max(
+          sample.score,
+          (score * 0.15 + searchFitness(stage, run) * 0.85) * 0.99,
+        );
+        appendTrace(trace, run);
+        if (++steps % 16 === 0) {
+          yield report(false, true);
+        }
       }
       sample.won = run.status === 'won';
       sample.time = run.time;
@@ -428,18 +445,50 @@ export function* searchSolutions(
           // This is another physical trial and consumes the same hard budget.
           evaluated++;
           if (quota) quota.remaining--;
-          if (execute(stage, prefix).status === 'won') {
+          const verification = createRun(stage, prefix);
+          const verifiedTrace = [point(verification)];
+          while (
+            (verification.status === 'running' || verification.status === 'impact') &&
+            verification.time < horizon - 1e-8
+          ) {
+            tick(
+              verification,
+              stage,
+              Math.min(0.1, horizon - verification.time),
+              stage.objects,
+              false,
+            );
+            appendTrace(verifiedTrace, verification);
+            if (++steps % 16 === 0) {
+              yield report(false, true);
+            }
+          }
+          if (verification.status === 'won') {
             sample.plan = prefix;
             sample.suffixVerified = true;
+            finalRun = verification;
+            trace = verifiedTrace;
           }
         }
         sample.score = 1;
+        appendTrace(trace, finalRun, true);
+        sample.time = finalRun.time;
+        sample.shape = flightShape(
+          stage,
+          sample.plan,
+          trace.map((p) => p.position),
+          finalRun,
+        );
+        sample.trail = trace;
+        trailOwners.push(sample);
+        if (trailOwners.length > 16) trailOwners.shift()!.trail = undefined;
         successes.push(sample);
       }
     }
     cache.set(key, sample);
+    quality = Math.max(quality, sample.score);
     return sample;
-  };
+  }
   const add = (lo: number[], hi: number[], sample: SearchSample) => {
     const widths = hi.map((v, i) => v - lo[i]);
     const cell = {
@@ -454,66 +503,70 @@ export function* searchSolutions(
     best.push(cell);
     broad.push(cell);
   };
-  const seed = seedCoordinates(template);
-  const initial = evaluate(seed)!;
-  const report = (done: boolean): SearchReport => {
-    const groups = new Map<number, SearchSample[]>();
-    for (const sample of successes) {
-      const id = find(sample.id);
-      const group = groups.get(id) ?? [];
-      group.push(sample);
-      groups.set(id, group);
-    }
-    const families = [...groups.entries()]
-      .map(([id, samples]) => {
-        // A verified sample closest to the group's normalised centre, not its fastest edge.
-        const centre = samples[0].values.map(
-          (_, i) => samples.reduce((sum, s) => sum + s.values[i], 0) / samples.length,
-        );
-        const score = (sample: SearchSample) =>
-          sample.values.reduce((sum, v, i) => sum + (v - centre[i]) ** 2, 0);
-        const representative = samples.reduce((a, b) => (score(a) <= score(b) ? a : b)).plan;
-        return {
-          id,
-          template: programEvents(representative)
-            .map(
-              (e) =>
-                `${e.id === 'launch' ? '발사' : commandNames[e.kind as keyof typeof commandNames]}${e.actorId === 'craft' ? '' : ` (${[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].find((p) => p.id === e.actorId)?.name ?? e.actorId})`}`,
-            )
-            .join(' → '),
-          representative,
-          count: samples.length,
-          ranges: searchParameters(stage, representative)
-            .filter((p) =>
-              samples.every((s) =>
-                searchParameters(stage, s.plan).some((other) => other.key === p.key),
-              ),
-            )
-            .map((p) => {
-              const values = samples.map((s) => parameterValue(s.plan, p)).sort((a, b) => a - b);
-              return {
-                label: p.label,
-                min: values[0],
-                max: values.at(-1)!,
-                gap: values.slice(1).reduce((n, v, i) => Math.max(n, v - values[i]), 0),
-              };
-            }),
-          connections: connections.filter(([a]) => find(a) === id).length,
-          trail: [] as Run['trail'],
-          samples: [
+  let familyRevision = '',
+    families: SolutionFamily[] = [];
+  const report = (done: boolean, pending = false): SearchReport => {
+    const revision = `${successes.length}:${connections.length}`;
+    if (familyRevision !== revision) {
+      familyRevision = revision;
+      const groups = new Map<number, SearchSample[]>();
+      for (const sample of successes) {
+        const id = find(sample.id);
+        const group = groups.get(id) ?? [];
+        group.push(sample);
+        groups.set(id, group);
+      }
+      families = [...groups.entries()]
+        .map(([id, samples]) => {
+          // A verified sample closest to the group's normalised centre, not its fastest edge.
+          const centre = samples[0].values.map(
+            (_, i) => samples.reduce((sum, s) => sum + s.values[i], 0) / samples.length,
+          );
+          const score = (sample: SearchSample) =>
+            sample.values.reduce((sum, v, i) => sum + (v - centre[i]) ** 2, 0);
+          const representative = samples.reduce((a, b) => (score(a) <= score(b) ? a : b)).plan;
+          return {
+            id,
+            template: programEvents(representative)
+              .map(
+                (e) =>
+                  `${e.id === 'launch' ? '발사' : commandNames[e.kind as keyof typeof commandNames]}${e.actorId === 'craft' ? '' : ` (${[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].find((p) => p.id === e.actorId)?.name ?? e.actorId})`}`,
+              )
+              .join(' → '),
             representative,
-            ...samples
-              .filter((s) => s.plan !== representative)
-              .filter((_, i, list) => i % Math.max(1, Math.ceil(list.length / 15)) === 0)
-              .slice(0, 15)
-              .map((s) => s.plan),
-          ],
-        };
-      })
-      .sort((a, b) => b.count - a.count);
+            shape: samples.find((s) => s.plan === representative)?.shape,
+            horizon: stage.audit.timeLimit ?? stage.rules.maxTime,
+            count: samples.length,
+            ranges: [...planParameters(representative).values()]
+              .filter((p) => samples.every((s) => planParameters(s.plan).has(p.key)))
+              .map((p) => {
+                const values = samples
+                  .map((s) => planParameters(s.plan).get(p.key)!.value)
+                  .sort((a, b) => a - b);
+                return {
+                  label: p.label,
+                  min: values[0],
+                  max: values.at(-1)!,
+                  gap: values.slice(1).reduce((n, v, i) => Math.max(n, v - values[i]), 0),
+                };
+              }),
+            connections: connections.filter(([a]) => find(a) === id).length,
+            trail: samples.find((s) => s.plan === representative)?.trail ?? [],
+            samples: [
+              representative,
+              ...samples
+                .filter((s) => s.plan !== representative)
+                .filter((_, i, list) => i % Math.max(1, Math.ceil(list.length / 15)) === 0)
+                .slice(0, 15)
+                .map((s) => s.plan),
+            ],
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+    }
     if (done && recordRepresentatives)
       for (const family of families.slice(0, 24))
-        family.trail = execute(stage, family.representative, true).trail;
+        if (!family.trail.length) family.trail = execute(stage, family.representative, true).trail;
     return {
       evaluated,
       cached,
@@ -524,22 +577,26 @@ export function* searchSolutions(
       elapsed: performance.now() - start,
       frontier: cells.filter((cell) => cell.active).length,
       families,
+      pending,
+      quality,
     };
   };
+  const seed = seedCoordinates(template);
+  const initial = (yield* evaluate(seed))!;
   yield report(false);
   function* connect(a: SearchSample, b: SearchSample) {
     if (topology(a) !== topology(b)) return;
     const chain = [a];
     for (const fraction of [0.25, 0.5, 0.75]) {
       if (quota && quota.remaining <= 0) yield report(false);
-      const bridge = evaluate(a.values.map((v, i) => v + (b.values[i] - v) * fraction));
+      const bridge = yield* evaluate(a.values.map((v, i) => v + (b.values[i] - v) * fraction));
       if (!bridge?.won || topology(bridge) !== topology(a)) return;
       chain.push(bridge);
     }
     chain.push(b);
     for (let i = 1; i < chain.length; i++) join(chain[i - 1], chain[i]);
   }
-  const centre = evaluate(parameters.map(() => 0.5));
+  const centre = yield* evaluate(parameters.map(() => 0.5));
   if (centre && parameters.length)
     add(
       parameters.map(() => 0),
@@ -552,7 +609,7 @@ export function* searchSolutions(
       if (quota && quota.remaining <= 0) yield report(false);
       const point = seed.slice();
       point[i] = endpoint;
-      const neighbor = evaluate(point);
+      const neighbor = yield* evaluate(point);
       if (initial.won && neighbor?.won) {
         yield* connect(initial, neighbor);
       }
@@ -560,9 +617,65 @@ export function* searchSolutions(
     yield report(false);
   }
   let iteration = 0;
+  // Low-discrepancy global probes + deterministic multi-start pattern search.
+  // Every dimension is perturbed together periodically; no failed cell is discarded.
+  const elite: SearchSample[] = [...cache.values()].sort((a, b) => b.score - a.score).slice(0, 12);
+  const primes: number[] = [];
+  for (let n = 2; primes.length < parameters.length; n++)
+    if (primes.every((p) => p * p > n || n % p !== 0)) primes.push(n);
+  const radical = (index: number, base: number) => {
+    let value = 0,
+      f = 1 / base;
+    while (index) {
+      value += (index % base) * f;
+      index = Math.floor(index / base);
+      f /= base;
+    }
+    return value;
+  };
+  let probes = 0;
   while (evaluated < budget && iteration < budget * 4) {
     if (quota && quota.remaining <= 0) yield report(false);
-    const heap = iteration++ % 4 === 0 ? best : broad;
+    iteration++;
+    if (parameters.length && iteration % 4 !== 0) {
+      const at = probes++,
+        leader = elite[Math.floor(at / (parameters.length * 2)) % Math.max(1, elite.length)];
+      const point =
+        at % 5 === 0 || !leader
+          ? parameters.map((_, i) => radical(Math.floor(at / 5) + 1, primes[i]))
+          : leader.values.map((v, i) =>
+              i === Math.floor(at / 2) % parameters.length
+                ? Math.max(
+                    0,
+                    Math.min(
+                      1,
+                      v +
+                        (at % 2 ? 1 : -1) *
+                          [0.16, 0.06, 0.02, 0.006][Math.floor(at / (parameters.length * 2)) % 4],
+                    ),
+                  )
+                : v,
+            );
+      const sample = yield* evaluate(point);
+      if (sample) {
+        elite.push(sample);
+        elite.sort((a, b) => b.score - a.score);
+        elite.splice(12);
+        if (sample.won) {
+          const nearest = successes
+            .filter((s) => s !== sample && topology(s) === topology(sample))
+            .sort(
+              (a, b) =>
+                a.values.reduce((n, v, i) => n + (v - sample.values[i]) ** 2, 0) -
+                b.values.reduce((n, v, i) => n + (v - sample.values[i]) ** 2, 0),
+            )[0];
+          if (nearest) yield* connect(nearest, sample);
+        }
+      }
+      yield report(false);
+      continue;
+    }
+    const heap = iteration % 16 === 0 ? best : broad;
     let cell = heap.pop();
     while (cell && !cell.active) cell = heap.pop();
     if (!cell) break;
@@ -578,7 +691,7 @@ export function* searchSolutions(
       else lo[dimension] = middle;
       if (quota && quota.remaining <= 0) yield report(false);
       const point = hi.map((v, i) => (v + lo[i]) / 2),
-        sample = evaluate(point);
+        sample = yield* evaluate(point);
       if (!sample) break;
       if (sample.won && cell.sample.won) {
         yield* connect(cell.sample, sample);

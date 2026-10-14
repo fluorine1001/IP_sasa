@@ -47,6 +47,7 @@ export function expressionBuilder(e: Expression, path: string, stage: Stage): st
         ? select(path, 'targetId', e.targetId, [
             ['', '고정 공간 기준'],
             ['$target', '현재 집합의 기준 대상'],
+            ['origin', '고정 좌표 · 우주 기준'],
             ...stage.bodies.map((b) => [b.id, b.name] as [string, string]),
             ...stage.objects.map((o) => [o.id, o.name] as [string, string]),
           ])

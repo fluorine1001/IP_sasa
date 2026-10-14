@@ -2,6 +2,13 @@ import { referencePosition } from '../world/actor-reference';
 import { escape } from '../app/core';
 import { metrics } from '../world/metrics';
 import type { Stage, Goal } from '../world/types';
+import { markerGuide } from './marker-guide';
+export function markerInspector(stage: Stage, goal: Goal) {
+  return (
+    (goal.marker?.managed !== false && goal.marker ? markerGuide(goal.marker.kind) : '') +
+    markerFields(stage, goal).replace(/<h3>판정 오브젝트<\/h3><p>[^<]*<\/p>/, '')
+  );
+}
 export function markerAxis(stage: Stage, goal: Goal, name = goal.marker?.metric ?? 'speed') {
   const b =
     stage.bodies.find((b) => b.id === goal.marker?.referenceId) ??
@@ -12,11 +19,11 @@ export function markerAxis(stage: Stage, goal: Goal, name = goal.marker?.metric 
   const u = metrics[name]?.unit;
   const scale =
     u === 'u'
-      ? Math.max(b.radius * 4, goal.marker?.radius ?? 1)
+      ? Math.max((b?.radius ?? 0.6) * 4, goal.marker?.radius ?? 1)
       : u === 'u/t'
-        ? Math.sqrt(b.mu / b.radius) * 2
+        ? Math.sqrt((b?.mu ?? 1) / (b?.radius ?? 1)) * 2
         : u === 'u²/t²'
-          ? (b.mu / b.radius) * 2
+          ? ((b?.mu ?? 1) / (b?.radius ?? 1)) * 2
           : u === 'rad'
             ? Math.PI
             : u === '게임 열 단위'
@@ -37,7 +44,7 @@ export function markerAxis(stage: Stage, goal: Goal, name = goal.marker?.metric 
     max: scale,
   };
 }
-export function markerInspector(stage: Stage, goal: Goal) {
+function markerFields(stage: Stage, goal: Goal) {
   const m = goal.marker;
   if (!m) return '';
   if (m.managed === false)
@@ -56,6 +63,9 @@ export function markerInspector(stage: Stage, goal: Goal) {
       Math.max(0, Math.min(100, ((value - axis.min) / (axis.max - axis.min)) * 100));
   return `<section class="marker-inspector"><h3>판정 오브젝트</h3><p>${{ area: '원의 테두리 안쪽이 실제 판정 영역입니다.', orbit: '허용 띠·궤도 형태·긴 반경을 실제 한 바퀴 동안 판정합니다.', velocity: '화살표의 속도 벡터와 끝의 허용 원을 판정합니다.', surface: '원 안의 접촉 지점·기체의 안전 착륙 속력·지도에 그린 자세 부채꼴을 판정합니다.', state: '아래 표시 구간이 실제 물리량 허용 구간입니다.', passage: '바깥 원 접근 → 최근접 띠 → 바깥 원 이탈. 관측한 전후 변화가 아래 허용 범위에 들어야 합니다.' }[m.kind]}</p><label>따라갈 기준 대상<select data-marker-target>${[
     ...stage.bodies,
+    ...(['area', 'velocity', 'state'].includes(m.kind)
+      ? [{ id: 'origin', name: '고정 좌표 · 천체를 따라가지 않음' }]
+      : []),
     ...[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].map((p) => ({
       id: p.id,
       name: p.name + ' (분리 후)',

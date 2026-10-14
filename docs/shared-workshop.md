@@ -15,7 +15,7 @@ npm run workshop
 
 이 명령은 게임과 제작소를 dist-workshop에 빌드하고 http://127.0.0.1:5180/ 와 http://127.0.0.1:5180/editor.html을 제공합니다. 게임은 공개 목록만 읽고 제작소는 별도 저장 API를 사용합니다. 서버를 끄면 공유 서비스도 종료됩니다. 게임의 일반 오프라인 실행과는 별개입니다.
 
-LAN 공유는 서버 관리자가 24자 이상의 비공개 편집 키를 환경변수 STAGE_EDITOR_TOKEN으로 설정한 뒤 `npm run workshop:lan`을 실행합니다. 키를 소스·JSON·스크린샷·Git에 넣지 마세요. 원격 제작자는 서버의 /editor.html에서 편집 키를 입력합니다. 키는 탭 메모리에만 두고 저장하지 않습니다. 인터넷 공개는 HTTPS 역방향 프록시, 방화벽, 접근 관리가 별도로 필요합니다. 현재 구현은 특정 외부 서버에 배포된 것이 아닙니다.
+LAN 공유는 서버 관리자가 24자 이상의 비공개 편집 키를 환경변수 STAGE_EDITOR_TOKEN으로 설정한 뒤 `npm run workshop:lan`을 실행합니다. 키를 소스·JSON·스크린샷·Git에 넣지 마세요. 원격 제작자는 서버의 /editor.html에서 편집 키를 입력합니다. 키는 탭 메모리에만 두고 저장하지 않습니다. 인터넷 공개는 HTTPS 역방향 프록시, 방화벽, 접근 관리가 별도로 필요합니다. 현재 무료 운영 주소는 게임 `https://ip-sasa-workshop.onrender.com/`, 제작소 `https://ip-sasa-workshop.onrender.com/editor.html`입니다. 서비스는 `codex/free-workshop-deployment` 브랜치의 Render Free + Neon Free로 운영합니다.
 
 다른 clone의 게임도 같은 목록을 사용하려면 `src/stages/server-config.json`의 url에 관리자가 제공한 서버 주소를 넣고 빌드해 공유합니다. 제작소 보관함에서 연결한 주소는 해당 브라우저의 로컬 설정에도 저장됩니다. 공개 GET /api/stages는 다른 로컬·파일판의 읽기를 허용합니다. 지정한 서버에 연결할 수 없으면 빌드에 포함된 스테이지로 돌아갑니다. 임무·튜토리얼 목록을 다시 열 때 최신 공개 목록을 가져와 추가·수정·삭제를 반영합니다. 이미 진행 중인 임무의 환경은 바꾸지 않습니다.
 

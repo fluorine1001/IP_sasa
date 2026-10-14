@@ -11,6 +11,8 @@ test.beforeAll(async () => {
 });
 
 test('단일 HTML은 서버·네트워크 없이 플레이·예약·비행·다시보기를 실행한다', async ({ page }) => {
+  // Explicit offline mode; the default team URL may optionally refresh public stages.
+  await page.addInitScript(() => localStorage.setItem('orbit-stage-server-v1', JSON.stringify('')));
   const requests: string[] = [],
     errors: string[] = [];
   page.on('request', (request) => {

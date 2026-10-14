@@ -13,6 +13,21 @@ export default defineConfig({
     baseURL,
     browserName: 'chromium',
     viewport: { width: 1440, height: 1000 },
+    // Never read or mutate the real team catalog in automated development tests.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: baseURL,
+          localStorage: [
+            {
+              name: 'orbit-stage-server-v1',
+              value: JSON.stringify(baseURL),
+            },
+          ],
+        },
+      ],
+    },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

@@ -17,7 +17,7 @@ export function stageLibrary(
   const revisions = new Map<string, string>();
   root.insertAdjacentHTML(
     'beforeend',
-    `<dialog id="stage-library" class="workshop-dialog panel"><header><h2>스테이지 보관함</h2><button data-library-close aria-label="보관함 닫기">×</button></header><div class="library-connect"><label>공유 서버 주소<input id="library-server" type="url" placeholder="빈칸: 이 컴퓨터" value="${escape(base)}"></label><label>편집 키<input id="library-key" type="password" autocomplete="off"></label><button id="library-refresh">연결 / 새로고침</button></div><p id="library-status"></p><div id="library-list"></div><small>초안·공개 상태를 함께 관리합니다. 저장·삭제 전 최신 버전을 비교합니다. 삭제본과 이전 버전은 서버의 .stage-workshop 폴더에 보관됩니다.</small></dialog>`,
+    `<dialog id="stage-library" class="workshop-dialog panel"><header><h2>스테이지 보관함</h2><button data-library-close aria-label="보관함 닫기">×</button></header><div class="library-connect"><label>공유 서버 주소<input id="library-server" type="url" placeholder="빈칸: 이 컴퓨터" value="${escape(base)}"></label><label>편집 키<input id="library-key" type="password" autocomplete="off"></label><button id="library-refresh">연결 / 새로고침</button></div><p id="library-status"></p><div id="library-list"></div><small>초안·공개 상태를 함께 관리합니다. 저장·삭제 전 최신 버전을 비교합니다. 삭제본과 이전 버전은 서버에 보존하며 관리자가 복구할 수 있습니다.</small></dialog>`,
   );
   const dialog = root.querySelector<HTMLDialogElement>('#stage-library')!;
   root.querySelector<HTMLInputElement>('#library-key')!.value = key;
@@ -93,7 +93,7 @@ export function stageLibrary(
             headers: { 'If-Match': entry.revision },
           });
           revisions.delete(entry.stage.id);
-          message('서버 스테이지를 내렸습니다. .stage-workshop/trash에서 복구할 수 있습니다.');
+          message('서버 스테이지를 내렸습니다. 삭제본은 보존되며 관리자가 복구할 수 있습니다.');
           await refresh();
         } catch (error) {
           message(String(error));

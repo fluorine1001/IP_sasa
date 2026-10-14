@@ -4,7 +4,7 @@
 
 ## 새 개발자: 실행부터
 
-GitHub Desktop으로 [IP_sasa](https://github.com/fluorine1001/IP_sasa)를 자신의 폴더에 clone합니다. 현재 팀 기준 브랜치 `codex/game-workshop`에서 개인 브랜치를 만듭니다. Windows에서는 Node.js 24 이상을 한 번 설치한 뒤 다음 파일을 더블클릭합니다.
+GitHub Desktop으로 [IP_sasa](https://github.com/fluorine1001/IP_sasa)를 자신의 폴더에 clone합니다. 현재 팀 기준 브랜치 `codex/game-workshop`에서 개인 브랜치를 만듭니다. 무료 공유 제작소 배포본은 `codex/free-workshop-deployment` 브랜치에서 관리합니다. Windows에서는 Node.js 24 이상을 한 번 설치한 뒤 다음 파일을 더블클릭합니다.
 
 - **`play.cmd`**: 처음에는 의존성을 자동 설치하고 게임을 빌드해 엽니다. 이후에는 변경이 있을 때만 다시 빌드합니다. 플레이 중에는 로컬 서버나 명령 창을 유지할 필요가 없습니다.
 - **`editor.cmd`**: 개발 서버와 제작 에디터를 자동으로 엽니다. 다른 프로그램이 5173을 쓰면 다음 빈 포트를 선택합니다. 파일 저장을 위해 명령 창을 유지하고, 끝낼 때 Ctrl+C로 종료합니다.
@@ -22,6 +22,10 @@ npm run dev
 게임: http://127.0.0.1:5173/
 
 독립 에디터: http://127.0.0.1:5173/editor.html
+
+공개 게임: https://ip-sasa-workshop.onrender.com/
+
+공개 제작소: https://ip-sasa-workshop.onrender.com/editor.html
 
 `editor.cmd`는 로컬 제작소를 엽니다. 팀 공유는 `npm run workshop` 또는 편집 키를 설정한 `npm run workshop:lan`으로 독립 게임·제작소·저장 API 서버를 실행합니다. [공유 서버 안내](docs/shared-workshop.md), [무료 인터넷 호스팅·이전 안내](docs/free-hosting.md)를 참고하세요. 일반 `dist/` 게임 배포에는 제작 도구·검증 계획이 없습니다. 현재 데스크톱 브라우저 게임이며 Steam용 네이티브 패키징은 별도 작업입니다.
 

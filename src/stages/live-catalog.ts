@@ -8,15 +8,22 @@ export async function liveCatalog(
   signal?: AbortSignal,
   track: 'campaign' | 'tutorial' = 'campaign',
 ): Promise<Stage[]> {
+  const request = new AbortController();
+  const stop = () => request.abort();
+  const timeout = setTimeout(stop, 6000);
+  signal?.addEventListener('abort', stop, { once: true });
+  if (signal?.aborted) stop();
   try {
     let base = readSaved<string>('orbit-stage-server-v1', serverConfig.url);
     if (location.protocol === 'file:' && !base) return fallback;
     if (!base) {
-      const config = await fetch('/stage-server.json', { signal }).catch(() => undefined);
+      const config = await fetch('/stage-server.json', { signal: request.signal }).catch(
+        () => undefined,
+      );
       if (config?.ok) base = (await config.json()).url ?? '';
     }
     const response = await fetch(base.replace(/\/$/, '') + '/api/stages', {
-      signal,
+      signal: request.signal,
       cache: 'no-store',
     });
     if (!response.ok) return fallback;
@@ -26,5 +33,8 @@ export async function liveCatalog(
       .filter((stage: Stage) => (stage.track ?? 'campaign') === track && stage.published !== false);
   } catch {
     return fallback;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', stop);
   }
 }

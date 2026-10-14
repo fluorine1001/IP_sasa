@@ -1,6 +1,6 @@
 # 무료 공유 서버 · 유료 서버로 이전 가능한 구성
 
-실행 서버: Render Free Node. 영구 저장: Neon Free PostgreSQL. 사용자 승인 없이 유료 요금제·결제 수단·유료 디스크를 추가하지 않습니다. 앱 API는 파일/DB 저장을 같은 StageStorage 계약으로 다룹니다. 외부 주소의 실제 배포는 계정 가입·로그인·약관 동의를 운영자가 완료한 뒤 가능합니다.
+실행 서버: Render Free Node. 영구 저장: Neon Free PostgreSQL. 사용자 승인 없이 유료 요금제·결제 수단·유료 디스크를 추가하지 않습니다. 앱 API는 파일/DB 저장을 같은 StageStorage 계약으로 다룹니다. 현재 운영 주소는 게임 `https://ip-sasa-workshop.onrender.com/`, 제작소 `https://ip-sasa-workshop.onrender.com/editor.html`이며, 배포 브랜치는 `codex/free-workshop-deployment`입니다.
 
 ## 처음 설치
 
@@ -10,7 +10,7 @@
 4. Render의 비밀 환경 변수 DATABASE_URL에 연결 주소를 직접 넣습니다. STAGE_EDITOR_TOKEN은 플랫폼에서 생성하고 제작자에게만 안전하게 전달합니다. 플레이어는 키가 필요 없습니다.
 5. 첫 부팅은 저장소의 스테이지를 DB에 한 번만 넣습니다. 재시작 때 수정본을 덮어쓰거나 삭제한 스테이지를 되살리지 않습니다. DB가 빠져 있으면 임시 파일 저장으로 실행하지 않고 기동을 거절합니다.
 6. 배포 주소의 /healthz, /api/stages, /editor.html을 확인합니다. 공개 JSON에는 referencePlans·변형 연구 데이터·편집 키가 없어야 합니다.
-7. 다른 clone의 보관함에 배포 주소를 넣습니다. 제작자는 편집 키를 입력하고 새 스테이지 생성·공개·수정·비공개·삭제를 왕복 검사합니다. 오래된 revision의 수정은 409이어야 합니다.
+7. 다른 clone의 보관함에 배포 주소를 넣습니다. 제작자는 편집 키를 입력하고 새 스테이지 생성·공개·수정·비공개·삭제를 왕복 검사합니다. 오래된 revision의 수정은 409이어야 합니다. 이번 운영 점검에서는 기존 공개 9개를 보존한 채 별도 임시 초안을 생성·수정·삭제했고, 삭제 뒤 공개 목록이 다시 9개인지 확인했습니다.
 
 Render 무료 서버는 15분 비활동 후 잠들고 재접속에 약 1분이 걸릴 수 있습니다. 로컬 파일 변경은 재시작 때 사라집니다. Render 자체 무료 DB는 30일 만료되므로 사용하지 않습니다. [공식 제한](https://render.com/docs/free)
 

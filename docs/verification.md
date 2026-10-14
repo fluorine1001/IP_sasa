@@ -10,7 +10,7 @@ PGlite의 실제 PostgreSQL 엔진에서 트랜잭션·동시 revision 충돌·�
 
 최신 전체 Chromium **54/54 통과 (7.3분, 정상 exit 0)**. 390/1440px 안내/편집 적층·목표 폼 단위와 전체 AST 왕복·고급 추가 조건 재확인·손상된 임시 초안 원본 보존·전체화면·배속 유지·실제 편집/비행/재생/비교를 확인했습니다. 이전 실행에서 Windows 실행기가 최신 설치를 다시 npm ci로 지우면서 테스트 작업자가 중단되는 것을 확인해 설치 잠금 트리 비교를 추가했습니다. 직접 npm ci로 복원 후 첫 실행도 재설치하지 않는 것을 확인했습니다. E2E_PORT=5190의 별도 서버 재사용으로 테스트 소유 서버의 종료 대기도 피했습니다.
 
-Render Free/Neon Free를 준비하고 사용자가 비밀 환경 변수 두 개를 플랫폼에 직접 입력했습니다. 값은 대화·Git·프런트엔드에 넣지 않습니다. 사용자가 승인한 개인 브랜치 codex/free-workshop-deployment를 commit/push했습니다(6d8ddfa). Render에서 해당 커밋이 Live 상태이고 `https://ip-sasa-workshop.onrender.com/healthz`가 PostgreSQL 저장소를 보고하며, 공개 API는 9개를 반환하고 무키 편집 API는 403임을 확인했습니다. 실제 편집소에서 기존 공개본을 건드리지 않는 임시 초안의 생성·수정·삭제와 원래 초안 복원을 확인했습니다. 원격 main·hello.py·생성물은 제외했습니다. 초심자 플레이·긴 상호 중력 검색 성능·실제 DB 백업 복원의 남은 기준은 [구현 현황](remaining-work.md)에 있습니다.
+Render Free/Neon Free를 준비하고 사용자가 비밀 환경 변수 두 개를 플랫폼에 직접 입력했습니다. 값은 대화·Git·프런트엔드에 넣지 않습니다. 사용자가 승인한 개인 브랜치 codex/free-workshop-deployment를 commit/push했습니다(6d8ddfa). 후속 커밋 `fc474f6`까지 Render에 반영되어 Live 상태이고 `https://ip-sasa-workshop.onrender.com/healthz`가 PostgreSQL 저장소를 보고하며, 공개 API는 9개를 반환하고 무키 편집 API는 403임을 확인했습니다. 실제 편집소에서 기존 공개본을 건드리지 않는 임시 초안의 생성·수정·삭제와 원래 초안 복원을 확인했습니다. 원격 main·hello.py·생성물은 제외했습니다. 초심자 플레이·긴 상호 중력 검색 성능·실제 DB 백업 복원의 남은 기준은 [구현 현황](remaining-work.md)에 있습니다.
 
 ## 2026-10-14 · 전체 유효해 조사·공유 제작소·마감 인계
 

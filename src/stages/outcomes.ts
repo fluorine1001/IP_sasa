@@ -31,7 +31,8 @@ export type Outcome = (
     }
   | { kind: 'rendezvous'; targetId: string; max: number; speed: number; duration: number }
   | { kind: 'escape'; targetId: string; min: number; duration: number }
-  | { kind: 'recovery'; targetId: string; speed: number; duration: number }
+  | { kind: 'recovery'; targetId: string; speed: number; duration: number; tilt?: number }
+  | { kind: 'flyby'; targetId: string; referenceId: string; min: number; max: number; gain: number }
 ) & { actorId?: string };
 const constant = (value: number): Expression => ({ kind: 'constant', value });
 const metric = (metric: string, targetId: string): Expression => ({
@@ -47,7 +48,7 @@ const compare = (left: Expression, operator: 'gte' | 'lte' | 'gt', value: number
 });
 const all = (children: Condition[]): Condition => ({ kind: 'all', children });
 /** A visible outcome compiles to the same public condition language. No runtime mission branches. */
-export function compileOutcome(
+function compileOutcomeCondition(
   stage: Stage,
   outcome: Outcome,
 ): Pick<Goal, 'condition' | 'display'> {
@@ -56,7 +57,12 @@ export function compileOutcome(
     stage.objects.find((o) => o.id === outcome.targetId);
   if (!target) throw Error('이 장면에 있는 대상을 선택하세요.');
   const actorId = outcome.actorId ?? 'craft';
-  if (actorId !== 'craft' && !stage.rocket?.parts.some((part) => part.id === actorId))
+  if (
+    actorId !== 'craft' &&
+    ![...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].some(
+      (part) => part.id === actorId,
+    )
+  )
     throw Error('이 로켓의 본체 또는 분리체를 선택하세요.');
   const metric = (name: string, targetId: string): Expression => ({
     kind: 'metric',
@@ -85,18 +91,103 @@ export function compileOutcome(
     child,
   });
   if (outcome.kind === 'recovery') {
-    if (!('mu' in target) || !['planet', 'moon'].includes(target.kind))
+    const site = 'surface' in target && target.surface ? target : undefined;
+    const body = site
+      ? stage.bodies.find((b) => b.id === site.surface!.bodyId)
+      : 'mu' in target
+        ? target
+        : undefined;
+    if (!body || !['planet', 'moon'].includes(body.kind))
       throw Error('회수할 행성 또는 달을 선택하세요.');
     if (!Number.isFinite(outcome.speed) || outcome.speed <= 0)
       throw Error('회수 속력에 실제 허용 여유가 필요합니다.');
     return {
       condition: hold(
         all([
-          compare(metric('landed', target.id), 'gte', 1),
+          compare(metric('landed', body.id), 'gte', 1),
           compare(metric('touchdownSpeed', ''), 'lte', outcome.speed),
+          ...(site ? [compare(metric('distance', site.id), 'lte', site.radius)] : []),
+          ...(outcome.tilt !== undefined
+            ? [compare(metric('touchdownTilt', ''), 'lte', outcome.tilt)]
+            : []),
         ]),
       ),
-      display: { targetId: target.id, min: target.radius, max: target.radius },
+      display: site
+        ? { targetId: site.id, min: 0, max: site.radius }
+        : { targetId: body.id, min: body.radius, max: body.radius },
+    };
+  }
+  if (outcome.kind === 'flyby') {
+    if (
+      !('mu' in target) ||
+      outcome.min <= target.radius ||
+      !stage.bodies.some((b) => b.id === outcome.referenceId && b.id !== target.id) ||
+      !Number.isFinite(outcome.gain)
+    )
+      throw Error('최근접 범위는 표면 밖이며 에너지 기준은 다른 천체여야 합니다.');
+    const entry = all([
+      compare(metric('distance', target.id), 'lte', outcome.max * 3),
+      {
+        kind: 'compare',
+        left: metric('radialSpeed', target.id),
+        operator: 'lt',
+        right: constant(0),
+      },
+    ]);
+    const recorded = (key: string): Expression => ({ kind: 'recorded', key });
+    const delta = (name: string, targetId: string, key: string): Expression => ({
+      kind: 'calculate',
+      operation: 'subtract',
+      args: [metric(name, targetId), recorded(key)],
+    });
+    const closest: Expression = {
+      kind: 'window',
+      operation: 'min',
+      value: metric('distance', target.id),
+      domain: metric('time', ''),
+      width: constant(stage.audit.timeLimit ?? stage.rules.maxTime),
+    };
+    return {
+      condition: {
+        kind: 'sequence',
+        children: [
+          all([
+            {
+              kind: 'capture',
+              key: 'flyby_energy',
+              value: metric('energy', outcome.referenceId),
+              when: entry,
+            },
+            {
+              kind: 'capture',
+              key: 'flyby_fuel',
+              value: metric('propellantUsed', ''),
+              when: entry,
+            },
+            { kind: 'capture', key: 'flyby_push', value: metric('thrustUsed', ''), when: entry },
+          ]),
+          all([
+            compare(closest, 'gte', outcome.min),
+            compare(closest, 'lte', outcome.max),
+            compare(metric('distance', target.id), 'gte', outcome.max * 3),
+            compare(metric('radialSpeed', target.id), 'gt', 0),
+            compare(delta('energy', outcome.referenceId, 'flyby_energy'), 'gte', outcome.gain),
+            {
+              kind: 'compare',
+              left: delta('propellantUsed', '', 'flyby_fuel'),
+              operator: 'eq',
+              right: constant(0),
+            },
+            {
+              kind: 'compare',
+              left: delta('thrustUsed', '', 'flyby_push'),
+              operator: 'eq',
+              right: constant(0),
+            },
+          ]),
+        ],
+      },
+      display: { targetId: target.id, min: outcome.min, max: outcome.max },
     };
   }
   if (outcome.kind === 'environment') {
@@ -300,5 +391,14 @@ export function compileOutcome(
       ],
     },
     display: { targetId: target.id, min: outcome.min, max: outcome.max },
+  };
+}
+export function compileOutcome(
+  stage: Stage,
+  outcome: Outcome,
+): Pick<Goal, 'condition' | 'display' | 'outcome'> {
+  return {
+    ...compileOutcomeCondition(stage, outcome),
+    outcome: structuredClone({ ...outcome, actorId: outcome.actorId ?? 'craft' }),
   };
 }

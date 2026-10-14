@@ -6,6 +6,33 @@ import { globalSearch } from '../src/editor/global-search';
 import { parameterPlan, searchParameters } from '../src/editor/solution-search';
 import { commandUsage, planConstraints } from '../src/world/program';
 import { blockerProposals } from '../src/editor/blockers';
+import { physicalPlanKey } from '../src/editor/solution-groups';
+
+it('위성 분리 순서와 서로 다른 위성 대상을 모두 조사하고 경로 키를 섞지 않는다', () => {
+  const s = blankStage();
+  s.rocket!.payloads = ['A', 'B'].map((id) => ({
+    id,
+    name: id,
+    mass: 0.1,
+    area: 0,
+    releaseSpeed: 0.01,
+  }));
+  s.rules.commandLimits = { ignite: 0, stop: 0, turn: 0, separate: 0, push: 0, deploy: 2 };
+  const space = solutionSpace(s),
+    plans = [];
+  for (let next = space.next(); next; next = space.next()) plans.push(next.plan);
+  expect(plans).toHaveLength(5);
+  expect(plans.every((p) => planConstraints(s, p).length === 0)).toBe(true);
+  expect(
+    new Set(
+      plans
+        .filter((p) => p.engineCommands!.length === 2)
+        .map((p) => p.engineCommands!.map((c) => c.releasePayload).join(',')),
+    ),
+  ).toEqual(new Set(['A,B', 'B,A']));
+  const one = plans.filter((p) => p.engineCommands!.length === 1);
+  expect(physicalPlanKey(s, one[0])).not.toBe(physicalPlanKey(s, one[1]));
+});
 
 it('순서·횟수·분리체를 포함한 유한 예약 구성을 중복 없이 전부 열거한다', () => {
   const stage = blankStage();

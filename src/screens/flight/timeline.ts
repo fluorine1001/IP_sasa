@@ -36,6 +36,8 @@ const paths: Record<ProgramEvent['kind'], string> = {
   turn: '<path d="M4 18V9a5 5 0 0 1 5-5h10m-4-3 4 3-4 4M9 18l3 4 3-4"/>',
   separate: '<path d="M9 1h6v6H9zM8 16h8v7H8zM5 10l-3 2 3 2m14-4 3 2-3 2M12 9v5"/>',
   push: '<path d="M3 12h17m-6-6 6 6-6 6M4 6H1m3 12H1"/>',
+  deploy:
+    '<rect x="9" y="8" width="6" height="8"/><path d="M1 7h5v10H1zM18 7h5v10h-5zM6 12h3m6 0h3M12 1v4m-2-2 2 2 2-2"/>',
   sensor: '<circle cx="12" cy="12" r="4"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M5 5l3 3m8 8 3 3"/>',
 };
 export function eventIcon(kind: ProgramEvent['kind']) {
@@ -156,7 +158,7 @@ export function flightTimeline(
             )
             .join('');
         const controls = command
-          ? (command.separate
+          ? (command.separate || command.releasePayload
               ? ''
               : '<label>비행체 <select data-actor="' +
                 e.id +
@@ -231,7 +233,14 @@ export function flightTimeline(
       '<div class="add-command">' +
       timeInput('new', selectedTime) +
       '<div class="add-actions">' +
-      ['ignite', 'stop', 'turn', 'separate', 'push']
+      [
+        'ignite',
+        'stop',
+        'turn',
+        'separate',
+        'push',
+        ...(stage.rocket?.payloads?.length ? ['deploy'] : []),
+      ]
         .map(
           (k) =>
             '<button ' +
@@ -346,11 +355,18 @@ export function flightTimeline(
             id,
             time,
             actorId: 'craft',
-            ...(kind === 'separate'
-              ? { separate: true }
-              : kind === 'turn'
-                ? { direction: heading(stage, 90) }
-                : { throttle: kind === 'stop' ? 0 : 1 }),
+            ...(kind === 'deploy'
+              ? {
+                  releasePayload: stage.rocket!.payloads!.find(
+                    (payload) =>
+                      !(p.engineCommands ?? []).some((c) => c.releasePayload === payload.id),
+                  )!.id,
+                }
+              : kind === 'separate'
+                ? { separate: true }
+                : kind === 'turn'
+                  ? { direction: heading(stage, 90) }
+                  : { throttle: kind === 'stop' ? 0 : 1 }),
           });
         action?.('reserve');
       }
@@ -451,7 +467,9 @@ export function flightTimeline(
           const actor =
             e.actorId === 'craft'
               ? '주 로켓'
-              : (stage.rocket?.parts.find((p) => p.id === e.actorId)?.name ?? e.actorId);
+              : ([...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].find(
+                  (p) => p.id === e.actorId,
+                )?.name ?? e.actorId);
           const combinedDirection = plan.engineCommands?.find(
             (c) => c.id === id && c.throttle !== undefined,
           )?.direction;

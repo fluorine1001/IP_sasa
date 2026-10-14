@@ -7,13 +7,33 @@ import { collectEvidence, emptyEvidence } from './evidence';
 import { beginImpact, advanceImpact } from './impact';
 import { surfaceLaunch, surfaceClearance } from './launch.ts';
 import { dynamicView, advanceBodies } from './dynamics.ts';
-import { poweredStep, separate, controlEngine, rocketMass, drag } from './rocket.ts';
+import {
+  atmosphericState,
+  poweredStep,
+  separate,
+  releasePayload,
+  controlEngine,
+  rocketMass,
+  drag,
+} from './rocket.ts';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
 import { segmentHitsCircle } from '../physics/orbit.ts';
-import { bodyPosition, bodyVelocity, gravity, objectPosition } from './celestial.ts';
-import { freshProgress, updateGoals } from './goals.ts';
+import {
+  bodyPosition,
+  bodyVelocity,
+  gravity,
+  objectPosition,
+  objectVelocity,
+} from './celestial.ts';
+import { freshProgress, updateGoals, objectiveGoals } from './goals.ts';
 import type { Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
 export const WORLD_STEP = 0.01;
+const solidRadius = (object: WorldObject) =>
+  object.kind === 'station'
+    ? (object.physicalRadius ?? 0)
+    : ['debris', 'satellite'].includes(object.kind)
+      ? object.radius
+      : 0;
 export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
   const start = surfaceLaunch(stage) ?? stage.spawn;
   const error =
@@ -45,12 +65,23 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
     observations: [],
     sampled: new Set(),
     goals: Object.fromEntries(stage.goals.map((g) => [g.id, freshProgress()])),
+    goalRoots: objectiveGoals(stage).map((g) => g.id),
     lastTrail: -1,
     plan: structuredClone(plan),
     initialPlan: structuredClone(plan),
     frames: [],
     buoys: [],
     detached: [],
+    objects: stage.objects.some((o) => o.dynamic)
+      ? Object.fromEntries(
+          stage.objects
+            .filter((o) => o.dynamic)
+            .map((o) => [
+              o.id,
+              { position: objectPosition(stage, o, 0), velocity: objectVelocity(stage, o, 0) },
+            ]),
+        )
+      : undefined,
     bodies: stage.bodies.some((b) => b.dynamic)
       ? Object.fromEntries(
           stage.bodies
@@ -180,9 +211,11 @@ export function tick(
     const appliedBefore = run.applied.size;
     for (const command of run.plan.engineCommands ?? [])
       if (command.time <= run.time + 1e-8 && !run.applied.has(command.id)) {
-        const accepted = command.separate
-          ? separate(run, stage)
-          : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
+        const accepted = command.releasePayload
+          ? releasePayload(run, stage, command.releasePayload)
+          : command.separate
+            ? separate(run, stage)
+            : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
         if (!accepted) {
           run.status = 'failed';
           run.reason =
@@ -286,8 +319,13 @@ export function tick(
       }
       if (actor.status === 'crashed') continue;
       const previous = { ...actor.position },
-        damage = poweredStep(run, stage, slice, actor),
-        part = stage.rocket!.parts.find((p) => p.id === actor.id)!;
+        damage = actor.payload ? '' : poweredStep(run, stage, slice, actor),
+        part = actor.payload
+          ? {
+              area: stage.rocket!.payloads!.find((p) => p.id === actor.id)!.area,
+              maxLandingSpeed: 0.05,
+            }
+          : stage.rocket!.parts.find((p) => p.id === actor.id)!;
       [actor.position, actor.velocity] = integrate(
         stage,
         actor.position,
@@ -297,6 +335,13 @@ export function tick(
         actor.dryMass + actor.fuel,
         part.area,
       );
+      if (actor.payload) {
+        const a = atmosphericState(stage, actor.position, actor.velocity, run.time);
+        actor.heat = Math.max(
+          0,
+          actor.heat + (Math.sqrt(a.density) * a.speed ** 3 * part.area * 0.4 - 0.03) * slice,
+        );
+      }
       for (const b of stage.bodies) {
         if (b.kind === 'barycenter') continue;
         const contact = sweepHull(
@@ -323,6 +368,11 @@ export function tick(
             actor.position.x - bodyPosition(stage, b, run.time).x,
           );
           actor.touchdownSpeed = length(sub(actor.velocity, bodyVelocity(stage, b, run.time)));
+          const normal = scale(
+            sub(actor.position, bodyPosition(stage, b, run.time)),
+            1 / Math.max(length(sub(actor.position, bodyPosition(stage, b, run.time))), 1e-9),
+          );
+          actor.touchdownTilt = Math.acos(Math.max(-1, Math.min(1, dot(actor.direction, normal))));
           actor.status =
             ['planet', 'moon'].includes(b.kind) &&
             actor.touchdownSpeed <= (part.maxLandingSpeed ?? 0.18)
@@ -333,6 +383,22 @@ export function tick(
         }
       }
       if (damage || length(actor.position) > stage.rules.worldRadius) actor.status = 'crashed';
+      if (
+        stage.objects.some(
+          (o) =>
+            solidRadius(o) > 0 &&
+            sweepHull(
+              previous,
+              actor.position,
+              actor.direction,
+              hullSize(1, true),
+              objectPosition(stage, o, previousTime),
+              objectPosition(stage, o, run.time),
+              solidRadius(o),
+            ) !== undefined,
+        )
+      )
+        actor.status = 'crashed';
     }
     let collisionBodyId: string | undefined;
     let contactTime = Infinity;
@@ -401,6 +467,11 @@ export function tick(
     if (collisionBodyId) {
       const b = stage.bodies.find((b) => b.id === collisionBodyId)!;
       run.touchdownSpeed = length(sub(run.velocity, bodyVelocity(stage, b, run.time)));
+      const normal = scale(
+        sub(run.position, bodyPosition(stage, b, run.time)),
+        1 / Math.max(length(sub(run.position, bodyPosition(stage, b, run.time))), 1e-9),
+      );
+      run.touchdownTilt = Math.acos(Math.max(-1, Math.min(1, dot(incomingPose, normal))));
     }
     const context = { stage, run, before, beforeActors, dt: slice, previousTime, collisionBodyId };
     updateGoals(context);
@@ -417,8 +488,8 @@ export function tick(
             ...stage.bodies
               .filter((b) => b.motion || b.dynamic)
               .map((b) => [b.id, bodyPosition(stage, b, run.time)]),
-            ...objects
-              .filter((o) => o.motion)
+            ...stage.objects
+              .filter((o) => o.motion || o.dynamic)
               .map((o) => [o.id, objectPosition(stage, o, run.time)]),
           ]),
           time: run.time,
@@ -454,18 +525,23 @@ export function tick(
         if (run.rocket) run.rocket.throttle = 0;
       }
     }
+    const roots = run.goalRoots ?? objectiveGoals(stage).map((g) => g.id);
     const won =
       stage.goalMode === 'all'
-        ? stage.goals.every((g) => run.goals[g.id].complete)
-        : stage.goals.some((g) => run.goals[g.id].complete);
-    const hazard = objects.some(
+        ? roots.length > 0 && roots.every((id) => run.goals[id]?.complete)
+        : roots.some((id) => run.goals[id]?.complete);
+    const hazard = stage.objects.some(
       (o) =>
-        o.kind === 'hazard' &&
-        segmentHitsCircle(
-          sub(before, objectPosition(stage, o, previousTime)),
-          sub(run.position, objectPosition(stage, o, run.time)),
-          o.radius,
-        ),
+        solidRadius(o) > 0 &&
+        sweepHull(
+          before,
+          run.position,
+          incomingPose,
+          craftHull(stage, run),
+          objectPosition(stage, o, previousTime),
+          objectPosition(stage, o, run.time),
+          solidRadius(o),
+        ) !== undefined,
     );
     const safeCompletion = !hazard && (!collisionBodyId || !!run.landed);
     if (won && safeCompletion && !run.probe) {
@@ -499,7 +575,7 @@ export function tick(
       run.impact = beginImpact(run, stage, body, incomingDirection);
     } else if (hazard) {
       run.status = 'failed';
-      run.reason = '위험 구역에 진입했습니다. 다른 접근 방향을 찾아보세요.';
+      run.reason = '위성·정거장·파편에 충돌했습니다.';
     } else if (
       !Number.isFinite(run.position.x) ||
       !Number.isFinite(run.position.y) ||

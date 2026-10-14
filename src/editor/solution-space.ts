@@ -3,8 +3,8 @@ import { planningTimeLimit, commandNames, type CommandKind } from '../world/prog
 import { searchParameters, type SearchTemplate } from './solution-search';
 
 type Action = { kind: CommandKind; actorId: string };
-type State = { counts: number[]; separated: number };
-const kinds: CommandKind[] = ['ignite', 'stop', 'turn', 'separate', 'push'];
+type State = { counts: number[]; separated: number; deployed: bigint };
+const kinds: CommandKind[] = ['ignite', 'stop', 'turn', 'separate', 'push', 'deploy'];
 /** Discrete programs are enumerated, not selected by an author's preferred trajectory.
  * DP counts suffixes; rank/unrank avoids materialising exponentially many programs.
  * Lengths are dovetailed, so a long program is investigated before short ones exhaust. */
@@ -15,14 +15,18 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
   )
     throw Error('탐색 예약 개수는 0~256의 정수로 지정하세요.');
   const supported = stage.rocket
-    ? kinds.slice(0, 4)
+    ? [...kinds.slice(0, 4), ...(stage.rocket.payloads?.length ? ['deploy' as const] : [])]
     : stage.rules.maneuverBudget > 0
       ? ['push']
       : [];
   const limits = kinds.map((kind) => {
     if (!supported.includes(kind)) return 0;
     const n = stage.rules.commandLimits?.[kind] ?? Infinity;
-    return kind === 'separate' ? Math.min(n, stage.rocket?.parts.length ?? 0) : n;
+    return kind === 'separate'
+      ? Math.min(n, stage.rocket?.parts.length ?? 0)
+      : kind === 'deploy'
+        ? Math.min(n, stage.rocket?.payloads?.length ?? 0)
+        : n;
   });
   const allowed = limits.reduce((n, v) => n + v, 0);
   const depth = Math.max(
@@ -39,6 +43,10 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
     ];
     return kinds.flatMap<Action>((kind, i) => {
       if (state.counts[i] >= capped[i]) return [];
+      if (kind === 'deploy')
+        return (stage.rocket?.payloads ?? [])
+          .filter((_, i) => !(state.deployed & (1n << BigInt(i))))
+          .map((p) => ({ kind, actorId: p.id }));
       if (kind === 'separate') return [{ kind, actorId: 'craft' }];
       return (
         kind === 'push'
@@ -52,11 +60,19 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
   function advance(state: State, action: Action): State {
     const counts = state.counts.slice();
     counts[kinds.indexOf(action.kind)]++;
-    return { counts, separated: state.separated + Number(action.kind === 'separate') };
+    return {
+      counts,
+      separated: state.separated + Number(action.kind === 'separate'),
+      deployed:
+        action.kind === 'deploy'
+          ? state.deployed |
+            (1n << BigInt(stage.rocket!.payloads!.findIndex((p) => p.id === action.actorId)))
+          : state.deployed,
+    };
   }
   function count(state: State, remaining: number): bigint {
     if (!remaining) return 1n;
-    const key = `${remaining}:${state.counts.join(',')}`;
+    const key = `${remaining}:${state.counts.join(',')}:${state.deployed}`;
     const cached = memo.get(key);
     if (cached !== undefined) return cached;
     if (memo.size > 100000) {
@@ -71,7 +87,7 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
     memo.set(key, value);
     return value;
   }
-  const empty = (): State => ({ counts: kinds.map(() => 0), separated: 0 });
+  const empty = (): State => ({ counts: kinds.map(() => 0), separated: 0, deployed: 0n });
   const totals: (bigint | undefined)[] = [];
   for (let n = 0; n <= depth; n++) {
     try {
@@ -151,12 +167,14 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
         plan.engineCommands!.push({
           id,
           time,
-          actorId: action.actorId,
-          ...(action.kind === 'separate'
-            ? { separate: true }
-            : action.kind === 'turn'
-              ? { direction: { x: 0, y: 1 } }
-              : { throttle: action.kind === 'ignite' ? 0.5 : 0 }),
+          actorId: action.kind === 'deploy' ? 'craft' : action.actorId,
+          ...(action.kind === 'deploy'
+            ? { releasePayload: action.actorId }
+            : action.kind === 'separate'
+              ? { separate: true }
+              : action.kind === 'turn'
+                ? { direction: { x: 0, y: 1 } }
+                : { throttle: action.kind === 'ignite' ? 0.5 : 0 }),
         });
     });
     return {
@@ -165,7 +183,7 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
         ? actions
             .map(
               (a) =>
-                `${commandNames[a.kind]}${a.actorId === 'craft' ? '' : ` (${stage.rocket?.parts.find((p) => p.id === a.actorId)?.name})`}`,
+                `${commandNames[a.kind]}${a.actorId === 'craft' ? '' : ` (${[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].find((p) => p.id === a.actorId)?.name})`}`,
             )
             .join(' → ')
         : '첫 출력만',

@@ -1,3 +1,4 @@
+import { objectiveGoals } from '../../world/goals';
 import { planConstraints } from '../../world/program';
 import { playbackRates, playbackTempo, savedPlaybackRate, savePlaybackRate } from './playback';
 import { craftCenter } from '../../world/craft-center';
@@ -275,6 +276,8 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     cancelDrag();
     timeline.close();
     replayIndex = index;
+    compareIndex = index;
+    history = trials[index].trail;
     replayCursor = atEnd ? trials[index].duration : 0;
     controlledId = 'craft';
     replayPlaying = !atEnd;
@@ -583,7 +586,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       }
     }
     if (replayIndex >= 0) {
-      el('goals').innerHTML = stage.goals
+      el('goals').innerHTML = objectiveGoals(stage)
         .map(
           (g) =>
             '<div class="goal-row"><span>' +
@@ -1054,20 +1057,11 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         run: visibleRun,
         replay: replayIndex >= 0,
         reducedMotion: app.settings.reducedMotion,
-        history:
-          replayIndex >= 0
-            ? trials[replayIndex].trail.filter((p) => p.time <= replayCursor)
-            : history,
-        selectedHistory: compareIndex >= 0 && replayIndex < 0,
+        history: replayIndex >= 0 ? trials[replayIndex].trail : history,
+        selectedHistory: compareIndex >= 0,
         historyLabel: compareIndex >= 0 ? `${trials[compareIndex].number}차` : '최근 기록',
-        historyLabels: trials
-          .filter((_, i) => i !== compareIndex)
-          .slice(-5)
-          .map((t) => `${t.number}차`),
-        histories: (replayIndex >= 0 ? [] : trials)
-          .filter((_, i) => i !== compareIndex)
-          .slice(-5)
-          .map((x) => x.trail),
+        historyLabels: trials.filter((_, i) => i !== compareIndex).map((t) => `${t.number}차`),
+        histories: trials.filter((_, i) => i !== compareIndex).map((x) => x.trail),
         replayTime: replayIndex >= 0 ? undefined : trials.length ? replayTime : undefined,
         plan: visibleRun || replayIndex >= 0 ? undefined : plan,
         grid: app.settings.grid,

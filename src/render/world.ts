@@ -1,5 +1,6 @@
 import { paintRocket } from './rocket-sprite';
 import { paintGoalRegion } from './goal-region';
+import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
 import { hullSize } from '../world/hull';
 import { impactDirection } from '../world/impact';
@@ -80,6 +81,10 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.stroke();
   }
   for (const g of s.stage.goals) {
+    if (g.marker && g.marker.managed !== false) {
+      paintMarker(ctx, s.stage, g, c, w, h, t, !!s.selected?.has(g.id), !!s.grid, s.run);
+      continue;
+    }
     if (!g.display) continue;
     const body = s.stage.bodies.find((b) => b.id === g.display!.targetId),
       object = s.stage.objects.find((o) => o.id === g.display!.targetId),
@@ -114,6 +119,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.setLineDash([]);
   };
   for (const [i, trail] of (s.histories ?? []).entries()) {
+    if (!trail.length) continue;
     if (s.trails !== false)
       path(
         [
@@ -165,7 +171,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         s.stage.rocket ? s.history[0].position : s.stage.spawn.position,
         ...s.history.map((v) => v.position),
       ],
-      s.selectedHistory ? '#83d8ff' : '#aab8ae80',
+      s.selectedHistory ? '#83d8ff' : '#aab8ae55',
       true,
     );
   if (s.run && s.trails !== false && (!s.selectedHistory || s.run.status === 'running' || s.replay))
@@ -297,25 +303,43 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.strokeStyle = s.selected?.has(o.id) ? '#ffcf73' : '#091823';
     ctx.lineWidth = 4;
     ctx.fillStyle = o.kind === 'hazard' ? '#c16b66' : o.kind === 'station' ? '#ddd8bf' : '#83c6bf';
-    if (o.kind === 'gate') {
-      ctx.rotate(-o.angle);
-      ctx.fillRect(-5, -r, 10, 10);
-      ctx.fillRect(-5, r - 10, 10, 10);
-      ctx.strokeStyle = '#e7cf85';
-      ctx.setLineDash([4, 4]);
+    if (['sensor', 'gate', 'hazard'].includes(o.kind)) {
+      // Measurement geometry is a diagram overlay, never a physical wall or gate.
+      ctx.strokeStyle = '#83c6bf66';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 7]);
       ctx.beginPath();
-      ctx.moveTo(0, -r);
-      ctx.lineTo(0, r);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.stroke();
-    } else {
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#83c6bf';
+      ctx.fillRect(-2, -2, 4, 4);
+    } else if (o.kind === 'landing-site') {
+      ctx.rotate(-Math.atan2(o.position.y, o.position.x));
+      ctx.strokeStyle = '#efc370';
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.rect(-r, -r, 2 * r, 2 * r);
+      ctx.moveTo(-4, -r);
+      ctx.lineTo(-4, r);
+      ctx.stroke();
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#efc370';
+      ctx.fillText('회수', 8, 0);
+    } else if (o.kind === 'debris') {
+      const size = o.radius * c.zoom;
+      ctx.fillStyle = '#898f8e';
+      ctx.beginPath();
+      ctx.arc(0, 0, size, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = '#263b47';
-      ctx.fillRect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
-      ctx.fillStyle = '#dfce85';
-      ctx.fillRect(-3, -3, 6, 6);
+    } else {
+      const size =
+        ((o.kind === 'station' ? (o.physicalRadius ?? 0.03) : o.radius) * c.zoom) / Math.sqrt(2);
+      ctx.fillStyle = '#ddd8bf';
+      ctx.fillRect(-size, -size, size * 2, size * 2);
+      ctx.fillStyle = '#6599c2';
+      ctx.fillRect(-size, -size * 0.8, size * 0.6, size * 1.6);
+      ctx.fillRect(size * 0.4, -size * 0.8, size * 0.6, size * 1.6);
     }
     ctx.restore();
   }
@@ -373,15 +397,40 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   };
   for (const actor of s.run?.detached ?? []) {
     if (actor.status === 'crashed') continue;
-    sprite(
-      actor.position,
-      actor.direction,
-      1,
-      actor.status === 'flying' && actor.fuel > 0 ? actor.throttle : 0,
-      actor.id === s.controlledId,
-      true,
-      s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
-    );
+    if (actor.payload) {
+      const p = screen(actor.position),
+        hull = hullSize(1, true);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(-Math.atan2(actor.direction.y, actor.direction.x));
+      ctx.fillStyle = '#78b5d1';
+      ctx.beginPath();
+      ctx.roundRect(
+        0,
+        -hull.radius * c.zoom,
+        hull.length * c.zoom,
+        2 * hull.radius * c.zoom,
+        hull.radius * c.zoom,
+      );
+      ctx.fill();
+      ctx.fillStyle = '#eee1b9';
+      ctx.fillRect(
+        hull.length * c.zoom * 0.4,
+        -hull.radius * c.zoom * 0.7,
+        hull.length * c.zoom * 0.2,
+        hull.radius * c.zoom * 1.4,
+      );
+      ctx.restore();
+    } else
+      sprite(
+        actor.position,
+        actor.direction,
+        1,
+        actor.status === 'flying' && actor.fuel > 0 ? actor.throttle : 0,
+        actor.id === s.controlledId,
+        true,
+        s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
+      );
     const p = screen(actor.position);
     ctx.fillStyle = '#baceb5';
     ctx.font = '11px sans-serif';

@@ -1,4 +1,4 @@
-import { bodyPosition, bodyVelocity } from './celestial.ts';
+import { bodyPosition, surfaceVelocity } from './celestial.ts';
 import type { Stage } from './types.ts';
 export const PAD_CLEARANCE = 0.005;
 export const surfaceClearance = (stage: Stage) => stage.rules.surfaceClearance ?? PAD_CLEARANCE;
@@ -9,7 +9,7 @@ export function surfaceLaunch(stage: Stage, time = 0) {
   );
   if (!body) return undefined;
   const center = bodyPosition(stage, body, time),
-    angle = stage.launchAngle ?? 0,
+    angle = (stage.launchAngle ?? 0) + (body.spin ?? 0) * time,
     normal = { x: Math.cos(angle), y: Math.sin(angle) };
   return {
     body,
@@ -19,7 +19,15 @@ export function surfaceLaunch(stage: Stage, time = 0) {
       x: center.x + normal.x * (body.radius + surfaceClearance(stage)),
       y: center.y + normal.y * (body.radius + surfaceClearance(stage)),
     },
-    velocity: bodyVelocity(stage, body, time),
+    velocity: surfaceVelocity(
+      stage,
+      body,
+      {
+        x: center.x + normal.x * (body.radius + surfaceClearance(stage)),
+        y: center.y + normal.y * (body.radius + surfaceClearance(stage)),
+      },
+      time,
+    ),
   };
 }
 export function syncLaunch(stage: Stage) {

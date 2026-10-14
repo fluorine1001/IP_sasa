@@ -13,6 +13,14 @@ const canonical = (value: unknown): string =>
   );
 /** Inverse only for an exact compiler shape. Never discard a user's extra clauses. */
 export function readOutcome(stage: Stage, goal: Goal): Outcome | undefined {
+  if (goal.outcome) {
+    try {
+      if (canonical(compileOutcome(stage, goal.outcome).condition) === canonical(goal.condition))
+        return structuredClone(goal.outcome);
+    } catch {
+      /* stale recipe */
+    }
+  }
   const nodes: (Condition | Expression)[] = [];
   function visit(node: Condition | Expression) {
     nodes.push(node);

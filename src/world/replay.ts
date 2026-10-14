@@ -13,11 +13,14 @@ export type FlightFrame = Pick<
   | 'rocket'
   | 'detached'
   | 'bodies'
+  | 'objects'
   | 'landed'
   | 'impact'
   | 'buoys'
   | 'goals'
   | 'used'
+  | 'touchdownSpeed'
+  | 'touchdownTilt'
 >;
 export function captureFrame(run: Run, force = false) {
   const frames = (run.frames ??= []),
@@ -33,10 +36,13 @@ export function captureFrame(run: Run, force = false) {
     rocket,
     detached,
     bodies,
+    objects,
     landed,
     impact,
     buoys,
     used,
+    touchdownSpeed,
+    touchdownTilt,
   } = run;
   const goals = Object.fromEntries(
     Object.entries(run.goals).map(([id, p]) => [id, { complete: p.complete, ratio: p.ratio }]),
@@ -51,11 +57,14 @@ export function captureFrame(run: Run, force = false) {
     rocket,
     detached,
     bodies,
+    objects,
     landed,
     impact,
     buoys,
     goals,
     used,
+    touchdownSpeed,
+    touchdownTilt,
   });
   if (last && Math.abs(last.time - time) < 1e-9) frames[frames.length - 1] = frame;
   else frames.push(frame);
@@ -111,6 +120,13 @@ export function replayAt(
   for (const [id, body] of Object.entries(state.bodies ?? {})) {
     const next = b.bodies?.[id];
     if (next) body.position = mix(body.position, next.position);
+  }
+  for (const [id, object] of Object.entries(state.objects ?? {})) {
+    const next = b.objects?.[id];
+    if (next) {
+      object.position = mix(object.position, next.position);
+      object.velocity = mix(object.velocity, next.velocity);
+    }
   }
   for (const buoy of state.buoys) {
     const next = b.buoys.find((x) => x.id === buoy.id);

@@ -23,6 +23,7 @@ export type AuditResult = {
   warnings: string[];
   errors: string[];
   counterexamples: { label: string; plan: RoutePlan }[];
+  successes: RoutePlan[];
   done: boolean;
 };
 export function seeded(seed: number) {
@@ -57,6 +58,7 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     warnings: [],
     errors: issues(stage),
     counterexamples: [],
+    successes: [],
     done: false,
   };
   if (result.errors.length) {
@@ -70,10 +72,22 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
         (stage.audit.timeLimit ?? stage.rules.maxTime) +
         '초까지의 표본만 확인합니다.',
     );
+  const remember = (plan: RoutePlan) => {
+    result.warnings = result.warnings.filter(
+      (w) => !w.startsWith('아직 확인된 성공 비행이 없습니다.'),
+    );
+    if (!result.successes.some((p) => JSON.stringify(p) === JSON.stringify(plan)))
+      result.successes.push(structuredClone(plan));
+  };
   for (const p of stage.referencePlans)
-    if (execute(stage, p).status === 'won') result.referenceWins++;
+    if (execute(stage, p).status === 'won') {
+      result.referenceWins++;
+      remember(p);
+    }
   if (!result.referenceWins)
-    result.warnings.push('클리어 가능한 기준 경로가 없습니다. 직접 시험해 성공 경로를 저장하세요.');
+    result.warnings.push(
+      '아직 확인된 성공 비행이 없습니다. 직접 시험하거나 유효해 탐색에서 성공 기록을 확보하세요.',
+    );
   if (stage.goalMode === 'any' && stage.goals.length > 1)
     result.warnings.push('목표 중 하나만 달성해도 성공합니다. 의도한 조건인지 확인하세요.');
   const limit = stage.rules.launchLimit,
@@ -101,6 +115,7 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
   for (const [label, plan] of simple)
     if (execute(stage, plan).status === 'won') {
       result.simpleWins.push(label);
+      remember(plan);
       result.counterexamples.push({ label, plan });
     }
   if (result.simpleWins.length)
@@ -211,6 +226,7 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     const legalPlan = constrainAuditPlan(stage, plan);
     if (execute(stage, legalPlan).status === 'won') {
       result.randomWins++;
+      remember(legalPlan);
       if (result.counterexamples.length < 8)
         result.counterexamples.push({ label: `임의 경로 ${i + 1}`, plan: legalPlan });
     }

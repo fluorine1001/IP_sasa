@@ -1,5 +1,5 @@
 import { metrics } from './metrics.ts';
-import { bodyPosition, bodyVelocity } from './celestial.ts';
+import { bodyPosition, bodyVelocity, objectPosition, objectVelocity } from './celestial.ts';
 import type { GoalContext, GoalProgress } from './types.ts';
 export type Calculation =
   | 'add'
@@ -69,30 +69,57 @@ export function expressionValue(
   path = 'expression',
 ): number {
   if (e.kind === 'constant') return e.value;
-  if (e.kind === 'recorded')
-    return p.checkpoints && Object.hasOwn(p.checkpoints, e.key) ? p.checkpoints[e.key].value : NaN;
+  if (e.kind === 'recorded') {
+    const key = c.bindings ? c.bindings.scope + ':' + e.key : e.key;
+    return p.checkpoints && Object.hasOwn(p.checkpoints, key) ? p.checkpoints[key].value : NaN;
+  }
   if (e.kind === 'metric') {
-    if (e.actorId && e.actorId !== 'craft') {
-      const actor = c.run.detached.find((a) => a.id === e.actorId),
-        body = c.stage.bodies.find((b) => b.id === e.actorId);
-      if (!body && (!actor || actor.status === 'crashed')) return NaN;
+    const definition = {
+      ...e,
+      actorId: e.actorId === '$actor' ? c.bindings?.actorId : e.actorId,
+      targetId: e.targetId === '$target' ? (c.bindings?.targetId ?? '') : e.targetId,
+    };
+    if (
+      (e.actorId === '$actor' && !c.bindings?.actorId) ||
+      (e.targetId === '$target' && !c.bindings?.targetId)
+    )
+      return NaN;
+
+    if (definition.actorId && definition.actorId !== 'craft') {
+      const actor = c.run.detached.find((a) => a.id === definition.actorId),
+        body = c.stage.bodies.find((b) => b.id === definition.actorId),
+        object = c.stage.objects.find((o) => o.id === definition.actorId);
+      if (!body && !object && (!actor || actor.status === 'crashed')) return NaN;
       c = {
         ...c,
-        actorId: e.actorId,
+        actorId: definition.actorId,
+        primary: c.primary ?? { position: c.run.position, velocity: c.run.velocity },
         run: {
           ...c.run,
-          position: body ? bodyPosition(c.stage, body, c.run.time) : actor!.position,
-          velocity: body ? bodyVelocity(c.stage, body, c.run.time) : actor!.velocity,
+          position: body
+            ? bodyPosition(c.stage, body, c.run.time)
+            : object
+              ? objectPosition(c.stage, object, c.run.time)
+              : actor!.position,
+          velocity: body
+            ? bodyVelocity(c.stage, body, c.run.time)
+            : object
+              ? objectVelocity(c.stage, object, c.run.time)
+              : actor!.velocity,
         },
       };
     }
     if (
-      e.targetId &&
-      !c.stage.bodies.some((b) => b.id === e.targetId) &&
-      !c.stage.objects.some((o) => o.id === e.targetId)
+      definition.targetId &&
+      definition.targetId !== 'craft' &&
+      !c.stage.bodies.some((b) => b.id === definition.targetId) &&
+      !c.stage.objects.some((o) => o.id === definition.targetId) &&
+      !c.run.detached.some((a) => a.id === definition.targetId && a.status !== 'crashed')
     )
       return NaN;
-    return Object.hasOwn(metrics, e.metric) ? metrics[e.metric].read(c, e.targetId, p) : NaN;
+    return Object.hasOwn(metrics, definition.metric)
+      ? metrics[definition.metric].read(c, definition.targetId, p)
+      : NaN;
   }
   if (e.kind === 'window') {
     const domain = expressionValue(e.domain, c, p, `${path}.domain`),
@@ -107,7 +134,21 @@ export function expressionValue(
         width,
         time: -Infinity,
         value: NaN,
-        samples: [],
+        samples:
+          e.operation === 'min' || e.operation === 'max' || e.operation === 'change'
+            ? [
+                {
+                  amount: 0,
+                  sum: 0,
+                  squares: 0,
+                  min: value,
+                  max: value,
+                  positive: 0,
+                  first: value,
+                  last: value,
+                },
+              ]
+            : [],
         covered: 0,
       };
     // Sample once per physics tick, independently of rendering and replay recording.

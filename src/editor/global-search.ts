@@ -36,13 +36,15 @@ export function* globalSearch(
       [...(t.plan.engineCommands ?? [])]
         .map((c) => [
           c.actorId,
-          c.separate
-            ? 'separate'
-            : c.throttle === 0
-              ? 'stop'
-              : c.throttle !== undefined
-                ? 'ignite'
-                : 'turn',
+          c.releasePayload
+            ? 'deploy:' + c.releasePayload
+            : c.separate
+              ? 'separate'
+              : c.throttle === 0
+                ? 'stop'
+                : c.throttle !== undefined
+                  ? 'ignite'
+                  : 'turn',
           !!c.direction,
         ])
         .concat(t.plan.impulses.map(() => ['craft', 'push', true])),
@@ -66,7 +68,7 @@ export function* globalSearch(
       template.label = programEvents(template.plan)
         .map(
           (event) =>
-            `${event.id === 'launch' ? '발사' : commandNames[event.kind as keyof typeof commandNames]}${event.actorId === 'craft' ? '' : ` (${stage.rocket?.parts.find((p) => p.id === event.actorId)?.name})`}`,
+            `${event.id === 'launch' ? '발사' : commandNames[event.kind as keyof typeof commandNames]}${event.actorId === 'craft' ? '' : ` (${[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].find((p) => p.id === event.actorId)?.name})`}`,
         )
         .join(' → ');
       const job = {

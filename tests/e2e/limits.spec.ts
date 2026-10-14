@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 test('개발 에디터의 계획 길이·종류별 한도를 실제 타임라인에 적용한다', async ({ page }) => {
   await page.goto('/?editor=1');
   await page.locator('#stage-properties').click();
+  await page.getByText('편집', { exact: true }).click();
   await page.locator('#clear-references').click();
+  await page.getByText('편집', { exact: true }).click();
   const field = (key: string) => page.locator('[data-field="rules.' + key + '"]');
   const missionTime = await field('maxTime').inputValue();
   await field('timelineDuration').fill('12');
@@ -63,7 +65,9 @@ test('개발 에디터의 계획 길이·종류별 한도를 실제 타임라인
 test('두 무제한 옵션을 저장하고 시간선을 확장하며 표시 시간을 넘겨 비행한다', async ({ page }) => {
   await page.goto('/?editor=1');
   await page.locator('#stage-properties').click();
+  await page.getByText('편집', { exact: true }).click();
   await page.locator('#clear-references').click();
+  await page.getByText('편집', { exact: true }).click();
   const field = (key: string) => page.locator('[data-field="' + key + '"]');
   await field('rules.maxTimeUnlimited').check();
   await field('rules.timelineUnlimited').check();

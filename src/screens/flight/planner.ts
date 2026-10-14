@@ -8,13 +8,14 @@ import type { ProgramEvent } from '../../world/program';
 import type { TimelineState } from './timeline';
 import { engineBench, actorDiagram, directionDial, dialRotation, dialAngle } from './engine-bench';
 
-type Tool = 'ignite' | 'stop' | 'turn' | 'separate' | 'push';
+type Tool = 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy';
 const names: Record<Tool, string> = {
   ignite: '엔진 출력',
   stop: '엔진 끄기',
   turn: '방향 회전',
   separate: '단 분리',
   push: '수정 추진',
+  deploy: '탑재체 분리',
 };
 /** Pointer editing owns time placement; neither physics nor result evaluation is consulted. */
 export function timelinePlanner(
@@ -92,11 +93,17 @@ export function timelinePlanner(
         id,
         time,
         actorId: 'craft',
-        ...(kind === 'separate'
-          ? { separate: true }
-          : kind === 'turn'
-            ? { direction: heading(stage, 0) }
-            : { throttle: kind === 'stop' ? 0 : 1 }),
+        ...(kind === 'deploy'
+          ? {
+              releasePayload: stage.rocket!.payloads!.find(
+                (payload) => !(p.engineCommands ?? []).some((c) => c.releasePayload === payload.id),
+              )!.id,
+            }
+          : kind === 'separate'
+            ? { separate: true }
+            : kind === 'turn'
+              ? { direction: heading(stage, 0) }
+              : { throttle: kind === 'stop' ? 0 : 1 }),
       });
     selected = id;
     action?.('reserve');
@@ -189,15 +196,17 @@ export function timelinePlanner(
       popup.hidden = true;
       return;
     }
-    const kind: Tool = c?.separate
-      ? 'separate'
-      : c?.throttle !== undefined
-        ? c.throttle
-          ? 'ignite'
-          : 'stop'
-        : c
-          ? 'turn'
-          : 'push';
+    const kind: Tool = c?.releasePayload
+      ? 'deploy'
+      : c?.separate
+        ? 'separate'
+        : c?.throttle !== undefined
+          ? c.throttle
+            ? 'ignite'
+            : 'stop'
+          : c
+            ? 'turn'
+            : 'push';
     let fields = '';
     if (id === 'launch')
       fields =
@@ -240,7 +249,7 @@ export function timelinePlanner(
           '',
           0.005,
         );
-      if (c && !c.separate)
+      if (c && !c.separate && !c.releasePayload)
         fields +=
           '<label>조작할 기체 <select data-edit="actor"><option value="craft">본체 · 남아 있는 로켓</option>' +
           (stage.rocket?.parts ?? [])
@@ -263,6 +272,8 @@ export function timelinePlanner(
       if (c?.direction) fields += '<div id="rotation-info">' + rotationInfo(id) + '</div>';
     }
     const discreteOnly = id !== 'launch' && (kind === 'separate' || kind === 'stop');
+    if (c?.releasePayload)
+      fields = `<label>분리할 위성<select data-edit="payload">${(stage.rocket?.payloads ?? []).map((payload) => `<option value="${payload.id}" ${payload.id === c.releasePayload ? 'selected' : ''}>${escape(payload.name)}</option>`).join('')}</select></label>`;
     if (discreteOnly) fields = '';
     else {
       if (id === 'launch' || kind === 'ignite' || kind === 'push')
@@ -414,6 +425,13 @@ export function timelinePlanner(
     'change',
     (e) => {
       const input = e.target as HTMLSelectElement;
+      if (editable() && input.dataset.edit === 'payload') {
+        const c = command(selected);
+        if (c) c.releasePayload = input.value;
+        changed();
+        update();
+        open(selected);
+      }
       if (editable() && input.dataset.edit === 'actor') {
         const c = command(selected);
         if (c) c.actorId = input.value;
@@ -456,7 +474,14 @@ export function timelinePlanner(
   );
   palette.innerHTML =
     '<label id="timeline-placement">예약 시각 <input id="timeline-time" type="number" min="0" step="0.01" aria-label="새 예약 시각"> 초</label>' +
-    ['ignite', 'stop', 'turn', 'separate', 'push']
+    [
+      'ignite',
+      'stop',
+      'turn',
+      'separate',
+      'push',
+      ...(stage.rocket?.payloads?.length ? ['deploy'] : []),
+    ]
       .map(
         (k) =>
           '<button data-tool="' +
@@ -466,13 +491,27 @@ export function timelinePlanner(
             ? ' id="' + (k === 'ignite' ? 'engine' : 'separate') + '"'
             : '') +
           ' title="' +
-          { ignite: '출력', stop: '끄기', turn: '회전', separate: '분리', push: '추진' }[k] +
+          {
+            ignite: '출력',
+            stop: '끄기',
+            turn: '회전',
+            separate: '분리',
+            push: '추진',
+            deploy: '위성 분리',
+          }[k] +
           ' · 선택 시각에 추가 / 시간선으로 끌어 놓기" aria-label="' +
           names[k as Tool] +
           ' 배치">' +
           icon(k as Tool) +
           '<span>' +
-          { ignite: '출력', stop: '끄기', turn: '회전', separate: '분리', push: '추진' }[k] +
+          {
+            ignite: '출력',
+            stop: '끄기',
+            turn: '회전',
+            separate: '분리',
+            push: '추진',
+            deploy: '위성 분리',
+          }[k] +
           '</span><small class="tool-count"></small></button>',
       )
       .join('');

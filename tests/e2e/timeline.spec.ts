@@ -8,7 +8,9 @@ const stages = readdirSync('data/stages')
 const powered = stages.find((s) => s.rocket && s.track !== 'tutorial' && s.order === 1);
 async function openReference(page: any) {
   await page.goto('/?editor=1');
+  await page.getByText('스테이지 파일', { exact: true }).click();
   await page.locator('#stage-source').selectOption(powered.id);
+  await page.getByText('스테이지 파일', { exact: true }).click();
   await testAuthorPlan(page);
   await expect(page.locator('#world')).toBeVisible();
 }

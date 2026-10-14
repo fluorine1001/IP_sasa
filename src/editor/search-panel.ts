@@ -1,3 +1,4 @@
+import { representativeReplay } from './representative-replay';
 import { escape } from '../app/core';
 import {
   searchTemplates,
@@ -10,7 +11,6 @@ export function solutionSearchPanel(
   root: HTMLElement,
   signal: AbortSignal,
   getStage: () => Stage,
-  test: (plan: RoutePlan) => void,
   changed: (stage?: Stage) => void,
 ) {
   const panel = document.createElement('section');
@@ -24,6 +24,7 @@ export function solutionSearchPanel(
     revision = 0,
     result: SearchReport | undefined,
     history: Run['trail'] = [];
+  const playback = representativeReplay(root, getStage, signal);
   let enabled = true,
     paused = false,
     budgetValue = 512,
@@ -79,7 +80,7 @@ export function solutionSearchPanel(
         .slice(familyPage * 24, (familyPage + 1) * 24)
         .map(
           (family, index) =>
-            `<article class="solution-family"><div><b>집합 ${familyPage * 24 + index + 1}</b><span>${family.count}개 성공 표본</span></div><small>${escape(family.template)}</small><small>검사한 연결 ${family.connections ?? 0}개${(family.layouts ?? 1) > 1 ? ` · 동일 비행을 공유한 구성 ${family.layouts}개` : ''} · 연결 구간은 ¼·½·¾ 지점에서 실제 성공 확인</small><button data-family-path="${family.id}">실제 경로 보기</button><button data-family-test="${family.id}">대표 비행 시험</button><details><summary>확인한 변수 범위 · 성공 표본 간격</summary>${family.ranges.map((range) => `<div>${escape(range.label)} <b>${range.min.toFixed(2)}~${range.max.toFixed(2)}</b>${range.max > range.min ? `<meter max="${range.max - range.min}" value="${range.gap ?? range.max - range.min}" title="확인한 범위 내 가장 큰 표본 간격"></meter><small>가장 큰 성공 표본 간격 ${(range.gap ?? range.max - range.min).toFixed(3)} · 표본 사이의 성공은 보장하지 않음</small>` : '<small>단일 값만 확인</small>'}</div>`).join('')}</details><button data-family-block="${family.id}" ${result?.done ? '' : 'disabled'}>차단 수정안 검사</button><div data-family-proposals="${family.id}"></div></article>`,
+            `<article class="solution-family"><div><b>집합 ${familyPage * 24 + index + 1}</b><span>${family.count}개 성공 표본</span></div><small>${escape(family.template)}</small><small>검사한 연결 ${family.connections ?? 0}개${(family.layouts ?? 1) > 1 ? ` · 동일 비행을 공유한 구성 ${family.layouts}개` : ''} · 연결 구간은 ¼·½·¾ 지점에서 실제 성공 확인</small><button data-family-path="${family.id}">실제 경로 보기</button><button data-family-test="${family.id}">대표 비행 재생</button><details><summary>확인한 변수 범위 · 성공 표본 간격</summary>${family.ranges.map((range) => `<div>${escape(range.label)} <b>${range.min.toFixed(2)}~${range.max.toFixed(2)}</b>${range.max > range.min ? `<meter max="${range.max - range.min}" value="${range.gap ?? range.max - range.min}" title="확인한 범위 내 가장 큰 표본 간격"></meter><small>가장 큰 성공 표본 간격 ${(range.gap ?? range.max - range.min).toFixed(3)} · 표본 사이의 성공은 보장하지 않음</small>` : '<small>단일 값만 확인</small>'}</div>`).join('')}</details><button data-family-save="${family.id}">성공 비행 보관</button><button data-family-block="${family.id}" ${result?.done ? '' : 'disabled'}>차단 수정안 검사</button><div data-family-proposals="${family.id}"></div></article>`,
         )
         .join('') ||
       '<p>현재 검사 표본에는 성공이 없습니다. 미검사 구간의 실패를 뜻하지 않습니다.</p>';
@@ -93,6 +94,7 @@ export function solutionSearchPanel(
     clearTimeout(timer);
     result = undefined;
     history = [];
+    playback.reset();
     paused = false;
     familyPage = 0;
   }
@@ -110,6 +112,7 @@ export function solutionSearchPanel(
         return;
       }
       result = event.data.result;
+      if (result?.done) playback.setFamilies(result.families);
       show();
     };
     worker.onerror = () => {
@@ -223,29 +226,27 @@ export function solutionSearchPanel(
         (item) =>
           item.id ===
           Number(
-            button.dataset.familyPath ?? button.dataset.familyTest ?? button.dataset.familyBlock,
+            button.dataset.familyPath ??
+              button.dataset.familyTest ??
+              button.dataset.familySave ??
+              button.dataset.familyBlock,
           ),
       );
       if (!family) return;
-      if (button.dataset.familyTest !== undefined) test(family.representative);
+      if (button.dataset.familySave !== undefined) {
+        const stage = structuredClone(getStage());
+        if (
+          !stage.referencePlans.some(
+            (p) => JSON.stringify(p) === JSON.stringify(family.representative),
+          )
+        )
+          stage.referencePlans.push(structuredClone(family.representative));
+        changed(stage);
+        return;
+      }
+      if (button.dataset.familyTest !== undefined) playback.select(family, true);
       if (button.dataset.familyPath !== undefined) {
-        if (family.trail.length) history = family.trail;
-        else {
-          const current = revision,
-            recorder = new Worker(new URL('./path.worker.ts', import.meta.url), { type: 'module' });
-          auxiliary.add(recorder);
-          const cleanup = () => {
-            recorder.terminate();
-            auxiliary.delete(recorder);
-          };
-          signal.addEventListener('abort', cleanup, { once: true });
-          recorder.onmessage = (message) => {
-            if (current === revision && !signal.aborted) history = message.data.trail;
-            cleanup();
-            signal.removeEventListener('abort', cleanup);
-          };
-          recorder.postMessage({ stage: structuredClone(getStage()), plan: family.representative });
-        }
+        playback.select(family);
       }
       if (button.dataset.familyBlock !== undefined) {
         const current = revision,
@@ -309,7 +310,16 @@ export function solutionSearchPanel(
   return {
     refresh,
     get history() {
-      return history;
+      return playback.history.length ? playback.history : history;
+    },
+    get histories() {
+      return playback.histories;
+    },
+    get stage() {
+      return playback.stage;
+    },
+    frame(dt: number) {
+      return playback.frame(dt);
     },
   };
 }

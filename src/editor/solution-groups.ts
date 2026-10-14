@@ -9,6 +9,7 @@ export function physicalPlanKey(stage: Stage, plan: RoutePlan) {
       c.time,
       c.actorId,
       c.separate ?? false,
+      c.releasePayload ?? null,
       c.throttle ?? null,
       c.direction ?? null,
     ]),

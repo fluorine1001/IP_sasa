@@ -1,8 +1,10 @@
+import { objectiveGoals } from '../../world/goals';
 import { escape } from '../../app/core';
 import type { Condition, Expression } from '../../world/conditions';
 import { metrics } from '../../world/metrics';
 import type { Stage } from '../../world/types';
 import { controlIcon } from './controls';
+import type { Goal } from '../../world/types';
 import { compileOutcome } from '../../stages/outcomes';
 
 const number = (n: number) => Number(n.toPrecision(8)).toString();
@@ -75,6 +77,15 @@ export function goalExplanation(stage: Stage, node: Condition): string {
                 : ' 연료 눈금'
               : ' 눈금');
   function walk(c: Condition): string[] {
+    if (c.kind === 'quantify')
+      return [
+        c.mode === 'all'
+          ? '선택한 대상 집합 모두 충족'
+          : c.mode === 'any'
+            ? '대상 하나 이상 충족'
+            : `대상 ${c.count ?? 1}개 이상 충족`,
+        ...walk(c.child),
+      ];
     if (c.kind === 'sequence' && c.children[0]?.kind === 'all' && c.children[1]?.kind === 'all') {
       const entry = c.children[0].children;
       const shape = entry.find(
@@ -157,6 +168,15 @@ export function goalExplanation(stage: Stage, node: Condition): string {
               ' 눈금',
           ];
       }
+    }
+    if (c.kind === 'reference') {
+      const source = stage.goals.find((g) => g.id === c.goalId);
+      return source
+        ? [
+            source.title,
+            ...(markerExplanation(stage, source)?.split('\n') ?? walk(source.condition)),
+          ]
+        : ['참조 대상 없음'];
     }
     if (c.kind === 'compare') {
       if (
@@ -262,13 +282,38 @@ export function goalExplanation(stage: Stage, node: Condition): string {
   }
   return [...new Set(walk(node))].join('\n');
 }
+function markerExplanation(stage: Stage, goal: Goal): string | undefined {
+  const marker = goal.marker;
+  if (!marker || marker.managed === false) return;
+  const region = {
+    area: marker.outside ? '지도에 표시한 판정 원 바깥쪽' : '지도에 표시한 판정 원 내부',
+    orbit: '표시한 거리 띠·궤도 형태·긴 반경 범위에서 엔진을 끈 중력 궤도',
+    velocity: '속도 화살표 끝의 허용 원 안에 드는 상대 속도·방향',
+    surface: '표시한 접촉 지점 안에 안전 속력·수직 자세로 착륙',
+    state: '관측 표식의 표시 구간 안에 드는 물리 상태',
+    passage: '접근→최근접 띠→이탈을 실제로 관측하고 지정된 전후 변화 충족',
+  }[marker.kind];
+  const time = marker.duration ?? Math.max(0.1, Math.min(3, stage.rules.maxTime * 0.04));
+  return [
+    region,
+    marker.actorIds.length > 1
+      ? `선택한 기체 ${marker.actorIds.length}개 모두 충족`
+      : '선택한 기체가 충족',
+    marker.span === 'revolution'
+      ? '실제 한 바퀴 전체'
+      : marker.span === 'instant' && marker.kind !== 'surface'
+        ? '한 번 성립한 실제 순간'
+        : `${time.toFixed(1)}초 연속 유지`,
+  ].join('\n');
+}
 export function missionGoalsHtml(stage: Stage) {
-  return `<div class="goal-mode">${controlIcon('target')}<span>${stage.goalMode === 'all' ? '모든 목표 충족' : '목표 하나 충족'}</span></div>${stage.goals
+  return `<div class="goal-mode">${controlIcon('target')}<span>${stage.goalMode === 'all' ? '모든 목표 충족' : '목표 하나 충족'}</span></div>${objectiveGoals(
+    stage,
+  )
     .map(
       (g) =>
-        `<article class="goal-explanation"><h3>${escape(g.title)}</h3><div class="goal-window">${controlIcon('clock')} ${g.startTime}초 ~ ${g.endTimeUnlimited ? '제한 없음' : g.endTime + '초'}${g.dependsOn.length ? ' · 선행 목표 완료 상태' : ''}</div><ul class="criterion-list">${goalExplanation(
-          stage,
-          g.condition,
+        `<article class="goal-explanation"><h3>${escape(g.title)}</h3><div class="goal-window">${controlIcon('clock')} ${g.startTime}초 ~ ${g.endTimeUnlimited ? '제한 없음' : g.endTime + '초'}${g.dependsOn.length ? ' · 선행 목표 완료 상태' : ''}</div><ul class="criterion-list">${(
+          markerExplanation(stage, g) ?? goalExplanation(stage, g.condition)
         )
           .split('\n')
           .map((line) => `<li><span aria-hidden="true">◇</span>${escape(line)}</li>`)

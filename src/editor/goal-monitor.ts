@@ -36,7 +36,9 @@ function rows(
   if ('children' in node)
     return `<div ${indent}>${node.kind === 'sequence' ? `순서 ${memory?.index ?? 0}/${node.children.length}` : node.kind === 'all' ? 'AND' : 'OR'}</div>${node.children.map((c, i) => rows(c, p, run, stage, `${path}.${i}`, depth + 1)).join('')}`;
   if ('child' in node) return rows(node.child, p, run, stage, `${path}.child`, depth + 1);
-  return `<div ${indent}>사건: ${escape(node.event)} · ${escape(node.targetId)}</div>`;
+  return node.kind === 'reference'
+    ? `<div ${indent}>연결 판정: ${escape(node.goalId)}</div>`
+    : `<div ${indent}>사건: ${escape(node.event)} · ${escape(node.targetId)}</div>`;
 }
 export function createGoalMonitor(root: HTMLElement): (run: Run, stage: Stage) => void {
   return (run, stage) => {

@@ -18,7 +18,7 @@ try {
     let result;
     for (const step of auditStage(stage)) result = step;
     console.log(
-      `${stage.order}. ${stage.title}: reference ${result.referenceWins}/${stage.referencePlans.length}; random ${result.randomWins}/${result.total}; simple ${result.simpleWins.join(', ') || 'none'}`,
+      `${stage.order}. ${stage.title}: 검사 ${result.checked}회 · 확인한 성공 비행 ${result.successes.length}개`,
     );
     for (const error of [...result.errors, ...result.warnings]) console.log(`  ${error}`);
     // Optional legacy variation banks are not part of a player's retry loop.

@@ -16,8 +16,11 @@ async function editor(page: Page, order = 2, preserveDraft = false) {
   await page.locator('#editor-world').waitFor();
   if (preserveDraft) return;
   const target = stages.find((s) => s.order === order).id;
-  if ((await page.locator('#stage-source').inputValue()) !== target)
+  if ((await page.locator('#stage-source').inputValue()) !== target) {
+    await page.getByText('스테이지 파일', { exact: true }).click();
     await page.locator('#stage-source').selectOption(target);
+    await page.getByText('스테이지 파일', { exact: true }).click();
+  }
 }
 async function openGame(page: Page) {
   await page.addInitScript(() => {
@@ -153,10 +156,13 @@ test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리�
   await expect(page.locator('#result')).toContainText('직접 종료');
 });
 
-test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·8자 경로를 배치한다', async ({ page }) => {
+test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·실제 소행성 띠를 배치한다', async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await editor(page);
+  await page.locator('.editor-palette').getByText('고급 조건 블록', { exact: true }).click();
   await page.locator('[data-tool="goal:condition"]').click();
   const bounds = await page.locator('#editor-world').boundingBox();
   await page.mouse.click(bounds!.x + bounds!.width * 0.65, bounds!.y + bounds!.height * 0.5);
@@ -176,6 +182,7 @@ test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·8자 
   await page
     .locator('[data-block-path="condition.child.right"][data-block-field="value"]')
     .press('Tab');
+  await page.getByText('편집', { exact: true }).click();
   await page.locator('#undo').click();
   await expect(
     page.locator('[data-block-path="condition.child.right"][data-block-field="value"]'),
@@ -184,12 +191,21 @@ test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·8자 
   await expect(
     page.locator('[data-block-path="condition.child.right"][data-block-field="value"]'),
   ).toHaveValue('2');
+  await page.locator('.editor-palette').getByText('천체', { exact: true }).click();
   await page.locator('[data-tool="binary"]').click();
   await page.mouse.click(bounds!.x + bounds!.width * 0.75, bounds!.y + bounds!.height * 0.25);
   await expect(page.locator('#inspector')).toContainText('초기 속도');
-  await page.locator('[data-tool="figure-eight"]').click();
+  await expect(page.locator('[data-tool="figure-eight"]')).toHaveCount(0);
+  await page
+    .locator('.editor-palette')
+    .getByText('실제 비행 물체·착륙 지점', { exact: true })
+    .click();
+  await page.locator('[data-tool="belt"]').click();
   await page.mouse.click(bounds!.x + bounds!.width * 0.6, bounds!.y + bounds!.height * 0.6);
-  await expect(page.locator('#path-points')).toBeVisible();
+  const data = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!),
+  );
+  expect(data.objects.filter((o: { kind: string }) => o.kind === 'debris')).toHaveLength(16);
   await expect(page.locator('#audit')).toContainText('검사', { timeout: 12000 });
   expect(errors).toEqual([]);
 });
@@ -203,13 +219,14 @@ test('제작 도구가 IP_sasa에 JSON 초안을 저장하며 원본 스테이�
     await page.locator('#new-stage').click();
     await page.locator('[data-field="title"]').fill('자동 검증 초안');
     await page.locator('[data-field="title"]').press('Tab');
+    id = await page.evaluate(() => JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!).id);
     const response = page.waitForResponse(
       (r) => r.url().endsWith('/api/workshop/stages') && r.request().method() === 'POST',
     );
     await page.locator('#save-stage').click();
     const result = await response;
     expect(result.status()).toBe(200);
-    id = (await result.json()).id;
+    // Vite can reload when import.meta.glob discovers the newly saved file; retain the known request ID.
     expect(id).toMatch(/^[0-9a-f-]{36}$/);
     const saved = JSON.parse(readFileSync(path.join(directory, `${id}.json`), 'utf8'));
     expect(saved.title).toBe('자동 검증 초안');
@@ -234,6 +251,7 @@ test('단일 목표 편집기에서 순간 기록·기록값 계산·구간 통�
   await editor(page);
   await expect(page.locator('[data-field="type"]')).toHaveCount(0);
   await expect(page.locator('[data-tool^="goal:"]')).toHaveCount(1);
+  await page.locator('.editor-palette').getByText('고급 조건 블록', { exact: true }).click();
   await page.locator('[data-tool="goal:condition"]').click();
   const bounds = await page.locator('#editor-world').boundingBox();
   await page.mouse.click(bounds!.x + bounds!.width * 0.6, bounds!.y + bounds!.height * 0.5);
@@ -288,6 +306,7 @@ test('일반 블록으로 정의한 표면 착륙과 움직이는 위성 만남�
     await editor(page, order);
     await testAuthorPlan(page);
     await page.locator('#rate').click();
+    await page.locator('[data-rate="2"]').click();
     await page.locator('#launch').click();
     await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 12000 });
     await page.locator('#exit').click();

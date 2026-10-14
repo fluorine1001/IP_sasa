@@ -29,13 +29,19 @@ export function newObject(kind: WorldObject['kind'] = 'sensor'): WorldObject {
     id: uid(),
     kind,
     name:
-      kind === 'sensor'
-        ? '고정 관측 구역'
-        : kind === 'gate'
-          ? '통과 게이트'
-          : kind === 'hazard'
-            ? '위험 구역'
-            : '정거장',
+      kind === 'satellite'
+        ? '기존 위성'
+        : kind === 'debris'
+          ? '소행성 / 파편'
+          : kind === 'landing-site'
+            ? '착륙 지점'
+            : kind === 'sensor'
+              ? '고정 관측 구역'
+              : kind === 'gate'
+                ? '통과 게이트'
+                : kind === 'hazard'
+                  ? '위험 구역'
+                  : '정거장',
     position: { x: 0, y: 0 },
     radius: kind === 'sensor' ? 0.45 : 0.6,
     angle: 0,
@@ -47,6 +53,7 @@ export function newObject(kind: WorldObject['kind'] = 'sensor'): WorldObject {
           ]
         : undefined,
     sensor: 'gravity',
+    ...(kind === 'station' ? { physicalRadius: 0.08 } : {}),
   };
 }
 export function newGoal(): Goal {
@@ -87,7 +94,7 @@ export function blankStage(): Stage {
     theme: 'frontier',
     bodies: [body],
     objects: [],
-    goals: [goal],
+    goals: [{ ...goal, editorSeed: JSON.stringify(goal) }],
     goalMode: 'all',
     spawn: { position: { x: body.radius + PAD_CLEARANCE, y: 0 }, velocity: { x: 0, y: 0 } },
     rules: {

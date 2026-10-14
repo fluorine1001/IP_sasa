@@ -18,8 +18,16 @@ export type RocketPart = {
   /** Maximum attitude speed, radians per second. */
   turnRate?: number;
 };
-export type RocketConfig = { payloadMass: number; parts: RocketPart[] };
+export type PayloadConfig = {
+  id: string;
+  name: string;
+  mass: number;
+  area: number;
+  releaseSpeed: number;
+};
+export type RocketConfig = { payloadMass: number; parts: RocketPart[]; payloads?: PayloadConfig[] };
 export type Detached = {
+  payload?: boolean;
   id: string;
   name: string;
   position: Vec;
@@ -35,6 +43,7 @@ export type Detached = {
   status: 'flying' | 'landed' | 'crashed';
   bodyId?: string;
   touchdownSpeed?: number;
+  touchdownTilt?: number;
   angle?: number;
   age: number;
 };
@@ -98,6 +107,9 @@ export function rocketMass(stage: Stage, run: Run) {
     state = run.rocket!;
   return (
     config.payloadMass +
+    (config.payloads ?? [])
+      .filter((p) => !run.detached.some((a) => a.id === p.id))
+      .reduce((m, p) => m + p.mass, 0) +
     config.parts
       .slice(state.partIndex)
       .reduce((mass, p, i) => mass + p.dryMass + state.fuel[i + state.partIndex], 0)
@@ -207,6 +219,37 @@ export function separate(run: Run, stage: Stage): boolean {
   run.rocket.throttle = 0;
   run.rocket.heat = 0;
   run.rocket.stress = 0;
+  return true;
+}
+/** Passive satellite ejection supplies relative velocity and conserves momentum. */
+export function releasePayload(run: Run, stage: Stage, id: string): boolean {
+  const payload = stage.rocket?.payloads?.find((p) => p.id === id);
+  if (!payload || !run.rocket || run.status !== 'running' || run.detached.some((a) => a.id === id))
+    return false;
+  const total = rocketMass(stage, run),
+    carrierMass = total - payload.mass;
+  if (!(carrierMass > 0)) return false;
+  const direction = run.rocket.direction,
+    velocity = { ...run.velocity };
+  const position = add(run.position, scale(direction, craftHull(stage, run).length));
+  run.detached.push({
+    id,
+    name: payload.name,
+    payload: true,
+    position,
+    velocity: add(velocity, scale(direction, (payload.releaseSpeed * carrierMass) / total)),
+    dryMass: payload.mass,
+    fuel: 0,
+    direction: { ...direction },
+    throttle: 0,
+    ignitions: 0,
+    heat: 0,
+    stress: 0,
+    status: 'flying',
+    age: 0,
+  });
+  run.velocity = sub(velocity, scale(direction, (payload.releaseSpeed * payload.mass) / total));
+  run.rocket.separatedAt[id] = run.time;
   return true;
 }
 /** Upper stages have faster attitude controllers; authors can override each part. */

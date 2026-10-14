@@ -76,13 +76,15 @@ export function searchParameters(stage: Stage, plan: RoutePlan): SearchParameter
     );
   const horizon = Math.min(planningTimeLimit(stage), stage.audit.timeLimit ?? stage.rules.maxTime);
   for (const [i, command] of (plan.engineCommands ?? []).entries()) {
-    const label = command.separate
-      ? '분리'
-      : command.direction && command.throttle === undefined
-        ? '회전'
-        : command.throttle
-          ? '출력'
-          : '끄기';
+    const label = command.releasePayload
+      ? '위성 분리'
+      : command.separate
+        ? '분리'
+        : command.direction && command.throttle === undefined
+          ? '회전'
+          : command.throttle
+            ? '출력'
+            : '끄기';
     add(`command.${i}.time`, `${i + 1} · ${label} 시각`, 0, horizon, command.time);
     if (command.throttle && command.throttle > 0)
       add(`command.${i}.power`, `${i + 1} · 출력`, 0, 1, command.throttle);
@@ -350,13 +352,15 @@ export function* searchSolutions(
         .sort((a, b) => a.time - b.time)
         .map((command) => [
           command.actorId,
-          command.separate
-            ? 'separate'
-            : command.throttle === 0
-              ? 'stop'
-              : command.throttle
-                ? 'ignite'
-                : 'turn',
+          command.releasePayload
+            ? 'deploy:' + command.releasePayload
+            : command.separate
+              ? 'separate'
+              : command.throttle === 0
+                ? 'stop'
+                : command.throttle
+                  ? 'ignite'
+                  : 'turn',
           !!command.direction,
         ])
         .concat(sample.plan.impulses.map(() => ['craft', 'push', true])),
@@ -398,7 +402,9 @@ export function* searchSolutions(
         horizon = stage.audit.timeLimit ?? stage.rules.maxTime;
       while ((run.status === 'running' || run.status === 'impact') && run.time < horizon - 1e-8) {
         tick(run, stage, Math.min(0.1, horizon - run.time), stage.objects, false);
-        const ratios = Object.values(run.goals).map((goal) => (goal.complete ? 1 : goal.ratio));
+        const ratios = (run.goalRoots ?? Object.keys(run.goals))
+          .map((id) => run.goals[id])
+          .map((goal) => (goal.complete ? 1 : goal.ratio));
         const score =
           stage.goalMode === 'any'
             ? Math.max(0, ...ratios)
@@ -460,13 +466,19 @@ export function* searchSolutions(
     }
     const families = [...groups.entries()]
       .map(([id, samples]) => {
-        const representative = samples.reduce((a, b) => (a.time <= b.time ? a : b)).plan;
+        // A verified sample closest to the group's normalised centre, not its fastest edge.
+        const centre = samples[0].values.map(
+          (_, i) => samples.reduce((sum, s) => sum + s.values[i], 0) / samples.length,
+        );
+        const score = (sample: SearchSample) =>
+          sample.values.reduce((sum, v, i) => sum + (v - centre[i]) ** 2, 0);
+        const representative = samples.reduce((a, b) => (score(a) <= score(b) ? a : b)).plan;
         return {
           id,
           template: programEvents(representative)
             .map(
               (e) =>
-                `${e.id === 'launch' ? '발사' : commandNames[e.kind as keyof typeof commandNames]}${e.actorId === 'craft' ? '' : ` (${stage.rocket?.parts.find((p) => p.id === e.actorId)?.name ?? e.actorId})`}`,
+                `${e.id === 'launch' ? '발사' : commandNames[e.kind as keyof typeof commandNames]}${e.actorId === 'craft' ? '' : ` (${[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].find((p) => p.id === e.actorId)?.name ?? e.actorId})`}`,
             )
             .join(' → '),
           representative,

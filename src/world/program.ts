@@ -4,7 +4,7 @@ import type { Stage, RoutePlan } from './types';
 export type ProgramEvent = {
   id: string;
   time: number;
-  kind: 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'sensor';
+  kind: 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'sensor' | 'deploy';
   label: string;
   actorId: string;
 };
@@ -25,6 +25,10 @@ export function programEvents(plan: RoutePlan): ProgramEvent[] {
     },
     ...(plan.engineCommands ?? []).flatMap((c) => {
       const base = { id: c.id, time: c.time, actorId: c.actorId };
+      if (c.releasePayload)
+        return [
+          { ...base, actorId: c.releasePayload, kind: 'deploy' as const, label: '탑재 위성 분리' },
+        ];
       if (c.separate)
         return [{ ...base, kind: 'separate' as const, label: '단 분리 · 다음 엔진은 꺼짐' }];
       const labels: ProgramEvent[] = [];
@@ -60,7 +64,9 @@ export function launchReadout(stage: Stage, plan: RoutePlan) {
   if (!stage.rocket) return { powered: false as const, speed: length(plan.launch), throttle };
   const part = stage.rocket.parts[0];
   const mass =
-    stage.rocket.payloadMass + stage.rocket.parts.reduce((m, p) => m + p.dryMass + p.fuelMass, 0);
+    stage.rocket.payloadMass +
+    (stage.rocket.payloads ?? []).reduce((m, p) => m + p.mass, 0) +
+    stage.rocket.parts.reduce((m, p) => m + p.dryMass + p.fuelMass, 0);
 
   return {
     powered: true as const,
@@ -97,6 +103,7 @@ export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
       );
     if (p && fuel[index] <= 1e-8) throttle = 0;
     time = c.time;
+    if (c.releasePayload) continue;
     if (c.separate) {
       if (index >= config.parts.length - 1)
         warnings.push(
@@ -131,13 +138,14 @@ export function launchAt(stage: Stage, degrees: number, percent: number) {
   );
 }
 
-export type CommandKind = 'ignite' | 'stop' | 'turn' | 'separate' | 'push';
+export type CommandKind = 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy';
 export const commandNames: Record<CommandKind, string> = {
   ignite: '엔진 출력',
   stop: '엔진 끄기',
   turn: '방향 회전',
   separate: '단 분리',
   push: '수정 추진',
+  deploy: '탑재체 분리',
 };
 export function timelineDuration(stage: Stage) {
   return stage.rules.timelineDuration ?? stage.rules.maxTime;
@@ -152,9 +160,10 @@ export function planningTimeLimit(stage: Stage) {
   );
 }
 export function commandUsage(plan: RoutePlan): Record<CommandKind, number> {
-  const count = { ignite: 0, stop: 0, turn: 0, separate: 0, push: plan.impulses.length };
+  const count = { ignite: 0, stop: 0, turn: 0, separate: 0, push: plan.impulses.length, deploy: 0 };
   for (const c of plan.engineCommands ?? []) {
-    if (c.separate) count.separate++;
+    if (c.releasePayload) count.deploy++;
+    else if (c.separate) count.separate++;
     else {
       if (c.throttle !== undefined) count[c.throttle > 0 ? 'ignite' : 'stop']++;
       if (c.direction) count.turn++;
@@ -163,6 +172,13 @@ export function commandUsage(plan: RoutePlan): Record<CommandKind, number> {
   return count;
 }
 export function canAddCommand(stage: Stage, plan: RoutePlan, kind: CommandKind) {
+  if (
+    kind === 'deploy' &&
+    !stage.rocket?.payloads?.some(
+      (p) => !(plan.engineCommands ?? []).some((c) => c.releasePayload === p.id),
+    )
+  )
+    return false;
   if (kind === 'push' && stage.rules.maneuverBudget <= 0) return false;
   if (kind === 'push' ? !!stage.rocket : !stage.rocket) return false;
   if (kind === 'separate' && commandUsage(plan).separate >= (stage.rocket?.parts.length ?? 0))
@@ -172,6 +188,19 @@ export function canAddCommand(stage: Stage, plan: RoutePlan, kind: CommandKind) 
 }
 export function planConstraints(stage: Stage, plan: RoutePlan): string[] {
   const out: string[] = [];
+  const releases = (plan.engineCommands ?? []).filter((c) => c.releasePayload);
+  if (
+    new Set(releases.map((c) => c.releasePayload)).size !== releases.length ||
+    releases.some(
+      (c) =>
+        !stage.rocket?.payloads?.some((p) => p.id === c.releasePayload) ||
+        c.actorId !== 'craft' ||
+        c.separate ||
+        c.throttle !== undefined ||
+        c.direction,
+    )
+  )
+    out.push('탑재체는 하나씩 한 번만 독립적으로 분리할 수 있습니다.');
   if (stage.rocket && plan.impulses.length)
     out.push('연료 로켓은 순간 속도 변경을 사용할 수 없습니다. 점화·회전·정지를 예약하세요.');
   const usage = commandUsage(plan);

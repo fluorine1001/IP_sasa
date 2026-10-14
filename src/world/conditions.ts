@@ -7,6 +7,7 @@ export { metrics } from './metrics.ts';
 export { expressionValue, calculationLabels, calculationArity } from './expressions.ts';
 export type { Expression, Calculation, WindowMemory, WindowOperation } from './expressions.ts';
 export type Condition =
+  | { kind: 'reference'; goalId: string }
   | {
       kind: 'compare';
       left: Expression;
@@ -17,6 +18,15 @@ export type Condition =
   | { kind: 'not' | 'once'; child: Condition }
   | { kind: 'hold'; duration: number; child: Condition }
   | { kind: 'capture'; key: string; value: Expression; when: Condition }
+  | {
+      kind: 'quantify';
+      actorIds: string[];
+      targetIds?: string[];
+      mode: 'all' | 'any' | 'atLeast';
+      count?: number;
+      excludeSelf?: boolean;
+      child: Condition;
+    }
   | {
       kind: 'event';
       event: 'collision' | 'gate' | 'deployment' | 'burn' | 'separation';
@@ -50,6 +60,45 @@ function evaluateNode(
 ): boolean | undefined {
   p.conditionMemory ??= {};
   const memory = (p.conditionMemory[path] ??= { hold: 0, index: 0, latched: false });
+  if (node.kind === 'reference') {
+    if (c.references?.includes(node.goalId)) return undefined;
+    const goal = c.stage.goals.find((g) => g.id === node.goalId);
+    if (
+      !goal ||
+      goal.dependsOn.some((id) => !c.run.goals[id]?.complete) ||
+      c.run.time < goal.startTime ||
+      (!goal.endTimeUnlimited && c.run.time > goal.endTime)
+    )
+      return false;
+    const scope = `${path}.ref:${goal.id}`;
+    return evaluateNode(
+      goal.condition,
+      { ...c, references: [...(c.references ?? []), goal.id], bindings: { ...c.bindings, scope } },
+      p,
+      scope,
+    );
+  }
+  if (node.kind === 'quantify') {
+    const values: (boolean | undefined)[] = [];
+    for (const actorId of node.actorIds)
+      for (const targetId of node.targetIds ?? [c.bindings?.targetId ?? '']) {
+        if (node.excludeSelf && actorId === targetId) continue;
+        const scope = `${path}.${actorId}.${targetId}`;
+        values.push(
+          evaluateNode(node.child, { ...c, bindings: { actorId, targetId, scope } }, p, scope),
+        );
+      }
+    if (!values.length) return undefined;
+    const passed = values.filter((v) => v === true).length;
+    p.ratio = passed / values.length;
+    const needed =
+      node.mode === 'all' ? values.length : node.mode === 'any' ? 1 : (node.count ?? 1);
+    return passed >= needed
+      ? true
+      : passed + values.filter((v) => v === undefined).length < needed
+        ? false
+        : undefined;
+  }
   if (node.kind === 'compare') {
     const a = expressionValue(node.left, c, p, `${path}.left`),
       b = expressionValue(node.right, c, p, `${path}.right`);
@@ -110,64 +159,86 @@ function evaluateNode(
   }
   if (node.kind === 'capture') {
     p.checkpoints ??= {};
-    if (Object.hasOwn(p.checkpoints, node.key)) return true;
+    const key = c.bindings ? c.bindings.scope + ':' + node.key : node.key;
+    if (Object.hasOwn(p.checkpoints, key)) return true;
     const ready = evaluateNode(node.when, c, p, `${path}.when`);
     if (ready !== true) return ready;
     const value = expressionValue(node.value, c, p, `${path}.value`);
     if (!Number.isFinite(value)) return undefined;
-    p.checkpoints[node.key] = { value, time: c.run.time };
+    p.checkpoints[key] = { value, time: c.run.time };
     return true;
   }
   if (node.kind === 'event') {
-    if (node.event === 'separation')
+    if (
+      (node.actorId === '$actor' && !c.bindings?.actorId) ||
+      (node.targetId === '$target' && !c.bindings?.targetId)
+    )
+      return undefined;
+    const eventNode = {
+      ...node,
+      actorId: node.actorId === '$actor' ? c.bindings?.actorId : node.actorId,
+      targetId: node.targetId === '$target' ? (c.bindings?.targetId ?? '') : node.targetId,
+    };
+    if (eventNode.event === 'separation')
       return (
-        Math.abs((c.run.rocket?.separatedAt[node.targetId] ?? -Infinity) - c.previousTime) < 1e-8
+        Math.abs((c.run.rocket?.separatedAt[eventNode.targetId] ?? -Infinity) - c.previousTime) <
+        1e-8
       );
-    if (node.event === 'collision') {
-      if (node.actorId && node.actorId !== 'craft') {
-        const actor = c.run.detached.find((a) => a.id === node.actorId);
-        return actor?.status === 'landed' && actor.bodyId === node.targetId;
+    if (eventNode.event === 'collision') {
+      if (eventNode.actorId && eventNode.actorId !== 'craft') {
+        const actor = c.run.detached.find((a) => a.id === eventNode.actorId);
+        if (!actor) return undefined;
+        return ['landed', 'crashed'].includes(actor.status) && actor.bodyId === eventNode.targetId;
       }
-      return c.collisionBodyId === node.targetId || c.run.landed?.bodyId === node.targetId;
+      return (
+        c.collisionBodyId === eventNode.targetId || c.run.landed?.bodyId === eventNode.targetId
+      );
     }
-    if (node.event === 'deployment')
+    if (eventNode.event === 'deployment')
       return (c.run.plan.deployments ?? []).some(
         (b) => Math.abs(b.time - c.previousTime) < 1e-8 && c.run.applied.has(b.id),
       );
-    if (node.event === 'burn')
+    if (eventNode.event === 'burn')
       return (
-        c.run.plan.impulses.some(
-          (b) =>
-            Math.abs(b.time - c.previousTime) < 1e-8 &&
-            length(b.vector) > 1e-9 &&
-            c.run.applied.has(b.id),
-        ) ||
+        ((!eventNode.actorId || eventNode.actorId === 'craft') &&
+          c.previousTime === 0 &&
+          length(c.run.initialPlan?.launch ?? c.run.plan.launch) > 1e-9) ||
+        ((!eventNode.actorId || eventNode.actorId === 'craft') &&
+          c.run.plan.impulses.some(
+            (b) =>
+              Math.abs(b.time - c.previousTime) < 1e-8 &&
+              length(b.vector) > 1e-9 &&
+              c.run.applied.has(b.id),
+          )) ||
         (c.run.plan.engineCommands ?? []).some(
           (b) =>
             Math.abs(b.time - c.previousTime) < 1e-8 &&
+            (!eventNode.actorId || (b.actorId ?? 'craft') === eventNode.actorId) &&
             (b.throttle ?? 0) > 0 &&
             c.run.applied.has(b.id),
         )
       );
-    const object = c.stage.objects.find((o) => o.id === node.targetId && o.kind === 'gate');
+    const object = c.stage.objects.find((o) => o.id === eventNode.targetId && o.kind === 'gate');
     if (!object) return false;
     const actor =
-        node.actorId && node.actorId !== 'craft'
-          ? c.run.detached.find((a) => a.id === node.actorId)
+        eventNode.actorId && eventNode.actorId !== 'craft'
+          ? c.run.detached.find((a) => a.id === eventNode.actorId)
           : undefined,
       body =
-        node.actorId && node.actorId !== 'craft'
-          ? c.stage.bodies.find((b) => b.id === node.actorId)
+        eventNode.actorId && eventNode.actorId !== 'craft'
+          ? c.stage.bodies.find((b) => b.id === eventNode.actorId)
           : undefined;
     if (
-      node.actorId &&
-      node.actorId !== 'craft' &&
-      ((!actor && !body) || actor?.status === 'crashed' || !c.beforeActors?.[node.actorId])
+      eventNode.actorId &&
+      eventNode.actorId !== 'craft' &&
+      ((!actor && !body) || actor?.status === 'crashed' || !c.beforeActors?.[eventNode.actorId])
     )
       return undefined;
     const normal = { x: Math.cos(object.angle), y: Math.sin(object.angle) },
       before = sub(
-        node.actorId && node.actorId !== 'craft' ? c.beforeActors![node.actorId] : c.before,
+        eventNode.actorId && eventNode.actorId !== 'craft'
+          ? c.beforeActors![eventNode.actorId]
+          : c.before,
         objectPosition(c.stage, object, c.previousTime),
       ),
       after = sub(
@@ -195,7 +266,8 @@ export function conditionIssues(node: unknown, ids: Set<string>): string[] {
   const out: string[] = [],
     captures = new Set<string>(),
     references = new Set<string>();
-  let nodes = 0;
+  let nodes = 0,
+    bound = false;
   const key = (value: unknown) =>
     typeof value === 'string' &&
     /^[A-Za-z][A-Za-z0-9_-]{0,47}$/.test(value) &&
@@ -216,8 +288,14 @@ export function conditionIssues(node: unknown, ids: Set<string>): string[] {
       if (
         !Object.hasOwn(metrics, e.metric) ||
         typeof e.targetId !== 'string' ||
-        (e.targetId && !ids.has(e.targetId)) ||
-        (e.actorId && e.actorId !== 'craft' && !ids.has(e.actorId))
+        (e.targetId &&
+          e.targetId !== 'craft' &&
+          !ids.has(e.targetId) &&
+          !(bound && e.targetId === '$target')) ||
+        (e.actorId &&
+          e.actorId !== 'craft' &&
+          !ids.has(e.actorId) &&
+          !(bound && e.actorId === '$actor'))
       )
         out.push('물리량·비행체·기준 대상을 확인하세요.');
     } else if (e.kind === 'recorded') {
@@ -266,7 +344,9 @@ export function conditionIssues(node: unknown, ids: Set<string>): string[] {
       return;
     }
     const n = x as Condition;
-    if (n.kind === 'compare') {
+    if (n.kind === 'reference') {
+      if (!ids.has(n.goalId)) out.push('연결할 판정 오브젝트가 없습니다.');
+    } else if (n.kind === 'compare') {
       if (!['lt', 'lte', 'gt', 'gte', 'eq'].includes(n.operator))
         out.push('비교 기호를 확인하세요.');
       expression(n.left, 0);
@@ -279,6 +359,28 @@ export function conditionIssues(node: unknown, ids: Set<string>): string[] {
       if (n.kind === 'hold' && (!Number.isFinite(n.duration) || n.duration < 0))
         out.push('유지 시간을 확인하세요.');
       walk(n.child, depth + 1);
+    } else if (n.kind === 'quantify') {
+      if (
+        !Array.isArray(n.actorIds) ||
+        !n.actorIds.length ||
+        n.actorIds.length > 128 ||
+        n.actorIds.some((id) => id !== 'craft' && !ids.has(id)) ||
+        new Set(n.actorIds).size !== n.actorIds.length ||
+        (n.targetIds &&
+          (!n.targetIds.length ||
+            n.targetIds.length > 128 ||
+            n.targetIds.some((id) => id !== 'craft' && !ids.has(id)))) ||
+        !['all', 'any', 'atLeast'].includes(n.mode) ||
+        (n.mode === 'atLeast' &&
+          (!Number.isInteger(n.count) ||
+            n.count! < 1 ||
+            n.count! > n.actorIds.length * (n.targetIds?.length ?? 1)))
+      )
+        out.push('대상 집합과 필요한 달성 수를 확인하세요.');
+      const previous = bound;
+      bound = true;
+      walk(n.child, depth + 1);
+      bound = previous;
     } else if (n.kind === 'capture') {
       if (!key(n.key) || captures.has(n.key)) out.push('기록 이름의 형식과 중복을 확인하세요.');
       else captures.add(n.key);
@@ -287,8 +389,13 @@ export function conditionIssues(node: unknown, ids: Set<string>): string[] {
     } else if (n.kind === 'event') {
       if (
         !['collision', 'gate', 'deployment', 'burn', 'separation'].includes(n.event) ||
-        (['collision', 'gate', 'separation'].includes(n.event) && !ids.has(n.targetId)) ||
-        (n.actorId && n.actorId !== 'craft' && !ids.has(n.actorId))
+        (['collision', 'gate', 'separation'].includes(n.event) &&
+          !ids.has(n.targetId) &&
+          !(bound && n.targetId === '$target')) ||
+        (n.actorId &&
+          n.actorId !== 'craft' &&
+          !ids.has(n.actorId) &&
+          !(bound && n.actorId === '$actor'))
       )
         out.push('사건과 대상을 확인하세요.');
     } else out.push('알 수 없는 조건 블록입니다.');
@@ -297,4 +404,31 @@ export function conditionIssues(node: unknown, ids: Set<string>): string[] {
   for (const name of references)
     if (!captures.has(name)) out.push(`‘${name}’ 기록을 만드는 블록이 없습니다.`);
   return [...new Set(out)];
+}
+/** Structural work bound accounts for nested sets and DAG references, not mission labels. */
+export function conditionCost(
+  node: unknown,
+  reference: (id: string) => number = () => 0,
+  depth = 0,
+): number {
+  if (depth > 20 || !node || typeof node !== 'object') return 32769;
+  const n = node as Record<string, unknown>,
+    recurse = (v: unknown) => conditionCost(v, reference, depth + 1);
+  if (n.kind === 'reference') return Math.min(32769, 1 + reference(String(n.goalId)));
+  if (n.kind === 'quantify')
+    return Math.min(
+      32769,
+      1 +
+        (Array.isArray(n.actorIds) ? n.actorIds.length : 129) *
+          (Array.isArray(n.targetIds) ? n.targetIds.length : 1) *
+          recurse(n.child),
+    );
+  if (Array.isArray(n.children))
+    return Math.min(32769, 1 + n.children.reduce((sum, v) => sum + recurse(v), 0));
+  if (n.child) return 1 + recurse(n.child);
+  if (n.kind === 'compare') return 1 + recurse(n.left) + recurse(n.right);
+  if (Array.isArray(n.args)) return 1 + n.args.reduce((sum, v) => sum + recurse(v), 0);
+  if (n.kind === 'window') return 1 + recurse(n.value) + recurse(n.domain) + recurse(n.width);
+  if (n.when) return 1 + recurse(n.when) + recurse(n.value);
+  return 1;
 }

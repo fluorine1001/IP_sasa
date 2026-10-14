@@ -2,6 +2,7 @@ import { captureFrame, type FlightFrame } from './replay';
 import { evaluateCondition, expressionValue, type Condition, type Expression } from './conditions';
 import type { GoalContext, GoalProgress, RoutePlan, Run, Stage } from './types';
 import { length } from '../physics/vector';
+import { planChanges, singleVariableChange } from './plan-diff';
 
 // Author-defined observations share the goal language, but never change goal state.
 export type Instrument = {
@@ -122,19 +123,13 @@ export function recordTrial(run: Run, number: number): Trial {
   };
 }
 export function compareTrials(a: Trial, b: Trial): string {
-  const av = a.plan.launch,
-    bv = b.plan.launch;
-  const angle = Math.abs(Math.atan2(av.x * bv.y - av.y * bv.x, av.x * bv.x + av.y * bv.y));
-  const commandValues = (p: RoutePlan) =>
-    JSON.stringify([
-      p.impulses.map(({ id: _, ...v }) => v),
-      (p.engineCommands ?? []).map(({ id: _, ...v }) => v),
-    ]);
-  const sameCommands = commandValues(a.plan) === commandValues(b.plan);
-  if (!sameCommands || angle > 0.015)
+  const changes = planChanges(a.scheduledPlan, b.scheduledPlan);
+  if (singleVariableChange(a.scheduledPlan, b.scheduledPlan) && changes[0].label !== '첫 출력')
+    return `${changes[0].label} 하나가 달라졌습니다. 같은 시각의 실제 위치·속력·연료를 비교하세요. 실행되지 않은 예약이나 비행 길이 차이는 결과의 근거에서 구분하세요.`;
+  if (changes.length > 1 || changes.some((c) => /개수|종류|대상|회전/.test(c.label)))
     return '방향이나 중간 조작도 달라졌습니다. 이 비교만으로 세기의 영향이라고 단정할 수 없습니다.';
-  const diff = length(bv) - length(av);
-  if (Math.abs(diff) < 0.00001)
+  if (!changes.length)
     return '같은 조작의 반복입니다. 시간별 실제 경로를 겹쳐 결과가 재현되는지 확인하세요.';
+  const diff = length(b.scheduledPlan.launch) - length(a.scheduledPlan.launch);
   return `방향과 중간 조작은 같고 첫 추진만 ${diff > 0 ? '강해졌습니다' : '약해졌습니다'}. 같은 시각의 경로와 관측을 비교하세요. 비행 길이가 다르면 최대값의 직접 비교에는 주의하세요.`;
 }

@@ -7,6 +7,20 @@ async function value(page: Page, selector: string, n: number) {
     e.dispatchEvent(new Event('input', { bubbles: true }));
   }, n);
 }
+async function addRow(page: Page, kind: string) {
+  const before = new Set(
+    await page
+      .locator('.program-command')
+      .evaluateAll((rows) => rows.map((r) => r.getAttribute('data-command'))),
+  );
+  await page.locator('[data-add="' + kind + '"]').click();
+  const ids = await page
+    .locator('.program-command')
+    .evaluateAll((rows) => rows.map((r) => r.getAttribute('data-command')));
+  const id = ids.find((id) => !before.has(id));
+  expect(id).toBeTruthy();
+  return page.locator('.program-command[data-command="' + id + '"]');
+}
 /** Test-only entry of author verification inputs through actual UI; no solution button. */
 export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
   await page.locator('#program-toggle').click();
@@ -22,7 +36,7 @@ export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
     ) *
       180) /
     Math.PI;
-  await value(page, '#program-launch-angle', degrees(plan.launch));
+  if (!stage.rocket) await value(page, '#program-launch-angle', degrees(plan.launch));
   for (const c of plan.engineCommands ?? []) {
     await page.locator('[data-time="new"]').fill(String(c.time));
     const kind = c.separate
@@ -32,8 +46,7 @@ export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
           ? 'ignite'
           : 'stop'
         : 'turn';
-    await page.locator('[data-add="' + kind + '"]').click();
-    const row = page.locator('.program-command').last();
+    const row = await addRow(page, kind);
     if (c.throttle && c.throttle !== 1)
       await row.locator('[data-output]').fill(String(c.throttle * 100));
     if (c.direction && c.throttle === undefined)
@@ -46,8 +59,7 @@ export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
   }
   for (const c of plan.impulses) {
     await page.locator('[data-time="new"]').fill(String(c.time));
-    await page.locator('[data-add="push"]').click();
-    const row = page.locator('.program-command').last();
+    const row = await addRow(page, 'push');
     await row.locator('[data-push]').fill(String(Math.hypot(c.vector.x, c.vector.y)));
     await row.locator('[data-angle]').evaluate((e: HTMLInputElement, n) => {
       e.step = 'any';

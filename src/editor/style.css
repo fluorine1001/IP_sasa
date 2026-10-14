@@ -2,7 +2,7 @@
   height: 100dvh;
   display: grid;
   grid-template-columns: 180px 1fr 305px;
-  grid-template-rows: 65px 1fr 170px;
+  grid-template-rows: auto minmax(220px, 1fr) 210px 90px;
   background: #142332;
   gap: 8px;
   padding: 8px;
@@ -14,6 +14,7 @@
   align-items: center;
   gap: 7px;
   padding: 8px;
+  flex-wrap: wrap;
 }
 
 .editor-top button {
@@ -79,6 +80,7 @@
 
 .editor-audit {
   grid-column: 1/-1;
+  grid-row: 4;
   overflow: auto;
   padding: 12px;
   font-size: 12px;
@@ -252,4 +254,189 @@
   min-width: 230px;
   padding: 10px;
   border-color: #e1bd6f80;
+}
+.editor-search {
+  grid-column: 1/-1;
+  grid-row: 3;
+  display: flex;
+  gap: 18px;
+  padding: 12px;
+  overflow: auto;
+  font-size: 12px;
+}
+.search-config {
+  width: 245px;
+  flex-shrink: 0;
+  overflow: auto;
+}
+.search-config header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.search-config input[type='number'] {
+  width: 90px;
+}
+.search-results {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.search-results > small {
+  color: #b1c5c0;
+  display: block;
+  margin: 6px 0;
+}
+.editor-search button {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+#search-families {
+  display: flex;
+  gap: 10px;
+  overflow: auto;
+}
+.solution-family {
+  min-width: 240px;
+  padding: 9px;
+  background: #152c36;
+  border: 1px solid #5d8077;
+  border-radius: 8px;
+}
+.solution-family > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.solution-family small {
+  display: block;
+}
+.search-parameter {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 4px;
+  margin: 6px 0;
+}
+.search-parameter input {
+  max-width: 100%;
+}
+.search-config > label {
+  display: block;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+.search-config > label > input:not([type='checkbox']) {
+  display: block;
+  margin-top: 3px;
+  width: 100%;
+}
+.search-config small {
+  line-height: 1.6;
+  display: block;
+}
+.workshop-dialog {
+  width: min(800px, calc(100vw - 32px));
+  max-height: 80dvh;
+  overflow: auto;
+  background: #1c3540;
+  color: #e7dfc6;
+}
+.workshop-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.library-connect {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.library-connect input {
+  display: block;
+  padding: 8px;
+}
+.library-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid #55786c;
+}
+.library-card > div {
+  flex: 1;
+}
+.library-card small {
+  display: block;
+  color: #a9c4ba;
+  font-size: 11px;
+}
+.editor *,
+.workshop-dialog {
+  scrollbar-width: thin;
+  scrollbar-color: #b99b63 #17323c;
+}
+.outcome-builder [hidden] {
+  display: none !important;
+}
+#outcome-preview svg {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  margin: auto;
+}
+#outcome-preview p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #b7ccc2;
+}
+#search-pages {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.editor ::-webkit-scrollbar,
+.workshop-dialog::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.editor ::-webkit-scrollbar-track,
+.workshop-dialog::-webkit-scrollbar-track {
+  background: #17323c;
+  border-radius: 8px;
+}
+.editor ::-webkit-scrollbar-thumb,
+.workshop-dialog::-webkit-scrollbar-thumb {
+  background: #b99b63;
+  border: 2px solid #17323c;
+  border-radius: 8px;
+}
+@media (max-width: 950px) {
+  .editor {
+    grid-template-columns: 130px minmax(220px, 1fr) 250px;
+    overflow: auto;
+  }
+  .editor-top select {
+    max-width: 200px;
+  }
+  .search-config {
+    width: 200px;
+  }
+}
+.draft-recovery {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 24px));
+  z-index: 30;
+  border-color: #dfb36c;
+  padding: 16px;
+  box-shadow: 0 12px 40px #000b;
+}
+.solution-family meter {
+  display: block;
+  width: 100%;
+  height: 8px;
+  accent-color: #e3b764;
 }

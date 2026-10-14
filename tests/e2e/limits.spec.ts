@@ -21,26 +21,33 @@ test('개발 에디터의 계획 길이·종류별 한도를 실제 타임라인
   await page.locator('#test-stage').click();
   await expect(page.locator('#timeline-clock')).toContainText('/ 12.0초');
   await expect(page.locator('[data-tool="stop"]')).toBeDisabled();
-  await page.locator('[data-tool="turn"]').click();
   const r = (await page.locator('#timeline-track').boundingBox())!;
   await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2);
+  await page.locator('[data-tool="turn"]').click();
   await expect(page.locator('.timeline-event.turn')).toHaveAttribute('data-time', '6');
   await expect(page.locator('[data-tool="turn"]')).toBeDisabled();
   await page.locator('[data-remove]').click();
   await expect(page.locator('[data-tool="turn"]')).toBeEnabled();
-  await page.locator('[data-tool="separate"]').click();
+  const placement = page.getByRole('spinbutton', { name: '새 예약 시각' });
+  await placement.fill('999');
+  await placement.press('Tab');
+  await expect(placement).toHaveValue('12.00');
+  await expect(page.locator('#flight-scrub')).toHaveValue('12');
+  await expect(page.locator('#timeline-clock')).toContainText('0.00 /');
   await page.mouse.click(r.x + r.width * 0.7, r.y + r.height / 2);
-  await expect(page.locator('#command-popover')).toBeHidden();
-  await expect(page.locator('#timeline-selection')).toContainText('단 분리');
+  await page.locator('[data-tool="separate"]').click();
+  await expect(page.locator('#command-popover')).toBeVisible();
+  await expect(page.locator('#command-popover')).toContainText('단 분리');
+  await expect(page.locator('#command-popover input')).toHaveCount(0);
   await expect(page.locator('[data-tool="separate"]')).toBeDisabled();
-  await page.locator('#timeline-selection button').click();
+  await page.locator('#command-popover [data-remove]').click();
   await expect(page.locator('[data-tool="separate"]')).toBeEnabled();
   await page.locator('#launch').click();
   await expect(page.locator('#timeline-clock')).toContainText(
     '/ ' + Number(missionTime).toFixed(1) + '초',
   );
   await page.locator('#abort').click();
-  await page.locator('#result-exit').click();
+  await page.locator('#exit').click();
   await page.locator('#stage-properties').click();
   await field('commandLimits.turn').fill('');
   await field('commandLimits.turn').press('Tab');
@@ -78,11 +85,14 @@ test('두 무제한 옵션을 저장하고 시간선을 확장하며 표시 시�
   await page.locator('#timeline-extend').click();
   await page.locator('#timeline-extend').click();
   await expect(page.locator('#timeline-ticks')).toContainText('2.0s');
-  await page.locator('[data-tool="turn"]').click();
   const r = (await page.locator('#timeline-track').boundingBox())!;
   await page.mouse.click(r.x + r.width * 0.75, r.y + r.height / 2);
+  await page.locator('[data-tool="turn"]').click();
   await expect(page.locator('.timeline-event.turn')).toHaveAttribute('data-time', '1.5');
   await page.locator('[data-close]').click();
+  await page.getByRole('spinbutton', { name: '새 예약 시각' }).fill('16.37');
+  await expect(page.locator('#flight-scrub')).toHaveAttribute('max', '16.37');
+  await expect(page.locator('.timeline-event.turn')).toHaveAttribute('data-time', '1.5');
   await page.locator('[data-event="launch"]').click();
   await page
     .getByRole('slider', { name: '첫 출력', exact: true })
@@ -97,7 +107,9 @@ test('두 무제한 옵션을 저장하고 시간선을 확장하며 표시 시�
     .toBeGreaterThan(1.2);
   await expect(page.locator('#result')).toBeHidden();
   await page.locator('#abort').click();
-  await page.locator('#result-replay').click();
+  await page.locator('#notes').click();
+  await page.locator('[data-trial-view="0"]').click();
+  await page.locator('[data-trial-replay="0"]').click();
   await expect(page.locator('#timeline-clock')).toContainText('∞');
   await expect(page.locator('.timeline-event.turn')).toHaveAttribute('data-time', '1.5');
   await page.screenshot({ path: 'test-results/screens/unlimited-timeline.png' });

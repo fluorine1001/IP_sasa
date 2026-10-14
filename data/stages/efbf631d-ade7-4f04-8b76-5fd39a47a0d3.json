@@ -125,32 +125,6 @@
                 "kind": "constant",
                 "value": 0
               }
-            },
-            {
-              "kind": "compare",
-              "left": {
-                "kind": "metric",
-                "metric": "speed",
-                "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
-              },
-              "operator": "gte",
-              "right": {
-                "kind": "constant",
-                "value": 0
-              }
-            },
-            {
-              "kind": "compare",
-              "left": {
-                "kind": "metric",
-                "metric": "speed",
-                "targetId": "45c92fb0-73fd-4e44-94cf-ca89864e6549"
-              },
-              "operator": "lte",
-              "right": {
-                "kind": "constant",
-                "value": 3
-              }
             }
           ]
         }

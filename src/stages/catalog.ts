@@ -5,6 +5,10 @@ export const stages: Stage[] = Object.values(files)
   .map(parseStage)
   .sort((a, b) => a.order - b.order);
 
-export const catalog = stages
-  .filter((s) => s.published !== false)
+const published = stages.filter((s) => s.published !== false);
+export const catalog = published
+  .filter((s) => s.track !== 'tutorial')
+  .map((s) => ({ ...s, referencePlans: [] }));
+export const tutorialCatalog = published
+  .filter((s) => s.track === 'tutorial')
   .map((s) => ({ ...s, referencePlans: [] }));

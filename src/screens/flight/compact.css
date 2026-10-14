@@ -1,0 +1,322 @@
+/* Outcome, controls and recordings each have one entry point. */
+.mission-panel {
+  width: 270px;
+  padding: 12px 14px;
+}
+.mission-panel .badge {
+  font-size: 10px;
+}
+.mission-panel h2 {
+  font-size: 19px;
+  margin: 5px 0 10px;
+}
+.goal-row {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+}
+.mission-panel #goal-details {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+}
+#goal-details svg,
+.goal-window svg,
+.goal-mode svg,
+.goal-explanation button svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.resources {
+  width: 175px;
+  padding: 12px;
+}
+.resources #mode {
+  font-size: 13px;
+  margin-bottom: 7px;
+}
+.resources .resource-row,
+#pad-reading {
+  font-size: 10px;
+  margin: 9px 0;
+}
+#inventory {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  color: #daca9f;
+}
+#inventory svg {
+  width: 20px;
+  height: 20px;
+}
+.calibration-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+.calibration-stats span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.calibration-stats svg {
+  width: 16px;
+  height: 16px;
+}
+.calibration-label {
+  font-size: 11px;
+}
+.flight-readouts {
+  display: flex;
+  gap: 10px;
+  color: #b9d1c2;
+  font-size: 12px;
+  margin-top: 7px;
+}
+.flight-readouts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.flight-readouts svg {
+  width: 16px;
+  height: 16px;
+}
+.flight-deck #timeline-palette > small,
+.flight-deck .timeline-caption {
+  display: none;
+}
+.flight-deck .dock-status {
+  padding-top: 5px;
+  font-size: 10px;
+}
+.flight-deck .plan-command {
+  width: auto;
+}
+.flight-deck #program-contract,
+.program-editor .direction-key {
+  display: none;
+}
+.flight-deck #replay-exit {
+  width: auto;
+  padding: 6px 10px;
+}
+.flight-deck .console-button[hidden] {
+  display: none;
+}
+.flight-deck #program-toggle .control-label {
+  font-size: 11px;
+}
+.result {
+  left: 22px;
+  top: var(--mission-bottom, 180px);
+  transform: none;
+  width: 260px;
+  padding: 12px;
+  max-height: none;
+  background: #192d3deb;
+  color: #dce5d6;
+  border: 1px solid #718f85;
+  border-radius: 10px;
+  box-shadow: none;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  pointer-events: none;
+}
+.result[hidden] {
+  display: none;
+}
+.result .result-mark svg {
+  width: 28px;
+  height: 28px;
+  color: #d6bd88;
+}
+.result h2 {
+  font-size: 18px;
+  margin: 3px 0;
+}
+.result .badge {
+  font-size: 10px;
+  color: #add6bd;
+}
+.result small {
+  color: #b5c5bf;
+  font-size: 10px;
+}
+.goal-mode,
+.goal-window {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #aecbbb;
+  font-size: 12px;
+}
+.criterion-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+.criterion-list li {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #102a36;
+}
+.criterion-list li > span {
+  color: #dac485;
+}
+.goal-explanation button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+#goal-close svg {
+  width: 18px;
+  height: 18px;
+}
+#notebook {
+  width: min(370px, calc(100vw - 16px));
+  padding: 13px;
+  max-height: calc(100dvh - var(--deck-offset, 240px) - 28px);
+}
+#notebook .archive-heading h2 {
+  font-size: 17px;
+  margin: 0;
+}
+#notebook .archive-heading {
+  margin-bottom: 12px;
+}
+#notebook .trial-card {
+  padding: 10px;
+}
+#notebook .trial-actions {
+  align-items: center;
+  justify-content: flex-end;
+}
+#notebook .trial-actions svg {
+  width: 18px;
+  height: 18px;
+}
+#notebook .trial-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+}
+#notebook .trial-select {
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  width: 145px;
+  background: #102633;
+  border: 1px solid #617f80;
+  border-radius: 7px;
+}
+#notebook .trial-select[aria-pressed='true'] {
+  border: 2px solid #83d8ff;
+}
+.preview-path {
+  stroke: #83d8ff;
+  stroke-dasharray: 4 4;
+}
+.trial-meta {
+  font-size: 11px;
+  gap: 6px;
+}
+.trial-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trial-meta svg {
+  width: 14px;
+  height: 14px;
+}
+.trial-heading {
+  font-size: 12px;
+}
+#replay-monitor {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border: 9px solid #08171c9c;
+  box-shadow: inset 0 0 90px #0007;
+}
+#replay-monitor[hidden] {
+  display: none;
+}
+.monitor-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.11;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjg1IiBudW1PY3RhdmVzPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI24pIiBvcGFjaXR5PSIuOCIvPjwvc3ZnPg==');
+}
+#replay-monitor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(transparent 0 3px, #0002 3px 4px);
+}
+.monitor-label {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #b8d7c9;
+  background: #10242ddd;
+  padding: 5px 12px;
+  border: 1px solid #507569;
+  border-radius: 4px;
+  font: 12px monospace;
+}
+@media (max-width: 650px) {
+  .mission-panel {
+    width: 54%;
+    padding: 9px;
+  }
+  .mission-panel h2 {
+    font-size: 14px;
+  }
+  .resources {
+    top: 55px;
+    width: 40%;
+    padding: 9px;
+  }
+  .resources #mode {
+    font-size: 11px;
+  }
+  .result {
+    left: 8px;
+    width: 52%;
+    padding: 9px;
+  }
+  .result h2 {
+    font-size: 15px;
+  }
+  .result .result-mark svg {
+    width: 22px;
+  }
+  #notebook {
+    top: auto;
+    bottom: var(--deck-offset, 220px);
+    max-height: 43dvh;
+  }
+  .monitor-label {
+    top: 8px;
+  }
+  #replay-exit .control-label {
+    font-size: 10px;
+  }
+}

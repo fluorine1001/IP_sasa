@@ -1,4 +1,5 @@
 import { atmosphericState, rocketMass } from './rocket.ts';
+import { eccentricity } from '../physics/orbit';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
 import {
   bodyPosition,
@@ -35,6 +36,31 @@ function frame(c: GoalContext, id: string) {
   };
 }
 export const metrics: Record<string, Metric> = {
+  landed: {
+    label: '안전하게 표면에 정착한 상태',
+    unit: '0 또는 1',
+    target: true,
+    read: (c, id) =>
+      c.actorId && c.actorId !== 'craft'
+        ? Number(
+            c.run.detached.some(
+              (actor) => actor.id === c.actorId && actor.status === 'landed' && actor.bodyId === id,
+            ),
+          )
+        : Number(c.run.landed?.bodyId === id),
+  },
+  eccentricity: {
+    label: '궤도의 찌그러짐 (0: 원형, 1 이상: 비결합)',
+    unit: '비율',
+    target: true,
+    read: (c, id) => {
+      const f = frame(c, id);
+      return eccentricity(
+        { position: f.d, velocity: f.v },
+        (f.body?.mu ?? 0) + (c.stage.bodies.find((b) => b.id === c.actorId)?.mu ?? 0),
+      );
+    },
+  },
   targetGravityParameter: {
     label: '대상 천체의 중력 상수 GM',
     unit: 'u³/t²',

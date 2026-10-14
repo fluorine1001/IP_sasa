@@ -1,11 +1,13 @@
 import { planningTimeLimit, canAddCommand, commandUsage } from '../../world/program';
 import { escape } from '../../app/core';
-import { heading } from '../../world/program';
+import { heading, plannedSeparationPart } from '../../world/program';
 import { attitudeRate } from '../../world/rocket';
 import { length, scale } from '../../physics/vector';
 import type { Stage, RoutePlan } from '../../world/types';
 import type { ProgramEvent } from '../../world/program';
 import type { TimelineState } from './timeline';
+import { engineBench, actorDiagram, directionDial, dialRotation, dialAngle } from './engine-bench';
+
 type Tool = 'ignite' | 'stop' | 'turn' | 'separate' | 'push';
 const names: Record<Tool, string> = {
   ignite: '엔진 출력',
@@ -24,13 +26,15 @@ export function timelinePlanner(
   icon: (k: ProgramEvent['kind']) => string,
   signal: AbortSignal,
   span: () => number,
+  selectedTime: () => number,
+  selectTime: (time: number) => void,
+  action?: (id: string) => void,
 ) {
   const track = root.querySelector<HTMLElement>('#timeline-track')!;
   const palette = root.querySelector<HTMLElement>('#timeline-palette')!;
   const popup = root.querySelector<HTMLElement>('#command-popover')!;
   const ghost = root.querySelector<HTMLElement>('#timeline-drop')!;
-  let armed: Tool | undefined,
-    selected = '',
+  let selected = '',
     suppressClick = false;
   let drag:
     | {
@@ -60,8 +64,8 @@ export function timelinePlanner(
         Math.round(
           ((x - track.getBoundingClientRect().left) / track.getBoundingClientRect().width) *
             span() *
-            20,
-        ) / 20,
+            100,
+        ) / 100,
       ),
     );
   const inside = (x: number, y: number) => {
@@ -95,7 +99,7 @@ export function timelinePlanner(
             : { throttle: kind === 'stop' ? 0 : 1 }),
       });
     selected = id;
-    armed = undefined;
+    action?.('reserve');
     changed();
     update();
     open(id);
@@ -124,7 +128,7 @@ export function timelinePlanner(
     return (
       '<small class="rotation-spec">목표 방향까지 회전 · ' +
       (rate > 0 ? (angle / rate).toFixed(1) + '초 내외' : '—') +
-      '<br>현재 단의 기본 성능 기준 · 연료가 줄면 조금 빨라짐</small>'
+      '</small>'
     );
   }
   function position() {
@@ -137,8 +141,8 @@ export function timelinePlanner(
         12,
         Math.min(window.innerWidth - width - 12, r.left + (r.width * t) / span() - width / 2),
       ) + 'px';
-    const deck = root.closest<HTMLElement>('.flight-deck')?.getBoundingClientRect();
-    popup.style.bottom = Math.max(12, window.innerHeight - (deck?.top ?? r.top) + 10) + 'px';
+    popup.style.bottom = Math.max(12, window.innerHeight - r.top + 12) + 'px';
+    popup.style.maxHeight = Math.max(100, r.top - 24) + 'px';
   }
   function range(
     label: string,
@@ -204,14 +208,15 @@ export function timelinePlanner(
           0,
           100,
           '%',
-        ) + range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°');
+        ) +
+        (stage.rocket ? '' : range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°'));
     else {
       fields =
         '<label>실행 시각 <input type="number" data-edit="time" min="0" ' +
         (Number.isFinite(planningTimeLimit(stage))
           ? 'max="' + planningTimeLimit(stage) + '" '
           : '') +
-        'step=".05" value="' +
+        'step=".01" value="' +
         (c ?? impulse)!.time.toFixed(2) +
         '" aria-label="선택 조작 실행 시각"> 초</label>';
       if (c?.throttle !== undefined && c.throttle > 0)
@@ -237,7 +242,7 @@ export function timelinePlanner(
         );
       if (c && !c.separate)
         fields +=
-          '<label>대상 기체 <select data-edit="actor"><option value="craft">주 로켓</option>' +
+          '<label>조작할 기체 <select data-edit="actor"><option value="craft">본체 · 남아 있는 로켓</option>' +
           (stage.rocket?.parts ?? [])
             .map(
               (part) =>
@@ -245,7 +250,7 @@ export function timelinePlanner(
                 part.id +
                 '"' +
                 (c.actorId === part.id ? ' selected' : '') +
-                '>분리된 ' +
+                '>분리체 · ' +
                 escape(part.name) +
                 '</option>',
             )
@@ -255,27 +260,49 @@ export function timelinePlanner(
         fields += '<p>아래 단을 분리합니다. 다음 단 엔진의 출력은 별도 조작으로 지정하세요.</p>';
       if (c?.throttle === 0)
         fields += '<p>엔진 분사를 멈춥니다. 관성과 중력은 계속 작용합니다.</p>';
-      if (c?.direction)
-        fields +=
-          '<div id="rotation-info">' +
-          rotationInfo(id) +
-          '</div><p class="direction-key">0° 발사대 바깥 · +90° 왼쪽 · −90° 오른쪽</p>';
+      if (c?.direction) fields += '<div id="rotation-info">' + rotationInfo(id) + '</div>';
     }
-    if (id !== 'launch' && (kind === 'separate' || kind === 'stop')) {
-      popup.hidden = true;
-      sync();
-      return;
+    const discreteOnly = id !== 'launch' && (kind === 'separate' || kind === 'stop');
+    if (discreteOnly) fields = '';
+    else {
+      if (id === 'launch' || kind === 'ignite' || kind === 'push')
+        fields = '<div id="selected-engine-bench">' + engineBench(stage, p, id) + '</div>' + fields;
+      if (c && !c.separate) {
+        const ordered = [...(p.engineCommands ?? [])].sort((a, b) => a.time - b.time);
+        const at = ordered.findIndex((other) => other.id === c.id);
+        fields += actorDiagram(
+          stage,
+          c.actorId,
+          ordered.slice(0, at).filter((other) => other.actorId === 'craft' && other.separate)
+            .length,
+        );
+      }
+      if (c?.direction || impulse || (!stage.rocket && id === 'launch'))
+        fields += directionDial(
+          degrees(c?.direction ?? impulse?.vector ?? p.launch),
+          stage.launchAngle ?? 0,
+        );
     }
     popup.innerHTML =
       '<header><b>' +
       icon(id === 'launch' ? 'ignite' : kind) +
-      (id === 'launch' ? '0초 · 발사' : names[kind]) +
+      (id === 'launch'
+        ? '0초 · 발사'
+        : names[kind] +
+          (c?.separate
+            ? ' · ' + escape(plannedSeparationPart(stage, p, c.id)?.name ?? '탑재체')
+            : '')) +
       '</b><button data-close aria-label="선택 조작 닫기">×</button></header><fieldset ' +
       (editable() ? '' : 'disabled') +
       '>' +
       fields +
       (id !== 'launch'
-        ? '<div class="popover-actions"><button data-first>같은 시각에서 먼저</button><button data-remove>조작 삭제</button></div>'
+        ? '<div class="popover-actions">' +
+          (!discreteOnly &&
+          (p.engineCommands ?? []).filter((other) => other.time === (c ?? impulse)!.time).length > 1
+            ? '<button data-first>먼저 실행</button>'
+            : '') +
+          '<button data-remove aria-label="선택 조작 삭제">삭제</button></div>'
         : '') +
       '</fieldset>';
     popup.hidden = false;
@@ -312,6 +339,7 @@ export function timelinePlanner(
           heading(stage, degrees(impulse.vector)),
           clamp(value, 0, stage.rules.maneuverBudget),
         );
+      action?.(key === 'time' ? 'move' : 'edit');
       const output = input.closest('label')?.querySelector('output');
       if (output)
         output.textContent =
@@ -319,9 +347,66 @@ export function timelinePlanner(
           (key.includes('angle') ? '°' : ['output', 'launch-power'].includes(key) ? '%' : '');
       changed();
       update();
+      const bench = popup.querySelector('#selected-engine-bench');
+      if (bench) bench.innerHTML = engineBench(stage, p, selected);
+      const pointer = popup.querySelector('.dial-pointer');
+      if (pointer && (key === 'angle' || key === 'launch-angle'))
+        pointer.setAttribute(
+          'transform',
+          'rotate(' + dialRotation(value, stage.launchAngle ?? 0) + ' 90 90)',
+        );
       const info = popup.querySelector('#rotation-info');
       if (info) info.innerHTML = rotationInfo(selected);
       position();
+    },
+    { signal },
+  );
+  let dialPointer: number | undefined;
+  const aimDial = (e: PointerEvent) => {
+    const svg = popup.querySelector<SVGSVGElement>('.direction-dial svg');
+    const input = popup.querySelector<HTMLInputElement>(
+      '[data-edit="angle"],[data-edit="launch-angle"]',
+    );
+    if (!svg || !input || !editable()) return;
+    const r = svg.getBoundingClientRect();
+    const angle = dialAngle(
+      e.clientX - r.left - r.width / 2,
+      e.clientY - r.top - r.height / 2,
+      stage.launchAngle ?? 0,
+    );
+    input.value = String(Math.round(angle / 5) * 5);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  popup.addEventListener(
+    'pointerdown',
+    (e) => {
+      const svg = (e.target as Element).closest<SVGSVGElement>('.direction-dial svg');
+      if (!svg || !editable() || e.button !== 0) return;
+      dialPointer = e.pointerId;
+      svg.setPointerCapture(e.pointerId);
+      aimDial(e);
+      e.preventDefault();
+    },
+    { signal },
+  );
+  popup.addEventListener(
+    'pointermove',
+    (e) => {
+      if (dialPointer === e.pointerId) aimDial(e);
+    },
+    { signal },
+  );
+  popup.addEventListener(
+    'pointerup',
+    () => {
+      dialPointer = undefined;
+    },
+    { signal },
+  );
+  popup.addEventListener(
+    'pointercancel',
+    () => {
+      dialPointer = undefined;
     },
     { signal },
   );
@@ -354,6 +439,7 @@ export function timelinePlanner(
       if (button.hasAttribute('data-remove')) {
         p.engineCommands = p.engineCommands?.filter((c) => c.id !== selected);
         p.impulses = p.impulses.filter((c) => c.id !== selected);
+        action?.('remove');
         selected = '';
         popup.hidden = true;
       }
@@ -369,7 +455,8 @@ export function timelinePlanner(
     { signal },
   );
   palette.innerHTML =
-    (stage.rocket ? ['ignite', 'stop', 'turn', 'separate'] : ['push'])
+    '<label id="timeline-placement">예약 시각 <input id="timeline-time" type="number" min="0" step="0.01" aria-label="새 예약 시각"> 초</label>' +
+    ['ignite', 'stop', 'turn', 'separate', 'push']
       .map(
         (k) =>
           '<button data-tool="' +
@@ -379,29 +466,28 @@ export function timelinePlanner(
             ? ' id="' + (k === 'ignite' ? 'engine' : 'separate') + '"'
             : '') +
           ' title="' +
-          names[k as Tool] +
-          ' · 시간선으로 끌어 놓기" aria-label="' +
+          { ignite: '출력', stop: '끄기', turn: '회전', separate: '분리', push: '추진' }[k] +
+          ' · 선택 시각에 추가 / 시간선으로 끌어 놓기" aria-label="' +
           names[k as Tool] +
           ' 배치">' +
           icon(k as Tool) +
           '<span>' +
-          names[k as Tool] +
+          { ignite: '출력', stop: '끄기', turn: '회전', separate: '분리', push: '추진' }[k] +
           '</span><small class="tool-count"></small></button>',
       )
-      .join('') + '<small>끌어 놓기 → 클릭해 조절</small>';
-  const discrete = document.createElement('span');
-  discrete.id = 'timeline-selection';
-  discrete.hidden = true;
-  palette.append(discrete);
-  discrete.addEventListener(
-    'click',
-    (e) => {
-      if (!(e.target as HTMLElement).closest('button') || !editable()) return;
-      const p = get().plan;
-      p.engineCommands = p.engineCommands?.filter((c) => c.id !== selected);
-      selected = '';
-      changed();
-      update();
+      .join('');
+  const timeField = palette.querySelector<HTMLInputElement>('#timeline-time')!;
+  timeField.addEventListener(
+    'input',
+    () => {
+      if (timeField.value !== '') selectTime(Number(timeField.value));
+    },
+    { signal },
+  );
+  timeField.addEventListener(
+    'change',
+    () => {
+      if (editable()) timeField.value = selectedTime().toFixed(2);
     },
     { signal },
   );
@@ -412,7 +498,10 @@ export function timelinePlanner(
       const target = e.target as HTMLElement,
         tool = target.closest<HTMLElement>('[data-tool]'),
         marker = target.closest<HTMLElement>('[data-event]');
-      if (target.closest('#command-popover') || (!tool && !target.closest('#timeline-track')))
+      if (
+        target.closest('#command-popover, #flight-scrub') ||
+        (!tool && !target.closest('#timeline-track'))
+      )
         return;
       if (e.button !== 0) return;
       if (marker && get().phase !== 'plan') {
@@ -420,7 +509,9 @@ export function timelinePlanner(
         e.preventDefault();
         return;
       }
-      if (get().phase === 'replay' && !tool) {
+      if (!tool && !marker && get().phase !== 'flight') {
+        selected = '';
+        popup.hidden = true;
         drag = {
           kind: 'scrub',
           id: '',
@@ -433,6 +524,7 @@ export function timelinePlanner(
         };
         seek(e.clientX);
         track.setPointerCapture(e.pointerId);
+        e.preventDefault();
         return;
       }
       if (!editable()) return;
@@ -471,7 +563,7 @@ export function timelinePlanner(
     },
     { signal },
   );
-  // Replay seeking is delegated to the range input callback (keeps the captured run immutable).
+  // The range callback chooses placement in planning and seeks only recorded state in replay.
   function seek(x: number) {
     const slider = root.querySelector<HTMLInputElement>('#flight-scrub')!;
     slider.value = String(timeAt(x));
@@ -493,6 +585,7 @@ export function timelinePlanner(
       } else if (drag.moved) {
         const c = command(drag.id) ?? push(drag.id);
         if (c) c.time = timeAt(e.clientX);
+        action?.('move');
         showGhost(timeAt(e.clientX));
         changed();
         update();
@@ -518,8 +611,7 @@ export function timelinePlanner(
     if (d.kind === 'tool') {
       if (d.moved && inside(e.clientX, e.clientY)) add(d.tool!, timeAt(e.clientX));
       else if (!d.moved) {
-        armed = d.tool;
-        sync();
+        add(d.tool!, selectedTime());
       }
     } else if (d.kind === 'move') open(d.id);
     suppressClick = true;
@@ -541,16 +633,13 @@ export function timelinePlanner(
         tool = target.closest<HTMLElement>('[data-tool]'),
         marker = target.closest<HTMLElement>('[data-event]');
       if (tool && editable()) {
-        armed = tool.dataset.tool as Tool;
-        sync();
+        if (!(tool as HTMLButtonElement).disabled) add(tool.dataset.tool as Tool, selectedTime());
         return;
       }
       if (marker) {
         open(marker.dataset.event!.replace(':turn', ''));
         return;
       }
-      if (editable() && armed && target.closest('#timeline-track'))
-        add(armed, timeAt((e as MouseEvent).clientX));
     },
     { signal },
   );
@@ -558,7 +647,6 @@ export function timelinePlanner(
     'keydown',
     (e) => {
       if (e.key === 'Escape') {
-        armed = undefined;
         selected = '';
         popup.hidden = true;
         ghost.hidden = true;
@@ -569,38 +657,34 @@ export function timelinePlanner(
   );
   function sync() {
     palette.hidden = !editable();
+    timeField.disabled = !editable();
+    if (timeField !== document.activeElement) timeField.value = selectedTime().toFixed(2);
+    const timeLimit = planningTimeLimit(stage);
+    if (Number.isFinite(timeLimit)) timeField.max = String(timeLimit);
+    else timeField.removeAttribute('max');
     for (const b of palette.querySelectorAll<HTMLButtonElement>('[data-tool]')) {
       const kind = b.dataset.tool as Tool,
         limit = stage.rules.commandLimits?.[kind],
         used = commandUsage(get().plan)[kind];
-      b.disabled = !editable() || !canAddCommand(stage, get().plan, kind);
-      b.title =
+      const disabled = !editable() || !canAddCommand(stage, get().plan, kind);
+      if (b.disabled !== disabled) b.disabled = disabled;
+      const title =
         names[kind] +
         ' · ' +
+        selectedTime().toFixed(2) +
+        '초에 추가 · ' +
         (limit === undefined ? '예약 횟수 제한 없음' : used + '/' + limit + '회 예약');
+      if (b.title !== title) b.title = title;
       const count = b.querySelector('.tool-count');
-      if (count) count.textContent = limit === undefined ? '' : used + '/' + limit;
-      b.setAttribute('aria-pressed', String(b.dataset.tool === armed));
+      const text = limit === undefined ? '' : used + '/' + limit;
+      if (count && count.textContent !== text) count.textContent = text;
     }
     for (const marker of track.querySelectorAll<HTMLElement>('[data-event]'))
       marker.setAttribute('aria-pressed', String(marker.dataset.event === selected));
-    const chosen = command(selected);
-    discrete.hidden = !editable() || !chosen || !(chosen.separate || chosen.throttle === 0);
-    if (!discrete.hidden) {
-      const markup =
-        '<span>' +
-        (chosen!.separate ? '단 분리' : '엔진 끄기') +
-        ' · ' +
-        chosen!.time.toFixed(2) +
-        '초</span><button aria-label="선택 조작 삭제">×</button>';
-      if (discrete.innerHTML !== markup) discrete.innerHTML = markup;
-    }
     const explanation = root.querySelector<HTMLElement>('#timeline-explanation')!;
     if (editable())
-      explanation.textContent = armed
-        ? names[armed] + ' · 시간선을 클릭해 배치'
-        : '조작을 시간선으로 끌어 놓고 클릭해 조절';
-    if (!editable() && armed) armed = undefined;
+      explanation.textContent =
+        '바 클릭·드래그로 시각 선택 · 조작 버튼으로 추가 · 예약 그림을 끌어 이동';
     if (selected && !popup.hidden) {
       const field = popup.querySelector<HTMLFieldSetElement>('fieldset');
       if (field) field.disabled = !editable();
@@ -608,10 +692,23 @@ export function timelinePlanner(
     }
   }
   window.addEventListener('resize', position, { signal });
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (!(event.target as HTMLElement).closest('#command-popover, [data-event], [data-tool]')) {
+        selected = '';
+        popup.hidden = true;
+      }
+    },
+    { signal },
+  );
   return {
     sync,
+    deselect: () => {
+      selected = '';
+      popup.hidden = true;
+    },
     close: () => {
-      armed = undefined;
       selected = '';
       popup.hidden = true;
       ghost.hidden = true;

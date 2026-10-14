@@ -1,11 +1,27 @@
 import { defineConfig, type Plugin } from 'vite';
 import { writeFile, rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { workshopApi } from './scripts/workshop-api';
+import { publicationAuditor } from './scripts/workshop-auditor';
 function stageWorkshop(): Plugin {
   return {
     name: 'local-stage-workshop',
     apply: 'serve',
     configureServer(server) {
+      let handler: ReturnType<typeof workshopApi> | undefined;
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/api/stages') && !req.url?.startsWith('/api/workshop/stages'))
+          return next();
+        if (!handler) {
+          const { parseStage } = await server.ssrLoadModule('/src/stages/validation.ts');
+          handler = workshopApi(
+            server.config.root,
+            parseStage,
+            publicationAuditor(server.config.root),
+          );
+        }
+        await handler(req, res);
+      });
       server.middlewares.use('/__dev/stages', async (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         const reject = (code: number, error: string) => {
@@ -13,6 +29,8 @@ function stageWorkshop(): Plugin {
           res.end(JSON.stringify({ error }));
         };
         if (req.method !== 'POST') return reject(405, 'POST only');
+        if (process.env.STAGE_EDITOR_TOKEN)
+          return reject(403, 'Use the authenticated workshop API');
         const address = req.socket.remoteAddress ?? '',
           host = req.headers.host ?? '';
         if (

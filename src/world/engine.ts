@@ -1,4 +1,5 @@
 import { missionTimeLimit } from './program';
+import { craftCenter } from './craft-center';
 import { planConstraints } from './program';
 import { captureFrame } from './replay';
 import { craftHull, hullSize, sweepHull, settleHull } from './hull';
@@ -56,7 +57,7 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
             .filter((b) => b.dynamic)
             .map((b) => [
               b.id,
-              { position: { ...b.position }, velocity: { ...b.dynamic!.velocity } },
+              { position: bodyPosition(stage, b, 0), velocity: bodyVelocity(stage, b, 0) },
             ]),
         )
       : undefined,
@@ -65,10 +66,10 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
           partIndex: 0,
           fuel: stage.rocket.parts.map((p) => p.fuelMass),
           ignitions: stage.rocket.parts.map((_, i) => (i === 0 && length(plan.launch) > 0 ? 1 : 0)),
-          direction:
-            length(plan.launch) > 1e-8
-              ? scale(plan.launch, 1 / length(plan.launch))
-              : { x: Math.cos(stage.launchAngle ?? 0), y: Math.sin(stage.launchAngle ?? 0) },
+          direction: surfaceLaunch(stage)?.normal ?? {
+            x: Math.cos(stage.launchAngle ?? 0),
+            y: Math.sin(stage.launchAngle ?? 0),
+          },
           throttle: Math.min(1, length(plan.launch) / stage.rules.launchLimit),
           heat: 0,
           stress: 0,
@@ -323,7 +324,10 @@ export function tick(
           );
           actor.touchdownSpeed = length(sub(actor.velocity, bodyVelocity(stage, b, run.time)));
           actor.status =
-            actor.touchdownSpeed <= (part.maxLandingSpeed ?? 0.18) ? 'landed' : 'crashed';
+            ['planet', 'moon'].includes(b.kind) &&
+            actor.touchdownSpeed <= (part.maxLandingSpeed ?? 0.18)
+              ? 'landed'
+              : 'crashed';
           actor.throttle = 0;
           break;
         }
@@ -407,7 +411,7 @@ export function tick(
       observe(stage, run, objects, before);
       if (run.time - run.lastTrail >= 0.05) {
         run.trail.push({
-          position: { ...run.position },
+          position: craftCenter(stage, run),
           velocity: { ...run.velocity },
           targets: Object.fromEntries([
             ...stage.bodies

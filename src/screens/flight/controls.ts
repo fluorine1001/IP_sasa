@@ -1,5 +1,13 @@
 import { escape } from '../../app/core';
 const glyphs: Record<string, string> = {
+  target:
+    '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/>',
+  fuel: '<path d="M7 3h9v18H7zM9 6h5m2 3h3v8h-3"/>',
+  turn: '<path d="M4 18V9a5 5 0 0 1 5-5h10m-4-3 4 3-4 4"/>',
+  copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
+  back: '<path d="M10 5l-7 7 7 7M3 12h18"/>',
+  check: '<path d="M4 12l5 5L20 5"/>',
   aim: '<path d="M5 19L19 5M9 5h10v10"/><circle cx="5" cy="19" r="2"/>',
   sensor: '<circle cx="12" cy="12" r="4"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M5 5l3 3m8 8 3 3"/>',
   speed: '<path d="M3 18a9 9 0 1 1 18 0M12 14l5-6M5 18h14"/><circle cx="12" cy="14" r="2"/>',

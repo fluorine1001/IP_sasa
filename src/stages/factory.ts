@@ -1,4 +1,5 @@
 import { PAD_CLEARANCE } from '../world/launch.ts';
+import { defaultRocket } from '../world/rocket.ts';
 import { comparison } from '../world/conditions.ts';
 import type { Body, Goal, Stage, WorldObject } from '../world/types.ts';
 export const uid = () => crypto.randomUUID();
@@ -76,6 +77,7 @@ export function blankStage(): Stage {
   };
   return {
     version: 2,
+    rocket: defaultRocket(),
     launchBodyId: body.id,
     launchAngle: 0,
     id: uid(),

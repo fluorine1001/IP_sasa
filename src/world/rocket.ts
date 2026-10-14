@@ -236,7 +236,8 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     index = actor ? stage.rocket.parts.findIndex((p) => p.id === actor.id) : run.rocket.partIndex,
     part = stage.rocket.parts[index];
   if (!part) return '';
-  if (state.targetDirection) {
+  // The launch support fixes attitude until lift-off. A queued pitch target is not a launch impulse.
+  if (state.targetDirection && (actor || run.rocket.airborne || !stage.launchBodyId)) {
     const old = state.direction;
     state.direction = turnTowards(
       old,

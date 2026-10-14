@@ -8,9 +8,21 @@ export type ProgramEvent = {
   label: string;
   actorId: string;
 };
+export function plannedSeparationPart(stage: Stage, plan: RoutePlan, id: string) {
+  const commands = [...(plan.engineCommands ?? [])].sort((a, b) => a.time - b.time);
+  const at = commands.findIndex((command) => command.id === id);
+  const index = commands.slice(0, at).filter((command) => command.separate).length;
+  return stage.rocket?.parts[index];
+}
 export function programEvents(plan: RoutePlan): ProgramEvent[] {
   return [
-    { id: 'launch', time: 0, kind: 'ignite' as const, label: '발사 · 첫 추진', actorId: 'craft' },
+    {
+      id: 'launch',
+      time: 0,
+      kind: 'ignite' as const,
+      label: '0초 · 초기 엔진 출력',
+      actorId: 'craft',
+    },
     ...(plan.engineCommands ?? []).flatMap((c) => {
       const base = { id: c.id, time: c.time, actorId: c.actorId };
       if (c.separate)
@@ -112,7 +124,11 @@ export function heading(stage: Stage, degrees: number) {
   return { x: Math.cos(angle), y: Math.sin(angle) };
 }
 export function launchAt(stage: Stage, degrees: number, percent: number) {
-  return scale(heading(stage, degrees), (stage.rules.launchLimit * percent) / 100);
+  // JSON v2 retains the old vector carrier; powered flight reads only its magnitude as throttle.
+  return scale(
+    heading(stage, stage.rocket ? 0 : degrees),
+    (stage.rules.launchLimit * percent) / 100,
+  );
 }
 
 export type CommandKind = 'ignite' | 'stop' | 'turn' | 'separate' | 'push';
@@ -147,11 +163,17 @@ export function commandUsage(plan: RoutePlan): Record<CommandKind, number> {
   return count;
 }
 export function canAddCommand(stage: Stage, plan: RoutePlan, kind: CommandKind) {
+  if (kind === 'push' && stage.rules.maneuverBudget <= 0) return false;
+  if (kind === 'push' ? !!stage.rocket : !stage.rocket) return false;
+  if (kind === 'separate' && commandUsage(plan).separate >= (stage.rocket?.parts.length ?? 0))
+    return false;
   const limit = stage.rules.commandLimits?.[kind];
   return limit === undefined || commandUsage(plan)[kind] < limit;
 }
 export function planConstraints(stage: Stage, plan: RoutePlan): string[] {
   const out: string[] = [];
+  if (stage.rocket && plan.impulses.length)
+    out.push('연료 로켓은 순간 속도 변경을 사용할 수 없습니다. 점화·회전·정지를 예약하세요.');
   const usage = commandUsage(plan);
   for (const kind of Object.keys(usage) as CommandKind[]) {
     const limit = stage.rules.commandLimits?.[kind];

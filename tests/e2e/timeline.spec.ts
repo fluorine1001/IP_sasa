@@ -4,7 +4,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 const stages = readdirSync('data/stages')
   .filter((f) => f.endsWith('.json'))
   .map((f) => JSON.parse(readFileSync('data/stages/' + f, 'utf8')));
-const powered = stages.find((s) => s.rocket);
+// Keep the two-separation campaign fixture stable when new tutorial files are discovered.
+const powered = stages.find((s) => s.rocket && s.track !== 'tutorial' && s.order === 1);
 async function openReference(page: any) {
   await page.goto('/?editor=1');
   await page.locator('#stage-source').selectOption(powered.id);
@@ -15,12 +16,12 @@ test('발사 전 예약 편집·실시간 진행·비행 중 편집 잠금', asy
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openReference(page);
-  await expect(page.locator('#initial-output')).toContainText('추진 가속');
+  await expect(page.locator('#initial-output [title="추진 가속"]')).toBeVisible();
   await page.locator('#program-toggle').click();
   await expect(page.locator('.program-command')).toHaveCount(
     powered.referencePlans[0].engineCommands.length,
   );
-  await expect(page.locator('#launch-readout')).toContainText('분사');
+  await expect(page.locator('#launch-readout .hardware-deck')).toBeVisible();
   await page.locator('#program-launch-power').evaluate((e: HTMLInputElement) => {
     e.value = '10';
     e.dispatchEvent(new Event('input', { bubbles: true }));
@@ -49,7 +50,7 @@ test('다시보기는 해당 시도 계획·단 분리·카메라를 복원하�
   await openReference(page);
   await page.locator('#launch').click();
   await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
-  await page.locator('#result-retry').click();
+  await page.locator('#replay-exit').click();
   await page.locator('#program-toggle').click();
   const first = page.locator('#program-fields input[data-time]').first();
   await first.fill('10');
@@ -92,7 +93,9 @@ test('비행 종료 전 미실행 예약도 당시 진행 바에 남고 다시�
   await page.locator('#launch').click();
   await page.locator('#pause').click();
   await page.locator('#abort').click();
-  await page.locator('#result-replay').click();
+  await page.locator('#notes').click();
+  await page.locator('[data-trial-view="0"]').click();
+  await page.locator('[data-trial-replay="0"]').click();
   await page.locator('#replay-toggle').click();
   await expect(page.locator('.timeline-event.separate.pending')).toHaveCount(2);
   await expect(page.locator('.timeline-event.separate').first()).toHaveAttribute(
@@ -102,7 +105,7 @@ test('비행 종료 전 미실행 예약도 당시 진행 바에 남고 다시�
   await page.locator('#program-toggle').click();
   await expect(page.locator('#program-launch-power')).toBeDisabled();
   await page.locator('#replay-exit').click();
-  await expect(page.locator('#result')).toContainText('직접 비행을 종료');
+  await expect(page.locator('#result')).toContainText('직접 종료');
 });
 
 test('직접 제작한 모든 분리 단계의 이미지 외곽이 실제 충돌 몸체 안에 있다', async ({ page }) => {

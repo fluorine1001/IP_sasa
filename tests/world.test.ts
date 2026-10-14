@@ -6,8 +6,9 @@ import { syncLaunch, PAD_CLEARANCE } from '../src/world/launch';
 import { length, sub } from '../src/physics/vector';
 import { parseStage } from '../src/stages/validation';
 import { auditStage } from '../src/editor/audit';
+import { legacyStage } from './fixtures/legacy-stage';
 const first = () => {
-  const s = structuredClone(stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!);
+  const s = legacyStage();
   delete s.randomization;
   return s;
 };

@@ -1,7 +1,8 @@
 import { paintRocket } from './rocket-sprite';
+import { paintGoalRegion } from './goal-region';
+import { paintExhaust } from './exhaust';
 import { hullSize } from '../world/hull';
 import { impactDirection } from '../world/impact';
-import { aimEndpoint } from './aim.ts';
 import { surfaceLaunch } from '../world/launch.ts';
 import { bodyPosition, objectPosition } from '../world/celestial.ts';
 import { add, scale, length, type Vec } from '../physics/vector.ts';
@@ -16,6 +17,7 @@ export type DrawState = {
   history?: Run['trail'];
   histories?: Run['trail'][];
   historyLabel?: string;
+  selectedHistory?: boolean;
   historyLabels?: string[];
   replayTime?: number;
   plan?: RoutePlan;
@@ -88,15 +90,14 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
             ? objectPosition(s.stage, object, t)
             : g.position,
       );
-    ctx.strokeStyle = '#d8cf7788';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([7, 7]);
-    for (const r of new Set([g.display.min, g.display.max])) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r * c.zoom, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
+    paintGoalRegion(
+      ctx,
+      p.x,
+      p.y,
+      g.display.min * c.zoom,
+      g.display.max * c.zoom,
+      !!s.run?.goals[g.id]?.complete,
+    );
   }
 
   const path = (points: Vec[], color: string, dashed = false) => {
@@ -115,7 +116,10 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   for (const [i, trail] of (s.histories ?? []).entries()) {
     if (s.trails !== false)
       path(
-        [s.stage.spawn.position, ...trail.map((v) => v.position)],
+        [
+          s.stage.rocket ? trail[0].position : s.stage.spawn.position,
+          ...trail.map((v) => v.position),
+        ],
         ['#79c7d64d', '#b6a1de4d', '#d0cc764d'][i % 3],
         true,
       );
@@ -155,11 +159,23 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         q.y - 10,
       );
     }
-  if (s.history?.length && s.trails !== false)
-    path([s.stage.spawn.position, ...s.history.map((v) => v.position)], '#aab8ae80', true);
-  if (s.run && s.trails !== false)
+  if (s.history?.length && (s.selectedHistory || s.trails !== false))
     path(
-      [s.stage.spawn.position, ...s.run.trail.map((v) => v.position)],
+      [
+        s.stage.rocket ? s.history[0].position : s.stage.spawn.position,
+        ...s.history.map((v) => v.position),
+      ],
+      s.selectedHistory ? '#83d8ff' : '#aab8ae80',
+      true,
+    );
+  if (s.run && s.trails !== false && (!s.selectedHistory || s.run.status === 'running' || s.replay))
+    path(
+      [
+        s.stage.rocket
+          ? (s.run.trail[0]?.position ?? s.stage.spawn.position)
+          : s.stage.spawn.position,
+        ...s.run.trail.map((v) => v.position),
+      ],
       s.run.probe ? '#80cbd5' : '#f9b671',
     );
   for (const b of s.stage.bodies) {
@@ -333,7 +349,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     position: Vec,
     direction: Vec,
     count: number,
-    flame: boolean,
+    flame: number,
     selected: boolean,
     booster = false,
     firstPart = 0,
@@ -346,7 +362,8 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     if (s.replay) ctx.globalAlpha = 0.72;
     ctx.translate(p.x, p.y);
     ctx.rotate(-Math.atan2(direction.y, direction.x));
-    paintRocket(ctx, count, firstPart, booster, c.zoom, flame);
+    paintExhaust(ctx, flame, c.zoom, t, !!s.reducedMotion);
+    paintRocket(ctx, count, firstPart, booster, c.zoom);
     if (selected && s.run && !s.run.impact && !s.run.landed && (s.run.rocket?.airborne ?? true)) {
       ctx.strokeStyle = '#9fd5b755';
       ctx.lineWidth = 1;
@@ -360,7 +377,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       actor.position,
       actor.direction,
       1,
-      actor.throttle > 0,
+      actor.status === 'flying' && actor.fuel > 0 ? actor.throttle : 0,
       actor.id === s.controlledId,
       true,
       s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
@@ -389,12 +406,32 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ship,
     v,
     count,
-    !!s.thrust || !!s.run?.rocket?.throttle,
+    s.run?.rocket &&
+      count > 0 &&
+      !s.run.impact &&
+      !s.run.landed &&
+      s.run.rocket.fuel[s.run.rocket.partIndex] > 0
+      ? s.run.rocket.throttle
+      : s.thrust
+        ? 1
+        : 0,
     s.controlledId === 'craft',
     false,
     s.run?.rocket?.partIndex ?? 0,
   );
   const p = screen(ship);
+  for (const actor of s.run?.detached ?? []) {
+    if (actor.age > 0.45) continue;
+    const split = screen(add(actor.position, scale(actor.direction, hullSize(1, true).length)));
+    ctx.save();
+    ctx.globalAlpha = (1 - actor.age / 0.45) * 0.8;
+    ctx.strokeStyle = '#f1d58c';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(split.x, split.y, 5 + actor.age * 20, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (s.run?.impact) {
     const age = s.run.impact.age;
     for (let i = 0; i < 12; i++) {
@@ -410,37 +447,6 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     }
   }
 
-  const arrow = (origin: Vec, vector: Vec, color: string) => {
-    const a = screen(origin),
-      b = screen(aimEndpoint(origin, vector));
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 7, 0, 7);
-    ctx.fill();
-  };
-  if (s.plan && !s.run) {
-    arrow(s.stage.spawn.position, s.plan.launch, '#efb868');
-    for (const burn of s.plan.impulses) {
-      const point = s.history?.length
-        ? s.history.reduce((a, b) =>
-            Math.abs(b.time - burn.time) < Math.abs(a.time - burn.time) ? b : a,
-          )
-        : undefined;
-      if (point) {
-        arrow(point.position, burn.vector, '#9ed8b9');
-        const n = screen(point.position);
-        ctx.fillStyle = '#efe8d5';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.fillText(`${burn.time.toFixed(1)}s`, n.x + 10, n.y - 10);
-      }
-    }
-  }
   if (s.selected?.has('spawn')) {
     ctx.strokeStyle = '#ffcf73';
     ctx.strokeRect(p.x - 22, p.y - 22, 44, 44);

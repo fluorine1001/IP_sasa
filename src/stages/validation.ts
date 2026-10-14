@@ -8,6 +8,30 @@ import { type Stage } from '../world/types.ts';
 export function issues(stage: Stage): string[] {
   const out: string[] = [];
   if (stage.version !== 2) out.push('지원하지 않는 스테이지 버전입니다.');
+  if (stage.track !== undefined && !['campaign', 'tutorial'].includes(stage.track))
+    out.push('스테이지 구분은 본편 또는 튜토리얼이어야 합니다.');
+  if (stage.track === 'tutorial') {
+    const t = stage.tutorial;
+    if (
+      !t ||
+      !Number.isInteger(t.lesson) ||
+      t.lesson < 1 ||
+      !t.objective?.trim() ||
+      !Array.isArray(t.steps) ||
+      !t.steps.length ||
+      t.steps.length > 24 ||
+      new Set(t.steps.map((step) => step.id)).size !== t.steps.length ||
+      t.steps.some(
+        (step) =>
+          !/^[a-z][a-z0-9-]{0,31}$/.test(step.id) ||
+          !step.label?.trim() ||
+          (step.detail !== undefined &&
+            (typeof step.detail !== 'string' || step.detail.length > 2000)) ||
+          (step.target !== undefined && !/^#[a-z][a-z0-9-]*$/.test(step.target)),
+      )
+    )
+      out.push('튜토리얼 단계와 조작 체크를 확인하세요.');
+  }
   if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(stage.id))
     out.push('스테이지 ID는 UUID여야 합니다.');
   if (!stage.title?.trim()) out.push('스테이지 이름이 필요합니다.');
@@ -21,7 +45,13 @@ export function issues(stage: Stage): string[] {
   ];
   const ids = new Set<string>();
   for (const r of records) {
-    if (!r.id || ids.has(r.id)) out.push('오브젝트 ID가 중복되었습니다.');
+    if (
+      typeof r.id !== 'string' ||
+      !/^[a-z0-9_:-]{1,128}$/i.test(r.id) ||
+      ['__proto__', 'constructor', 'prototype'].includes(r.id) ||
+      ids.has(r.id)
+    )
+      out.push('오브젝트 ID는 안전한 영문·숫자 식별자로 서로 달라야 합니다.');
     ids.add(r.id);
   }
   if (stage.bodies?.length > 64 || stage.objects?.length > 1000 || stage.goals?.length > 100)
@@ -29,7 +59,9 @@ export function issues(stage: Stage): string[] {
   for (const b of stage.bodies ?? []) {
     if (
       b.dynamic &&
-      (![b.dynamic.velocity?.x, b.dynamic.velocity?.y].every(Number.isFinite) || b.motion)
+      (![b.dynamic.velocity?.x, b.dynamic.velocity?.y].every(Number.isFinite) ||
+        (b.dynamic.epoch !== undefined && !Number.isFinite(b.dynamic.epoch)) ||
+        b.motion)
     )
       out.push('운동 천체의 초기 속도와 궤도 모드를 확인하세요.');
     if (
@@ -120,7 +152,7 @@ export function issues(stage: Stage): string[] {
       g.display &&
       (!records.some((x) => x.id === g.display!.targetId) ||
         ![g.display.min, g.display.max].every(Number.isFinite) ||
-        g.display.min <= 0 ||
+        g.display.min < 0 ||
         g.display.max < g.display.min)
     )
       out.push('목표 표시 영역을 확인하세요.');
@@ -286,7 +318,9 @@ export function issues(stage: Stage): string[] {
       let cost = 0;
       for (const burn of plan.impulses) {
         if (
-          !burn.id ||
+          typeof burn.id !== 'string' ||
+          !/^[a-z0-9_:-]{1,128}$/i.test(burn.id) ||
+          ['__proto__', 'constructor', 'prototype'].includes(burn.id) ||
           ids.has(burn.id) ||
           !burn.vector ||
           ![burn.time, burn.vector?.x, burn.vector?.y].every(Number.isFinite) ||
@@ -305,7 +339,9 @@ export function issues(stage: Stage): string[] {
         else
           for (const command of plan.engineCommands) {
             if (
-              !command.id ||
+              typeof command.id !== 'string' ||
+              !/^[a-z0-9_:-]{1,128}$/i.test(command.id) ||
+              ['__proto__', 'constructor', 'prototype'].includes(command.id) ||
               ids.has(command.id) ||
               !Number.isFinite(command.time) ||
               command.time < 0 ||

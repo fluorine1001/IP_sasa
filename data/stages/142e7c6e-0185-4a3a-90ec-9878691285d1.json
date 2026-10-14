@@ -70,7 +70,7 @@
             "operator": "lte",
             "right": {
               "kind": "constant",
-              "value": 0.16
+              "value": 0.18
             }
           }
         ]

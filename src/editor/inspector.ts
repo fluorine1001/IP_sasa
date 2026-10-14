@@ -1,3 +1,4 @@
+import { outcomeInspector } from './outcome-inspector';
 import { learningInspector } from './learning-inspector';
 import { conditionBuilder } from './condition-builder.ts';
 import { escape } from '../app/core.ts';
@@ -140,6 +141,7 @@ export function inspector(model: EditorModel): string {
       },
       number('motion.radius', '공전 반지름'),
       number('motion.phase', '출발 위상 (rad)'),
+      number('motion.angularSpeed', '지정 공전 각속도 (빈칸: 중심 중력 기준)'),
     );
   if (entity && 'mu' in entity) {
     fields.push(number('spin', '자전 각속도 / 대기 회전'));
@@ -163,15 +165,21 @@ export function inspector(model: EditorModel): string {
     !entity || id === 'spawn'
       ? `<details open><summary>로켓 추진·단 분리</summary><button id="toggle-rocket">${stage.rocket ? '3단 추진 모델 해제' : '실제 연료를 쓰는 3단 로켓 구성'}</button>${stage.rocket ? fieldHtml(number('rocket.payloadMass', '탑재체 질량'), stage) + stage.rocket.parts.map((part, i) => `<details><summary>${escape(part.name)}</summary>${[{ path: `rocket.parts.${i}.name`, label: '이름', type: 'text' as const }, ...(['dryMass', 'fuelMass', 'thrust', 'exhaustSpeed', 'area', 'maxQ', 'maxHeat', 'ignitionLimit', 'maxLandingSpeed', 'turnRate'] as const).map((key, j) => number(`rocket.parts.${i}.${key}`, ['빈 단 질량', '연료 질량', '최대 추력', '배기 속력', '항력 면적 (CdA)', '대기 동압 한계', '가열 한계', '재점화 한도', '회수 최대 접촉 속력', '회전 속도 (rad/초)'][j]))].map((f) => fieldHtml(f, stage)).join('')}</details>`).join('') : ''}</details>`
       : '';
-  const html = fields
-    .map((f) => {
-      const value = getPath(target, f.path) ?? '',
-        label = escape(f.label),
-        path = escape(f.path);
-      return `<label>${label}${f.options ? `<select data-field="${path}">${f.options.map(([v, l]) => `<option value="${escape(v)}" ${v === value ? 'selected' : ''}>${escape(l)}</option>`).join('')}</select>` : f.type === 'textarea' ? `<textarea data-field="${path}">${escape(value)}</textarea>` : `<input data-field="${path}" type="${f.type ?? 'text'}" ${f.type === 'checkbox' ? (value ? 'checked' : '') : `value="${escape(value)}"`} ${f.type === 'number' ? numericAttributes(f.path) : ''}>`}</label>`;
-    })
-    .join('');
-  return `<div class="badge">${entity ? '선택 오브젝트' : id === 'spawn' ? '출발 장치' : '스테이지 규칙'}${model.selection.size > 1 ? ` · ${model.selection.size}개 선택` : ''}</div>${html}${entity && 'mu' in entity ? `<button id="toggle-atmosphere">${entity.atmosphere ? '대기 해제' : '대기 추가'}</button><button id="toggle-dynamic">${entity.dynamic ? '상호 중력 운동 해제' : '상호 중력 운동 사용'}</button>` : ''}${rocketHtml}${entity && 'sensor' in entity && entity.kind === 'path' ? `<label>경로 점 좌표 (중심에 상대적)<textarea id="path-points">${escape(JSON.stringify(entity.points))}</textarea></label><p class="muted">지도에서 경로 점을 끌어 수정하세요. 임무 조건에서 ‘목표 경로에서 벗어난 거리’를 고르고 이 경로를 대상으로 지정할 수 있습니다.</p>` : ''}${entity && 'condition' in entity ? `<button id="toggle-display">표시 영역 추가 / 해제</button><h3>목표 조건 블록</h3><p class="muted">비행체·기준 대상 → 물리량·계산·순간 기록·구간 통계 → 비교·유지·순서. 각 임무는 이 공통 블록으로 만듭니다. 수치는 축척 단위 u와 게임 시간 t를 사용합니다.</p>${conditionBuilder(entity.condition, 'condition', stage)}` : ''}${entity && ('mu' in entity || 'sensor' in entity) ? `<button id="toggle-motion">${entity.motion ? '공전 해제' : '천체 주위에 공전시키기'}</button>` : ''}${
+  const motionHtml =
+    entity && 'mu' in entity
+      ? `<section class="body-motion"><h3>천체 운동</h3><select id="body-motion-mode" aria-label="천체 운동 방식"><option value="fixed" ${!entity.dynamic && !entity.motion ? 'selected' : ''}>고정 위치</option><option value="prescribed" ${entity.motion ? 'selected' : ''}>지정 원운동 · 다른 천체에 영향받지 않음</option><option value="gravity" ${entity.dynamic ? 'selected' : ''}>상호 중력 · 초기 속도로 자유 운동</option></select><small>상호 중력은 원·타원·쌍성·탈출 궤도를 초기 위치와 속도로 만듭니다. 모든 천체의 중력은 로켓과 분리체에 작용합니다.</small></section>`
+      : '';
+  const html =
+    motionHtml +
+    fields
+      .map((f) => {
+        const value = getPath(target, f.path) ?? '',
+          label = escape(f.label),
+          path = escape(f.path);
+        return `<label>${label}${f.options ? `<select data-field="${path}">${f.options.map(([v, l]) => `<option value="${escape(v)}" ${v === value ? 'selected' : ''}>${escape(l)}</option>`).join('')}</select>` : f.type === 'textarea' ? `<textarea data-field="${path}">${escape(value)}</textarea>` : `<input data-field="${path}" type="${f.type ?? 'text'}" ${f.type === 'checkbox' ? (value ? 'checked' : '') : `value="${escape(value)}"`} ${f.type === 'number' ? numericAttributes(f.path) : ''}>`}</label>`;
+      })
+      .join('');
+  return `<div class="badge">${entity ? '선택 오브젝트' : id === 'spawn' ? '출발 장치' : '스테이지 규칙'}${model.selection.size > 1 ? ` · ${model.selection.size}개 선택` : ''}</div>${html}${entity && 'mu' in entity ? `<button id="toggle-atmosphere">${entity.atmosphere ? '대기 해제' : '대기 추가'}</button>` : ''}${rocketHtml}${entity && 'sensor' in entity && entity.kind === 'path' ? `<label>경로 점 좌표 (중심에 상대적)<textarea id="path-points">${escape(JSON.stringify(entity.points))}</textarea></label><p class="muted">지도에서 경로 점을 끌어 수정하세요. 임무 조건에서 ‘목표 경로에서 벗어난 거리’를 고르고 이 경로를 대상으로 지정할 수 있습니다.</p>` : ''}${entity && 'condition' in entity ? `${outcomeInspector(stage, entity)}<button id="toggle-display">표시 영역 추가 / 해제</button><details id="condition-advanced"><summary>고급 조건 블록</summary><p class="muted">비행체·기준 대상 → 물리량·계산·순간 기록·구간 통계 → 비교·유지·순서. 각 임무는 이 공통 블록으로 만듭니다. 수치는 축척 단위 u와 게임 시간 t를 사용합니다.</p>${conditionBuilder(entity.condition, 'condition', stage)}</details>` : ''}${entity && 'sensor' in entity ? `<button id="toggle-motion">${entity.motion ? '공전 해제' : '천체 주위에 공전시키기'}</button>` : ''}${
     entity && 'dependsOn' in entity
       ? `<details open><summary>선행 목표</summary>${stage.goals
           .filter((g) => g.id !== entity.id)

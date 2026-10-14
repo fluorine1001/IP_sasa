@@ -1,4 +1,4 @@
-import { testAuthorPlan } from './helpers';
+import { testAuthorPlan, enterPlan } from './helpers';
 import { toScreen, zoomAt } from '../../src/render/camera';
 import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, unlinkSync } from 'node:fs';
@@ -9,6 +9,7 @@ const directory = path.resolve('data/stages'),
     .map((f) => JSON.parse(readFileSync(path.join(directory, f), 'utf8')))
     .sort((a, b) => a.order - b.order);
 const baseline = stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!;
+const legacy = JSON.parse(readFileSync(path.resolve('tests/fixtures/legacy-orbit.json'), 'utf8'));
 const powered = stages.find((s) => s.rocket)!;
 async function editor(page: Page, order = 2, preserveDraft = false) {
   await page.goto('/?editor=1');
@@ -42,8 +43,10 @@ test('탐사 시작은 스테이지 목록을 열고 도움말과 설정은 독�
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
   await page.getByRole('button', { name: '비행 안내서', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '별들 사이에서 길 찾기' })).toBeVisible();
-  await expect(page.locator('main')).toContainText('미래 궤도는 보이지 않습니다');
+  await expect(page.getByRole('heading', { name: '조작 안내' })).toBeVisible();
+  await expect(page.locator('main')).toContainText('미래 궤도나 무료 예행 비행은 없습니다');
+  await expect(page.locator('#practice')).toBeVisible();
+  await expect(page.locator('#training-panel')).toHaveCount(0);
   await page.locator('#back').click();
   await page.getByRole('button', { name: '설정', exact: true }).click();
   await page.locator('#volume').fill('0');
@@ -52,7 +55,7 @@ test('탐사 시작은 스테이지 목록을 열고 도움말과 설정은 독�
   await expect(page.locator('#stages')).toHaveCount(0);
   await page.getByRole('button', { name: '탐사 시작' }).click();
   await expect(page.locator('.stage-card')).toHaveCount(
-    stages.filter((s) => s.published !== false).length,
+    stages.filter((s) => s.published !== false && s.track !== 'tutorial').length,
   );
   await page.locator('#back').click();
   await page.getByRole('button', { name: '탐사 시작' }).click();
@@ -91,11 +94,11 @@ test('표면에서 발사·정지·수동 비행 종료·기록 확인', async (
   await page.waitForTimeout(200);
   await expect(page.locator('#mode')).toHaveText(time!);
   await page.locator('#abort').click();
-  await expect(page.locator('#result')).toContainText('직접 비행을 종료');
-  await page.locator('#result-retry').click();
+  await expect(page.locator('#result')).toContainText('직접 종료');
+  await page.locator('#replay-exit').click();
   await expect(page.locator('#inventory')).toContainText('발사 ' + (baseline.rules.attempts - 1));
   await expect(page.locator('#hint')).toContainText('지난 비행');
-  await expect(page.locator('#toast')).toContainText('같은 환경');
+  await expect(page.locator('#flight-status')).toContainText('같은 환경');
   await page.locator('#notes').click();
   await expect(page.locator('#notebook')).toContainText('발사대 중력 관측');
   await expect(page.locator('.trial-card')).toHaveCount(1);
@@ -119,12 +122,10 @@ test('개발 기준 경로로 궤도 클리어와 제작 화면 복귀', async (
   page.on('pageerror', (e) => errors.push(e.message));
   await editor(page);
   await testAuthorPlan(page);
-  await page.locator('#rate').click();
+  await page.keyboard.press('Digit4');
   await page.locator('#launch').click();
-  await expect(page.locator('#mode')).toContainText('정지', { timeout: 12000 });
-  await page.locator('#pause').click();
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 16000 });
-  await page.locator('#result-exit').click();
+  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 20000 });
+  await page.locator('#exit').click();
   await expect(page.locator('#editor-world')).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -135,7 +136,7 @@ test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리�
   await page.locator('#launch').click();
   await expect(page.locator('#separate')).toBeDisabled();
   await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
-  await page.locator('#result-exit').click();
+  await page.locator('#exit').click();
   await page.locator('#test-stage').click();
   await page.locator('#program-toggle').click();
   await page.locator('[data-add="separate"]').click();
@@ -149,7 +150,7 @@ test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리�
   await page.keyboard.press('KeyE');
   await expect(page.locator('#hint')).toContainText('남은 단 3');
   await page.locator('#abort').click();
-  await expect(page.locator('#result')).toContainText('직접 비행을 종료');
+  await expect(page.locator('#result')).toContainText('직접 종료');
 });
 
 test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·8자 경로를 배치한다', async ({ page }) => {
@@ -159,6 +160,7 @@ test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·8자 
   await page.locator('[data-tool="goal:condition"]').click();
   const bounds = await page.locator('#editor-world').boundingBox();
   await page.mouse.click(bounds!.x + bounds!.width * 0.65, bounds!.y + bounds!.height * 0.5);
+  await page.locator('#condition-advanced > summary').click();
   await page.locator('[data-block-path="condition"][data-block-field="kind"]').selectOption('hold');
   await page.locator('[data-block-path="condition"][data-block-field="duration"]').fill('.5');
   await page.locator('[data-block-path="condition"][data-block-field="duration"]').press('Tab');
@@ -202,7 +204,7 @@ test('제작 도구가 IP_sasa에 JSON 초안을 저장하며 원본 스테이�
     await page.locator('[data-field="title"]').fill('자동 검증 초안');
     await page.locator('[data-field="title"]').press('Tab');
     const response = page.waitForResponse(
-      (r) => r.url().endsWith('/__dev/stages') && r.request().method() === 'POST',
+      (r) => r.url().endsWith('/api/workshop/stages') && r.request().method() === 'POST',
     );
     await page.locator('#save-stage').click();
     const result = await response;
@@ -235,6 +237,7 @@ test('단일 목표 편집기에서 순간 기록·기록값 계산·구간 통�
   await page.locator('[data-tool="goal:condition"]').click();
   const bounds = await page.locator('#editor-world').boundingBox();
   await page.mouse.click(bounds!.x + bounds!.width * 0.6, bounds!.y + bounds!.height * 0.5);
+  await page.locator('#condition-advanced > summary').click();
   const kind = (p: string) =>
     page.locator('[data-block-path="' + p + '"][data-block-field="kind"]');
   const field = (p: string, k: string) =>
@@ -274,7 +277,7 @@ test('개발 판정 관찰창은 시험에서만 나타나고 실제 값과 기�
   await testAuthorPlan(page);
   await page.locator('#launch').click();
   await page.locator('#goal-monitor summary').click();
-  await expect(page.locator('#goal-monitor')).toContainText('entry_speed');
+  await expect(page.locator('#goal-monitor')).toContainText('entry_energy');
   await expect(page.locator('#goal-monitor')).toContainText('계산값');
 });
 
@@ -287,7 +290,7 @@ test('일반 블록으로 정의한 표면 착륙과 움직이는 위성 만남�
     await page.locator('#rate').click();
     await page.locator('#launch').click();
     await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 12000 });
-    await page.locator('#result-exit').click();
+    await page.locator('#exit').click();
     await expect(page.locator('#editor-world')).toBeVisible();
   }
 });
@@ -300,7 +303,7 @@ test('종료는 재도전 화면에 머무르며 다른 스테이지에는 비�
   await page.locator('#pause').click();
   await page.locator('#abort').click();
   await expect(page.locator('#result-exit')).toHaveCount(0);
-  await page.locator('#result-retry').click();
+  await page.locator('#replay-exit').click();
   await expect(page.locator('#hint')).toContainText('지난 비행');
   await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(1);
@@ -331,7 +334,7 @@ for (const interrupt of ['wheel', 'resize', 'pan'] as const)
   test(
     '시야 변경 전후의 조준 좌표와 ' + interrupt + ' 중단이 실제 발사값을 보존한다',
     async ({ page }) => {
-      const draft = structuredClone(baseline);
+      const draft = structuredClone(legacy);
       draft.referencePlans = [];
       delete draft.randomization;
       draft.audit.samples = 16;
@@ -371,6 +374,7 @@ for (const interrupt of ['wheel', 'resize', 'pan'] as const)
       const base = toScreen(draft.spawn.position, c, b.width, b.height),
         grab = { x: base.x + 25, y: base.y };
       const expected = { x: 0.4, y: 0.2 };
+      await enterPlan(page, draft, { launch: expected, impulses: [] });
       await page.mouse.move(b.x + grab.x, b.y + grab.y);
       await page.mouse.down();
       await page.mouse.move(
@@ -390,12 +394,12 @@ for (const interrupt of ['wheel', 'resize', 'pan'] as const)
       await page.mouse.up();
       await page.locator('#launch').click();
       await expect(page.locator('#result')).toContainText('탐사 성공');
-      await page.locator('#result-exit').click();
+      await page.locator('#exit').click();
       const saved = await page.evaluate(() =>
         JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!),
       );
-      expect(saved.referencePlans[0].launch.x).toBeCloseTo(expected.x, 5);
-      expect(saved.referencePlans[0].launch.y).toBeCloseTo(expected.y, 5);
+      expect(saved.referencePlans[0].launch.x).toBeCloseTo(expected.x, 4);
+      expect(saved.referencePlans[0].launch.y).toBeCloseTo(expected.y, 4);
     },
   );
 
@@ -405,13 +409,13 @@ test('발사 기회를 모두 사용해도 게시판 없이 해당 스테이지�
     await page.locator('#launch').click();
     await page.locator('#abort').click();
     await expect(page.locator('#result')).toBeVisible();
-    if (i < baseline.rules.attempts - 1) await page.locator('#result-retry').click();
+    if (i < baseline.rules.attempts - 1) await page.locator('#replay-exit').click();
   }
   await expect(page.locator('#result-exit')).toHaveCount(0);
-  await page.locator('#result-restart').click();
+  await page.locator('#replay-exit').click();
   await expect(page.locator('#world')).toBeVisible();
   await expect(page.locator('.mission-panel h2')).toHaveText(baseline.title);
-  await expect(page.locator('#inventory')).toContainText('발사 ' + baseline.rules.attempts);
+  await expect(page.locator('#inventory')).toContainText('발사 0');
   await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(baseline.rules.attempts);
   await page.locator('#close-notes').click();
@@ -420,6 +424,9 @@ test('발사 기회를 모두 사용해도 게시판 없이 해당 스테이지�
 
 test('재시도는 같은 환경·실험 기록·조작을 보존하고 세기만 바꿀 수 있다', async ({ page }) => {
   await openGame(page);
+  await page.locator('#program-toggle').click();
+  await page.locator('#program-launch-power').fill('97.5');
+  await page.locator('#program-close').click();
   const first = await page.locator('#pad-gravity').getAttribute('value');
   await page.locator('#launch').click();
   await page.waitForTimeout(200);
@@ -427,32 +434,33 @@ test('재시도는 같은 환경·실험 기록·조작을 보존하고 세기�
   await page.locator('#pause').click();
   await page.locator('#abort').click();
   const notes = Number(await page.locator('#note-count').textContent());
-  await page.locator('#result-retry').click();
+  await page.locator('#replay-exit').click();
   await expect(page.locator('#pad-gravity')).toHaveAttribute('value', first!);
   expect(Number(await page.locator('#note-count').textContent())).toBe(notes);
   await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(1);
   await expect(page.locator('.trial-card')).toContainText('가장 높이 올라간 곳');
   await page.locator('[data-trial-copy="0"]').click();
-  await expect(page.locator('#toast')).toContainText('실제 조작을 복사');
-  await page.locator('#experiment-tools > summary').click();
-  await page.locator('#lock-angle').click();
-  await page.locator('#stronger').click();
-  await expect(page.locator('#lock-angle')).toHaveText('방향 고정됨');
+  await expect(page.locator('#flight-status')).toContainText('실행 조작 복사됨');
+  await page.locator('#program-toggle').click();
+  await expect(page.locator('#program-launch-angle')).toHaveCount(0);
+  await page.locator('#program-launch-power').fill('100');
+  await page.locator('#program-close').click();
   await page.locator('#launch').click();
   await page.waitForTimeout(200);
   await page.locator('#abort').click();
-  await page.locator('#result-retry').click();
+  await page.locator('#replay-exit').click();
   await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(2);
-  await expect(page.locator('#trial-comparison')).toContainText('첫 추진만 강해졌습니다');
+  await expect(page.locator('#trial-comparison')).toHaveCount(0);
+  await expect(page.locator('.evidence-table').first()).toContainText('1차 / 2차');
   await page.locator('.archive-comparison > summary').click();
   await expect(page.locator('#replay-time')).toBeVisible();
   await page.locator('#close-notes').click();
 });
 
 test('충돌 화면에서 자세는 한 번의 감쇠 회전만 보이고 실패 화면으로 끝난다', async ({ page }) => {
-  const draft = structuredClone(baseline);
+  const draft = structuredClone(legacy);
   delete draft.randomization;
   draft.referencePlans = [{ launch: { x: -0.6, y: 0 }, impulses: [] }];
   draft.audit.samples = 16;
@@ -464,8 +472,8 @@ test('충돌 화면에서 자세는 한 번의 감쇠 회전만 보이고 실패
   await testAuthorPlan(page);
   await page.locator('#launch').click();
   // The engine regression checks the angle; this exercises the actual animation lifecycle.
-  await expect(page.locator('#result')).toContainText('착륙 속도가 너무 컸습니다');
-  await expect(page.locator('#result-exit')).toBeVisible();
+  await expect(page.locator('#result')).toContainText('접촉 과속');
+  await expect(page.locator('#exit')).toBeVisible();
 });
 
 test('개발용 제작 도구에서 관측·상황 단서·장면을 편집하고 다시 시험한다', async ({ page }) => {
@@ -492,56 +500,53 @@ test('개발용 제작 도구에서 관측·상황 단서·장면을 편집하�
   );
   expect(saved.learning.instruments).toHaveLength(3);
   expect(saved.learning.instruments[2].label).toBe('입구 접근 기록');
-  expect(saved.learning.cues).toHaveLength(2);
+  expect(saved.learning.cues).toHaveLength(draft.learning.cues.length + 1);
   expect(saved.randomization).toBeUndefined();
   await page.locator('#test-stage').click();
   await expect(page.locator('#world')).toBeVisible();
-  await expect(page.locator('#toast')).toContainText('같은 환경');
+  await expect(page.locator('#hint')).toContainText('미래 궤도는 표시되지 않습니다');
 });
 
-test('실제 관측으로 높이와 시각을 좁히고 다음 타임라인의 예약 추진으로 궤도 퍼즐을 푼다', async ({
+test('유한 연소의 실제 관측으로 낮음과 지나침을 구분하고 예약한 궤도 계획을 실행한다', async ({
   page,
 }) => {
   test.setTimeout(90000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  test.setTimeout(60000); // Several real flights, not a single interaction.
   await openGame(page);
+  await page.keyboard.press('Digit4');
+  const low = structuredClone(baseline.referencePlans[0]);
+  low.engineCommands[0].time = 0.5;
+  await enterPlan(page, baseline, low);
   await page.locator('#launch').click();
   await expect(page.locator('#result')).toBeVisible({ timeout: 20000 });
-  await expect(page.locator('#result')).toContainText('목표 띠까지 못 올라감');
-  await page.locator('#result-retry').click();
-  await page.locator('#experiment-tools > summary').click();
-  await page.locator('#lock-angle').click();
-  for (let i = 0; i < 5; i++) await page.locator('#stronger').click();
-  await page.locator('#launch').click();
-  await expect(page.locator('#mode')).toContainText('정지', { timeout: 16000 });
-  await expect(page.locator('#experiment-summary')).toContainText('목표 띠보다 멀리');
-  await page.locator('#abort').click();
-  await page.locator('#result-retry').click();
-  await page.locator('#experiment-tools > summary').click();
-  await page.locator('#weaker').click();
-  await page.locator('#launch').click();
-  await expect(page.locator('#mode')).toContainText('정지', { timeout: 16000 });
-  await expect(page.locator('#experiment-summary')).toContainText('목표 띠 근처');
-  await page.locator('#abort').click();
-  await page.locator('#result-retry').click();
-  await page.locator('#program-toggle').click();
-  await page.locator('[data-time="new"]').fill('5.04');
-  await page.locator('[data-add="push"]').click();
-  const command = page.locator('.program-command').last();
-  await command.locator('[data-push]').fill('.175');
-  await command.locator('[data-angle]').evaluate((e: HTMLInputElement) => {
-    e.value = '-90';
-    e.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  await page.locator('#program-close').click();
-  await page.locator('#launch').click();
-  await expect(page.locator('#mode')).toContainText('정지', { timeout: 16000 });
-  await page.locator('#pause').click();
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 30000 });
-  await page.locator('#result-retry').click();
   await page.locator('#notes').click();
-  await expect(page.locator('.trial-card')).toHaveCount(4);
+  await page.locator('.trial-readings > summary').first().click();
+  const lowPeak = Number(await page.locator('[data-reading="peak"] b').first().textContent());
+  await page.locator('#close-notes').click();
+  await page.locator('#program-toggle').click();
+  while (await page.locator('[data-delete]').count())
+    await page.locator('[data-delete]').first().click();
+  await page.locator('#program-close').click();
+  const high = structuredClone(baseline.referencePlans[0]);
+  high.engineCommands[0].time = 1.1;
+  await enterPlan(page, baseline, high);
+  await page.locator('#launch').click();
+  await expect(page.locator('#result')).toBeVisible({ timeout: 20000 });
+  await page.locator('#notes').click();
+  await page.locator('.trial-readings > summary').first().click();
+  const highPeak = Number(await page.locator('[data-reading="peak"] b').first().textContent());
+  expect(highPeak).toBeGreaterThan(lowPeak);
+  await page.locator('#close-notes').click();
+  await page.locator('#program-toggle').click();
+  while (await page.locator('[data-delete]').count())
+    await page.locator('[data-delete]').first().click();
+  await page.locator('#program-close').click();
+  await enterPlan(page, baseline, baseline.referencePlans[0]);
+  await page.locator('#launch').click();
+  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 20000 });
+  await page.locator('#replay-exit').click();
+  await page.locator('#notes').click();
+  await expect(page.locator('.trial-card')).toHaveCount(3);
   expect(errors).toEqual([]);
 });

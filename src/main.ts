@@ -1,4 +1,5 @@
 import './style.css';
+import { inertialScroll } from './app/inertial-scroll';
 import {
   readSaved,
   writeSaved,
@@ -12,7 +13,10 @@ import { titleScreen } from './screens/title.ts';
 import { helpScreen } from './screens/tutorial/screen.ts';
 import { settingsScreen } from './screens/settings/screen.ts';
 import { stagesScreen } from './screens/stages.ts';
+import { tutorialsScreen } from './screens/tutorial/hub.ts';
 import { playScreen } from './screens/flight/screen.ts';
+import { tutorialCatalog } from './stages/catalog.ts';
+import { liveCatalog } from './stages/live-catalog';
 const saved = readSaved<Partial<Settings>>('orbit-settings-v1', {});
 const settings: Settings = {
   volume:
@@ -32,6 +36,8 @@ let screen: Screen | undefined,
 const app: App = {
   root: document.querySelector('#app')!,
   settings,
+  tutorials: tutorialCatalog,
+  loadTutorials: (signal) => liveCatalog(tutorialCatalog, signal, 'tutorial'),
   completed,
   saveSettings: () => {
     writeSaved('orbit-settings-v1', settings);
@@ -62,10 +68,13 @@ const app: App = {
             ? settingsScreen(app)
             : name === 'stages'
               ? stagesScreen(app)
-              : playScreen(app, args!);
+              : name === 'tutorials'
+                ? tutorialsScreen(app)
+                : playScreen(app, args!);
   },
 };
 app.saveSettings();
+inertialScroll(app.root);
 app.go(
   import.meta.env.DEV && new URLSearchParams(location.search).has('editor') ? 'editor' : 'title',
 );

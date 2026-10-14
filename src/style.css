@@ -473,3 +473,16 @@ button:disabled {
 [hidden] {
   display: none !important;
 }
+
+/* Game labels are controls, not a web document. Editable fields keep normal editing. */
+#app,
+#app * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+#app input,
+#app textarea,
+#app [contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}

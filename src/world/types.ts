@@ -55,6 +55,12 @@ export type RoutePlan = {
 };
 export type Stage = {
   version: 2;
+  track?: 'campaign' | 'tutorial';
+  tutorial?: {
+    lesson: number;
+    objective: string;
+    steps: { id: string; label: string; detail?: string; target?: string }[];
+  };
   learning?: import('./evidence').LearningDesign;
   randomization?: import('./variation').VariationBank;
   published?: boolean;

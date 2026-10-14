@@ -1,5 +1,10 @@
 import './style.css';
-import { variationIssues } from '../world/variation';
+import { stageLibrary } from './library';
+import { solutionSearchPanel } from './search-panel';
+import { compileOutcome, type Outcome } from '../stages/outcomes';
+import { syncOutcomeFields } from './outcome-inspector';
+import { readOutcome } from './outcome-values';
+import { restoreDraft } from './draft';
 import { createGoalMonitor } from './goal-monitor.ts';
 import { defaultRocket } from '../world/rocket.ts';
 import { binaryPair } from '../world/dynamics.ts';
@@ -19,7 +24,7 @@ import { EditorModel, cloneCondition, type Entity } from './model.ts';
 import { inspector, setPath, getPath } from './inspector.ts';
 import { drawWorld } from '../render/world.ts';
 import { toWorld, toScreen, zoomAt } from '../render/camera.ts';
-import { bodyPosition, objectPosition } from '../world/celestial.ts';
+import { bodyPosition, bodyVelocity, objectPosition } from '../world/celestial.ts';
 import { length, sub, type Vec } from '../physics/vector.ts';
 import { type Stage } from '../world/types.ts';
 import type { AuditResult } from './audit.ts';
@@ -27,13 +32,15 @@ let activeModel: EditorModel | undefined;
 let clipboard: Entity[] = [];
 function initialStage() {
   try {
-    return parseStage(readSaved('orbit-editor-draft-v2', stages[0]));
+    return restoreDraft(localStorage.getItem('orbit-editor-draft-v2'), stages[0] ?? blankStage());
   } catch {
-    return structuredClone(stages[0] ?? blankStage());
+    return { stage: structuredClone(stages[0] ?? blankStage()) };
   }
 }
 export function editorScreen(app: App): Screen {
-  let model = activeModel ?? new EditorModel(initialStage());
+  const restored = activeModel ? { stage: activeModel.stage } : initialStage();
+  let recovery = restored.recovery;
+  let model = activeModel ?? new EditorModel(restored.stage);
   activeModel = model;
   const abort = new AbortController(),
     signal = abort.signal,
@@ -84,10 +91,66 @@ export function editorScreen(app: App): Screen {
     )}<div class="badge">미션 조건 추가</div><button data-tool="goal:condition">+ 목표 조건 블록</button><hr><button id="undo">실행 취소</button><button id="redo">다시 실행</button><button id="duplicate">복제</button><button id="copy-selection">선택 묶음 복사</button><button id="paste-selection">묶음 붙이기</button><button id="delete">삭제</button><label><input id="snap" type="checkbox" checked> 0.1 격자에 맞춤</label><button id="stage-properties">스테이지 규칙</button><button id="clear-references">기준 경로 지우기</button></aside><section class="editor-viewport"><canvas id="editor-world" tabindex="0" aria-label="스테이지 제작 지도"></canvas><div id="editor-status" class="editor-status"></div></section><aside id="inspector" class="editor-inspector panel"></aside><section id="audit" class="editor-audit panel"></section></main>`;
   const el = (id: string) => app.root.querySelector<HTMLElement>(`#${id}`)!,
     canvas = el('editor-world') as HTMLCanvasElement;
+  el('new-stage').insertAdjacentHTML(
+    'beforebegin',
+    '<button id="open-library">보관함 · 공유 서버</button>',
+  );
+  const library = stageLibrary(
+    app.root,
+    signal,
+    (stage) => {
+      model = new EditorModel(stage);
+      Object.assign(camera, stage.camera);
+      changed();
+      message('서버의 최신 스테이지를 열었습니다.');
+    },
+    message,
+  );
+  el('open-library').onclick = () => library.open();
+  if (recovery) {
+    const notice = document.createElement('section');
+    notice.className = 'draft-recovery panel';
+    notice.innerHTML = `<b>저장된 초안을 읽지 못했습니다</b><p>${escape(recovery.error)}</p><p>임시 작업 화면입니다. 기존 초안은 자동 저장으로 덮어쓰지 않습니다.</p><button data-draft-export>원본 내보내기</button><button data-draft-replace>원본을 백업하고 새 초안 사용</button>`;
+    app.root.querySelector('.editor-top')!.after(notice);
+    notice.querySelector<HTMLButtonElement>('[data-draft-export]')!.onclick = () => {
+      const url = URL.createObjectURL(new Blob([recovery!.raw], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'stage-draft-recovery.json';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    notice.querySelector<HTMLButtonElement>('[data-draft-replace]')!.onclick = () => {
+      try {
+        localStorage.setItem('orbit-editor-recovery-' + Date.now(), recovery!.raw);
+        recovery = undefined;
+        notice.remove();
+        persist();
+        message('원본을 별도 저장소에 백업했습니다. 새 초안을 사용합니다.');
+      } catch {
+        message(
+          '백업 공간이 부족합니다. 원본을 내보낸 뒤 저장 공간을 확보하세요. 기존 초안은 보존합니다.',
+        );
+      }
+    };
+  }
+  void library.track(model.stage);
+  const search = solutionSearchPanel(
+    app.root,
+    signal,
+    () => model.stage,
+    test,
+    (next) => {
+      if (next) model.change(() => Object.assign(model.stage, next));
+      changed();
+    },
+  );
   function persist() {
     model.stage.camera = { ...camera };
-    writeSaved('orbit-editor-draft-v2', model.stage);
-    activeModel = model;
+    if (!recovery) {
+      writeSaved('orbit-editor-draft-v2', model.stage);
+      activeModel = model;
+    } else activeModel = undefined;
   }
   function message(text: string) {
     status = text;
@@ -96,7 +159,14 @@ export function editorScreen(app: App): Screen {
   let inspectedSelection = '';
   function drawInspector() {
     const key = [...model.selection].join('|');
+    const advancedOpen =
+      el('inspector').querySelector<HTMLDetailsElement>('#condition-advanced')?.open ?? false;
     el('inspector').innerHTML = inspector(model);
+    if (key === inspectedSelection && advancedOpen) {
+      const details = el('inspector').querySelector<HTMLDetailsElement>('#condition-advanced');
+      if (details) details.open = true;
+    }
+    syncOutcomeFields(el('inspector'));
     if (key !== inspectedSelection) el('inspector').scrollTop = 0;
     inspectedSelection = key;
   }
@@ -109,7 +179,7 @@ export function editorScreen(app: App): Screen {
     }
     const rate = r.checked ? r.randomWins / r.checked : 0;
     el('audit').innerHTML =
-      `<div><div class="badge">${r.done ? '검사 완료' : '임의 경로 검사 중'}</div><p><b>${r.checked}/${r.total}</b> 경로 · 임의 성공 ${r.randomWins} (${(rate * 100).toFixed(2)}%) · 기준 성공 ${r.referenceWins}/${model.stage.referencePlans.length}</p><progress max="${r.total}" value="${r.checked}"></progress><p class="muted">표본 성공률은 정답 공간 전체의 크기가 아닙니다. 단순 전략과 무작위 발사·수정 추진·엔진 방향·스로틀·분리 시점을 시험합니다.</p></div><div>${[...r.errors, ...r.warnings].map((w) => `<p class="bad">△ ${escape(w)}</p>`).join('') || '<p class="good">현재 표본에서 단순 우연 성공 징후를 찾지 못했습니다. 직접 플레이로 재미와 의도를 확인하세요.</p>'}</div><div>${r.feedback ? `<b>실험 단서 검사</b><p>서로 다른 실패 안내 ${r.feedback.distinctReports}종 · 기준 풀이의 ±2% 세기 / ±0.15초 근처 성공 ${r.feedback.nearbyWins}/${r.feedback.nearbyTotal}</p><small>관측 차이와 손 조작 여유의 표본입니다. 지식 없이 풀 수 있는지는 F5에서 직접 확인하세요.</small>` : ''}<b>발견된 성공 경로</b>${r.counterexamples.map((x, i) => `<p><button data-replay="${i}">${escape(x.label)} 재생</button></p>`).join('') || '<p>임의 성공 경로 없음</p>'}</div>`;
+      `<div><div class="badge">${r.done ? '검사 완료' : '임의 경로 검사 중'}</div><p><b>${r.checked}/${r.total}</b> 경로 · 임의 성공 ${r.randomWins} (${(rate * 100).toFixed(2)}%) · 기준 성공 ${r.referenceWins}/${model.stage.referencePlans.length}</p><progress max="${r.total}" value="${r.checked}"></progress><p class="muted">표본 성공률은 정답 공간 전체의 크기가 아닙니다. 단순 전략과 무작위 발사·수정 추진·엔진 방향·스로틀·분리 시점을 시험합니다.</p></div><div>${[...r.errors, ...r.warnings].map((w) => `<p class="bad">△ ${escape(w)}</p>`).join('') || '<p class="good">현재 표본에서 단순 우연 성공 징후를 찾지 못했습니다. 직접 플레이로 재미와 의도를 확인하세요.</p>'}</div><div>${r.feedback ? `<b>실험 단서 검사</b><p>서로 다른 관측 ${r.feedback.distinctReports}종 · 같은 순서의 5% 출력 / 0.25초 / 5° 변경 성공 ${r.feedback.nearbyWins}/${r.feedback.nearbyTotal}</p><p>조작 순서가 바뀐 경우: ${r.feedback.changedOrderWins ?? 0}/${r.feedback.changedOrder ?? 0} 성공 (위 민감도와 별도)</p><details><summary>변경별 실제 결과</summary>${(r.feedback.controls ?? []).map((c) => `<p><b>${c.won ? '✓' : '△'} ${escape(c.label)}</b><br>${c.changedOrder ? '순서 변경 · ' : ''}${escape(c.reason || (c.won ? '목표 달성' : '미달성'))}</p>`).join('')}</details><small>이 표본은 손 조작 여유만 검사합니다. 초심자의 이해·재미를 증명하지 않습니다.</small>` : ''}<b>발견된 성공 경로</b>${r.counterexamples.map((x, i) => `<p><button data-replay="${i}">${escape(x.label)} 재생</button></p>`).join('') || '<p>임의 성공 경로 없음</p>'}</div>`;
   }
   function scheduleAudit() {
     revision++;
@@ -139,6 +209,7 @@ export function editorScreen(app: App): Screen {
     persist();
     drawInspector();
     scheduleAudit();
+    search.refresh();
   }
   function test(plan?: Stage['referencePlans'][number]) {
     const errors = issues(model.stage);
@@ -154,7 +225,8 @@ export function editorScreen(app: App): Screen {
       onTelemetry: createGoalMonitor(app.root),
       onSolved: (p) => {
         model.change((s) => {
-          s.referencePlans.push(p);
+          if (!s.referencePlans.some((plan) => JSON.stringify(plan) === JSON.stringify(p)))
+            s.referencePlans = [...s.referencePlans, p].slice(-30);
         });
         persist();
       },
@@ -164,8 +236,7 @@ export function editorScreen(app: App): Screen {
     try {
       if (
         publish &&
-        (variationIssues(model.stage).length ||
-          !result?.done ||
+        (!result?.done ||
           result.errors.length ||
           !result.referenceWins ||
           result.randomWins / result.total > model.stage.audit.maxPassRate ||
@@ -179,13 +250,7 @@ export function editorScreen(app: App): Screen {
       const data = parseStage({ ...model.stage, published: publish });
       model.stage = data;
       persist();
-      const response = await fetch('/__dev/stages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const output = await response.json();
-      if (!response.ok) throw new Error(output.error ?? '저장에 실패했습니다.');
+      await library.save(data);
       model.stage = data;
       message(
         `저장 완료: data/stages/${data.id}.json · ${publish ? '게임에서 선택 가능' : '제작용 초안'}`,
@@ -268,6 +333,7 @@ export function editorScreen(app: App): Screen {
       const s = stages.find((s) => s.id === (e.target as HTMLSelectElement).value);
       if (s) {
         model = new EditorModel(s);
+        void library.track(s);
         Object.assign(camera, s.camera);
         changed();
       }
@@ -312,6 +378,39 @@ export function editorScreen(app: App): Screen {
     (e) => {
       const input = e.target as HTMLInputElement,
         path = input.dataset.field;
+      if (input.id.startsWith('outcome-')) {
+        syncOutcomeFields(el('inspector'));
+        return;
+      }
+      if (input.id === 'body-motion-mode') {
+        const body = model.entity([...model.selection][0]);
+        if (!body || !('mu' in body)) return;
+        const position = bodyPosition(model.stage, body, 0),
+          velocity = bodyVelocity(model.stage, body, 0),
+          parent = model.stage.bodies.find((other) => other.id !== body.id);
+        if (input.value === 'prescribed' && !parent) {
+          message('지정 공전의 중심 천체를 먼저 추가하세요.');
+          drawInspector();
+          return;
+        }
+        model.change(() => {
+          body.position = { ...position };
+          delete body.dynamic;
+          delete body.motion;
+          if (input.value === 'gravity') body.dynamic = { velocity };
+          if (input.value === 'prescribed' && parent)
+            body.motion = {
+              parentId: parent.id,
+              radius: Math.max(
+                parent.radius + body.radius + 0.1,
+                length(sub(position, parent.position)),
+              ),
+              phase: Math.atan2(position.y - parent.position.y, position.x - parent.position.x),
+            };
+        });
+        changed();
+        return;
+      }
       const blockPath = input.dataset.blockPath,
         blockField = input.dataset.blockField;
       if (input.dataset.learningField) {
@@ -391,6 +490,7 @@ export function editorScreen(app: App): Screen {
               ? input.value === '' &&
                 (path === 'rules.timelineDuration' ||
                   path === 'audit.timeLimit' ||
+                  path === 'motion.angularSpeed' ||
                   path.startsWith('rules.commandLimits.') ||
                   path.endsWith('.turnRate'))
                 ? undefined
@@ -459,6 +559,46 @@ export function editorScreen(app: App): Screen {
             s.learning.cues.splice(Number(button.dataset.removeCue), 1);
         });
         changed();
+        return;
+      }
+      if (button.id === 'apply-outcome') {
+        const selected = model.stage.goals.find((g) => g.id === [...model.selection][0]);
+        if (!selected) return;
+        const value = (id: string) =>
+          Number(app.root.querySelector<HTMLInputElement>('#outcome-' + id)!.value);
+        const kind = app.root.querySelector<HTMLSelectElement>('#outcome-kind')!
+          .value as Outcome['kind'];
+        if (!kind) {
+          message('새 결과 목표를 먼저 선택하세요. 기존 조건은 유지합니다.');
+          return;
+        }
+        if (!readOutcome(model.stage, selected) && button.dataset.confirmOutcome !== 'true') {
+          button.dataset.confirmOutcome = 'true';
+          button.textContent = '기존 고급 조건을 교체합니다 · 확인';
+          return;
+        }
+        const targetId = app.root.querySelector<HTMLSelectElement>('#outcome-target')!.value;
+        const common = {
+          kind,
+          actorId: app.root.querySelector<HTMLSelectElement>('#outcome-actor')!.value,
+          targetId,
+          min: value('min'),
+          max: value('max'),
+          duration: value('duration'),
+          speed: value('speed'),
+          insideFraction: value('fraction') / 100,
+          eccentricity: value('eccentricity'),
+          metric: app.root.querySelector<HTMLSelectElement>('#outcome-metric')!.value,
+          coast: app.root.querySelector<HTMLInputElement>('#outcome-coast')!.checked,
+        };
+        try {
+          const generated = compileOutcome(model.stage, common as Outcome);
+          if (!generated.display && selected.display) generated.display = selected.display;
+          model.change(() => Object.assign(selected, generated));
+          changed();
+        } catch (error) {
+          message(error instanceof Error ? error.message : '목표 입력을 확인하세요.');
+        }
         return;
       }
       const blockPath =
@@ -897,6 +1037,8 @@ export function editorScreen(app: App): Screen {
       const { w, h } = drawWorld(canvas, {
         stage: model.stage,
         camera,
+        history: search.history,
+        selectedHistory: true,
         grid: true,
         selected: model.selection,
       });

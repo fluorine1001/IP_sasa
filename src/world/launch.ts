@@ -32,5 +32,5 @@ export function surfaceLaunch(stage: Stage, time = 0) {
 }
 export function syncLaunch(stage: Stage) {
   const pad = surfaceLaunch(stage);
-  if (pad) stage.spawn = { position: pad.position, velocity: pad.velocity };
+  if (pad) stage.spawn = { ...stage.spawn, position: pad.position, velocity: pad.velocity };
 }

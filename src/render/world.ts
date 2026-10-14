@@ -25,6 +25,7 @@ export type DrawState = {
   grid?: boolean;
   trails?: boolean;
   selected?: Set<string>;
+  hideMarkerHandles?: boolean;
   tool?: string;
   time?: number;
   controlledId?: string;
@@ -82,7 +83,18 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   }
   for (const g of s.stage.goals) {
     if (g.marker && g.marker.managed !== false) {
-      paintMarker(ctx, s.stage, g, c, w, h, t, !!s.selected?.has(g.id), !!s.grid, s.run);
+      paintMarker(
+        ctx,
+        s.stage,
+        g,
+        c,
+        w,
+        h,
+        t,
+        !!s.selected?.has(g.id),
+        !!s.grid && !s.hideMarkerHandles,
+        s.run,
+      );
       continue;
     }
     if (!g.display) continue;
@@ -367,7 +379,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   ctx.lineWidth = 3;
   ctx.save();
   ctx.translate(pad.x, pad.y);
-  ctx.rotate(-(s.stage.launchAngle ?? 0));
+  ctx.rotate(-(surface?.angle ?? s.stage.launchAngle ?? 0));
   if (surface) {
     ctx.fillRect(0, -17, 4, 34);
     ctx.strokeRect(0, -17, 4, 34);

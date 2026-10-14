@@ -15,7 +15,7 @@ export function markerHandles(stage: Stage, goal: Goal): MarkerHandle[] {
       stage.bodies.find((b) => b.id === m.targetId) ??
       stage.bodies.find((b) => b.id === object?.surface?.bodyId);
   const center = ['orbit', 'passage'].includes(m.kind)
-    ? (body?.position ?? object?.position ?? goal.position)
+    ? (referencePosition(stage, m.targetId) ?? goal.position)
     : goal.position;
   if (m.kind === 'velocity')
     return [
@@ -42,8 +42,8 @@ export function markerHandles(stage: Stage, goal: Goal): MarkerHandle[] {
     ];
   if (m.kind === 'surface') {
     const d = {
-        x: goal.position.x - (body?.position.x ?? 0),
-        y: goal.position.y - (body?.position.y ?? 0),
+        x: goal.position.x - (body ? bodyPosition(stage, body, 0).x : 0),
+        y: goal.position.y - (body ? bodyPosition(stage, body, 0).y : 0),
       },
       angle = Math.atan2(d.y, d.x) + (m.tilt ?? Math.PI / 6);
     return [

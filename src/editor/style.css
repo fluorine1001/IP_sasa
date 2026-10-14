@@ -125,6 +125,12 @@
   max-height: 160px;
   overflow: auto;
 }
+.marker-inspector fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
 .marker-inspector input[type='checkbox'] {
   width: auto;
 }
@@ -940,6 +946,97 @@
 .editor-status:empty {
   display: none;
 }
+
+.marker-placement-dock {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  left: 10px;
+  width: min(280px, calc(100% - 20px));
+  padding: 12px;
+  background: #17303bef;
+  border: 1px solid #71958e;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px #07182055;
+  font-size: 12px;
+}
+.marker-placement-dock[hidden] {
+  display: none;
+}
+.marker-placement-dock header,
+.marker-contract header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.marker-placement-dock header button {
+  padding: 2px 9px;
+  font-size: 16px;
+}
+.marker-placement-dock label {
+  display: block;
+  margin: 7px 0;
+}
+.marker-placement-dock small {
+  display: block;
+  color: #c0d3ce;
+  line-height: 1.5;
+}
+.marker-placement-dock output {
+  display: block;
+  color: #aad7bb;
+  min-height: 1.5em;
+  margin-top: 6px;
+}
+.marker-placement-dock output.bad {
+  color: #f0ab97;
+}
+.marker-contract {
+  border: 1px solid #71958e;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 8px 0 14px;
+}
+.marker-contract header span {
+  color: #edc77f;
+  font-size: 11px;
+}
+.marker-coverage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 10px 0;
+}
+.marker-coverage span {
+  color: #7e969c;
+  font-size: 11px;
+  background: #10242c;
+  padding: 6px;
+  border-radius: 5px;
+}
+.marker-coverage .tested {
+  color: #c1e5c9;
+  background: #2f554a;
+}
+.marker-contract > button {
+  width: 100%;
+  font-size: 12px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.marker-guard {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  color: #c0d3ce;
+}
+.marker-guard input {
+  flex: none;
+}
+.marker-contract details {
+  margin-top: 8px;
+}
 @media (max-width: 1000px) {
   .editor {
     grid-template-columns: 150px minmax(220px, 1fr) 280px;
@@ -975,5 +1072,23 @@
   }
   .representative-replay input[type='range'] {
     width: 100%;
+  }
+}
+
+@media (max-width: 680px) {
+  .editor:has(.marker-placement-dock:not([hidden])) {
+    grid-template-rows: 120px minmax(530px, calc(45dvh + 230px)) 220px minmax(360px, 50dvh) minmax(
+        360px,
+        55dvh
+      );
+  }
+  .editor-viewport:has(.marker-placement-dock:not([hidden])) canvas {
+    top: 230px;
+    height: calc(100% - 230px);
+  }
+  .marker-placement-dock {
+    width: calc(100% - 20px);
+    max-height: 210px;
+    overflow-y: auto;
   }
 }

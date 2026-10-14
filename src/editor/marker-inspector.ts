@@ -2,12 +2,29 @@ import { referencePosition } from '../world/actor-reference';
 import { escape } from '../app/core';
 import { metrics } from '../world/metrics';
 import type { Stage, Goal } from '../world/types';
-import { markerGuide } from './marker-guide';
+import { markerGuide, markerGuides } from './marker-guide';
+import { markerTargets } from './marker-authoring';
 export function markerInspector(stage: Stage, goal: Goal) {
-  return (
-    (goal.marker?.managed !== false && goal.marker ? markerGuide(goal.marker.kind) : '') +
-    markerFields(stage, goal).replace(/<h3>판정 오브젝트<\/h3><p>[^<]*<\/p>/, '')
-  );
+  const m = goal.marker;
+  const active = m && m.managed !== false;
+  const coverage = active
+    ? `<section class="marker-contract"><header><b>${markerGuides[m.kind].title} 판정</b><span>${m.span === 'revolution' ? '↻ 한 바퀴' : m.span === 'settle' ? '◷ 연속 유지' : '● 순간'}</span></header><div class="marker-coverage">${[
+        ['위치', ['area', 'surface', 'orbit', 'passage'].includes(m.kind)],
+        ['속도', ['velocity', 'surface', 'orbit'].includes(m.kind)],
+        ['궤도 형태', m.kind === 'orbit'],
+        ['실제 접촉', m.kind === 'surface'],
+        ['전후 변화', m.kind === 'passage'],
+        ['선택 속성', m.kind === 'state'],
+      ]
+        .map(
+          ([label, tested]) =>
+            `<span class="${tested ? 'tested' : ''}" title="${label}: ${tested ? '검사함' : '이 표식에서는 검사하지 않음'}">${tested ? '✓' : '—'} ${label}</span>`,
+        )
+        .join(
+          '',
+        )}</div>${m.kind === 'area' || m.kind === 'velocity' ? `<button data-marker-companion="${m.kind === 'area' ? 'velocity' : 'area'}">＋ ${m.kind === 'area' ? '상대속도' : '위치'}도 같은 순간에 검사</button>` : ''}<label class="marker-guard"><input type="checkbox" data-authoring-guard checked>표면·도형 경계에 맞춤</label><details><summary>이 표식의 판정 의미</summary>${markerGuide(m.kind)}</details></section>`
+    : '';
+  return coverage + markerFields(stage, goal).replace(/<h3>판정 오브젝트<\/h3><p>[^<]*<\/p>/, '');
 }
 export function markerAxis(stage: Stage, goal: Goal, name = goal.marker?.metric ?? 'speed') {
   const b =
@@ -62,16 +79,7 @@ function markerFields(stage: Stage, goal: Goal) {
     low = (value: number) =>
       Math.max(0, Math.min(100, ((value - axis.min) / (axis.max - axis.min)) * 100));
   return `<section class="marker-inspector"><h3>판정 오브젝트</h3><p>${{ area: '원의 테두리 안쪽이 실제 판정 영역입니다.', orbit: '허용 띠·궤도 형태·긴 반경을 실제 한 바퀴 동안 판정합니다.', velocity: '화살표의 속도 벡터와 끝의 허용 원을 판정합니다.', surface: '원 안의 접촉 지점·기체의 안전 착륙 속력·지도에 그린 자세 부채꼴을 판정합니다.', state: '아래 표시 구간이 실제 물리량 허용 구간입니다.', passage: '바깥 원 접근 → 최근접 띠 → 바깥 원 이탈. 관측한 전후 변화가 아래 허용 범위에 들어야 합니다.' }[m.kind]}</p><label>따라갈 기준 대상<select data-marker-target>${[
-    ...stage.bodies,
-    ...(['area', 'velocity', 'state'].includes(m.kind)
-      ? [{ id: 'origin', name: '고정 좌표 · 천체를 따라가지 않음' }]
-      : []),
-    ...[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].map((p) => ({
-      id: p.id,
-      name: p.name + ' (분리 후)',
-    })),
-    { id: 'craft', name: '주 로켓' },
-    ...stage.objects.filter((o) => ['station', 'satellite', 'landing-site'].includes(o.kind)),
+    ...markerTargets(stage, m.kind),
   ]
     .map(
       (o) =>

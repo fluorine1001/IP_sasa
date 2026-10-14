@@ -125,7 +125,7 @@ export function compileMarker(
         compare(
           metric('eccentricity'),
           'lte',
-          Math.min(0.95, eccentricity + marker.width / marker.radius),
+          Math.min(1 - 1e-12, eccentricity + marker.width / marker.radius),
         ),
         compare(metric('throttle', ''), 'eq', 0),
         ...(eccentricity > 1e-8
@@ -349,27 +349,48 @@ export function compileMarker(
   marker.compiledKey = conditionKey(compiled.condition);
   return { condition: compiled.condition, display, marker };
 }
-export function createMarker(stage: Stage, kind: GoalMarker['kind'], position: Vec): Goal {
+export function createMarker(
+  stage: Stage,
+  kind: GoalMarker['kind'],
+  position: Vec,
+  targetId?: string,
+): Goal {
   if (!stage.bodies.length && ['orbit', 'surface', 'passage'].includes(kind))
     throw Error('이 판정은 기준 천체가 필요합니다. 천체를 먼저 배치하세요.');
-  const target = stage.bodies.length
-    ? stage.bodies.reduce((best, b) =>
-        length(sub(position, b.position)) < length(sub(position, best.position)) ? b : best,
-      )
-    : {
-        id: 'origin',
-        name: '고정 좌표',
-        kind: 'barycenter' as const,
-        position: { x: 0, y: 0 },
-        radius: 0,
-        mu: 0,
-        color: '#93bbaa',
-        hiddenGravity: false,
-        estimateMu: 0,
-      };
+  const explicit = targetId
+    ? (stage.bodies.find((b) => b.id === targetId) ??
+      stage.objects.find((o) => o.id === targetId) ??
+      (referencePosition(stage, targetId)
+        ? { id: targetId, position: referencePosition(stage, targetId)!, radius: 0, mu: 0 }
+        : undefined))
+    : undefined;
+  if (targetId && !explicit) throw Error('기준 대상이 장면에 없습니다.');
+  const target =
+    explicit ??
+    (stage.bodies.length
+      ? stage.bodies.reduce((best, b) =>
+          length(sub(position, bodyPosition(stage, b, 0))) <
+          length(sub(position, bodyPosition(stage, best, 0)))
+            ? b
+            : best,
+        )
+      : {
+          id: 'origin',
+          name: '고정 좌표',
+          kind: 'barycenter' as const,
+          position: { x: 0, y: 0 },
+          radius: 0,
+          mu: 0,
+          color: '#93bbaa',
+          hiddenGravity: false,
+          estimateMu: 0,
+        });
+  const center = referencePosition(stage, target.id)!;
+  const mu = 'mu' in target ? target.mu : 0;
   const radius = Math.max(
+    target.radius / 0.82 + 0.05,
     target.radius + 0.4,
-    length(sub(position, bodyPosition(stage, target, 0))),
+    length(sub(position, center)),
   );
   const goal: Goal = {
     ...newGoal(),
@@ -389,10 +410,9 @@ export function createMarker(stage: Stage, kind: GoalMarker['kind'], position: V
       targetId: target.id,
       actorIds: ['craft'],
       radius: kind === 'area' ? 0.4 : radius,
-      width:
-        kind === 'velocity' ? Math.max(0.03, Math.sqrt(target.mu / radius) * 0.15) : radius * 0.18,
+      width: kind === 'velocity' ? Math.max(0.03, Math.sqrt(mu / radius) * 0.15) : radius * 0.18,
       minor: radius,
-      vector: { x: 0, y: Math.sqrt(target.mu / radius) },
+      vector: { x: 0, y: Math.sqrt(mu / radius) },
       metric: 'landed',
       lower: 1,
       upper: 1,
@@ -400,13 +420,23 @@ export function createMarker(stage: Stage, kind: GoalMarker['kind'], position: V
     },
   };
   if (kind === 'surface') {
-    const d = sub(position, target.position),
-      scale = target.radius / Math.max(length(d), 0.001);
-    goal.position = { x: target.position.x + d.x * scale, y: target.position.y + d.y * scale };
+    const body =
+      stage.bodies.find((b) => b.id === target.id) ??
+      ('surface' in target && target.surface
+        ? stage.bodies.find((b) => b.id === target.surface!.bodyId)
+        : undefined);
+    if (!body) throw Error('착륙 표식은 실제 천체 표면에 붙여 주세요.');
+    const d = sub(position, bodyPosition(stage, body, 0));
+    const angle = Math.atan2(d.y, d.x);
+    const bodyCenter = bodyPosition(stage, body, 0);
+    goal.position = {
+      x: bodyCenter.x + Math.cos(angle) * body.radius,
+      y: bodyCenter.y + Math.sin(angle) * body.radius,
+    };
     goal.marker!.radius = 0.18;
   }
   if (kind === 'orbit')
-    goal.marker!.angle = Math.atan2(position.y - target.position.y, position.x - target.position.x);
+    goal.marker!.angle = Math.atan2(position.y - center.y, position.x - center.x);
   if (kind === 'passage') {
     const m = goal.marker!;
     m.width = radius * 3;
@@ -415,7 +445,7 @@ export function createMarker(stage: Stage, kind: GoalMarker['kind'], position: V
     m.referenceId = stage.bodies.find((b) => b.id !== target.id)?.id ?? target.id;
     m.metric = 'energy';
     m.bounds = 'above';
-    m.lower = (target.mu / radius) * 0.05;
+    m.lower = (mu / radius) * 0.05;
     m.upper = m.lower;
     m.coast = true;
   }

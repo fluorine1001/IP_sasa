@@ -1,17 +1,28 @@
 import { installAuthoredGoals } from './authored-goals';
-import { markerGuide } from './marker-guide';
+import { placeSpawn } from './spawn-placement';
+import { markerGuide, markerGuides } from './marker-guide';
+import {
+  placementTarget,
+  placementCandidate,
+  markerTargets,
+  editMarkerHandle,
+  finishCandidate,
+  attachMarker,
+  type MarkerCandidate,
+} from './marker-authoring';
+import {
+  authoringHandles,
+  gaugeValue,
+  handlePhysicalPoint,
+  paintAuthoringFeedback,
+  type AuthoringHandle,
+} from './marker-feedback';
 import { goalReferences } from '../world/goals';
 import { markerAxis } from './marker-inspector';
 import './style.css';
 import { markerGroups } from './marker-groups';
 import { organizeEditor } from './editor-layout';
-import { markerHandles } from '../render/goal-marker';
-import {
-  createMarker,
-  compileMarker,
-  refreshGoalMarkers,
-  type GoalMarker,
-} from '../stages/goal-marker';
+import { compileMarker, refreshGoalMarkers, type GoalMarker } from '../stages/goal-marker';
 import { compileSketch, refreshGoalSketches } from '../stages/goal-sketch';
 import { compileIntent, refreshMissionIntents, type MissionIntent } from '../stages/mission-intent';
 import { missionBuilder } from './mission-builder';
@@ -65,6 +76,12 @@ export function editorScreen(app: App): Screen {
     keys = new Set<string>();
   let tool = 'select',
     snap = true,
+    guard = true,
+    pinnedTarget = '',
+    pointer: Vec | undefined,
+    candidate: MarkerCandidate | undefined,
+    placement:
+      { kind: GoalMarker['kind']; start: Vec; targetId?: string; moved: boolean } | undefined,
     worker: Worker | undefined,
     revision = 0,
     timer: ReturnType<typeof setTimeout> | undefined,
@@ -74,7 +91,9 @@ export function editorScreen(app: App): Screen {
       | {
           marker?: {
             goalId: string;
-            kind: 'radius' | 'width' | 'minor' | 'vector' | 'tilt' | 'angle';
+            kind: AuthoringHandle['kind'];
+            original: Stage['goals'][number];
+            grabOffset: Vec;
           };
           pan: boolean;
           start: Vec;
@@ -85,6 +104,11 @@ export function editorScreen(app: App): Screen {
           initialSelection?: string[];
           end?: Vec;
           vertex?: { id: string; index: number };
+          spawnOriginal?: {
+            spawn: Stage['spawn'];
+            launchBodyId: Stage['launchBodyId'];
+            launchAngle: Stage['launchAngle'];
+          };
         },
     status = '';
   app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="focus-selection">선택 위치로</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
@@ -112,6 +136,83 @@ export function editorScreen(app: App): Screen {
     )}<div class="badge">미션 조건 추가</div><button data-tool="marker:area">＋ 공간 판정 원</button><button data-tool="marker:orbit">＋ 궤도 판정 안내</button><button data-tool="marker:velocity">＋ 속도·방향 표적</button><button data-tool="marker:surface">＋ 접촉 판정 지점</button><button data-tool="marker:state">＋ 상태 관측 표식</button><button data-tool="marker:passage">＋ 전후 변화 관측</button><button id="compose-goal">판정 오브젝트 연결</button><details><summary>시작 예시</summary><button id="assemble-mission">궤도·회수·랑데부 예시</button></details><button data-tool="goal:condition">+ 목표 조건 블록</button><hr><button id="undo">실행 취소</button><button id="redo">다시 실행</button><button id="duplicate">복제</button><button id="copy-selection">선택 묶음 복사</button><button id="paste-selection">묶음 붙이기</button><button id="delete">삭제</button><label><input id="snap" type="checkbox" checked> 0.1 격자에 맞춤</label><button id="stage-properties">스테이지 규칙</button><button id="clear-references">저장된 성공 비행 지우기</button></aside><section class="editor-viewport"><canvas id="editor-world" tabindex="0" aria-label="스테이지 제작 지도"></canvas><div id="editor-status" class="editor-status"></div></section><aside id="inspector" class="editor-inspector panel"></aside><section id="audit" class="editor-audit panel"></section></main>`;
   const el = (id: string) => app.root.querySelector<HTMLElement>(`#${id}`)!,
     canvas = el('editor-world') as HTMLCanvasElement;
+  const dock = document.createElement('section');
+  dock.className = 'marker-placement-dock';
+  dock.hidden = true;
+  canvas.after(dock);
+  const gesture: Record<GoalMarker['kind'], string> = {
+    area: '중심에서 테두리까지 드래그',
+    orbit: '기준 천체 바깥에서 반경을 그리세요',
+    velocity: '시작점에서 속도 화살표를 드래그 · 클릭은 상대속도 0',
+    surface: '표면 지점을 고른 뒤 착륙 범위를 드래그',
+    state: '관측 표식을 놓고 구간의 끝점을 드래그',
+    passage: '최근접 띠를 그리세요 · 바깥 원은 진입·이탈',
+  };
+  function showPlacement() {
+    app.root
+      .querySelectorAll<HTMLElement>('[data-tool]')
+      .forEach((button) => button.classList.toggle('active', button.dataset.tool === tool));
+    const kind = tool.startsWith('marker:') ? (tool.slice(7) as GoalMarker['kind']) : undefined;
+    dock.hidden = !kind;
+    if (!kind) return;
+    dock.innerHTML = `<header><b>${markerGuides[kind].title} 배치</b><button data-placement-cancel aria-label="판정 배치 취소">×</button></header><label>기준 대상<select data-placement-target><option value="">지도에서 가리킨 대상</option>${markerTargets(
+      model.stage,
+      kind,
+    )
+      .map(
+        (t) =>
+          `<option value="${t.id}" ${t.id === pinnedTarget ? 'selected' : ''}>${escape(t.name)}</option>`,
+      )
+      .join(
+        '',
+      )}</select></label><small>${gesture[kind]}</small><label class="marker-guard"><input type="checkbox" data-placement-guard ${guard ? 'checked' : ''}>표면·도형 경계에 맞춤</label><output data-placement-feedback role="status"></output>`;
+  }
+  function preview(point: Vec, dragging = false) {
+    const kind =
+      placement?.kind ??
+      (tool.startsWith('marker:') ? (tool.slice(7) as GoalMarker['kind']) : undefined);
+    if (!kind) return;
+    const target = placement
+      ? placement.targetId
+      : placementTarget(model.stage, kind, point, camera.zoom, pinnedTarget);
+    candidate = placementCandidate(
+      model.stage,
+      kind,
+      placement?.start ?? point,
+      target,
+      dragging ? point : undefined,
+      guard,
+    );
+    const output = dock.querySelector<HTMLOutputElement>('[data-placement-feedback]');
+    if (output) {
+      output.textContent =
+        candidate.error ??
+        `${markerTargets(model.stage, kind).find((t) => t.id === target)?.name ?? ''}${candidate.adjusted ? ' · 경계에 맞춤' : ''}`;
+      output.classList.toggle('bad', !!candidate.error);
+    }
+  }
+  dock.addEventListener(
+    'change',
+    (event) => {
+      const input = event.target as HTMLInputElement;
+      if (input.hasAttribute('data-placement-target')) pinnedTarget = input.value;
+      if (input.hasAttribute('data-placement-guard')) guard = input.checked;
+      if (pointer) preview(pointer);
+    },
+    { signal },
+  );
+  dock.addEventListener(
+    'click',
+    (event) => {
+      if (!(event.target as HTMLElement).closest('[data-placement-cancel]')) return;
+      tool = 'select';
+      candidate = undefined;
+      placement = undefined;
+      showPlacement();
+      drawInspector();
+    },
+    { signal },
+  );
   el('new-stage').insertAdjacentHTML(
     'beforebegin',
     '<button id="open-library">보관함 · 공유 서버</button>',
@@ -228,6 +329,8 @@ export function editorScreen(app: App): Screen {
       if (details) details.open = true;
     }
     syncOutcomeFields(el('inspector'));
+    const guardInput = el('inspector').querySelector<HTMLInputElement>('[data-authoring-guard]');
+    if (guardInput) guardInput.checked = guard;
     if (key !== inspectedSelection) el('inspector').scrollTop = 0;
     inspectedSelection = key;
   }
@@ -354,6 +457,11 @@ export function editorScreen(app: App): Screen {
     app.root,
     {
       'new-stage': () => {
+        tool = 'select';
+        candidate = undefined;
+        placement = undefined;
+        pinnedTarget = '';
+        showPlacement();
         model = new EditorModel(emptyStage());
         Object.assign(camera, model.stage.camera);
         changed();
@@ -445,6 +553,10 @@ export function editorScreen(app: App): Screen {
       'click',
       () => {
         tool = b.dataset.tool!;
+        candidate = undefined;
+        placement = undefined;
+        pinnedTarget = '';
+        showPlacement();
         if (tool.startsWith('marker:'))
           el('inspector').innerHTML =
             markerGuide(tool.slice(7) as GoalMarker['kind']) +
@@ -464,11 +576,24 @@ export function editorScreen(app: App): Screen {
     (e) => {
       const input = e.target as HTMLInputElement,
         path = input.dataset.field;
+      if (input.hasAttribute('data-authoring-guard')) {
+        guard = input.checked;
+        return;
+      }
       const markerGoal = model.stage.goals.find((g) => g.id === [...model.selection][0]);
       if (
         markerGoal?.marker &&
         [...input.attributes].some((a) => a.name.startsWith('data-marker-'))
       ) {
+        if (input.hasAttribute('data-marker-target')) {
+          const source = structuredClone(markerGoal);
+          source.marker!.targetId = input.value;
+          const next = finishCandidate(model.stage, source, guard);
+          if (next.goal && !next.error) model.change(() => Object.assign(markerGoal, next.goal));
+          else message(next.error ?? '기준 대상을 확인하세요.');
+          changed();
+          return;
+        }
         model.change(() => {
           const m = markerGoal.marker!;
           if (input.hasAttribute('data-marker-target')) m.targetId = input.value;
@@ -713,6 +838,23 @@ export function editorScreen(app: App): Screen {
           changed();
         }
         return;
+      }
+      if (button.dataset.markerCompanion) {
+        try {
+          let id = '';
+          model.change((stage) => {
+            id = attachMarker(
+              stage,
+              [...model.selection][0],
+              button.dataset.markerCompanion as 'area' | 'velocity',
+            ).id;
+          });
+          model.selection = new Set([id]);
+          changed();
+          message('같은 기체·기준 대상의 판정을 연결했습니다. 노란 손잡이로 새 경계를 그리세요.');
+        } catch (error) {
+          message(String(error));
+        }
       }
       if (button.id === 'edit-marker-group') {
         const goal = model.stage.goals.find((g) => model.selection.has(g.id));
@@ -1005,6 +1147,10 @@ export function editorScreen(app: App): Screen {
     snapped = (p: Vec): Vec =>
       snap ? { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 } : p;
   function locate(p: Vec) {
+    const selectedGoal = model.stage.goals.find(
+      (goal) => model.selection.has(goal.id) && length(sub(p, goal.position)) * camera.zoom < 14,
+    );
+    if (selectedGoal) return selectedGoal.id;
     if (
       model.stage.spawn.placed !== false &&
       length(sub(p, model.stage.spawn.position)) * camera.zoom < 20
@@ -1034,9 +1180,21 @@ export function editorScreen(app: App): Screen {
     (e) => {
       canvas.focus();
       const p = world(e);
+      pointer = p;
       if (e.button === 1 || e.button === 2) {
         e.preventDefault();
         drag = { pan: true, start: coords(e), cx: camera.x, cy: camera.y, positions: new Map() };
+      } else if (e.button === 0 && tool.startsWith('marker:')) {
+        const kind = tool.slice(7) as GoalMarker['kind'];
+        placement = {
+          kind,
+          start: snapped(p),
+          targetId: placementTarget(model.stage, kind, p, camera.zoom, pinnedTarget),
+          moved: false,
+        };
+        preview(placement.start);
+        canvas.setPointerCapture(e.pointerId);
+        return;
       } else if (e.button === 0 && tool !== 'select') {
         model.change((s) => {
           if (tool === 'binary') {
@@ -1053,6 +1211,10 @@ export function editorScreen(app: App): Screen {
             model.selection = new Set([a.id, b.id]);
           } else if (tool === 'belt') {
             const body = s.bodies.find((b) => b.id === s.launchBodyId) ?? s.bodies[0];
+            if (!body) {
+              message('소행성 띠의 기준 천체를 먼저 배치하세요.');
+              return;
+            }
             const inner = Math.max(body.radius + 0.5, length(sub(p, bodyPosition(s, body, 0))));
             const belt = asteroidBelt(s, body, inner, inner + 1, 16, 0.035);
             s.objects.push(...belt);
@@ -1075,15 +1237,6 @@ export function editorScreen(app: App): Screen {
                   ];
             s.objects.push(o);
             model.selection = new Set([o.id]);
-          } else if (tool.startsWith('marker:')) {
-            try {
-              const g = createMarker(s, tool.slice(7) as GoalMarker['kind'], snapped(p));
-              installAuthoredGoals(s, [g]);
-              model.selection = new Set([g.id]);
-              tool = 'select';
-            } catch (error) {
-              message(String(error));
-            }
           } else if (tool.startsWith('marker-link:')) {
             const from = tool.slice('marker-link:'.length),
               hit = locate(p),
@@ -1111,23 +1264,10 @@ export function editorScreen(app: App): Screen {
             }
             tool = 'select';
           } else if (tool === 'spawn') {
-            const b = s.bodies.find(
-              (b) =>
-                ['planet', 'moon'].includes(b.kind) &&
-                Math.abs(length(sub(p, bodyPosition(s, b, 0))) - b.radius) * camera.zoom < 18,
-            );
-            s.spawn.placed = true;
             s.rocket ??= defaultRocket();
-            if (b) {
-              s.launchBodyId = b.id;
-              const center = bodyPosition(s, b, 0);
-              s.launchAngle = Math.atan2(p.y - center.y, p.x - center.x);
-              syncLaunch(s);
-            } else {
-              s.launchBodyId = undefined;
-              s.spawn.position = snapped(p);
-            }
+            placeSpawn(s, p);
             model.selection = new Set(['spawn']);
+            tool = 'select';
           } else if (tool.startsWith('goal:')) {
             const g = newGoal();
             g.position = snapped(p);
@@ -1144,6 +1284,10 @@ export function editorScreen(app: App): Screen {
             o.position = snapped(p);
             if (tool === 'landing-site') {
               const body = s.bodies.find((b) => b.id === s.launchBodyId) ?? s.bodies[0];
+              if (!body) {
+                message('착륙 지점은 실제 천체 표면이 필요합니다.');
+                return;
+              }
               o.surface = {
                 bodyId: body.id,
                 angle: Math.atan2(p.y - body.position.y, p.x - body.position.x),
@@ -1152,7 +1296,7 @@ export function editorScreen(app: App): Screen {
             }
             if (['satellite', 'station', 'debris'].includes(tool)) {
               const body = s.bodies[0];
-              if (length(sub(o.position, body.position)) > body.radius)
+              if (body && length(sub(o.position, body.position)) > body.radius)
                 o.dynamic = { velocity: orbitInitialState(s, body, o.position).velocity };
               o.radius = tool === 'debris' ? 0.035 : 0.08;
             }
@@ -1160,16 +1304,27 @@ export function editorScreen(app: App): Screen {
             model.selection = new Set([o.id]);
           }
         });
+        showPlacement();
         changed();
       } else if (e.button === 0) {
         for (const goal of model.stage.goals.filter((g) => model.selection.has(g.id))) {
-          const handle = markerHandles(model.stage, goal).find(
-            (point) => length(sub(point.position, p)) * camera.zoom < 12,
-          );
+          const bounds = canvas.getBoundingClientRect();
+          const handle = authoringHandles(
+            model.stage,
+            goal,
+            camera,
+            bounds.width,
+            bounds.height,
+          ).find((point) => length(sub(point.position, p)) * camera.zoom < 12);
           if (handle) {
             model.checkpoint();
             drag = {
-              marker: { goalId: goal.id, kind: handle.kind },
+              marker: {
+                goalId: goal.id,
+                kind: handle.kind,
+                original: structuredClone(goal),
+                grabOffset: sub(handle.position, p),
+              },
               pan: false,
               start: p,
               cx: camera.x,
@@ -1203,6 +1358,12 @@ export function editorScreen(app: App): Screen {
           }
           model.checkpoint();
           drag = { pan: false, start: p, cx: camera.x, cy: camera.y, positions };
+          if (positions.has('spawn'))
+            drag.spawnOriginal = {
+              spawn: structuredClone(model.stage.spawn),
+              launchBodyId: model.stage.launchBodyId,
+              launchAngle: model.stage.launchAngle,
+            };
           const entity = model.entity(hit);
           if (entity && 'points' in entity && entity.points) {
             const index = entity.points.findIndex(
@@ -1234,6 +1395,13 @@ export function editorScreen(app: App): Screen {
   canvas.addEventListener(
     'pointermove',
     (e) => {
+      pointer = world(e);
+      if (placement) {
+        if (length(sub(pointer, placement.start)) * camera.zoom > 5) placement.moved = true;
+        preview(snapped(pointer), placement.moved);
+        return;
+      }
+      if (tool.startsWith('marker:') && !drag) preview(snapped(pointer));
       if (!drag) return;
       if (drag.pan) {
         const p = coords(e);
@@ -1241,59 +1409,27 @@ export function editorScreen(app: App): Screen {
         camera.y = drag.cy + (p.y - drag.start.y) / camera.zoom;
       } else if (drag.marker) {
         const goal = model.stage.goals.find((g) => g.id === drag!.marker!.goalId),
-          p = world(e);
+          cursor = world(e),
+          p = { x: cursor.x + drag.marker.grabOffset.x, y: cursor.y + drag.marker.grabOffset.y };
         if (!goal?.marker) return;
-        const m = goal.marker,
-          site = model.stage.objects.find((o) => o.id === m.targetId),
-          target =
-            model.stage.bodies.find((b) => b.id === m.targetId) ??
-            model.stage.bodies.find((b) => b.id === site?.surface?.bodyId);
-        const center = ['orbit', 'passage'].includes(m.kind)
-          ? (target?.position ?? goal.position)
-          : goal.position;
-        if (drag.marker.kind === 'radius') {
-          const radius = Math.max(0.02, length(sub(p, center)));
-          const ratio = m.minor / m.radius;
-          m.radius = radius;
-          m.minor = Math.min(radius, radius * ratio);
-        }
-        if (drag.marker.kind === 'minor')
-          m.minor = Math.max(
-            0.02,
-            Math.min(
-              m.radius,
-              m.kind === 'passage'
-                ? length(sub(p, center))
-                : Math.abs(
-                    -(p.x - center.x) * Math.sin(m.angle ?? 0) +
-                      (p.y - center.y) * Math.cos(m.angle ?? 0),
-                  ),
-            ),
+        if (drag.marker.kind === 'lower' || drag.marker.kind === 'upper') {
+          const source = structuredClone(drag.marker.original),
+            m = source.marker!;
+          const bounds = canvas.getBoundingClientRect();
+          const value = gaugeValue(model.stage, source, p, camera, bounds.width, bounds.height);
+          if (drag.marker.kind === 'lower')
+            m.lower = m.bounds === 'above' ? value : Math.min(m.upper, value);
+          else m.upper = m.bounds === 'below' ? value : Math.max(m.lower, value);
+          candidate = finishCandidate(model.stage, source, guard);
+        } else
+          candidate = editMarkerHandle(
+            model.stage,
+            drag.marker.original,
+            drag.marker.kind,
+            handlePhysicalPoint(drag.marker.original, drag.marker.kind, p, camera.zoom),
+            guard,
           );
-        if (drag.marker.kind === 'width')
-          m.width = Math.max(
-            0.01,
-            m.kind === 'passage'
-              ? length(sub(p, center))
-              : m.kind === 'velocity'
-                ? length(sub(p, { x: center.x + m.vector.x, y: center.y + m.vector.y }))
-                : length(sub(p, center)) - m.radius,
-          );
-        if (drag.marker.kind === 'angle') m.angle = Math.atan2(p.y - center.y, p.x - center.x);
-        if (drag.marker.kind === 'vector') m.vector = sub(p, center);
-        if (drag.marker.kind === 'tilt') {
-          const d = sub(p, center),
-            normal = sub(center, target?.position ?? { x: 0, y: 0 });
-          m.tilt = Math.min(
-            Math.PI / 2,
-            Math.abs(
-              Math.atan2(
-                Math.sin(Math.atan2(d.y, d.x) - Math.atan2(normal.y, normal.x)),
-                Math.cos(Math.atan2(d.y, d.x) - Math.atan2(normal.y, normal.x)),
-              ),
-            ),
-          );
-        }
+        if (candidate.goal && !candidate.error) Object.assign(goal, candidate.goal);
       } else if (drag.box) {
         drag.end = world(e);
         const lo = { x: Math.min(drag.start.x, drag.end.x), y: Math.min(drag.start.y, drag.end.y) },
@@ -1325,17 +1461,30 @@ export function editorScreen(app: App): Screen {
           if (entity) {
             const point = snapped({ x: original.x + delta.x, y: original.y + delta.y });
             if (id === 'spawn') {
-              const body = model.stage.bodies.find((b) => b.id === model.stage.launchBodyId);
-              if (body) {
-                const center = bodyPosition(model.stage, body, 0);
-                model.stage.launchAngle = Math.atan2(point.y - center.y, point.x - center.x);
-                syncLaunch(model.stage);
-              } else model.stage.spawn.position = point;
+              placeSpawn(
+                model.stage,
+                { x: original.x + delta.x, y: original.y + delta.y },
+                drag.spawnOriginal?.spawn.velocity,
+              );
             } else if ('motion' in entity && entity.motion) {
               const parent = model.stage.bodies.find((b) => b.id === entity.motion!.parentId)!;
               const center = bodyPosition(model.stage, parent, 0);
               entity.motion.radius = length(sub(point, center));
               entity.motion.phase = Math.atan2(point.y - center.y, point.x - center.x);
+            } else if ('marker' in entity && entity.marker?.managed !== false && entity.marker) {
+              const source = structuredClone(entity);
+              source.position = point;
+              if (['orbit', 'passage'].includes(source.marker!.kind)) {
+                const center = markerTargets(model.stage, source.marker!.kind).find(
+                  (t) => t.id === source.marker!.targetId,
+                )?.position;
+                if (center) {
+                  source.marker!.angle = Math.atan2(point.y - center.y, point.x - center.x);
+                  source.marker!.radius = Math.max(0.02, length(sub(point, center)));
+                }
+              }
+              candidate = finishCandidate(model.stage, source, guard);
+              if (candidate.goal && !candidate.error) Object.assign(entity, candidate.goal);
             } else entity.position = point;
           }
         }
@@ -1347,9 +1496,32 @@ export function editorScreen(app: App): Screen {
   canvas.addEventListener(
     'pointerup',
     (e) => {
+      if (placement) {
+        const result = candidate;
+        placement = undefined;
+        if (result?.goal && !result.error) {
+          const goal = result.goal;
+          model.change((stage) => installAuthoredGoals(stage, [goal]));
+          model.selection = new Set([goal.id]);
+          tool = 'select';
+          showPlacement();
+          app.root
+            .querySelectorAll('[data-tool]')
+            .forEach((button) =>
+              button.classList.toggle('active', (button as HTMLElement).dataset.tool === 'select'),
+            );
+          changed();
+          message('노란 손잡이로 실제 판정 경계를 조절하세요.');
+        } else message(result?.error ?? '배치할 위치를 선택하세요.');
+        candidate = undefined;
+        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+        return;
+      }
+      if (candidate?.error) message(candidate.error);
       if (drag?.box) drawInspector();
       else if (drag && !drag.pan) changed();
       drag = undefined;
+      candidate = undefined;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     },
     { signal },
@@ -1357,12 +1529,26 @@ export function editorScreen(app: App): Screen {
   canvas.addEventListener(
     'pointercancel',
     () => {
+      if (drag?.spawnOriginal) Object.assign(model.stage, structuredClone(drag.spawnOriginal));
+      if (drag?.marker) {
+        const goal = model.stage.goals.find((g) => g.id === drag!.marker!.goalId);
+        if (goal) Object.assign(goal, drag.marker.original);
+      }
+      placement = undefined;
+      candidate = undefined;
       drag = undefined;
       changed();
     },
     { signal },
   );
   canvas.addEventListener('contextmenu', (e) => e.preventDefault(), { signal });
+  canvas.addEventListener(
+    'pointerleave',
+    () => {
+      if (!placement && !drag) candidate = undefined;
+    },
+    { signal },
+  );
   canvas.addEventListener(
     'wheel',
     (e) => {
@@ -1377,6 +1563,13 @@ export function editorScreen(app: App): Screen {
     (e) => {
       if ((e.target as HTMLElement).matches('input,select,textarea')) return;
       keys.add(e.code);
+      if (e.code === 'Escape') {
+        placement = undefined;
+        candidate = undefined;
+        tool = 'select';
+        showPlacement();
+        drawInspector();
+      }
       if (e.code === 'F5') {
         e.preventDefault();
         test();
@@ -1455,8 +1648,25 @@ export function editorScreen(app: App): Screen {
         selectedHistory: true,
         grid: true,
         selected: model.selection,
+        hideMarkerHandles: true,
       });
       const ctx = canvas.getContext('2d')!;
+      if (!playbackRun) {
+        if (candidate?.goal)
+          paintAuthoringFeedback(
+            ctx,
+            model.stage,
+            candidate.goal,
+            camera,
+            w,
+            h,
+            true,
+            !!candidate.error,
+          );
+        else
+          for (const goal of model.stage.goals.filter((g) => model.selection.has(g.id)))
+            paintAuthoringFeedback(ctx, model.stage, goal, camera, w, h);
+      }
       if (drag?.box && drag.end) {
         const a = toScreen(drag.start, camera, w, h),
           b = toScreen(drag.end, camera, w, h);

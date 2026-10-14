@@ -46,5 +46,7 @@ test('기본 탐색은 묶음 한도에서 끝나지 않으며 중지·재개가
   await expect.poll(count).toBeGreaterThan(stopped);
   await expect(page.locator('#search-progress')).not.toHaveAttribute('value');
   await page.locator('#search-stop').click();
+  await expect(page.locator('#search-status')).toContainText('탐색 중지');
+  await page.getByText('탐색 범위·예산', { exact: true }).click();
   await page.screenshot({ path: 'test-results/screens/search-continuous-session.png' });
 });

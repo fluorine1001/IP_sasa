@@ -62,12 +62,91 @@ export type WindowMemory = {
   samples: WindowSample[];
   covered: number;
 };
+type Reader = (context: GoalContext) => number;
+const compiled = new WeakMap<GoalProgress, WeakMap<Expression, Map<string, Reader>>>();
+function pure(e: Expression): boolean {
+  return (
+    e.kind === 'constant' || e.kind === 'metric' || (e.kind === 'calculate' && e.args.every(pure))
+  );
+}
+/** Compile the exact arithmetic tree for one flight's goal memory. No generated
+ * code, quantisation or reassociation. Editable stage trees are never cached
+ * across freshProgress(), and history/window expressions keep their interpreter. */
+function reader(e: Expression, p: GoalProgress, path: string): Reader {
+  if (e.kind !== 'calculate') return (c) => interpret(e, c, p, path);
+  const children = e.args.map((child, i) => reader(child, p, `${path}.args.${i}`));
+  switch (e.operation) {
+    case 'add':
+      return (c) => {
+        let v = 0;
+        for (const read of children) v += read(c);
+        return v;
+      };
+    case 'multiply':
+      return (c) => {
+        let v = 1;
+        for (const read of children) v *= read(c);
+        return v;
+      };
+    case 'subtract':
+      return (c) => children[0](c) - children[1](c);
+    case 'divide':
+      return (c) => {
+        const a = children[0](c),
+          b = children[1](c);
+        return b === 0 ? NaN : a / b;
+      };
+    case 'sqrt':
+      return (c) => Math.sqrt(children[0](c));
+    case 'power':
+      return (c) => Math.pow(children[0](c), children[1](c));
+    case 'sin':
+      return (c) => Math.sin(children[0](c));
+    case 'cos':
+      return (c) => Math.cos(children[0](c));
+    case 'atan2':
+      return (c) => Math.atan2(children[0](c), children[1](c));
+    case 'abs':
+      return (c) => Math.abs(children[0](c));
+    case 'min':
+      return (c) => {
+        let v = Infinity;
+        for (const read of children) v = Math.min(v, read(c));
+        return v;
+      };
+    case 'max':
+      return (c) => {
+        let v = -Infinity;
+        for (const read of children) v = Math.max(v, read(c));
+        return v;
+      };
+  }
+}
 export function expressionValue(
   e: Expression,
   c: GoalContext,
   p: GoalProgress,
   path = 'expression',
 ): number {
+  if (e.kind !== 'calculate') return interpret(e, c, p, path);
+  let expressions = compiled.get(p);
+  if (!expressions) {
+    expressions = new WeakMap();
+    compiled.set(p, expressions);
+  }
+  let paths = expressions.get(e);
+  if (!paths) {
+    paths = new Map();
+    expressions.set(e, paths);
+  }
+  let read = paths.get(path);
+  if (!read) {
+    read = pure(e) ? reader(e, p, path) : (ctx) => interpret(e, ctx, p, path);
+    paths.set(path, read);
+  }
+  return read(c);
+}
+function interpret(e: Expression, c: GoalContext, p: GoalProgress, path = 'expression'): number {
   if (e.kind === 'constant') return e.value;
   if (e.kind === 'recorded') {
     const key = c.bindings ? c.bindings.scope + ':' + e.key : e.key;

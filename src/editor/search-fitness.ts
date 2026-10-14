@@ -4,6 +4,7 @@ import { objectiveGoals } from '../world/goals';
 import { metrics } from '../world/metrics';
 import type { Stage, Run, GoalContext, GoalProgress } from '../world/types';
 const stateful = new WeakMap<Expression, boolean>();
+const observers = new WeakMap<Run, Map<GoalProgress, GoalProgress>>();
 function hasWindow(e: Expression): boolean {
   const old = stateful.get(e);
   if (old !== undefined) return old;
@@ -59,8 +60,33 @@ export function searchFitness(stage: Stage, run: Run) {
         hasWindow(e)
           ? NaN
           : expressionValue(e, c, p, `${path}.${e === node.left ? 'left' : 'right'}`);
-      const a = read(node.left),
-        b = read(node.right);
+      let a = read(node.left);
+      if (
+        !Number.isFinite(a) &&
+        node.left.kind === 'metric' &&
+        ['touchdownSpeed', 'touchdownTilt'].includes(node.left.metric)
+      ) {
+        const actorId = node.left.actorId === '$actor' ? c.bindings?.actorId : node.left.actorId;
+        const targetId = c.bindings?.targetId ?? node.left.targetId;
+        const query = (metric: string) =>
+          expressionValue({ kind: 'metric', metric, actorId, targetId }, c, p);
+        if (node.left.metric === 'touchdownSpeed') a = query('speed');
+        else {
+          const actor =
+            actorId && actorId !== 'craft' ? run.detached.find((v) => v.id === actorId) : undefined;
+          const direction = actor?.direction ?? run.rocket?.direction ?? run.attitude;
+          const x = query('x'),
+            y = query('y');
+          if (direction)
+            a = Math.acos(
+              Math.max(
+                -1,
+                Math.min(1, (direction.x * x + direction.y * y) / Math.max(1e-9, Math.hypot(x, y))),
+              ),
+            );
+        }
+      }
+      const b = read(node.right);
       if (!Number.isFinite(a) || !Number.isFinite(b)) return p.ratio * 0.8;
       if (node.left.kind === 'metric' && node.left.metric === 'landed' && a < 0.5 && b >= 0.5) {
         const targetId =
@@ -95,11 +121,12 @@ export function searchFitness(stage: Stage, run: Run) {
       }
       return p.conditionMemory?.[path]?.latched ? 1 : 0;
     }
-    if (node.kind === 'hold')
-      return (
-        next(node.child, path + '.child') * 0.85 +
-        Math.min(1, (p.conditionMemory?.[path]?.hold ?? 0) / node.duration) * 0.15
-      );
+    if (node.kind === 'hold') {
+      const child = next(node.child, path + '.child');
+      return node.duration > 0
+        ? child * 0.85 + Math.min(1, (p.conditionMemory?.[path]?.hold ?? 0) / node.duration) * 0.15
+        : child;
+    }
     if (node.kind === 'capture')
       return p.checkpoints?.[node.key] ? 1 : next(node.when, path + '.when');
     if (node.kind === 'once')
@@ -119,13 +146,21 @@ export function searchFitness(stage: Stage, run: Run) {
   };
   const scores = objectiveGoals(stage).map((g) => {
     const p = run.goals[g.id];
-    return p.complete
-      ? 1
-      : scalar(g.condition, context, {
-          ...p,
-          conditionMemory: structuredClone(p.conditionMemory),
-          windows: undefined,
-        });
+    if (p.complete) return 1;
+    let cache = observers.get(run);
+    if (!cache) {
+      cache = new Map();
+      observers.set(run, cache);
+    }
+    let observer = cache.get(p);
+    if (!observer) {
+      observer = { ...p };
+      cache.set(p, observer);
+    }
+    Object.assign(observer, p);
+    observer.conditionMemory = structuredClone(p.conditionMemory);
+    observer.windows = undefined;
+    return scalar(g.condition, context, observer);
   });
   return stage.goalMode === 'any' ? Math.max(0, ...scores) : aggregate(scores);
 }

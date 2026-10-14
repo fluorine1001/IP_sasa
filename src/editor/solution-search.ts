@@ -5,6 +5,8 @@ import type { Stage, RoutePlan, Run } from '../world/types';
 import { searchFitness } from './search-fitness';
 import { flightShape, type FlightShape } from './flight-shape';
 import { craftCenter } from '../world/craft-center';
+import { hardwarePlans } from './hardware-search';
+import { FlightPrefixCache } from './flight-prefix';
 export type SearchParameter = {
   key: string;
   label: string;
@@ -18,6 +20,9 @@ export type SearchTemplate = {
   label: string;
   plan: RoutePlan;
   parameters: SearchParameter[];
+  seeds?: RoutePlan[];
+  /** Causal timing DAG. Missing metadata retains the legacy total-order layout. */
+  after?: Record<string, string[]>;
 };
 export type SearchSample = {
   id: number;
@@ -68,6 +73,8 @@ export type SearchReport = {
   quality?: number;
   profiles?: { program: string; evaluated: number; quality: number }[];
   coverage?: { divisions: number | string; checked: string; total?: string; exhausted: boolean };
+  proof?: { kind: 'predicate-domain'; reasons: string[]; visited: number };
+  reuse?: { prefixes: number; terminal: number; savedSeconds: number };
 };
 const vector = (angle: number, power = 1) => ({
   x: Math.cos(angle) * power,
@@ -200,16 +207,37 @@ export function searchTemplates(stage: Stage): SearchTemplate[] {
         ],
       },
     });
-  return candidates
-    .filter(({ plan }) => !planConstraints(stage, plan).length)
-    .map(({ label, plan }, i) => ({
-      id: `layout-${i}`,
-      label,
-      plan: structuredClone(plan),
-      parameters: searchParameters(stage, plan),
-    }));
+  const physical = hardwarePlans(stage).map((plans, i) => ({
+    id: `hardware-${i}`,
+    label: `${plans[0].engineCommands!.filter((c) => c.separate).length + 1}단 사용 · ${plans[0].engineCommands!.some((c) => c.throttle === 0) ? '정지·회전·재점화' : '연속 추진'}`,
+    plan: plans[0],
+    seeds: plans.slice(1),
+    parameters: searchParameters(stage, plans[0]),
+  }));
+  return [
+    ...physical,
+    ...candidates
+      .filter(({ plan }) => !planConstraints(stage, plan).length)
+      .map(({ label, plan }, i) => ({
+        id: `layout-${i}`,
+        label,
+        plan: structuredClone(plan),
+        parameters: searchParameters(stage, plan),
+      })),
+  ];
 }
-function timeCeilings(parameters: SearchParameter[]) {
+function timeCeilings(parameters: SearchParameter[], after?: Record<string, string[]>) {
+  if (after) {
+    const limits = new Map(
+      parameters
+        .filter((p) => p.key.endsWith('.time'))
+        .map((p) => [p.key, p.enabled ? p.max : p.value]),
+    );
+    for (const p of [...parameters].reverse())
+      for (const parent of after[p.key] ?? [])
+        limits.set(parent, Math.min(limits.get(parent) ?? Infinity, limits.get(p.key) ?? Infinity));
+    return parameters.map((p) => limits.get(p.key) ?? p.max);
+  }
   const upper: number[] = [];
   let later = Infinity;
   for (let i = parameters.length - 1; i >= 0; i--) {
@@ -220,21 +248,54 @@ function timeCeilings(parameters: SearchParameter[]) {
   }
   return upper;
 }
+function plannedValue(plan: RoutePlan, key: string) {
+  const [kind, index, field] = key.split('.');
+  if (kind === 'command') {
+    const command = plan.engineCommands![Number(index)];
+    return field === 'time'
+      ? command.time
+      : field === 'power'
+        ? command.throttle
+        : (Math.atan2(command.direction!.y, command.direction!.x) * 180) / Math.PI;
+  }
+  const v = kind === 'launch' ? plan.launch : plan.impulses[Number(index)].vector;
+  if (field === 'time') return plan.impulses[Number(index)].time;
+  return (kind === 'launch' ? index : field) === 'power'
+    ? length(v)
+    : (Math.atan2(v.y, v.x) * 180) / Math.PI;
+}
 export function parameterPlan(template: SearchTemplate, coordinates: number[]): RoutePlan {
   const plan = structuredClone(template.plan);
-  const ceilings = timeCeilings(template.parameters);
+  const ceilings = timeCeilings(template.parameters, template.after);
+  const times = new Map<string, number>();
   let dimension = 0,
     previousTime = 0;
   for (const [at, parameter] of template.parameters.entries()) {
     const isTime = parameter.key.endsWith('.time');
-    const lower = isTime ? Math.max(previousTime, parameter.min) : parameter.min;
+    const lower = isTime
+      ? Math.max(
+          parameter.min,
+          template.after
+            ? Math.max(
+                0,
+                ...(template.after[parameter.key] ?? []).map((key) => times.get(key) ?? 0),
+              )
+            : previousTime,
+        )
+      : parameter.min;
     const upper = ceilings[at];
-    const value = parameter.enabled
+    let value = parameter.enabled
       ? upper < lower
         ? NaN
         : lower + coordinates[dimension++] * (upper - lower)
       : parameter.value;
+    if (isTime && (value < lower || value > upper)) value = NaN;
     if (isTime) previousTime = value;
+    if (isTime) times.set(parameter.key, value);
+    // Preserve fixed controls bit-for-bit, but do not hide a fixed timing
+    // contradiction (including a command before its actor was created).
+    if (!parameter.enabled && Object.is(value, plannedValue(template.plan, parameter.key)))
+      continue;
     const [kind, index, field] = parameter.key.split('.');
     if (kind === 'launch') {
       if (index === 'power') plan.launch = vector(Math.atan2(plan.launch.y, plan.launch.x), value);
@@ -253,21 +314,34 @@ export function parameterPlan(template: SearchTemplate, coordinates: number[]): 
         impulse.vector = vector((value * Math.PI) / 180, length(impulse.vector));
     }
   }
+  if (template.after) {
+    plan.engineCommands?.sort((a, b) => a.time - b.time);
+    plan.impulses.sort((a, b) => a.time - b.time);
+  }
   return plan;
 }
 function seedCoordinates(template: SearchTemplate) {
-  const ceilings = timeCeilings(template.parameters);
+  const ceilings = timeCeilings(template.parameters, template.after);
+  const times = new Map<string, number>();
   let previousTime = 0;
   const result: number[] = [];
   for (const [at, p] of template.parameters.entries()) {
     const timed = p.key.endsWith('.time');
-    const lower = timed ? Math.max(previousTime, p.min) : p.min;
+    const lower = timed
+      ? Math.max(
+          p.min,
+          template.after
+            ? Math.max(0, ...(template.after[p.key] ?? []).map((key) => times.get(key) ?? 0))
+            : previousTime,
+        )
+      : p.min;
     const upper = ceilings[at];
     if (p.enabled)
       result.push(
         upper > lower ? Math.max(0, Math.min(1, (p.value - lower) / (upper - lower))) : 0,
       );
     if (timed) previousTime = p.value;
+    if (timed) times.set(p.key, p.value);
   }
   return result;
 }
@@ -320,6 +394,7 @@ export function* searchSolutions(
   budget = 512,
   recordRepresentatives = true,
   quota?: { remaining: number },
+  prefixes = new FlightPrefixCache(),
 ): Generator<SearchReport> {
   if (!Number.isFinite(budget)) throw Error('검사 예산은 유한한 숫자여야 합니다.');
   const parameters = template.parameters.filter((parameter) => parameter.enabled);
@@ -405,11 +480,15 @@ export function* searchSolutions(
     )
       illegal++;
     else {
-      const run = createRun(stage, plan),
-        horizon = stage.audit.timeLimit ?? stage.rules.maxTime;
+      const horizon = stage.audit.timeLimit ?? stage.rules.maxTime;
+      const fresh = createRun(stage, plan);
+      const restored = fresh.status === 'running' ? prefixes.restore(plan, horizon) : undefined;
+      const run = restored?.run ?? fresh;
+      sample.score = restored?.score ?? 0;
       let finalRun = run,
-        trace = [point(run)],
+        trace = restored?.trace ?? [point(run)],
         steps = 0;
+      let previousApplied = run.applied.size;
       while ((run.status === 'running' || run.status === 'impact') && run.time < horizon - 1e-8) {
         tick(run, stage, Math.min(0.1, horizon - run.time), stage.objects, false);
         const ratios = (run.goalRoots ?? Object.keys(run.goals))
@@ -419,17 +498,23 @@ export function* searchSolutions(
           stage.goalMode === 'any'
             ? Math.max(0, ...ratios)
             : ratios.reduce((a, b) => a + b, 0) / Math.max(1, ratios.length);
-        sample.score = Math.max(
-          sample.score,
-          (score * 0.15 + searchFitness(stage, run) * 0.85) * 0.99,
-        );
+        if (['running', 'won'].includes(run.status))
+          sample.score = Math.max(
+            sample.score,
+            (score * 0.15 + searchFitness(stage, run) * 0.85) * 0.99,
+          );
         appendTrace(trace, run);
+        if (run.applied.size !== previousApplied) {
+          prefixes.save(run, trace, sample.score);
+          previousApplied = run.applied.size;
+        }
         if (++steps % 16 === 0) {
           yield report(false, true);
         }
       }
       sample.won = run.status === 'won';
       sample.time = run.time;
+      if (['won', 'failed'].includes(run.status)) prefixes.save(run, trace, sample.score);
       if (sample.won) {
         const prefix: RoutePlan = {
           ...plan,
@@ -579,11 +664,25 @@ export function* searchSolutions(
       families,
       pending,
       quality,
+      reuse: {
+        prefixes: prefixes.reused,
+        terminal: prefixes.terminalReused,
+        savedSeconds: prefixes.savedSeconds,
+      },
     };
   };
   const seed = seedCoordinates(template);
   const initial = (yield* evaluate(seed))!;
   yield report(false);
+  for (const plan of template.seeds ?? []) {
+    const values = new Map(searchParameters(stage, plan).map((p) => [p.key, p.value]));
+    const seeded = {
+      ...template,
+      parameters: template.parameters.map((p) => ({ ...p, value: values.get(p.key) ?? p.value })),
+    };
+    yield* evaluate(seedCoordinates(seeded));
+    yield report(false);
+  }
   function* connect(a: SearchSample, b: SearchSample) {
     if (topology(a) !== topology(b)) return;
     const chain = [a];
@@ -634,13 +733,24 @@ export function* searchSolutions(
     return value;
   };
   let probes = 0;
+  let randomState = 0x713c7af9;
+  const random = () => {
+    randomState ^= randomState << 13;
+    randomState ^= randomState >>> 17;
+    randomState ^= randomState << 5;
+    return (randomState >>> 0) / 4294967296;
+  };
+  const population = [...cache.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(12, parameters.length * 2));
+  let populationCursor = 0;
   while (evaluated < budget && iteration < budget * 4) {
     if (quota && quota.remaining <= 0) yield report(false);
     iteration++;
     if (parameters.length && iteration % 4 !== 0) {
       const at = probes++,
         leader = elite[Math.floor(at / (parameters.length * 2)) % Math.max(1, elite.length)];
-      const point =
+      let point =
         at % 5 === 0 || !leader
           ? parameters.map((_, i) => radical(Math.floor(at / 5) + 1, primes[i]))
           : leader.values.map((v, i) =>
@@ -656,8 +766,28 @@ export function* searchSolutions(
                   )
                 : v,
             );
+      // Differential mutation changes coupled times, thrust and attitude together.
+      // It is an extra proposal mechanism; independent enumeration still visits all words.
+      let replace = -1;
+      if (iteration % 3 === 0 && population.length >= 4) {
+        replace = populationCursor++ % population.length;
+        const picks = new Set<number>([replace]);
+        while (picks.size < 4) picks.add(Math.floor(random() * population.length));
+        const [a, b, c] = [...picks].slice(1).map((i) => population[i]);
+        const target = population[replace],
+          mandatory = Math.floor(random() * parameters.length);
+        const factor = 0.45 + random() * 0.4;
+        point = target.values.map((v, i) =>
+          i === mandatory || random() < 0.8
+            ? Math.max(0, Math.min(1, a.values[i] + factor * (b.values[i] - c.values[i])))
+            : v,
+        );
+      }
       const sample = yield* evaluate(point);
       if (sample) {
+        if (replace >= 0) {
+          if (sample.score >= population[replace].score) population[replace] = sample;
+        } else if (population.length < Math.max(12, parameters.length * 2)) population.push(sample);
         elite.push(sample);
         elite.sort((a, b) => b.score - a.score);
         elite.splice(12);

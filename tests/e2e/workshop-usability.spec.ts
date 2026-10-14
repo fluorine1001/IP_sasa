@@ -39,7 +39,9 @@ test('달 착륙을 실제로 탐색하고 같은 결과 영역에서 예약 그
   await page.goto('/editor.html');
   await page.locator('#search-auto').uncheck();
   await page.locator('#search-run').click();
-  await expect(page.locator('#search-status')).toContainText('이번 검사 완료', { timeout: 30000 });
+  await expect(page.locator('.solution-family').first()).toBeVisible({ timeout: 30000 });
+  await page.locator('#search-stop').click();
+  await expect(page.locator('#search-status')).toContainText('탐색 중지');
   expect(await page.locator('.solution-family').count()).toBeGreaterThan(0);
   await expect(page.locator('#search-next')).toHaveCount(0);
   await page.locator('[data-family-path]').first().click();

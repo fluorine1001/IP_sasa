@@ -71,6 +71,7 @@ test('대표 경로 선택은 강조만 하고 재생 버튼으로 실제 기록
   await page.goto('/editor.html');
   await page.locator('#search-auto').uncheck();
   await page.getByText('탐색 범위·예산', { exact: true }).click();
+  await page.locator('#search-continuous').uncheck();
   await page.locator('#search-budget').fill('16');
   await page.locator('#search-run').click();
   await expect(page.locator('#search-status')).toContainText('이번 검사 완료', { timeout: 15000 });

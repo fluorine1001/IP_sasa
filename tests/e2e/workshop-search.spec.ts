@@ -24,6 +24,7 @@ test('독립 제작소는 기록 없이 전체 구성 탐색과 기존 결과를
   await page.goto('/editor.html');
   await page.locator('#search-auto').uncheck();
   await page.getByText('탐색 범위·예산', { exact: true }).click();
+  await page.locator('#search-continuous').uncheck();
   await page.locator('#search-budget').fill('32');
   await page.locator('#search-run').click();
   await expect(page.locator('#search-status')).toContainText('이번 검사 완료');

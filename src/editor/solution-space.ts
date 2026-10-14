@@ -3,9 +3,17 @@ import { planningTimeLimit, commandNames, type CommandKind } from '../world/prog
 import { searchParameters, type SearchTemplate } from './solution-search';
 
 type Action = { kind: CommandKind; actorId: string };
-type State = { counts: number[]; separated: number; deployed: bigint };
+type State = {
+  counts: number[];
+  separated: number;
+  deployed: bigint;
+  on: boolean[];
+  ignitions: number[];
+  lastActor: number;
+};
 const kinds: CommandKind[] = ['ignite', 'stop', 'turn', 'separate', 'push', 'deploy'];
-/** Discrete programs are enumerated, not selected by an author's preferred trajectory.
+/** Discrete causal programs, not an author's preferred trajectory.
+ * Independent detached actors share a canonical word, not a total time order.
  * DP counts suffixes; rank/unrank avoids materialising exponentially many programs.
  * Lengths are dovetailed, so a long program is investigated before short ones exhaust. */
 export function solutionSpace(stage: Stage, maxCommands?: number) {
@@ -30,6 +38,30 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
   const capped = limits.map((n) => Math.min(n, depth));
   const memo = new Map<string, bigint>();
   let countLimited = false;
+  const partIndex = (state: State, actor: string) =>
+    actor === 'craft'
+      ? state.separated
+      : (stage.rocket?.parts.findIndex((p) => p.id === actor) ?? -1);
+  function stateKey(state: State, left: number) {
+    const ignites = capped[0] - state.counts[0],
+      stops = capped[1] - state.counts[1];
+    const signature = (stage.rocket?.parts ?? [])
+      .map((part, i) => {
+        const canSeparate = i === state.separated && state.counts[3] < capped[3];
+        const maximum = Math.min(
+          ignites,
+          stops + Number(canSeparate) + Number(!state.on[i]),
+          state.on[i] ? Math.floor(left / 2) : Math.ceil(left / 2),
+        );
+        // Histories whose guard cannot affect any remaining suffix share one DP
+        // state. This is language equivalence, not a sampled state similarity.
+        return state.ignitions[i] + maximum <= part.ignitionLimit
+          ? '*'
+          : `${Number(state.on[i])}/${state.ignitions[i]}`;
+      })
+      .join(',');
+    return `${left}:${state.counts.join(',')}:${state.deployed}:${state.lastActor}:${signature}`;
+  }
   function choices(state: State): Action[] {
     const actors = [
       'craft',
@@ -38,24 +70,51 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
     return kinds.flatMap<Action>((kind, i) => {
       if (state.counts[i] >= capped[i]) return [];
       if (kind === 'deploy')
-        return (stage.rocket?.payloads ?? [])
+        return (state.lastActor === 0 ? (stage.rocket?.payloads ?? []) : [])
           .filter((_, i) => !(state.deployed & (1n << BigInt(i))))
           .map((p) => ({ kind, actorId: p.id }));
-      if (kind === 'separate') return [{ kind, actorId: 'craft' }];
+      if (kind === 'separate') return state.lastActor === 0 ? [{ kind, actorId: 'craft' }] : [];
       return (
         kind === 'push'
           ? ['craft']
           : actors.filter(
               (actor) => actor !== 'craft' || state.separated < (stage.rocket?.parts.length ?? 0),
             )
-      ).map((actorId) => ({ kind, actorId }));
+      )
+        .filter((actor) => {
+          const index = partIndex(state, actor);
+          if ((actor === 'craft' ? 0 : index + 1) < state.lastActor) return false;
+          return (
+            kind !== 'ignite' ||
+            state.on[index] ||
+            state.ignitions[index] < (stage.rocket?.parts[index]?.ignitionLimit ?? Infinity)
+          );
+        })
+        .map((actorId) => ({ kind, actorId }));
     });
   }
   function advance(state: State, action: Action): State {
     const counts = state.counts.slice();
     counts[kinds.indexOf(action.kind)]++;
+    const on = state.on.slice(),
+      ignitions = state.ignitions.slice();
+    const index = partIndex(state, action.actorId);
+    if (action.kind === 'separate') on[state.separated] = false;
+    if (action.kind === 'stop') on[index] = false;
+    if (action.kind === 'ignite') {
+      if (!on[index]) ignitions[index]++;
+      on[index] = true;
+    }
     return {
       counts,
+      on,
+      ignitions,
+      lastActor: Math.max(
+        state.lastActor,
+        action.actorId === 'craft' || action.kind === 'deploy'
+          ? 0
+          : partIndex(state, action.actorId) + 1,
+      ),
       separated: state.separated + Number(action.kind === 'separate'),
       deployed:
         action.kind === 'deploy'
@@ -70,14 +129,14 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
       countLimited = true;
       throw Error('count-depth');
     }
-    const key = `${remaining}:${state.counts.join(',')}:${state.deployed}`;
+    const key = stateKey(state, remaining);
     const cached = memo.get(key);
     if (cached !== undefined) return cached;
     if (memo.size > 100000) {
       countLimited = true;
       throw Error('count-limit');
     }
-    // Actor choices share the same future state, but remain distinct programs.
+    // Memoisation merges suffix-equivalent states, never distinct actor targets.
     const value = choices(state).reduce(
       (n, action) => n + count(advance(state, action), remaining - 1),
       0n,
@@ -85,7 +144,18 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
     memo.set(key, value);
     return value;
   }
-  const empty = (): State => ({ counts: kinds.map(() => 0), separated: 0, deployed: 0n });
+  // Initial ignition is optimistically uncharged: launch output may be zero.
+  // Fuel exhaustion can only add ignitions, never make this lower bound larger
+  // than the real count. Rejected words fail for every positive-power choice;
+  // zero throttle is represented by the separate stop action.
+  const empty = (): State => ({
+    counts: kinds.map(() => 0),
+    separated: 0,
+    deployed: 0n,
+    on: (stage.rocket?.parts ?? []).map((_, i) => i === 0),
+    ignitions: (stage.rocket?.parts ?? []).map(() => 0),
+    lastActor: 0,
+  });
   const totals: (bigint | undefined)[] = [];
   for (let n = 0; n <= depth; n++) {
     try {
@@ -192,6 +262,18 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
                 : { throttle: action.kind === 'ignite' ? 0.5 : 0 }),
         });
     });
+    const after: Record<string, string[]> = {},
+      previous = new Map<string, string>(),
+      created = new Map<string, string>();
+    let part = 0;
+    for (const [i, command] of plan.engineCommands!.entries()) {
+      const key = `command.${i}.time`;
+      after[key] = [previous.get(command.actorId), created.get(command.actorId)].filter(
+        (v): v is string => !!v,
+      );
+      previous.set(command.actorId, key);
+      if (command.separate) created.set(stage.rocket!.parts[part++].id, key);
+    }
     return {
       id: `space-${serial++}`,
       label: actions.length
@@ -204,6 +286,7 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
         : '첫 출력만',
       plan,
       parameters: searchParameters(stage, plan),
+      after: stage.rocket ? after : undefined,
     };
   }
   return {
@@ -229,7 +312,7 @@ export function solutionSpace(stage: Stage, maxCommands?: number) {
       function weight(state: State, left: number): bigint {
         if (!left) return 1n;
         if (left > 96) throw Error('weighted-count-depth');
-        const key = `${left}:${state.counts.join(',')}:${state.deployed}`;
+        const key = stateKey(state, left);
         const previous = weighted.get(key);
         if (previous !== undefined) return previous;
         if (weighted.size > 100000) throw Error('weighted-count-limit');

@@ -10,6 +10,8 @@ import {
   type SolutionFamily,
 } from './solution-search';
 import type { Stage } from '../world/types';
+import { conditionDomain } from './condition-domain';
+import { FlightPrefixCache } from './flight-prefix';
 import { programEvents, commandNames, commandUsage, planConstraints } from '../world/program';
 
 /** Independent fair cases + continuous refinement. Physical trials yield in fixed
@@ -24,11 +26,29 @@ export function* globalSearch(
 ): Generator<SearchReport> {
   if (!Number.isFinite(budget)) throw Error('유한한 검사 예산을 지정하세요.');
   budget = Math.max(1, Math.min(8192, Math.floor(budget)));
+  const proof = conditionDomain(stage);
+  if (proof.impossible) {
+    yield {
+      evaluated: 0,
+      cached: 0,
+      successes: 0,
+      illegal: 0,
+      budget,
+      done: true,
+      elapsed: 0,
+      frontier: 0,
+      continuable: false,
+      families: [],
+      proof: { kind: 'predicate-domain', reasons: proof.reasons, visited: proof.visited },
+    };
+    return;
+  }
   const domain = solutionSpace(stage, 0).commandLimit;
   const space = solutionSpace(stage, Math.min(6, maxCommands ?? domain));
   const cases = fairCases(stage, maxCommands, divisions);
   const quota = continuation ?? { remaining: budget, total: budget };
   const start = performance.now();
+  const prefixes = new FlightPrefixCache();
   type Job = {
     iterator: Generator<SearchReport>;
     report?: SearchReport;
@@ -49,24 +69,27 @@ export function* globalSearch(
     pending = templates.slice();
   let cursor = 0,
     turn = 0,
-    observed = 0,
     fullyExhausted = false,
     lastDiscovery = 0;
   let merged: SolutionFamily[] = [],
     lastInputs: SolutionFamily[][] = [];
   const keyOf = (t: SearchTemplate) =>
-    JSON.stringify(
+    JSON.stringify([
       programEvents(t.plan)
         .filter((e) => e.id !== 'launch')
         .map((e) => [e.kind, e.actorId]),
-    );
+      // A total-order seed covers only one shuffle of independent actors. Do
+      // not let that seed suppress the wider causal-DAG timing domain.
+      !!t.after && new Set(t.plan.engineCommands?.map((c) => c.actorId)).size > 1,
+    ]);
   function discover() {
     for (let tries = 0; tries < 128; tries++) {
-      const fromRecord = observed++ % 2 === 0 && pending.length > 0;
+      const fromRecord = pending.length > 0;
       const template = fromRecord ? pending.shift() : (space.next() ?? pending.shift());
       if (!template) return;
       if (
-        Object.values(commandUsage(template.plan)).reduce((n, v) => n + v, 0) > space.maxCommands ||
+        Object.values(commandUsage(template.plan)).reduce((n, v) => n + v, 0) >
+          (maxCommands ?? domain) ||
         planConstraints(stage, template.plan).length
       )
         continue;
@@ -88,7 +111,7 @@ export function* globalSearch(
         )
         .join(' → ');
       const job: Job = {
-        iterator: searchSolutions(stage, template, 8192, false, quota),
+        iterator: searchSolutions(stage, template, 8192, false, quota, prefixes),
         served: false,
         completed: 0,
       };
@@ -115,6 +138,11 @@ export function* globalSearch(
       illegal: illegal + jobs.reduce((n, j) => n + (j.report?.illegal ?? 0), 0),
       budget: quota.total,
       done,
+      reuse: {
+        prefixes: prefixes.reused,
+        terminal: prefixes.terminalReused,
+        savedSeconds: prefixes.savedSeconds,
+      },
       continuable: !!continuation && !fullyExhausted && quota.total < Number.MAX_SAFE_INTEGER,
       coverage: {
         divisions: (BigInt(divisions) << BigInt(cases.level)).toString(),
@@ -155,11 +183,14 @@ export function* globalSearch(
       const fixed = {
         ...item.template,
         plan,
+        // parameterPlan has already sorted this concrete schedule. Its indices
+        // no longer name the original canonical word's causal DAG.
+        after: undefined,
         parameters: searchParameters(item.stage, plan).map((p) => ({ ...p, enabled: false })),
       };
       job = {
         key,
-        iterator: searchSolutions(item.stage, fixed, 1, false, quota),
+        iterator: searchSolutions(item.stage, fixed, 1, false, quota, prefixes),
         served: false,
         completed: 0,
       };
@@ -201,10 +232,18 @@ export function* globalSearch(
         const job =
           quota.remaining > 0 &&
           (jobs.length < Math.min(8, Number(space.total ?? 8)) ||
-            quota.total - quota.remaining - lastDiscovery >= 32 ||
+            quota.total - quota.remaining - lastDiscovery >= 64 ||
             !active.length)
             ? (discover() ?? exploratory)
-            : exploratory;
+            : slot % 4 === 1 && quota.remaining > 0
+              ? jobs
+                  .filter((j) => !j.report?.done)
+                  .reduce<Job | undefined>(
+                    (best, j) =>
+                      (j.report?.quality ?? 0) > (best?.report?.quality ?? 0) ? j : best,
+                    exploratory,
+                  )
+              : exploratory;
         if (job) {
           const next = job.iterator.next();
           if (!next.done) job.report = next.value;

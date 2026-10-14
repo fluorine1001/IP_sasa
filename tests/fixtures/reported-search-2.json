@@ -1,0 +1,863 @@
+{
+  "version": 2,
+  "launchAngle": -1.0148115636928432,
+  "id": "8bd96b65-4665-436c-b0da-e691771ac9e0",
+  "title": "대기권의 문을 지나",
+  "description": "대기권을 지나 목표 높이 띠에 머무르세요.",
+  "order": 1,
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 2,
+        "y": -0.5
+      },
+      "radius": 1,
+      "mu": 0.12,
+      "color": "#65978b",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "atmosphere": {
+        "height": 0.6,
+        "density": 1.2,
+        "scaleHeight": 0.15
+      }
+    },
+    {
+      "id": "bc48e3e6-e71e-40ee-b5b4-7c006dcb8053",
+      "name": "달",
+      "kind": "moon",
+      "position": {
+        "x": 9.6,
+        "y": 2.3
+      },
+      "radius": 0.6,
+      "mu": 1,
+      "color": "#b6bcb2",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "18d63eba-9d87-4d55-b587-e16b6c92c75a",
+      "title": "표시 영역 내부",
+      "condition": {
+        "kind": "quantify",
+        "actorIds": ["craft"],
+        "targetIds": ["bc48e3e6-e71e-40ee-b5b4-7c006dcb8053"],
+        "mode": "all",
+        "child": {
+          "kind": "hold",
+          "duration": 1.2,
+          "child": {
+            "kind": "compare",
+            "left": {
+              "kind": "calculate",
+              "operation": "sqrt",
+              "args": [
+                {
+                  "kind": "calculate",
+                  "operation": "add",
+                  "args": [
+                    {
+                      "kind": "calculate",
+                      "operation": "multiply",
+                      "args": [
+                        {
+                          "kind": "calculate",
+                          "operation": "subtract",
+                          "args": [
+                            {
+                              "kind": "metric",
+                              "metric": "x",
+                              "actorId": "$actor",
+                              "targetId": "$target"
+                            },
+                            {
+                              "kind": "constant",
+                              "value": 0
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "calculate",
+                          "operation": "subtract",
+                          "args": [
+                            {
+                              "kind": "metric",
+                              "metric": "x",
+                              "actorId": "$actor",
+                              "targetId": "$target"
+                            },
+                            {
+                              "kind": "constant",
+                              "value": 0
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "calculate",
+                      "operation": "multiply",
+                      "args": [
+                        {
+                          "kind": "calculate",
+                          "operation": "subtract",
+                          "args": [
+                            {
+                              "kind": "metric",
+                              "metric": "y",
+                              "actorId": "$actor",
+                              "targetId": "$target"
+                            },
+                            {
+                              "kind": "constant",
+                              "value": 0
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "calculate",
+                          "operation": "subtract",
+                          "args": [
+                            {
+                              "kind": "metric",
+                              "metric": "y",
+                              "actorId": "$actor",
+                              "targetId": "$target"
+                            },
+                            {
+                              "kind": "constant",
+                              "value": 0
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "operator": "lte",
+            "right": {
+              "kind": "constant",
+              "value": 1.4447520623171033
+            }
+          }
+        }
+      },
+      "position": {
+        "x": 9.6,
+        "y": 2.3
+      },
+      "startTime": 0,
+      "endTime": 18,
+      "dependsOn": [],
+      "marker": {
+        "kind": "area",
+        "targetId": "bc48e3e6-e71e-40ee-b5b4-7c006dcb8053",
+        "actorIds": ["craft"],
+        "radius": 1.4447520623171033,
+        "width": 0.18,
+        "minor": 1.4447520623171033,
+        "vector": {
+          "x": 0,
+          "y": 1
+        },
+        "metric": "landed",
+        "lower": 1,
+        "upper": 1,
+        "span": "settle",
+        "offset": {
+          "x": 0,
+          "y": 0
+        },
+        "managed": true,
+        "compiledKey": "{\"actorIds\":[\"craft\"],\"child\":{\"child\":{\"kind\":\"compare\",\"left\":{\"args\":[{\"args\":[{\"args\":[{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"x\",\"targetId\":\"$target\"},{\"kind\":\"constant\",\"value\":0}],\"kind\":\"calculate\",\"operation\":\"subtract\"},{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"x\",\"targetId\":\"$target\"},{\"kind\":\"constant\",\"value\":0}],\"kind\":\"calculate\",\"operation\":\"subtract\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"},{\"args\":[{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"y\",\"targetId\":\"$target\"},{\"kind\":\"constant\",\"value\":0}],\"kind\":\"calculate\",\"operation\":\"subtract\"},{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"y\",\"targetId\":\"$target\"},{\"kind\":\"constant\",\"value\":0}],\"kind\":\"calculate\",\"operation\":\"subtract\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"add\"}],\"kind\":\"calculate\",\"operation\":\"sqrt\"},\"operator\":\"lte\",\"right\":{\"kind\":\"constant\",\"value\":1.4447520623171033}},\"duration\":1.2,\"kind\":\"hold\"},\"kind\":\"quantify\",\"mode\":\"all\",\"targetIds\":[\"bc48e3e6-e71e-40ee-b5b4-7c006dcb8053\"]}"
+      }
+    },
+    {
+      "id": "e25b8d60-98a9-45fb-aa12-b380dd08c774",
+      "title": "표시한 접촉 지점에 안전 회수",
+      "condition": {
+        "kind": "quantify",
+        "actorIds": ["craft"],
+        "targetIds": ["bc48e3e6-e71e-40ee-b5b4-7c006dcb8053"],
+        "mode": "all",
+        "child": {
+          "kind": "hold",
+          "duration": 1.2,
+          "child": {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "all",
+                "children": [
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "metric",
+                      "metric": "landed",
+                      "targetId": "bc48e3e6-e71e-40ee-b5b4-7c006dcb8053",
+                      "actorId": "$actor"
+                    },
+                    "operator": "gte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "metric",
+                      "metric": "touchdownSpeed",
+                      "targetId": "",
+                      "actorId": "$actor"
+                    },
+                    "operator": "lte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 0.18
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "metric",
+                      "metric": "touchdownTilt",
+                      "targetId": "",
+                      "actorId": "$actor"
+                    },
+                    "operator": "lte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 0.6849153864313271
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "sqrt",
+                  "args": [
+                    {
+                      "kind": "calculate",
+                      "operation": "add",
+                      "args": [
+                        {
+                          "kind": "calculate",
+                          "operation": "multiply",
+                          "args": [
+                            {
+                              "kind": "calculate",
+                              "operation": "subtract",
+                              "args": [
+                                {
+                                  "kind": "metric",
+                                  "metric": "x",
+                                  "actorId": "$actor",
+                                  "targetId": "$target"
+                                },
+                                {
+                                  "kind": "calculate",
+                                  "operation": "subtract",
+                                  "args": [
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.5514870180108353
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "cos",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.2363515791475006
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "sin",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "calculate",
+                              "operation": "subtract",
+                              "args": [
+                                {
+                                  "kind": "metric",
+                                  "metric": "x",
+                                  "actorId": "$actor",
+                                  "targetId": "$target"
+                                },
+                                {
+                                  "kind": "calculate",
+                                  "operation": "subtract",
+                                  "args": [
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.5514870180108353
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "cos",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.2363515791475006
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "sin",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "calculate",
+                          "operation": "multiply",
+                          "args": [
+                            {
+                              "kind": "calculate",
+                              "operation": "subtract",
+                              "args": [
+                                {
+                                  "kind": "metric",
+                                  "metric": "y",
+                                  "actorId": "$actor",
+                                  "targetId": "$target"
+                                },
+                                {
+                                  "kind": "calculate",
+                                  "operation": "add",
+                                  "args": [
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.5514870180108353
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "sin",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.2363515791475006
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "cos",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "calculate",
+                              "operation": "subtract",
+                              "args": [
+                                {
+                                  "kind": "metric",
+                                  "metric": "y",
+                                  "actorId": "$actor",
+                                  "targetId": "$target"
+                                },
+                                {
+                                  "kind": "calculate",
+                                  "operation": "add",
+                                  "args": [
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.5514870180108353
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "sin",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "calculate",
+                                      "operation": "multiply",
+                                      "args": [
+                                        {
+                                          "kind": "constant",
+                                          "value": -0.2363515791475006
+                                        },
+                                        {
+                                          "kind": "calculate",
+                                          "operation": "cos",
+                                          "args": [
+                                            {
+                                              "kind": "calculate",
+                                              "operation": "multiply",
+                                              "args": [
+                                                {
+                                                  "kind": "constant",
+                                                  "value": 0
+                                                },
+                                                {
+                                                  "kind": "metric",
+                                                  "metric": "time",
+                                                  "actorId": "$actor",
+                                                  "targetId": ""
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.18
+                }
+              }
+            ]
+          }
+        }
+      },
+      "position": {
+        "x": 9.048512981989164,
+        "y": 2.063648420852499
+      },
+      "startTime": 0,
+      "endTime": 30,
+      "dependsOn": [],
+      "marker": {
+        "kind": "surface",
+        "targetId": "bc48e3e6-e71e-40ee-b5b4-7c006dcb8053",
+        "actorIds": ["craft"],
+        "radius": 0.18,
+        "width": 0.18,
+        "minor": 1,
+        "vector": {
+          "x": 0,
+          "y": 1
+        },
+        "metric": "landed",
+        "lower": 0,
+        "upper": 0.18,
+        "span": "settle",
+        "offset": {
+          "x": -0.5514870180108353,
+          "y": -0.2363515791475006
+        },
+        "managed": true,
+        "compiledKey": "{\"actorIds\":[\"craft\"],\"child\":{\"child\":{\"children\":[{\"children\":[{\"kind\":\"compare\",\"left\":{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"landed\",\"targetId\":\"bc48e3e6-e71e-40ee-b5b4-7c006dcb8053\"},\"operator\":\"gte\",\"right\":{\"kind\":\"constant\",\"value\":1}},{\"kind\":\"compare\",\"left\":{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"touchdownSpeed\",\"targetId\":\"\"},\"operator\":\"lte\",\"right\":{\"kind\":\"constant\",\"value\":0.18}},{\"kind\":\"compare\",\"left\":{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"touchdownTilt\",\"targetId\":\"\"},\"operator\":\"lte\",\"right\":{\"kind\":\"constant\",\"value\":0.6849153864313271}}],\"kind\":\"all\"},{\"kind\":\"compare\",\"left\":{\"args\":[{\"args\":[{\"args\":[{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"x\",\"targetId\":\"$target\"},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":-0.5514870180108353},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"cos\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"},{\"args\":[{\"kind\":\"constant\",\"value\":-0.2363515791475006},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"sin\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"subtract\"}],\"kind\":\"calculate\",\"operation\":\"subtract\"},{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"x\",\"targetId\":\"$target\"},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":-0.5514870180108353},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"cos\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"},{\"args\":[{\"kind\":\"constant\",\"value\":-0.2363515791475006},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"sin\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"subtract\"}],\"kind\":\"calculate\",\"operation\":\"subtract\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"},{\"args\":[{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"y\",\"targetId\":\"$target\"},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":-0.5514870180108353},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"sin\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"},{\"args\":[{\"kind\":\"constant\",\"value\":-0.2363515791475006},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"cos\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"add\"}],\"kind\":\"calculate\",\"operation\":\"subtract\"},{\"args\":[{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"y\",\"targetId\":\"$target\"},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":-0.5514870180108353},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"sin\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"},{\"args\":[{\"kind\":\"constant\",\"value\":-0.2363515791475006},{\"args\":[{\"args\":[{\"kind\":\"constant\",\"value\":0},{\"actorId\":\"$actor\",\"kind\":\"metric\",\"metric\":\"time\",\"targetId\":\"\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"cos\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"add\"}],\"kind\":\"calculate\",\"operation\":\"subtract\"}],\"kind\":\"calculate\",\"operation\":\"multiply\"}],\"kind\":\"calculate\",\"operation\":\"add\"}],\"kind\":\"calculate\",\"operation\":\"sqrt\"},\"operator\":\"lte\",\"right\":{\"kind\":\"constant\",\"value\":0.18}}],\"kind\":\"all\"},\"duration\":1.2,\"kind\":\"hold\"},\"kind\":\"quantify\",\"mode\":\"all\",\"targetIds\":[\"bc48e3e6-e71e-40ee-b5b4-7c006dcb8053\"]}",
+        "tilt": 0.6849153864313271
+      },
+      "display": {
+        "targetId": "bc48e3e6-e71e-40ee-b5b4-7c006dcb8053",
+        "min": 0.6,
+        "max": 0.6
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 2.530418895133999,
+      "y": -1.353628019505468
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    },
+    "placed": true
+  },
+  "rules": {
+    "launchLimit": 2,
+    "maneuverBudget": 0.05,
+    "maxTime": 30,
+    "worldRadius": 20,
+    "sensorSlots": 3,
+    "attempts": 6,
+    "commandLimits": {
+      "ignite": 10,
+      "stop": 10,
+      "turn": 10,
+      "separate": 3
+    }
+  },
+  "camera": {
+    "x": 1.7785662945650929,
+    "y": -0.572026575901964,
+    "zoom": 32.30344287914484
+  },
+  "referencePlans": [],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "rocket": {
+    "payloadMass": 1,
+    "parts": [
+      {
+        "id": "a2d2355c-63a5-437a-bd97-1ca635239d97",
+        "name": "1단 · 대기권 부스터",
+        "dryMass": 2,
+        "fuelMass": 3.4,
+        "thrust": 1.5,
+        "exhaustSpeed": 1.1,
+        "area": 0.12,
+        "maxQ": 0.18,
+        "maxHeat": 1.5,
+        "ignitionLimit": 2,
+        "turnRate": 1.5707963267948966
+      },
+      {
+        "id": "30bcf420-34f2-4b28-b513-ad759a57c7b7",
+        "name": "2단 · 상승 엔진",
+        "dryMass": 0.9,
+        "fuelMass": 1.4,
+        "thrust": 0.5,
+        "exhaustSpeed": 0.9,
+        "area": 0.07,
+        "maxQ": 0.012,
+        "maxHeat": 0.35,
+        "ignitionLimit": 2,
+        "turnRate": 2.0943951023931953
+      },
+      {
+        "id": "ad883032-bed8-47c9-9ea3-e9c00f930604",
+        "name": "3단 · 궤도 조정",
+        "dryMass": 0.3,
+        "fuelMass": 0.6,
+        "thrust": 0.18,
+        "exhaustSpeed": 0.8,
+        "area": 0.025,
+        "maxQ": 0.002,
+        "maxHeat": 0.15,
+        "ignitionLimit": 4,
+        "turnRate": 3.141592653589793
+      }
+    ]
+  },
+  "published": true,
+  "learning": {
+    "briefing": "엔진 출력은 분사하는 힘, 방향은 기체가 바라볼 목표입니다. 회전과 분리는 실제 시간이 걸리는 조작입니다. 같은 환경에서 한 가지씩 바꾸고 실제 기록의 차이를 비교하세요.",
+    "instruments": [
+      {
+        "id": "height",
+        "label": "가장 높이 올라간 곳",
+        "value": {
+          "kind": "metric",
+          "metric": "altitude",
+          "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 1.4,
+          "max": 6,
+          "below": "대기권을 못 벗어남",
+          "inside": "대기권 밖까지 도달",
+          "above": "아주 멀리 나감"
+        }
+      },
+      {
+        "id": "air",
+        "label": "공기가 가장 세게 누른 순간",
+        "value": {
+          "kind": "metric",
+          "metric": "dynamicPressure",
+          "targetId": ""
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 0,
+          "max": 0.0014,
+          "below": "관측 확인",
+          "inside": "공기 부담에 여유가 있음",
+          "above": "엔진 세기나 방향을 조정할 필요"
+        }
+      },
+      {
+        "id": "fuel",
+        "label": "비행 끝에 남은 엔진 연료",
+        "value": {
+          "kind": "metric",
+          "metric": "fuel",
+          "targetId": ""
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "last",
+        "range": {
+          "min": 0.05,
+          "max": 99,
+          "below": "남은 연료가 거의 없음",
+          "inside": "추가 조작 여유가 남음",
+          "above": "관측 확인"
+        }
+      }
+    ],
+    "cues": [
+      {
+        "id": "booster-empty",
+        "message": "1단 연료가 거의 다 썼습니다. 지금의 시각과 높이를 기록하고, 다음 계획에서 빈 단 분리와 다음 엔진 점화를 예약하세요. 비행 중 계획은 바꿀 수 없습니다.",
+        "pause": true,
+        "when": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "fuel",
+                "targetId": ""
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.01
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "separatedStages",
+                "targetId": ""
+              },
+              "operator": "eq",
+              "right": {
+                "kind": "constant",
+                "value": 0
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "launchBodyId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7"
+}

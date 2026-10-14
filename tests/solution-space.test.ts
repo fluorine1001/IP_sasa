@@ -158,6 +158,13 @@ it('추가 예산은 발견된 집합·열거 위치를 유지하고 이전 검�
   stage.rules.maxTime = 0.1;
   stage.audit.timeLimit = 0.1;
   stage.rules.commandLimits = { ignite: 1, stop: 1, turn: 1, separate: 0, push: 0 };
+  // Keep this a continuation test, not a statically contradictory hold window.
+  stage.goals[0].condition = {
+    kind: 'compare',
+    left: { kind: 'metric', metric: 'x', targetId: '' },
+    operator: 'gte',
+    right: { kind: 'constant', value: 100 },
+  };
   const quota = { remaining: 16, total: 16 },
     iterator = globalSearch(stage, [], 16, undefined, quota);
   let first;

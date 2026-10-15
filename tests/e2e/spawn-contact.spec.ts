@@ -98,8 +98,26 @@ test('천체를 로켓 쪽으로 드래그하면 접촉 직후부터 같은 표�
     );
   await expect.poll(() => padGreen(cx + 2.105 * 60)).toBeGreaterThan(100);
   await page.mouse.move(cx + 150, cy, { steps: 8 });
-  // The live canvas already shows the carried rocket before pointerup commits the draft.
   await expect.poll(() => padGreen(cx + 3.105 * 60)).toBeGreaterThan(100);
+  // Inspect the cream rocket segment separately: a moving pad alone is not sufficient.
+  await expect
+    .poll(() =>
+      page.locator('#editor-world').evaluate((element) => {
+        const c = element as HTMLCanvasElement,
+          r = c.getBoundingClientRect(),
+          ratio = c.width / r.width;
+        const data = c
+          .getContext('2d')!
+          .getImageData(
+            Math.round((r.width / 2 + 3.15 * 60) * ratio),
+            Math.round((r.height / 2 - 1) * ratio),
+            1,
+            1,
+          ).data;
+        return data[0] + data[1];
+      }),
+    )
+    .toBeGreaterThan(250);
   await page.screenshot({ path: 'test-results/screens/planet-carries-rocket.png' });
   await page.mouse.up();
   let draft = await page.evaluate(() => JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!));

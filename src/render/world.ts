@@ -25,6 +25,8 @@ export type DrawState = {
   grid?: boolean;
   trails?: boolean;
   selected?: Set<string>;
+  /** Editor-only transparent paint pass; leaves saved layer order and physical references intact. */
+  layer?: { kind: 'only' | 'except'; ids: ReadonlySet<string> };
   hideMarkerHandles?: boolean;
   tool?: string;
   time?: number;
@@ -65,8 +67,11 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     c = s.camera,
     t = s.run?.time ?? s.time ?? 0,
     screen = (p: Vec) => toScreen(p, c, w, h);
-  backdrop(ctx, w, h, c);
-  if (s.grid) {
+  const foreground = s.layer?.kind === 'only';
+  const visible = (id: string) =>
+    !s.layer || (s.layer.kind === 'only' ? s.layer.ids.has(id) : !s.layer.ids.has(id));
+  if (!foreground) backdrop(ctx, w, h, c);
+  if (s.grid && !foreground) {
     ctx.strokeStyle = '#42607355';
     ctx.lineWidth = 1;
     const step = c.zoom;
@@ -82,6 +87,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.stroke();
   }
   for (const g of s.stage.goals) {
+    if (!visible(g.id)) continue;
     if (g.marker && g.marker.managed !== false) {
       paintMarker(
         ctx,
@@ -117,87 +123,93 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     );
   }
 
-  const path = (points: Vec[], color: string, dashed = false) => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = dashed ? 2 : 3;
-    ctx.setLineDash(dashed ? [5, 8] : []);
-    ctx.beginPath();
-    points.forEach((p, i) => {
-      const q = screen(p);
-      if (i) ctx.lineTo(q.x, q.y);
-      else ctx.moveTo(q.x, q.y);
-    });
-    ctx.stroke();
-    ctx.setLineDash([]);
-  };
-  for (const [i, trail] of (s.histories ?? []).entries()) {
-    if (!trail.length) continue;
-    if (s.trails !== false)
+  if (!foreground) {
+    const path = (points: Vec[], color: string, dashed = false) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = dashed ? 2 : 3;
+      ctx.setLineDash(dashed ? [5, 8] : []);
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const q = screen(p);
+        if (i) ctx.lineTo(q.x, q.y);
+        else ctx.moveTo(q.x, q.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    for (const [i, trail] of (s.histories ?? []).entries()) {
+      if (!trail.length) continue;
+      if (s.trails !== false)
+        path(
+          [
+            s.stage.rocket ? trail[0].position : s.stage.spawn.position,
+            ...trail.map((v) => v.position),
+          ],
+          ['#79c7d64d', '#b6a1de4d', '#d0cc764d'][i % 3],
+          true,
+        );
+    }
+    if (s.replayTime !== undefined)
+      for (const [i, trail] of [s.history ?? [], ...(s.histories ?? [])].entries()) {
+        if (!trail.length || s.replayTime > trail.at(-1)!.time) continue;
+        const sample = trail.reduce((a, b) =>
+          Math.abs(b.time - s.replayTime!) < Math.abs(a.time - s.replayTime!) ? b : a,
+        );
+        if (i === 0)
+          for (const [id, position] of Object.entries(sample.targets ?? {})) {
+            const target =
+              s.stage.bodies.find((b) => b.id === id) ?? s.stage.objects.find((o) => o.id === id);
+            if (!target) continue;
+            const p = screen(position);
+            ctx.strokeStyle = '#a4cab3aa';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([3, 5]);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, Math.max(6, target.radius * c.zoom), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#a4cab3';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(`${target.name} · 기록 ${sample.time.toFixed(1)}초`, p.x + 8, p.y - 8);
+          }
+        const q = screen(sample.position);
+        ctx.fillStyle = ['#ffe1a1', '#79c7d6', '#b6a1de', '#d0cc76'][i % 4];
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '12px sans-serif';
+        ctx.fillText(
+          `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
+          q.x + 10,
+          q.y - 10,
+        );
+      }
+    if (s.history?.length && (s.selectedHistory || s.trails !== false))
       path(
         [
-          s.stage.rocket ? trail[0].position : s.stage.spawn.position,
-          ...trail.map((v) => v.position),
+          s.stage.rocket ? s.history[0].position : s.stage.spawn.position,
+          ...s.history.map((v) => v.position),
         ],
-        ['#79c7d64d', '#b6a1de4d', '#d0cc764d'][i % 3],
+        s.selectedHistory ? '#83d8ff' : '#aab8ae55',
         true,
       );
+    if (
+      s.run &&
+      s.trails !== false &&
+      (!s.selectedHistory || s.run.status === 'running' || s.replay)
+    )
+      path(
+        [
+          s.stage.rocket
+            ? (s.run.trail[0]?.position ?? s.stage.spawn.position)
+            : s.stage.spawn.position,
+          ...s.run.trail.map((v) => v.position),
+        ],
+        s.run.probe ? '#80cbd5' : '#f9b671',
+      );
   }
-  if (s.replayTime !== undefined)
-    for (const [i, trail] of [s.history ?? [], ...(s.histories ?? [])].entries()) {
-      if (!trail.length || s.replayTime > trail.at(-1)!.time) continue;
-      const sample = trail.reduce((a, b) =>
-        Math.abs(b.time - s.replayTime!) < Math.abs(a.time - s.replayTime!) ? b : a,
-      );
-      if (i === 0)
-        for (const [id, position] of Object.entries(sample.targets ?? {})) {
-          const target =
-            s.stage.bodies.find((b) => b.id === id) ?? s.stage.objects.find((o) => o.id === id);
-          if (!target) continue;
-          const p = screen(position);
-          ctx.strokeStyle = '#a4cab3aa';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([3, 5]);
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, Math.max(6, target.radius * c.zoom), 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.fillStyle = '#a4cab3';
-          ctx.font = '11px sans-serif';
-          ctx.fillText(`${target.name} · 기록 ${sample.time.toFixed(1)}초`, p.x + 8, p.y - 8);
-        }
-      const q = screen(sample.position);
-      ctx.fillStyle = ['#ffe1a1', '#79c7d6', '#b6a1de', '#d0cc76'][i % 4];
-      ctx.beginPath();
-      ctx.arc(q.x, q.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.font = '12px sans-serif';
-      ctx.fillText(
-        `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
-        q.x + 10,
-        q.y - 10,
-      );
-    }
-  if (s.history?.length && (s.selectedHistory || s.trails !== false))
-    path(
-      [
-        s.stage.rocket ? s.history[0].position : s.stage.spawn.position,
-        ...s.history.map((v) => v.position),
-      ],
-      s.selectedHistory ? '#83d8ff' : '#aab8ae55',
-      true,
-    );
-  if (s.run && s.trails !== false && (!s.selectedHistory || s.run.status === 'running' || s.replay))
-    path(
-      [
-        s.stage.rocket
-          ? (s.run.trail[0]?.position ?? s.stage.spawn.position)
-          : s.stage.spawn.position,
-        ...s.run.trail.map((v) => v.position),
-      ],
-      s.run.probe ? '#80cbd5' : '#f9b671',
-    );
   for (const b of s.stage.bodies) {
-    if (b.kind === 'barycenter') continue;
+    if (b.kind === 'barycenter' || !visible(b.id)) continue;
     const p = screen(bodyPosition(s.stage, b, t)),
       r = b.radius * c.zoom;
     ctx.save();
@@ -252,9 +264,17 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.lineWidth = 3;
       ctx.strokeRect(-r - 8, -r - 8, 2 * r + 16, 2 * r + 16);
     }
-    ctx.fillStyle = '#f7eed9';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
+    if (s.selected?.has(b.id)) {
+      // Cover the old layer's coincident label as well as its body.
+      const half = ctx.measureText(b.name).width / 2 + 6;
+      ctx.fillStyle = '#142b35';
+      ctx.beginPath();
+      ctx.roundRect(-half, r + 8, half * 2, 21, 4);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#f7eed9';
     ctx.fillText(b.name, 0, r + 23);
     if (b.kind === 'black-hole') {
       ctx.strokeStyle = '#e49cad';
@@ -279,6 +299,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     }
   }
   for (const o of s.stage.objects) {
+    if (!visible(o.id)) continue;
     if (o.kind === 'path') {
       ctx.strokeStyle = '#c3be8d20';
       ctx.lineWidth = Math.max(2, o.radius * c.zoom * 2);
@@ -355,7 +376,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     }
     ctx.restore();
   }
-  for (const note of (s.observations ?? [])
+  for (const note of (foreground ? [] : (s.observations ?? []))
     .filter((n) => n.kind === 'gravity')
     .filter((_, i) => i % 4 === 0)) {
     const a = screen(note.position),
@@ -371,7 +392,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fillRect(a.x - 2, a.y - 2, 4, 4);
   }
   // Incomplete drafts must not paint an implicit spacecraft at the origin.
-  if (s.stage.spawn.placed === false && !s.run) return { ctx, w, h };
+  if (!visible('spawn') || (s.stage.spawn.placed === false && !s.run)) return { ctx, w, h };
   const surface = surfaceLaunch(s.stage, t);
   const pad = screen(surface?.position ?? s.stage.spawn.position);
   ctx.fillStyle = '#8ab5ab';
@@ -453,7 +474,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.textAlign = 'center';
     ctx.fillText(actor.status === 'landed' ? '✓ 회수' : actor.name, p.x, p.y + 30);
   }
-  const ship = s.run?.position ?? s.stage.spawn.position,
+  const ship = s.run?.position ?? surface?.position ?? s.stage.spawn.position,
     onPad = !s.run || (s.run.rocket && !s.run.rocket.airborne),
     v = s.run?.impact
       ? impactDirection(s.run.impact)
@@ -463,7 +484,10 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
           s.thrust ??
           s.run?.attitude ??
           s.run?.velocity ??
-          s.plan?.launch ?? { x: 1, y: 0 }),
+          s.plan?.launch ?? {
+            x: Math.cos(s.stage.launchAngle ?? 0),
+            y: Math.sin(s.stage.launchAngle ?? 0),
+          }),
     count = s.stage.rocket
       ? Math.max(0, s.stage.rocket.parts.length - (s.run?.rocket?.partIndex ?? 0))
       : 1;

@@ -1,4 +1,5 @@
 import { referencePosition } from '../world/actor-reference';
+import { ellipseFocusOffset } from '../physics/ellipse';
 import { newGoal } from './factory';
 import { compileSketch, type GoalSketch } from './goal-sketch';
 import { compileOutcome } from './outcomes';
@@ -38,7 +39,7 @@ const metric = (name: string, targetId = '$target'): Expression => ({
   targetId,
 });
 const calculate = (
-  operation: 'subtract' | 'multiply' | 'add' | 'sqrt' | 'abs',
+  operation: 'subtract' | 'multiply' | 'add' | 'sqrt' | 'abs' | 'ellipseDistance',
   ...args: Expression[]
 ): Expression => ({ kind: 'calculate', operation, args });
 const compare = (
@@ -51,6 +52,14 @@ export function compileMarker(
   stage: Stage,
   goal: Goal,
   source = goal.marker!,
+): Pick<Goal, 'condition' | 'display' | 'marker'> {
+  return markerDefinition(stage, goal, source, true);
+}
+function markerDefinition(
+  stage: Stage,
+  goal: Goal,
+  source: GoalMarker,
+  corridor: boolean,
 ): Pick<Goal, 'condition' | 'display' | 'marker'> {
   const marker = structuredClone(source);
   if (
@@ -113,6 +122,30 @@ export function compileMarker(
     child = {
       kind: 'all',
       children: [
+        ...(corridor
+          ? [
+              compare(
+                calculate(
+                  'ellipseDistance',
+                  calculate(
+                    'add',
+                    calculate('multiply', metric('x'), constant(Math.cos(marker.angle ?? 0))),
+                    calculate('multiply', metric('y'), constant(Math.sin(marker.angle ?? 0))),
+                    constant(ellipseFocusOffset(marker.radius, marker.minor)),
+                  ),
+                  calculate(
+                    'add',
+                    calculate('multiply', metric('x'), constant(-Math.sin(marker.angle ?? 0))),
+                    calculate('multiply', metric('y'), constant(Math.cos(marker.angle ?? 0))),
+                  ),
+                  constant(marker.radius),
+                  constant(marker.minor),
+                ),
+                'lte',
+                marker.width,
+              ),
+            ]
+          : []),
         compare(metric('distance'), 'gte', low),
         compare(metric('distance'), 'lte', high),
         compare(metric('semiMajorAxis'), 'gte', marker.radius - marker.width),
@@ -470,4 +503,28 @@ export function refreshGoalMarkers(stage: Stage): string[] {
     }
   }
   return warnings;
+}
+
+/** Upgrade only an exact old managed compiler output. Never replace hand-written predicates. */
+export function upgradeOrbitCorridors(stage: Stage): Stage {
+  if (!Array.isArray(stage.goals)) return stage;
+  let changed = false;
+  const goals = stage.goals.map((goal) => {
+    if (
+      goal?.marker?.kind !== 'orbit' ||
+      goal.marker.managed === false ||
+      !goal.marker.compiledKey ||
+      goal.marker.compiledKey !== conditionKey(goal.condition)
+    )
+      return goal;
+    try {
+      const legacy = markerDefinition(stage, goal, goal.marker, false);
+      if (legacy.marker!.compiledKey !== goal.marker.compiledKey) return goal;
+      changed = true;
+      return { ...goal, ...compileMarker(stage, goal) };
+    } catch {
+      return goal;
+    } // Validation reports malformed geometry without mutating the source.
+  });
+  return changed ? { ...stage, goals } : stage;
 }

@@ -1,4 +1,6 @@
 import { installAuthoredGoals } from './authored-goals';
+import { objectMotion, objectOnOrbit, type FlightObjectKind } from './moving-objects';
+import { pickStack, SelectionCycle } from './selection';
 import AuditWorker from './audit.worker?worker&inline';
 import { placeSpawn, placementSnapshot, followSpawn } from './spawn-placement';
 import { markerGuide, markerGuides } from './marker-guide';
@@ -75,6 +77,7 @@ export function editorScreen(app: App): Screen {
     signal = abort.signal,
     camera = { ...model.stage.camera },
     keys = new Set<string>();
+  const selectionCycle = new SelectionCycle();
   let tool = 'select',
     snap = true,
     guard = true,
@@ -112,6 +115,9 @@ export function editorScreen(app: App): Screen {
           };
           bodyOriginals?: Map<string, Stage['bodies'][number]>;
           directSpawn?: boolean;
+          screenStart?: Vec;
+          moved?: boolean;
+          tap?: { point: Vec; hits: string[]; context: string };
         },
     status = '';
   app.root.innerHTML = `<main class="editor"><header class="editor-top panel"><div class="badge">STAGE WORKSHOP</div><select id="stage-source" aria-label="스테이지 불러오기"><option value="">현재 초안</option>${stages.map((s) => `<option value="${s.id}">${escape(s.title)}</option>`).join('')}</select><button id="new-stage">새 스테이지</button><button id="save-stage">초안 저장</button><button id="publish-stage">검사 후 게임에 추가</button><button id="export-stage">JSON 내보내기</button><button id="import-stage">가져오기</button><button id="test-stage" class="primary">F5 · 시험</button><button id="focus-selection">선택 위치로</button><button id="exit-editor">기지</button><input id="import-file" type="file" accept=".json" hidden></header><aside class="editor-palette panel"><div class="badge">배치 도구</div>${[
@@ -401,6 +407,7 @@ export function editorScreen(app: App): Screen {
     );
   let graphLinks = links();
   function changed(refreshSearch = true) {
+    selectionCycle.reset();
     graphLinks = links();
     syncLaunch(model.stage);
     const intentWarnings = [
@@ -665,6 +672,21 @@ export function editorScreen(app: App): Screen {
       }
       if (input.id.startsWith('outcome-')) {
         syncOutcomeFields(el('inspector'));
+        return;
+      }
+      if (input.id === 'object-motion-mode') {
+        const object = model.stage.objects.find((o) => model.selection.has(o.id));
+        if (!object) return;
+        try {
+          const next = objectMotion(model.stage, object, input.value);
+          model.change((s) => {
+            s.objects[s.objects.indexOf(object)] = next;
+          });
+          changed();
+        } catch (error) {
+          message(String(error));
+          drawInspector();
+        }
         return;
       }
       if (input.id === 'body-motion-mode') {
@@ -1073,6 +1095,32 @@ export function editorScreen(app: App): Screen {
         changed();
         return;
       }
+      if (button.id === 'place-orbit-object') {
+        const goal = model.stage.goals.find((g) => model.selection.has(g.id));
+        if (!goal?.marker) return;
+        try {
+          const object = objectOnOrbit(
+            model.stage,
+            goal,
+            app.root.querySelector<HTMLSelectElement>('#orbit-object-kind')!
+              .value as FlightObjectKind,
+            app.root.querySelector<HTMLInputElement>('#orbit-object-clockwise')!.checked,
+          );
+          const compiled = compileMarker(model.stage, {
+            ...goal,
+            marker: { ...goal.marker, actorIds: [object.id] },
+          });
+          model.change((s) => {
+            s.objects.push(object);
+            Object.assign(goal, compiled);
+          });
+          changed();
+          message('비행 물체를 배치하고 이 표식의 판정 대상으로 연결했습니다.');
+        } catch (error) {
+          message(String(error));
+        }
+        return;
+      }
       if (button.id === 'apply-orbit-seed') {
         const entity = model.entity([...model.selection][0]);
         const parent = model.stage.bodies.find(
@@ -1171,34 +1219,16 @@ export function editorScreen(app: App): Screen {
     snapped = (p: Vec): Vec =>
       snap ? { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 } : p;
   function locate(p: Vec) {
-    const selectedGoal = model.stage.goals.find(
-      (goal) => model.selection.has(goal.id) && length(sub(p, goal.position)) * camera.zoom < 14,
-    );
-    if (selectedGoal) return selectedGoal.id;
-    if (
-      model.stage.spawn.placed !== false &&
-      length(sub(p, model.stage.spawn.position)) * camera.zoom < 20
-    )
-      return 'spawn';
-    const objects = [...model.stage.objects].reverse();
-    for (const o of objects)
-      if (
-        o.kind === 'path' &&
-        o.points?.some(
-          (v) =>
-            length(sub(p, { x: o.position.x + v.x, y: o.position.y + v.y })) * camera.zoom < 12,
-        )
-      )
-        return o.id;
-    for (const o of objects)
-      if (length(sub(p, objectPosition(model.stage, o, 0))) < Math.max(o.radius, 16 / camera.zoom))
-        return o.id;
-    for (const b of [...model.stage.bodies].reverse())
-      if (length(sub(p, bodyPosition(model.stage, b, 0))) < b.radius) return b.id;
-    for (const g of [...model.stage.goals].reverse())
-      if (length(sub(p, g.position)) * camera.zoom < 14) return g.id;
-    return '';
+    return pickStack(model.stage, p, camera.zoom)[0] ?? '';
   }
+  const selectionContext = () => `${revision}:${camera.x}:${camera.y}:${camera.zoom}`;
+  app.root.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (e.target !== canvas) selectionCycle.reset();
+    },
+    { signal, capture: true },
+  );
   canvas.addEventListener(
     'pointerdown',
     (e) => {
@@ -1206,6 +1236,7 @@ export function editorScreen(app: App): Screen {
       const p = world(e);
       pointer = p;
       if (e.button === 1 || e.button === 2) {
+        selectionCycle.reset();
         e.preventDefault();
         drag = { pan: true, start: coords(e), cx: camera.x, cy: camera.y, positions: new Map() };
       } else if (e.button === 0 && tool.startsWith('marker:')) {
@@ -1331,7 +1362,16 @@ export function editorScreen(app: App): Screen {
         showPlacement();
         changed();
       } else if (e.button === 0) {
-        for (const goal of model.stage.goals.filter((g) => model.selection.has(g.id))) {
+        search.leaveReplay();
+        const hits = pickStack(model.stage, p, camera.zoom);
+        const screenStart = coords(e);
+        const tap = e.shiftKey
+          ? undefined
+          : { point: screenStart, hits, context: selectionContext() };
+        if (e.shiftKey) selectionCycle.reset();
+        for (const goal of model.stage.goals.filter(
+          (g) => !e.shiftKey && model.selection.has(g.id),
+        )) {
           const bounds = canvas.getBoundingClientRect();
           const handle = authoringHandles(
             model.stage,
@@ -1341,8 +1381,10 @@ export function editorScreen(app: App): Screen {
             bounds.height,
           ).find((point) => length(sub(point.position, p)) * camera.zoom < 12);
           if (handle) {
-            model.checkpoint();
+            if (!hits.includes(goal.id)) hits.unshift(goal.id);
             drag = {
+              screenStart,
+              tap,
               marker: {
                 goalId: goal.id,
                 kind: handle.kind,
@@ -1359,7 +1401,8 @@ export function editorScreen(app: App): Screen {
             return;
           }
         }
-        const hit = locate(p);
+        const selectedHit = hits.find((id) => model.selection.has(id));
+        const hit = (!e.shiftKey && selectedHit) || hits[0] || '';
         const initialSelection = [...model.selection];
         if (!e.shiftKey) model.selection.clear();
         if (hit) {
@@ -1380,8 +1423,7 @@ export function editorScreen(app: App): Screen {
                       : { ...entity.position },
               );
           }
-          model.checkpoint();
-          drag = { pan: false, start: p, cx: camera.x, cy: camera.y, positions };
+          drag = { pan: false, start: p, cx: camera.x, cy: camera.y, positions, screenStart, tap };
           if (
             positions.has('spawn') ||
             [...positions.keys()].some((id) => model.stage.bodies.some((b) => b.id === id))
@@ -1418,6 +1460,8 @@ export function editorScreen(app: App): Screen {
             cx: camera.x,
             cy: camera.y,
             positions: new Map(),
+            screenStart,
+            tap,
           };
         drawInspector();
       }
@@ -1436,6 +1480,12 @@ export function editorScreen(app: App): Screen {
       }
       if (tool.startsWith('marker:') && !drag) preview(snapped(pointer));
       if (!drag) return;
+      if (!drag.pan && !drag.moved) {
+        if (length(sub(coords(e), drag.screenStart!)) < 4) return;
+        drag.moved = true;
+        selectionCycle.reset();
+        if (!drag.box) model.checkpoint();
+      }
       if (drag.pan) {
         const p = coords(e);
         camera.x = drag.cx - (p.x - drag.start.x) / camera.zoom;
@@ -1564,8 +1614,19 @@ export function editorScreen(app: App): Screen {
         return;
       }
       if (candidate?.error) message(candidate.error);
-      if (drag?.box) drawInspector();
-      else if (drag && !drag.pan) changed();
+      if (drag && !drag.pan && !drag.moved && drag.tap) {
+        if (drag.tap.context === selectionContext()) {
+          const id = selectionCycle.next(
+            drag.tap.point,
+            drag.tap.hits,
+            drag.tap.context,
+            model.selection.size === 1 ? [...model.selection][0] : undefined,
+          );
+          model.selection = new Set(id ? [id] : []);
+        }
+        drawInspector();
+      } else if (drag?.box) drawInspector();
+      else if (drag && !drag.pan && drag.moved) changed();
       drag = undefined;
       candidate = undefined;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
@@ -1603,6 +1664,7 @@ export function editorScreen(app: App): Screen {
     'wheel',
     (e) => {
       e.preventDefault();
+      selectionCycle.reset();
       const r = canvas.getBoundingClientRect();
       zoomAt(camera, coords(e), r.width, r.height, Math.exp(-e.deltaY * 0.001));
     },
@@ -1688,6 +1750,10 @@ export function editorScreen(app: App): Screen {
       if (keys.has('KeyW')) camera.y += (dt * 260) / camera.zoom;
       if (keys.has('KeyS') && !keys.has('ControlLeft')) camera.y -= (dt * 260) / camera.zoom;
       const playbackRun = search.frame(dt);
+      const foreground = new Set(playbackRun ? [] : model.selection);
+      // A supported rocket and its pad remain one visible attachment while its body moves.
+      if (model.stage.launchBodyId && model.stage.bodies.some((b) => foreground.has(b.id)))
+        foreground.add('spawn');
       const { w, h } = drawWorld(canvas, {
         stage: search.stage,
         camera,
@@ -1699,33 +1765,9 @@ export function editorScreen(app: App): Screen {
         grid: true,
         selected: model.selection,
         hideMarkerHandles: true,
+        layer: foreground.size ? { kind: 'except', ids: foreground } : undefined,
       });
       const ctx = canvas.getContext('2d')!;
-      if (!playbackRun) {
-        if (candidate?.goal)
-          paintAuthoringFeedback(
-            ctx,
-            model.stage,
-            candidate.goal,
-            camera,
-            w,
-            h,
-            true,
-            !!candidate.error,
-          );
-        else
-          for (const goal of model.stage.goals.filter((g) => model.selection.has(g.id)))
-            paintAuthoringFeedback(ctx, model.stage, goal, camera, w, h);
-      }
-      if (drag?.box && drag.end) {
-        const a = toScreen(drag.start, camera, w, h),
-          b = toScreen(drag.end, camera, w, h);
-        ctx.fillStyle = '#a4cab329';
-        ctx.strokeStyle = '#ffe1a1';
-        ctx.lineWidth = 2;
-        ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
-        ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
-      }
       if (!playbackRun) {
         ctx.strokeStyle = '#89b4ab66';
         ctx.lineWidth = 1.5;
@@ -1740,7 +1782,7 @@ export function editorScreen(app: App): Screen {
         }
         ctx.setLineDash([]);
       }
-      for (const g of model.stage.goals) {
+      const diamond = (g: Stage['goals'][number]) => {
         const p = toScreen(g.position, camera, w, h);
         ctx.fillStyle = model.selection.has(g.id) ? '#ffe1a1' : '#c4cf79';
         ctx.strokeStyle = '#182b35';
@@ -1753,6 +1795,42 @@ export function editorScreen(app: App): Screen {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      };
+      for (const g of model.stage.goals) if (!foreground.has(g.id)) diamond(g);
+      if (foreground.size)
+        drawWorld(canvas, {
+          stage: model.stage,
+          camera,
+          grid: true,
+          selected: model.selection,
+          hideMarkerHandles: true,
+          layer: { kind: 'only', ids: foreground },
+        });
+      if (!playbackRun) {
+        for (const goal of model.stage.goals.filter((g) => model.selection.has(g.id))) {
+          paintAuthoringFeedback(ctx, model.stage, goal, camera, w, h);
+          diamond(goal);
+        }
+        if (candidate?.goal)
+          paintAuthoringFeedback(
+            ctx,
+            model.stage,
+            candidate.goal,
+            camera,
+            w,
+            h,
+            true,
+            !!candidate.error,
+          );
+      }
+      if (drag?.box && drag.end) {
+        const a = toScreen(drag.start, camera, w, h),
+          b = toScreen(drag.end, camera, w, h);
+        ctx.fillStyle = '#a4cab329';
+        ctx.strokeStyle = '#ffe1a1';
+        ctx.lineWidth = 2;
+        ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+        ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
       }
     },
     dispose() {

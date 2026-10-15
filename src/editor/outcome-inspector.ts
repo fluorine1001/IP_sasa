@@ -2,6 +2,7 @@ import type { Stage, Goal } from '../world/types';
 import { escape } from '../app/core';
 import { metrics } from '../world/metrics';
 import { readOutcome } from './outcome-values';
+import { sceneActorOptions } from './moving-objects';
 export function outcomeInspector(stage: Stage, goal?: Goal) {
   const current = goal ? readOutcome(stage, goal) : undefined;
   const initial = current?.kind ?? '';
@@ -18,7 +19,16 @@ export function outcomeInspector(stage: Stage, goal?: Goal) {
     ['flyby', '중력 도움으로 에너지 바꾸기 · 스윙바이'],
     ['environment', '환경·물리 상태 유지'],
   ];
-  return `<details open class="outcome-builder"><summary>결과 중심 목표 만들기</summary><label>달성할 상태<select id="outcome-kind"><option value="" ${!initial ? 'selected' : ''}>새 결과 목표 선택</option>${kinds.map(([kind, label]) => `<option value="${kind}" ${kind === initial ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label>목표 기체<select id="outcome-actor"><option value="craft" ${current?.actorId === 'craft' ? 'selected' : ''}>본체 · 분리 뒤 남은 로켓</option>${[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].map((part) => `<option value="${part.id}" ${current?.actorId === part.id ? 'selected' : ''}>${escape(part.name)} · 분리체</option>`).join('')}</select></label><label>기준 대상<select id="outcome-target">${[...stage.bodies, ...stage.objects.filter((o) => ['station', 'satellite', 'landing-site'].includes(o.kind))].map((o) => `<option value="${o.id}" ${o.id === (current?.targetId ?? goal?.display?.targetId) ? 'selected' : ''}>${escape(o.name)}</option>`).join('')}</select></label><div id="outcome-preview" aria-live="polite"></div><label data-outcome-kinds="flyby">에너지 변화의 기준 천체<select id="outcome-reference">${stage.bodies.map((b) => `<option value="${b.id}" ${defaults.referenceId === b.id ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label><label data-outcome-kinds="flyby">필요 에너지 변화 (음수 허용)<input id="outcome-gain" type="number" step="any" value="${defaults.gain ?? 0.05}"></label><label data-outcome-kinds="recovery">착륙 기울기 여유<input id="outcome-tilt" type="range" min="5" max="60" step="5" value="${(Number(defaults.tilt ?? Math.PI / 6) * 180) / Math.PI}"></label><label data-outcome-kinds="environment">관찰할 물리량<select id="outcome-metric">${Object.entries(
+  return `<details open class="outcome-builder"><summary>결과 중심 목표 만들기</summary><label>달성할 상태<select id="outcome-kind"><option value="" ${!initial ? 'selected' : ''}>새 결과 목표 선택</option>${kinds.map(([kind, label]) => `<option value="${kind}" ${kind === initial ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label>목표 기체<select id="outcome-actor">${sceneActorOptions(
+    stage,
+  )
+    .map(
+      ([id, name]) =>
+        `<option value="${id}" ${current?.actorId === id ? 'selected' : ''}>${escape(name)}</option>`,
+    )
+    .join(
+      '',
+    )}</select></label><label>기준 대상<select id="outcome-target">${[...stage.bodies, ...stage.objects.filter((o) => ['station', 'satellite', 'landing-site'].includes(o.kind))].map((o) => `<option value="${o.id}" ${o.id === (current?.targetId ?? goal?.display?.targetId) ? 'selected' : ''}>${escape(o.name)}</option>`).join('')}</select></label><div id="outcome-preview" aria-live="polite"></div><label data-outcome-kinds="flyby">에너지 변화의 기준 천체<select id="outcome-reference">${stage.bodies.map((b) => `<option value="${b.id}" ${defaults.referenceId === b.id ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label><label data-outcome-kinds="flyby">필요 에너지 변화 (음수 허용)<input id="outcome-gain" type="number" step="any" value="${defaults.gain ?? 0.05}"></label><label data-outcome-kinds="recovery">착륙 기울기 여유<input id="outcome-tilt" type="range" min="5" max="60" step="5" value="${(Number(defaults.tilt ?? Math.PI / 6) * 180) / Math.PI}"></label><label data-outcome-kinds="environment">관찰할 물리량<select id="outcome-metric">${Object.entries(
     metrics,
   )
     .filter(([key]) => key !== 'buoys')

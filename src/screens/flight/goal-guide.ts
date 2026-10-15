@@ -61,6 +61,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
       return name(e.args[0].targetId) + ' · 표면 높이';
     if (e.operation === 'sqrt' || e.operation === 'power') return '목표가 정한 기준 크기';
     if (e.operation === 'atan2') return '상대 방향';
+    if (e.operation === 'ellipseDistance') return '목표 궤도 곡선까지의 최단거리';
     return `${{ add: '합산', subtract: '차이', multiply: '비례', divide: '비율', min: '작은 쪽', max: '큰 쪽', sin: '방향 성분', cos: '방향 성분' }[e.operation] ?? '기준'} 관측값`;
   }
   const value = (e: Expression, n: number) =>

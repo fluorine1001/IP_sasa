@@ -1,6 +1,7 @@
 import { createMarker, compileMarker, type GoalMarker } from '../stages/goal-marker';
 import { newGoal } from '../stages/factory';
 import { referencePosition } from '../world/actor-reference';
+import { ellipseDistance, orbitLocalPoint } from '../physics/ellipse';
 import { bodyPosition } from '../world/celestial';
 import { add, sub, length, type Vec } from '../physics/vector';
 import type { Stage, Goal } from '../world/types';
@@ -17,7 +18,7 @@ export function markerTargets(stage: Stage, kind: GoalMarker['kind']) {
     kind === 'surface'
       ? !!o.surface && bodies.some((b) => b.id === o.surface!.bodyId)
       : ['area', 'velocity', 'state'].includes(kind) &&
-        ['station', 'satellite', 'landing-site'].includes(o.kind),
+        ['station', 'satellite', 'debris', 'landing-site'].includes(o.kind),
   );
   return [
     ...bodies.map((b) => ({
@@ -187,11 +188,16 @@ export function editMarkerHandle(
   if (kind === 'width')
     m.width = Math.max(
       0.001,
-      m.kind === 'passage'
-        ? length(sub(point, center))
-        : m.kind === 'velocity'
-          ? length(sub(point, add(center, m.vector)))
-          : length(sub(point, center)) - m.radius,
+      m.kind === 'orbit'
+        ? (() => {
+            const local = orbitLocalPoint(point, center, m.radius, m.minor, m.angle);
+            return ellipseDistance(local.x, local.y, m.radius, m.minor);
+          })()
+        : m.kind === 'passage'
+          ? length(sub(point, center))
+          : m.kind === 'velocity'
+            ? length(sub(point, add(center, m.vector)))
+            : length(sub(point, center)) - m.radius,
     );
   if (kind === 'angle') m.angle = Math.atan2(point.y - center.y, point.x - center.x);
   if (kind === 'vector') m.vector = sub(point, center);

@@ -1,6 +1,7 @@
 import { escape } from '../app/core';
 import { resolveIntent, type MissionIntent } from '../stages/mission-intent';
 import type { Stage, Goal } from '../world/types';
+import { sceneActorOptions } from './moving-objects';
 export const intentNames: Record<MissionIntent['kind'], string> = {
   orbit: '궤도 투입',
   constellation: '여러 위성의 궤도·간격 유지',
@@ -33,9 +34,14 @@ export function intentInspector(stage: Stage, goal: Goal) {
       ([key, label]) =>
         `<option value="${key}" ${key === initial.kind ? 'selected' : ''}>${label}</option>`,
     )
+    .join('')}</select></label><label>기체<select id="intent-actor">${sceneActorOptions(stage)
+    .map(
+      ([id, name]) =>
+        `<option value="${id}" ${id === initial.actorId ? 'selected' : ''}>${escape(name)}</option>`,
+    )
     .join(
       '',
-    )}</select></label><label>기체<select id="intent-actor">${[['craft', '본체'], ...[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].map((p) => [p.id, p.name])].map(([id, name]) => `<option value="${id}" ${id === initial.actorId ? 'selected' : ''}>${escape(name)}</option>`).join('')}</select></label><label>대상<select id="intent-target">${[...stage.bodies, ...stage.objects.filter((o) => ['station', 'satellite', 'landing-site'].includes(o.kind))].map((o) => `<option value="${o.id}" ${o.id === initial.targetId ? 'selected' : ''}>${escape(o.name)}</option>`).join('')}</select></label><p>${intent?.managed === false ? '직접 편집한 조건을 사용 중입니다.' : '필요한 물리 기준을 환경과 기체에서 자동으로 계산합니다.'}</p><button id="apply-intent">${intent?.managed === false ? '자동 기준으로 다시 만들기' : '이 결과로 자동 설정'}</button>${['orbit', 'constellation'].includes(initial.kind) ? '<button id="place-intent-radius">지도에서 목표 궤도 위치 선택</button>' : ''}<details><summary>계산 근거 · 기준 수정</summary>${basis.map((line) => `<p>${escape(line)}</p>`).join('')}${Object.entries(
+    )}</select></label><label>대상<select id="intent-target">${[...stage.bodies, ...stage.objects.filter((o) => ['station', 'satellite', 'landing-site'].includes(o.kind))].map((o) => `<option value="${o.id}" ${o.id === initial.targetId ? 'selected' : ''}>${escape(o.name)}</option>`).join('')}</select></label><p>${intent?.managed === false ? '직접 편집한 조건을 사용 중입니다.' : '필요한 물리 기준을 환경과 기체에서 자동으로 계산합니다.'}</p><button id="apply-intent">${intent?.managed === false ? '자동 기준으로 다시 만들기' : '이 결과로 자동 설정'}</button>${['orbit', 'constellation'].includes(initial.kind) ? '<button id="place-intent-radius">지도에서 목표 궤도 위치 선택</button>' : ''}<details><summary>계산 근거 · 기준 수정</summary>${basis.map((line) => `<p>${escape(line)}</p>`).join('')}${Object.entries(
     values,
   )
     .filter(

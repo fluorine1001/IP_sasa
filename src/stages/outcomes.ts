@@ -59,11 +59,21 @@ function compileOutcomeCondition(
   const actorId = outcome.actorId ?? 'craft';
   if (
     actorId !== 'craft' &&
-    ![...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].some(
-      (part) => part.id === actorId,
-    )
+    ![
+      ...(stage.rocket?.parts ?? []),
+      ...(stage.rocket?.payloads ?? []),
+      ...stage.bodies,
+      ...stage.objects,
+    ].some((part) => part.id === actorId)
   )
-    throw Error('이 로켓의 본체 또는 분리체를 선택하세요.');
+    throw Error('이 로켓의 본체 또는 분리체, 장면 물체를 선택하세요.');
+  if (
+    outcome.kind === 'recovery' &&
+    [...stage.bodies, ...stage.objects].some((o) => o.id === actorId)
+  )
+    throw Error(
+      '일반 장면 물체의 안전 착륙 기록은 현재 물리 모델에서 지원하지 않습니다. 위치·속도·궤도·상태 판정을 사용하세요.',
+    );
   const metric = (name: string, targetId: string): Expression => ({
     kind: 'metric',
     metric: name,

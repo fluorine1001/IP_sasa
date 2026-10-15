@@ -1,4 +1,5 @@
 import { metrics } from './metrics.ts';
+import { ellipseDistance } from '../physics/ellipse';
 import { bodyPosition, bodyVelocity, objectPosition, objectVelocity } from './celestial.ts';
 import type { GoalContext, GoalProgress } from './types.ts';
 export type Calculation =
@@ -13,7 +14,8 @@ export type Calculation =
   | 'power'
   | 'sin'
   | 'cos'
-  | 'atan2';
+  | 'atan2'
+  | 'ellipseDistance';
 export const calculationLabels: Record<Calculation, string> = {
   add: '더하기',
   subtract: '빼기',
@@ -27,9 +29,10 @@ export const calculationLabels: Record<Calculation, string> = {
   sin: '사인 (rad)',
   cos: '코사인 (rad)',
   atan2: '방향각 atan2(y,x)',
+  ellipseDistance: '타원 곡선까지 최단거리 (x,y,긴 반경,짧은 반경)',
 };
 export const calculationArity = (op: Calculation) =>
-  ['abs', 'sqrt', 'sin', 'cos'].includes(op) ? 1 : 2;
+  op === 'ellipseDistance' ? 4 : ['abs', 'sqrt', 'sin', 'cos'].includes(op) ? 1 : 2;
 export type WindowOperation =
   'mean' | 'rms' | 'min' | 'max' | 'integral' | 'change' | 'coverage' | 'fractionPositive';
 export type Expression =
@@ -106,6 +109,8 @@ function reader(e: Expression, p: GoalProgress, path: string): Reader {
       return (c) => Math.cos(children[0](c));
     case 'atan2':
       return (c) => Math.atan2(children[0](c), children[1](c));
+    case 'ellipseDistance':
+      return (c) => ellipseDistance(children[0](c), children[1](c), children[2](c), children[3](c));
     case 'abs':
       return (c) => Math.abs(children[0](c));
     case 'min':
@@ -323,6 +328,8 @@ function interpret(e: Expression, c: GoalContext, p: GoalProgress, path = 'expre
       return Math.cos(a[0]);
     case 'atan2':
       return Math.atan2(a[0], a[1]);
+    case 'ellipseDistance':
+      return ellipseDistance(a[0], a[1], a[2], a[3]);
     case 'abs':
       return Math.abs(a[0]);
     case 'min':

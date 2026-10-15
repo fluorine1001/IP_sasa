@@ -187,6 +187,7 @@ test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·실�
   await expect(
     page.locator('[data-block-path="condition.child.right"][data-block-field="value"]'),
   ).toHaveValue('1');
+  await page.getByRole('button', { name: '편집', exact: true }).click();
   await page.locator('#redo').click();
   await expect(
     page.locator('[data-block-path="condition.child.right"][data-block-field="value"]'),

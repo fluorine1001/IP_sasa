@@ -4,6 +4,7 @@ import { metrics } from '../world/metrics';
 import type { Stage, Goal } from '../world/types';
 import { markerGuide, markerGuides } from './marker-guide';
 import { markerTargets } from './marker-authoring';
+import { sceneActorOptions } from './moving-objects';
 export function markerInspector(stage: Stage, goal: Goal) {
   const m = goal.marker;
   const active = m && m.managed !== false;
@@ -66,14 +67,12 @@ function markerFields(stage: Stage, goal: Goal) {
   if (!m) return '';
   if (m.managed === false)
     return '<section class="marker-inspector"><h3>수동 조건 사용 중</h3><p>고급 블록의 변경을 보존하고 있습니다. 표식 그림으로 되돌리면 현재 조건을 교체합니다.</p><button id="restore-marker-condition">그림 기준으로 조건 교체</button></section>';
-  const actors = [
-    ['craft', '주 로켓'],
-    ...[...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].map((p) => [
-      p.id,
-      p.name,
-    ]),
-    ...(m.kind === 'surface' ? [] : stage.bodies.map((b) => [b.id, b.name + ' (천체 관측)'])),
-  ];
+  const actors = sceneActorOptions(stage).filter(
+    ([id]) =>
+      m.kind !== 'surface' ||
+      id === 'craft' ||
+      [...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].some((p) => p.id === id),
+  );
   const info = metrics[m.metric],
     axis = markerAxis(stage, goal),
     low = (value: number) =>
@@ -87,7 +86,7 @@ function markerFields(stage: Stage, goal: Goal) {
     )
     .join(
       '',
-    )}</select></label><fieldset><legend>판정할 기체</legend>${actors.map(([id, name]) => `<label><input type="checkbox" data-marker-actor="${id}" ${m.actorIds.includes(id) ? 'checked' : ''}>${escape(name)}</label>`).join('')}</fieldset>${
+    )}</select></label><fieldset><legend>판정할 기체·물체</legend>${actors.map(([id, name]) => `<label><input type="checkbox" data-marker-actor="${id}" ${m.actorIds.includes(id) ? 'checked' : ''}>${escape(name)}</label>`).join('')}</fieldset>${m.kind === 'orbit' ? '<details class="orbit-object-placement"><summary>이 궤도에 비행 물체 배치</summary><label>종류<select id="orbit-object-kind"><option value="satellite">위성</option><option value="station">우주정거장</option><option value="debris">파편·소행성</option></select></label><label><input id="orbit-object-clockwise" type="checkbox">시계 방향</label><button id="place-orbit-object">물체 배치 · 이 표식의 판정 대상으로 연결</button><small>최근접점에 놓고 그린 원·타원의 초기 속도를 계산합니다. 이후에는 실제 천체 중력으로 움직입니다.</small></details>' : ''}${
     !['state', 'passage'].includes(m.kind)
       ? '<p>지도에서 표식을 선택하고 노란 손잡이를 끌어 범위·형태·방향을 조절합니다.</p>'
       : `${m.kind === 'passage' ? `<label>전후 관측 기준<select data-marker-reference>${stage.bodies.map((b) => `<option value="${b.id}" ${b.id === m.referenceId ? 'selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label><label><input type="checkbox" data-marker-coast ${m.coast !== false ? 'checked' : ''}>접근부터 이탈까지 추가 추진 없이</label><b>이탈 값 − 접근 값</b>` : ''}<label>관측할 속성<select data-marker-metric>${Object.entries(

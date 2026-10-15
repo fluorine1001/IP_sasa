@@ -194,6 +194,19 @@ export function representativeReplay(
     playing = false;
     panel.hidden = true;
   }
+  function leave() {
+    // Editing must never mix a recorded rocket with the live, moving launch pad.
+    generation++;
+    worker?.terminate();
+    worker = undefined;
+    active = false;
+    activeKey = '';
+    queue.length = 0;
+    video = undefined;
+    playing = false;
+    closed = true;
+    panel.hidden = true;
+  }
   signal.addEventListener(
     'abort',
     () => {
@@ -207,6 +220,7 @@ export function representativeReplay(
       destination.prepend(panel);
     },
     reset,
+    leave,
     select,
     setFamilies(next: SolutionFamily[]) {
       const current = families.find((f) => keyOf(f) === selected);

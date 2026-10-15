@@ -1,4 +1,5 @@
 import { referencePosition } from '../world/actor-reference';
+import { ellipseFocusOffset } from '../physics/ellipse';
 import type { Goal, Stage, Run } from '../world/types';
 import { bodyPosition, objectPosition } from '../world/celestial';
 import { add, type Vec } from '../physics/vector';
@@ -24,12 +25,13 @@ export function markerHandles(stage: Stage, goal: Goal): MarkerHandle[] {
     ];
   if (m.kind === 'orbit') {
     const a = m.angle ?? 0,
+      focusOffset = ellipseFocusOffset(m.radius, m.minor),
       rotate = (x: number, y: number) =>
         add(center, { x: Math.cos(a) * x - Math.sin(a) * y, y: Math.sin(a) * x + Math.cos(a) * y });
     return [
       { kind: 'radius', position: rotate(m.radius, 0) },
       { kind: 'minor', position: rotate(0, m.minor) },
-      { kind: 'width', position: rotate(m.radius + m.width, 0) },
+      { kind: 'width', position: rotate(m.radius - focusOffset + m.width, 0) },
       { kind: 'angle', position: rotate(m.radius + m.width + 0.25, 0) },
     ];
   }
@@ -128,20 +130,17 @@ export function paintMarker(
       w,
       h,
     );
+    // Stroke distance is Euclidean even when the inner offset has cusps/vanishes.
+    // Merely increasing the two axes would not produce a constant-distance band.
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.ellipse(center.x, center.y, m.radius * zoom, m.minor * zoom, -angle, 0, Math.PI * 2);
+    ctx.strokeStyle = '#efd08a24';
+    ctx.lineWidth = 2 * m.width * zoom;
     ctx.stroke();
-    const low = (m.radius * (1 - e) - m.width) * zoom,
-      high = (m.radius * (1 + e) + m.width) * zoom;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, high, 0, Math.PI * 2);
-    ctx.arc(p.x, p.y, Math.max(0, low), 0, Math.PI * 2, true);
-    ctx.fill('evenodd');
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, high, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, Math.max(0, low), 0, Math.PI * 2);
+    ctx.strokeStyle = selected ? '#ffd27c' : '#eed290b0';
+    ctx.lineWidth = selected ? 2.5 : 1.5;
+    ctx.setLineDash([6, 6]);
     ctx.stroke();
   } else if (m.kind === 'area' || m.kind === 'surface') {
     ctx.beginPath();

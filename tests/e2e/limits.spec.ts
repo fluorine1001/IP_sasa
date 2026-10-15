@@ -11,7 +11,7 @@ test('개발 에디터의 계획 길이·종류별 한도를 실제 타임라인
   await page.locator('#stage-properties').click();
   await page.getByText('편집', { exact: true }).click();
   await page.locator('#clear-references').click();
-  await page.getByText('편집', { exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '편집', exact: true })).toBeHidden();
   const field = (key: string) => page.locator('[data-field="rules.' + key + '"]');
   const missionTime = await field('maxTime').inputValue();
   await field('timelineDuration').fill('12');
@@ -76,7 +76,7 @@ test('두 무제한 옵션을 저장하고 시간선을 확장하며 표시 시�
   await page.locator('#stage-properties').click();
   await page.getByText('편집', { exact: true }).click();
   await page.locator('#clear-references').click();
-  await page.getByText('편집', { exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '편집', exact: true })).toBeHidden();
   const field = (key: string) => page.locator('[data-field="' + key + '"]');
   await field('rules.maxTimeUnlimited').check();
   await field('rules.timelineUnlimited').check();

@@ -141,6 +141,7 @@ export function conditionDomain(stage: Stage) {
       // Transcendental implementation accuracy is not assumed. These enclosures
       // use codomain bounds only; they do not pretend to certify tight dynamics.
       if (e.operation === 'sqrt') r = { lo: 0, hi: Infinity };
+      if (e.operation === 'ellipseDistance') r = { lo: 0, hi: Infinity };
       if (e.operation === 'sin' || e.operation === 'cos') r = { lo: -1, hi: 1 };
       if (e.operation === 'atan2') r = { lo: -Math.PI, hi: Math.PI };
       if (e.operation === 'min')

@@ -416,6 +416,9 @@ export function solutionSearchPanel(
     get stage() {
       return playback.stage;
     },
+    leaveReplay() {
+      playback.leave();
+    },
     frame(dt: number) {
       return playback.frame(dt);
     },

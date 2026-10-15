@@ -7,6 +7,7 @@ import {
   type Expression,
 } from '../world/conditions.ts';
 import type { Stage } from '../world/types.ts';
+import { sceneActorOptions } from './moving-objects';
 const select = (path: string, field: string, value: string, options: [string, string][]) =>
   `<select data-block-path="${path}" data-block-field="${field}">${options.map(([id, label]) => `<option value="${escape(id)}" ${id === value ? 'selected' : ''}>${escape(label)}</option>`).join('')}</select>`;
 const number = (path: string, field: string, value: number, label: string) =>
@@ -14,13 +15,8 @@ const number = (path: string, field: string, value: number, label: string) =>
 const text = (path: string, key: string, value: string) =>
   `<label>기록 이름 (영문)<input type="text" data-block-path="${path}" data-block-field="${key}" value="${escape(value)}" maxlength="48"></label>`;
 const actors = (stage: Stage): [string, string][] => [
-  ['craft', '주 로켓 / 탑재체'],
+  ...sceneActorOptions(stage),
   ['$actor', '현재 집합의 기체'],
-  ...(stage.rocket?.parts ?? []).map((p) => [p.id, `${p.name} (분리 후)`] as [string, string]),
-  ...(stage.rocket?.payloads ?? []).map(
-    (p) => [p.id, p.name + ' (탑재 위성 분리 후)'] as [string, string],
-  ),
-  ...stage.bodies.map((b) => [b.id, b.name] as [string, string]),
 ];
 export function expressionBuilder(e: Expression, path: string, stage: Stage): string {
   const types: [string, string][] = [

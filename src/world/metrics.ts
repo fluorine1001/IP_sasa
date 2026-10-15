@@ -79,6 +79,7 @@ export const metrics: Record<string, Metric> = {
         state = c.run.rocket;
       if (!config || !state) return 0;
       if (c.actorId && c.actorId !== 'craft') {
+        if ([...c.stage.bodies, ...c.stage.objects].some((o) => o.id === c.actorId)) return 0;
         const part = config.parts.find((p) => p.id === c.actorId),
           actor = c.run.detached.find((a) => a.id === c.actorId);
         return part && actor ? part.fuelMass - actor.fuel : actor?.payload ? 0 : NaN;

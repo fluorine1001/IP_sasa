@@ -328,6 +328,7 @@ export function conditionIssues(node: unknown, ids: Set<string>): string[] {
         e.args.length < 1 ||
         e.args.length > 8 ||
         (['subtract', 'divide', 'power', 'atan2'].includes(e.operation) && e.args.length !== 2) ||
+        (e.operation === 'ellipseDistance' && e.args.length !== 4) ||
         (['abs', 'sqrt', 'sin', 'cos'].includes(e.operation) && e.args.length !== 1)
       )
         out.push('수식 연산과 입력 개수를 확인하세요.');

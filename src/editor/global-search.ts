@@ -12,7 +12,14 @@ import {
 import type { Stage } from '../world/types';
 import { conditionDomain } from './condition-domain';
 import { FlightPrefixCache } from './flight-prefix';
-import { programEvents, commandNames, commandUsage, planConstraints } from '../world/program';
+import { conicPrograms } from './conic-programs';
+import {
+  programEvents,
+  commandNames,
+  commandUsage,
+  planConstraints,
+  missionTimeLimit,
+} from '../world/program';
 
 /** Independent fair cases + continuous refinement. Physical trials yield in fixed
  * quanta. Only sound grammar constraints remove cases; heuristic scores do not. */
@@ -49,6 +56,8 @@ export function* globalSearch(
   const quota = continuation ?? { remaining: budget, total: budget };
   const start = performance.now();
   const prefixes = new FlightPrefixCache();
+  const inverse = conicPrograms(stage);
+  let inverseDone = false;
   type Job = {
     iterator: Generator<SearchReport>;
     report?: SearchReport;
@@ -56,8 +65,9 @@ export function* globalSearch(
     completed: number;
   };
   const jobs: Job[] = [];
-  const caseJobs: (Job & { key: string })[] = [];
+  const caseJobs: (Job & { key: string; analytic: boolean })[] = [];
   let caseTurn = 0,
+    expansionTurn = 0,
     caseCursor = 0;
   const memo = new Map<string, SearchReport>();
   let caseFamilies: SolutionFamily[] = [],
@@ -176,11 +186,43 @@ export function* globalSearch(
     };
   }
   function advanceCase() {
-    let job = caseJobs[caseCursor++ % Math.max(1, caseJobs.length)];
-    if (quota.remaining > 0 && caseJobs.length < 8 && (!job || caseTurn++ % 2 === 0)) {
-      const item = cases.next();
+    let job =
+      caseJobs.find((j) => j.analytic) ?? caseJobs[caseCursor++ % Math.max(1, caseJobs.length)];
+    if (
+      !job?.analytic &&
+      quota.remaining > 0 &&
+      caseJobs.length < 8 &&
+      (!job || caseTurn++ % 2 === 0)
+    ) {
+      // Alternate analytic boundary-graph expansion with the general grammar. The
+      // operator eliminates continuous controls; only its derived trajectories are flown.
+      const branch =
+        !inverseDone && (expansionTurn++ % 2 === 0 || cases.exhausted) ? inverse.next() : undefined;
+      if (branch?.done) inverseDone = true;
+      if (branch && !branch.done && !branch.value) return;
+      const conic = branch && !branch.done ? branch.value : undefined;
+      if (
+        conic &&
+        Object.values(commandUsage(conic)).reduce((n, v) => n + v, 0) > (maxCommands ?? domain)
+      )
+        return;
+      const item = conic
+        ? {
+            stage,
+            horizon: Number.isFinite(missionTimeLimit(stage))
+              ? missionTimeLimit(stage)
+              : (stage.audit.timeLimit ?? stage.rules.maxTime),
+            template: {
+              id: 'conic-boundary',
+              label: '궤도 경계값 연결',
+              plan: conic,
+              parameters: searchParameters(stage, conic),
+            },
+            coordinates: [] as number[],
+          }
+        : cases.next();
       if (!item) return;
-      const plan = parameterPlan(item.template, item.coordinates);
+      const plan = conic ?? parameterPlan(item.template, item.coordinates);
       const key = physicalPlanKey(stage, plan) + '@' + item.horizon;
       if (memo.has(key) || caseJobs.some((j) => j.key === key)) {
         cached++;
@@ -196,6 +238,7 @@ export function* globalSearch(
       };
       job = {
         key,
+        analytic: !!conic,
         iterator: searchSolutions(item.stage, fixed, 1, false, quota, prefixes),
         served: false,
         completed: 0,
@@ -218,6 +261,12 @@ export function* globalSearch(
       ]).map((f) => ({ ...f, samples: f.samples.slice(0, 16) }));
     caseJobs.splice(caseJobs.indexOf(job), 1);
   }
+  // Bounded graph startup, not a new trial budget. Derive one early candidate
+  // before generic jobs consume the quota; deep graphs still yield to the grammar.
+  for (let i = 0; i < 16 && !inverseDone && !caseJobs.some((j) => j.analytic); i++) {
+    advanceCase();
+    yield report(false);
+  }
   while (true) {
     while (quota.remaining > 0 || caseJobs.length || jobs.some((j) => j.report?.pending)) {
       const slot = turn++;
@@ -229,6 +278,7 @@ export function* globalSearch(
         active = jobs.filter((j) => !j.report?.done);
       }
       if (
+        (slot % 2 === 0 && caseJobs.some((j) => j.analytic)) ||
         (slot % 4 === 3 && (caseJobs.length || quota.remaining > 0)) ||
         (caseJobs.length && !active.length && quota.remaining <= 0)
       ) {
@@ -260,7 +310,7 @@ export function* globalSearch(
             job.served = true;
           }
         } else if (quota.remaining > 0) {
-          if (cases.exhausted && !caseJobs.length) {
+          if (inverseDone && cases.exhausted && !caseJobs.length) {
             fullyExhausted = true;
             break;
           }

@@ -4,7 +4,7 @@
 
 Node.js 24, 고정 npm lockfile, TypeScript, Vitest, Playwright Chromium, GitHub Actions를 사용합니다. 프로젝트 코드에는 특정 컴퓨터의 절대 경로가 없습니다. VS Code와 GitHub Desktop을 함께 사용할 수 있습니다.
 
-개발 서버 `/?editor=1`에서 천체·대기·상호 중력·경로·게이트·정거장·표면 발사·로켓 단·공통 목표를 수정합니다. JSON은 `data/stages/`에 저장합니다. 배포 빌드에는 개발 제작 모듈과 API가 제공되지 않습니다.
+독립 `/editor.html`에서 천체·대기·상호 중력·움직이는 물체·정거장·표면/공간 출발·로켓 단·공통 목표를 수정합니다. `/?editor=1`은 개발 호환 경로입니다. 새 물리 도구에 가상의 벽/게이트를 추가하지 않습니다. 로컬 편집 JSON은 `data/stages/`, 확정 공개본은 `data/releases/`에 저장합니다. 일반 게임 빌드는 제작 모듈/API를 포함하지 않고, 공유 제작소 빌드는 별개입니다. 실행·접속은 [RUNNING](../RUNNING.md), 저장/공개/새 clone 빌드 계약은 [README](../README.md)를 참고합니다.
 
 Windows 진입점은 `play.cmd`와 `editor.cmd`입니다. `scripts/launch.mjs`는 직접/개발 의존성 버전과 npm의 설치 잠금 트리를 확인해 누락·lock 변경 시 `npm ci`를 수행합니다. 이미 npm으로 설치한 최신 트리는 실행기 도장이 없어도 다시 설치하지 않습니다. 플레이 실행은 소스·데이터·자산·실행/빌드 스크립트·설정의 내용 해시와 HTML 해시가 일치할 때만 기존 빌드를 재사용합니다. Pull로 파일 추가·삭제·내용 변경, 결과물 누락/손상이 발생하면 재빌드하며 실패 시 오래된 결과물을 대신 열지 않습니다. 제작 실행은 localhost의 사용 가능한 포트에 Vite를 시작합니다. 기존 서버를 종료하지 않습니다.
 

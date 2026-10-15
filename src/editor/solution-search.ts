@@ -2,7 +2,7 @@ import { createRun, tick, execute } from '../world/engine';
 import { planConstraints, planningTimeLimit, programEvents, commandNames } from '../world/program';
 import { length } from '../physics/vector';
 import type { Stage, RoutePlan, Run } from '../world/types';
-import { searchFitness } from './search-fitness';
+import { trajectoryAdjoint, trajectoryScore } from './trajectory-adjoint';
 import { flightShape, type FlightShape } from './flight-shape';
 import { craftCenter } from '../world/craft-center';
 import { hardwarePlans } from './hardware-search';
@@ -75,6 +75,7 @@ export type SearchReport = {
   coverage?: { divisions: number | string; checked: string; total?: string; exhausted: boolean };
   proof?: { kind: 'predicate-domain'; reasons: string[]; visited: number };
   reuse?: { prefixes: number; terminal: number; savedSeconds: number };
+  sensitivity?: { ticks: number; passes: number; dimensions: number; stateWidth: number };
 };
 const vector = (angle: number, power = 1) => ({
   x: Math.cos(angle) * power,
@@ -395,6 +396,7 @@ export function* searchSolutions(
   recordRepresentatives = true,
   quota?: { remaining: number },
   prefixes = new FlightPrefixCache(),
+  options: { adjoint?: boolean } = {},
 ): Generator<SearchReport> {
   if (!Number.isFinite(budget)) throw Error('검사 예산은 유한한 숫자여야 합니다.');
   const parameters = template.parameters.filter((parameter) => parameter.enabled);
@@ -424,6 +426,7 @@ export function* searchSolutions(
     cached = 0,
     illegal = 0,
     quality = 0;
+  const sensitivity = { ticks: 0, passes: 0, dimensions: parameters.length, stateWidth: 0 };
   const find = (id: number): number => {
     while (parents[id] !== id) {
       parents[id] = parents[parents[id]];
@@ -491,18 +494,7 @@ export function* searchSolutions(
       let previousApplied = run.applied.size;
       while ((run.status === 'running' || run.status === 'impact') && run.time < horizon - 1e-8) {
         tick(run, stage, Math.min(0.1, horizon - run.time), stage.objects, false);
-        const ratios = (run.goalRoots ?? Object.keys(run.goals))
-          .map((id) => run.goals[id])
-          .map((goal) => (goal.complete ? 1 : goal.ratio));
-        const score =
-          stage.goalMode === 'any'
-            ? Math.max(0, ...ratios)
-            : ratios.reduce((a, b) => a + b, 0) / Math.max(1, ratios.length);
-        if (['running', 'won'].includes(run.status))
-          sample.score = Math.max(
-            sample.score,
-            (score * 0.15 + searchFitness(stage, run) * 0.85) * 0.99,
-          );
+        sample.score = Math.max(sample.score, trajectoryScore(stage, run));
         appendTrace(trace, run);
         if (run.applied.size !== previousApplied) {
           prefixes.save(run, trace, sample.score);
@@ -664,6 +656,7 @@ export function* searchSolutions(
       families,
       pending,
       quality,
+      sensitivity: { ...sensitivity },
       reuse: {
         prefixes: prefixes.reused,
         terminal: prefixes.terminalReused,
@@ -702,6 +695,74 @@ export function* searchSolutions(
       parameters.map(() => 1),
       centre,
     );
+  // A nonlinear high-dimensional layout is refined with matrix-free adjoints,
+  // not a P-column Jacobian made from P complete flights. Fair global cases and
+  // all topology/parameter domains remain independent of this local optimizer.
+  let leader = centre && centre.score > initial.score ? centre : initial;
+  for (
+    let pass = 0;
+    options.adjoint !== false &&
+    parameters.length >= 32 &&
+    pass < 2 &&
+    leader &&
+    !leader.won &&
+    evaluated < budget &&
+    (!quota || quota.remaining > 0);
+    pass++
+  ) {
+    const analysis = trajectoryAdjoint(stage, template, leader.values, (v) =>
+      parameterPlan(template, v),
+    );
+    let derivative;
+    let modelTicks = 0;
+    for (;;) {
+      const next = analysis.next();
+      if (next.done) {
+        derivative = next.value;
+        break;
+      }
+      sensitivity.ticks += next.value.ticks - modelTicks;
+      modelTicks = next.value.ticks;
+      yield report(false, true);
+    }
+    if (!derivative) break;
+    sensitivity.ticks += derivative.ticks - modelTicks;
+    sensitivity.passes++;
+    sensitivity.stateWidth = Math.max(sensitivity.stateWidth, derivative.stateWidth);
+    const norm = derivative.gradient.reduce((m, g) => Math.max(m, Math.abs(g)), 0);
+    if (!(norm > 1e-10)) break;
+    let improved = false;
+    for (const step of [0.12, 0.04, 0.012]) {
+      if (evaluated >= budget || (quota && quota.remaining <= 0)) break;
+      let i = 0;
+      const projected = {
+        ...template,
+        parameters: template.parameters.map((p) =>
+          !p.enabled
+            ? p
+            : {
+                ...p,
+                value: Math.max(
+                  p.min,
+                  Math.min(
+                    p.max,
+                    derivative.physical.get(p.key)! +
+                      (step * (p.max - p.min) * derivative.gradient[i++]) / norm,
+                  ),
+                ),
+              },
+        ),
+      };
+      const candidate = yield* evaluate(seedCoordinates(projected));
+      if (candidate && candidate.score > leader.score + 1e-8) {
+        leader = candidate;
+        improved = true;
+        break;
+      }
+      yield report(false);
+    }
+    if (!improved) break;
+  }
   // Boundary probes are shared by every layout, without an intended-solution class.
   for (let i = 0; i < seed.length && evaluated < budget; i++) {
     for (const endpoint of [0, 1]) {

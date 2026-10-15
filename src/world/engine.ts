@@ -1,4 +1,4 @@
-import { missionTimeLimit } from './program';
+import { missionTimeLimit, launchFraction } from './program';
 import { craftCenter } from './craft-center';
 import { planConstraints } from './program';
 import { captureFrame } from './replay';
@@ -26,6 +26,7 @@ import {
   objectVelocity,
 } from './celestial.ts';
 import { freshProgress, updateGoals, objectiveGoals } from './goals.ts';
+import { dueEvents, nextEventTime } from './event-schedule';
 import type { Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
 export const WORLD_STEP = 0.01;
 const solidRadius = (object: WorldObject) =>
@@ -101,7 +102,7 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
             x: Math.cos(stage.launchAngle ?? 0),
             y: Math.sin(stage.launchAngle ?? 0),
           },
-          throttle: Math.min(1, length(plan.launch) / stage.rules.launchLimit),
+          throttle: Math.min(1, launchFraction(stage, plan)),
           heat: 0,
           stress: 0,
           airborne: !surfaceLaunch(stage),
@@ -209,8 +210,11 @@ export function tick(
   let remaining = dt;
   while (remaining > 1e-9 && run.status === 'running') {
     const appliedBefore = run.applied.size;
-    for (const command of run.plan.engineCommands ?? [])
-      if (command.time <= run.time + 1e-8 && !run.applied.has(command.id)) {
+    for (const event of dueEvents(run)) {
+      const command = event.value;
+      if (run.applied.has(command.id)) continue;
+      if (event.kind === 'engine') {
+        const command = event.value;
         const accepted = command.releasePayload
           ? releasePayload(run, stage, command.releasePayload)
           : command.separate
@@ -225,20 +229,17 @@ export function tick(
           return;
         }
         run.applied.add(command.id);
-      }
-    for (const command of run.plan.impulses)
-      if (command.time <= run.time + 1e-8 && !run.applied.has(command.id)) {
-        if (!impulse(run, stage, command.vector, command.id)) {
+      } else {
+        if (!impulse(run, stage, event.value.vector, command.id)) {
           run.status = 'failed';
           run.reason =
             '수정 추진을 너무 많이 사용했습니다. 만남이나 착륙을 위한 여유를 남겨보세요.';
           return;
         }
       }
+    }
     if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
-    const nextCommand = [...run.plan.impulses, ...(run.plan.engineCommands ?? [])]
-      .filter((b) => !run.applied.has(b.id) && b.time > run.time + 1e-8)
-      .reduce((n, b) => Math.min(n, b.time), Infinity);
+    const nextCommand = nextEventTime(run);
     const slice = Math.min(
       remaining,
       WORLD_STEP,

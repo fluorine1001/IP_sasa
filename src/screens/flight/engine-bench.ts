@@ -1,5 +1,6 @@
 import type { Stage, RoutePlan } from '../../world/types';
 import { escape } from '../../app/core';
+import { launchFraction } from '../../world/program';
 /** Static hardware illustration: no environment simulation or predicted flight. */
 export function engineBench(stage: Stage, plan: RoutePlan, commandId = 'launch') {
   if (!stage.rocket) {
@@ -23,13 +24,7 @@ export function engineBench(stage: Stage, plan: RoutePlan, commandId = 'launch')
     index = stage.rocket.parts.findIndex((p) => p.id === selected.actorId);
   const part = stage.rocket.parts[index];
   if (!part) return '';
-  const throttle = Math.max(
-    0,
-    Math.min(
-      1,
-      selected?.throttle ?? Math.hypot(plan.launch.x, plan.launch.y) / stage.rules.launchLimit,
-    ),
-  );
+  const throttle = Math.max(0, Math.min(1, selected?.throttle ?? launchFraction(stage, plan)));
   const force = part.thrust * throttle,
     flow = force / part.exhaustSpeed;
   const maxForce = Math.max(...stage.rocket.parts.map((p) => p.thrust));

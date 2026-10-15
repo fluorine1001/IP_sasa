@@ -70,23 +70,35 @@ test('다시보기는 해당 시도 계획·단 분리·카메라를 복원하�
     e.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await expect(page.locator('#timeline-clock')).toContainText('3.00');
-  await expect(page.locator('#follow')).toHaveText('추적 중 · 시야 풀기');
-  await page.keyboard.down('KeyW');
-  await page.waitForTimeout(120);
-  await page.keyboard.up('KeyW');
-  await expect(page.locator('#follow')).toHaveText('로켓 따라가기');
-  await page.keyboard.press('KeyC');
-  await expect(page.locator('#follow')).toHaveText('추적 중 · 시야 풀기');
   await page.locator('#flight-scrub').evaluate((e: HTMLInputElement) => {
     e.value = '18';
     e.dispatchEvent(new Event('input', { bubbles: true }));
   });
   const time = Number((await page.locator('#timeline-clock').textContent())!.split('/')[0]);
   expect(time).toBeLessThan(9);
-  await page.screenshot({ path: 'test-results/screens/replay-staging.png' });
   await page.locator('#replay-exit').click();
   await expect(page.locator('#world')).toHaveAttribute('data-phase', 'plan');
   await expect(page.locator('.timeline-event.separate[data-time="10"]')).toHaveCount(1);
+});
+
+// Keep camera input independent of the long plan-edit/replay-isolation case.
+// Do not inflate its timeout or drop the replay-specific camera assertions.
+test('다시보기의 카메라도 수동 이동과 로켓 추적 복귀를 지원한다', async ({ page }) => {
+  await openReference(page);
+  await page.locator('#launch').click();
+  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
+  await expect(page.locator('#world')).toHaveAttribute('data-phase', 'replay');
+  await page.locator('#flight-scrub').evaluate((e: HTMLInputElement) => {
+    e.value = '3';
+    e.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#timeline-clock')).toContainText('3.00');
+  await expect(page.locator('#follow')).toHaveText('추적 중 · 시야 풀기');
+  await page.keyboard.down('KeyW');
+  await expect(page.locator('#follow')).toHaveText('로켓 따라가기');
+  await page.keyboard.up('KeyW');
+  await page.keyboard.press('KeyC');
+  await expect(page.locator('#follow')).toHaveText('추적 중 · 시야 풀기');
 });
 test('비행 종료 전 미실행 예약도 당시 진행 바에 남고 다시보기에서 비행을 추가하지 않는다', async ({
   page,

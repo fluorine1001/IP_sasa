@@ -1,4 +1,9 @@
-import { planningTimeLimit, canAddCommand, commandUsage } from '../../world/program';
+import {
+  planningTimeLimit,
+  canAddCommand,
+  commandUsage,
+  launchFraction,
+} from '../../world/program';
 import { escape } from '../../app/core';
 import { heading, plannedSeparationPart } from '../../world/program';
 import { attitudeRate } from '../../world/rocket';
@@ -210,14 +215,7 @@ export function timelinePlanner(
     let fields = '';
     if (id === 'launch')
       fields =
-        range(
-          '첫 출력',
-          'launch-power',
-          (length(p.launch) / stage.rules.launchLimit) * 100,
-          0,
-          100,
-          '%',
-        ) +
+        range('첫 출력', 'launch-power', launchFraction(stage, p) * 100, 0, 100, '%') +
         (stage.rocket ? '' : range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°'));
     else {
       fields =

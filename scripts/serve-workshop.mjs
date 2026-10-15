@@ -75,6 +75,14 @@ const server = httpServer(async (req, res) => {
     if (!(await stat(file)).isFile()) throw Error('Not a file');
     res.setHeader('Content-Type', types[path.extname(file)] ?? 'application/octet-stream');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Cache-Control',
+      path.extname(file) === '.html'
+        ? 'no-cache, must-revalidate'
+        : /^\/assets\/[^/]+-[\w-]{8,}\.(js|css)$/.test(pathname)
+          ? 'public, max-age=31536000, immutable'
+          : 'no-cache',
+    );
     res.end(req.method === 'HEAD' ? undefined : await readFile(file));
   } catch {
     res.writeHead(404);

@@ -1,23 +1,15 @@
 /** Move existing controls, retaining handlers and IDs; no extra render/worker loop. */
 import { markerGuides, markerDiagram, markerGuide } from './marker-guide';
 import type { GoalMarker } from '../stages/goal-marker';
+import { commandMenu } from './command-menu';
 export function organizeEditor(root: HTMLElement, signal: AbortSignal) {
   const top = root.querySelector<HTMLElement>('.editor-top')!,
     palette = root.querySelector<HTMLElement>('.editor-palette')!;
   const menu = (label: string, ids: string[], destination: HTMLElement) => {
-    const details = document.createElement('details');
-    details.className = 'editor-menu';
-    const summary = document.createElement('summary');
-    summary.textContent = label;
-    details.append(summary);
-    const content = document.createElement('div');
-    content.className = 'editor-menu-content';
-    details.append(content);
-    for (const id of ids) {
-      const node = root.querySelector<HTMLElement>('#' + id);
-      if (node) content.append(node);
-    }
-    destination.append(details);
+    const controls = ids
+      .map((id) => root.querySelector<HTMLElement>('#' + id))
+      .filter((node) => node !== null);
+    commandMenu(label, controls, destination, signal);
   };
   menu('스테이지 파일', ['stage-source', 'import-stage', 'export-stage'], top);
   menu(
@@ -107,13 +99,5 @@ export function organizeEditor(root: HTMLElement, signal: AbortSignal) {
   const rules = palette.querySelector<HTMLElement>('#stage-properties');
   if (rules) top.append(rules);
   signal.addEventListener('abort', () => help.remove(), { once: true });
-  root.addEventListener(
-    'pointerdown',
-    (event) => {
-      for (const menu of top.querySelectorAll<HTMLDetailsElement>('.editor-menu[open]'))
-        if (!menu.contains(event.target as Node)) menu.open = false;
-    },
-    { signal },
-  );
   palette.querySelectorAll('.badge, hr').forEach((node) => node.remove());
 }

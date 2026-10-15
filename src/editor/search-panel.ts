@@ -9,6 +9,9 @@ import {
   type SolutionFamily,
 } from './solution-search';
 import type { Stage, RoutePlan, Run } from '../world/types';
+import SearchWorker from './search.worker?worker&inline';
+import BlockerWorker from './blockers.worker?worker&inline';
+import { SearchClient } from './search-client';
 export function solutionSearchPanel(
   root: HTMLElement,
   signal: AbortSignal,
@@ -21,7 +24,7 @@ export function solutionSearchPanel(
   root.querySelector('.editor')!.append(panel);
   let templates: SearchTemplate[] = [],
     selected = '',
-    worker: Worker | undefined,
+    worker: SearchClient | undefined,
     timer: ReturnType<typeof setTimeout> | undefined,
     revision = 0,
     result: SearchReport | undefined,
@@ -87,6 +90,7 @@ export function solutionSearchPanel(
     more.hidden = !(
       selected === 'all' &&
       worker &&
+      worker.active &&
       (paused || (result.done && result.continuable)) &&
       !result.proof
     );
@@ -142,21 +146,28 @@ export function solutionSearchPanel(
       choice = template();
     if (!choice) return;
     const budget = Number(panel.querySelector<HTMLInputElement>('#search-budget')!.value);
-    worker = new Worker(new URL('./search.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (event) => {
-      if (event.data.revision !== revision) return;
-      if (event.data.error) {
-        panel.querySelector('#search-status')!.textContent = event.data.error;
-        return;
-      }
-      result = event.data.result;
-      if (result) playback.setFamilies(result.families);
-      show();
-    };
-    worker.onerror = () => {
-      panel.querySelector('#search-status')!.textContent = '탐색 작업자 오류';
-    };
-    worker.postMessage({
+    panel.querySelector('#search-run')!.textContent = '탐색';
+    worker = new SearchClient(() => new SearchWorker({ name: 'solution-search' }), {
+      result: (report) => {
+        if (current !== revision) return;
+        result = report;
+        playback.setFamilies(result.families);
+        show();
+      },
+      recovering: () => {
+        if (current === revision)
+          panel.querySelector('#search-status')!.textContent = '탐색 연결 복구 중…';
+      },
+      fault: (fault) => {
+        if (current !== revision) return;
+        paused = true;
+        show();
+        panel.querySelector('#search-status')!.textContent =
+          `탐색 중단 · ${result?.families.length ? '찾은 결과는 보존했습니다. ' : ''}${fault.message}`;
+        panel.querySelector('#search-run')!.textContent = '다시 탐색';
+      },
+    });
+    worker.start({
       revision: current,
       stage: structuredClone(getStage()),
       templates: structuredClone(selected === 'all' ? templates : [choice]),
@@ -314,14 +325,33 @@ export function solutionSearchPanel(
         const current = revision,
           target = panel.querySelector(`[data-family-proposals="${family.id}"]`)!;
         target.textContent = '이 집합 차단과 다른 발견된 해에 미치는 영향 검사 중…';
-        const checker = new Worker(new URL('./blockers.worker.ts', import.meta.url), {
-          type: 'module',
-        });
+        let checker: Worker;
+        try {
+          checker = new BlockerWorker({ name: 'solution-blockers' });
+        } catch (error) {
+          target.textContent = `차단안 검사를 시작하지 못했습니다. ${error instanceof Error ? error.message : ''}`;
+          return;
+        }
         auxiliary.add(checker);
+        const failed = (text: string) => {
+          checker.terminate();
+          auxiliary.delete(checker);
+          if (current === revision) target.textContent = text;
+        };
+        checker.onerror = (event) => {
+          event.preventDefault();
+          failed(`차단안 검사 중단 · ${event.message || '다시 검사해 주세요.'}`);
+        };
+        checker.onmessageerror = () =>
+          failed('차단안 결과를 전달하지 못했습니다. 다시 검사해 주세요.');
         checker.onmessage = (message) => {
           if (current !== revision) return;
           checker.terminate();
           auxiliary.delete(checker);
+          if (!Array.isArray(message.data.proposals)) {
+            failed(message.data.error || '차단안 결과가 유효하지 않습니다.');
+            return;
+          }
           const proposals = message.data.proposals as {
             label: string;
             stage: Stage;
@@ -347,15 +377,21 @@ export function solutionSearchPanel(
                   changed(proposals[Number(apply.dataset.applyProposal)].stage)),
             );
         };
-        checker.postMessage({
-          stage: structuredClone(getStage()),
-          family: structuredClone(family),
-          others: structuredClone(
-            result!.families
-              .filter((item) => item.id !== family.id)
-              .map((item) => item.representative),
-          ),
-        });
+        try {
+          checker.postMessage({
+            stage: structuredClone(getStage()),
+            family: structuredClone(family),
+            others: structuredClone(
+              result!.families
+                .filter((item) => item.id !== family.id)
+                .map((item) => item.representative),
+            ),
+          });
+        } catch (error) {
+          failed(
+            `차단안 전달 중단 · ${error instanceof Error ? error.message : '다시 검사해 주세요.'}`,
+          );
+        }
       }
     },
     { signal },

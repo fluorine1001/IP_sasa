@@ -1,5 +1,5 @@
 import { objectiveGoals } from '../../world/goals';
-import { planConstraints } from '../../world/program';
+import { planConstraints, launchFraction } from '../../world/program';
 import { playbackRates, playbackTempo, savedPlaybackRate, savePlaybackRate } from './playback';
 import { craftCenter } from '../../world/craft-center';
 import { actorDiagram } from './engine-bench';
@@ -413,7 +413,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         .reverse()
         .map(
           ({ t, index }) =>
-            `<article class="trial-card"><div class="trial-heading"><b>${t.number}차</b><span class="trial-outcome ${t.status === 'won' ? 'won' : ''}">${endReason(t.status, t.reason)}</span></div><div class="trial-media"><button class="trial-select" data-trial-view="${index}" aria-label="${t.number}차 경로 선택" aria-pressed="${index === compareIndex}">${trialPreview(t)}</button><div class="trial-meta"><span>${controlIcon('clock')}${t.duration.toFixed(2)}초</span><span>${controlIcon('engine')}${Math.round((length(t.plan.launch) / stage.rules.launchLimit) * 100)}%</span><span>${controlIcon('sliders')}${(t.scheduledPlan.engineCommands?.length ?? 0) + t.scheduledPlan.impulses.length}개</span></div></div><div class="trial-actions"><button data-trial-copy="${index}" aria-label="${t.number}차 계획 복사" title="실행한 계획 복사" ${run && !ended ? 'disabled' : ''}>${controlIcon('copy')}</button><button data-trial-replay="${index}" aria-label="${t.number}차 비행 다시보기">${controlIcon('play')}<span>재생</span></button></div><details class="trial-readings"><summary>관측 수치</summary>${design.instruments.map((i) => `<div data-reading="${escape(i.id)}">${escape(i.label)}: <b>${t.evidence.readings[i.id] ? t.evidence.readings[i.id].value.toFixed(3) : '—'}</b></div>`).join('')}</details></article>`,
+            `<article class="trial-card"><div class="trial-heading"><b>${t.number}차</b><span class="trial-outcome ${t.status === 'won' ? 'won' : ''}">${endReason(t.status, t.reason)}</span></div><div class="trial-media"><button class="trial-select" data-trial-view="${index}" aria-label="${t.number}차 경로 선택" aria-pressed="${index === compareIndex}">${trialPreview(t)}</button><div class="trial-meta"><span>${controlIcon('clock')}${t.duration.toFixed(2)}초</span><span>${controlIcon('engine')}${Math.round(launchFraction(stage, t.plan) * 100)}%</span><span>${controlIcon('sliders')}${(t.scheduledPlan.engineCommands?.length ?? 0) + t.scheduledPlan.impulses.length}개</span></div></div><div class="trial-actions"><button data-trial-copy="${index}" aria-label="${t.number}차 계획 복사" title="실행한 계획 복사" ${run && !ended ? 'disabled' : ''}>${controlIcon('copy')}</button><button data-trial-replay="${index}" aria-label="${t.number}차 비행 다시보기">${controlIcon('play')}<span>재생</span></button></div><details class="trial-readings"><summary>관측 수치</summary>${design.instruments.map((i) => `<div data-reading="${escape(i.id)}">${escape(i.label)}: <b>${t.evidence.readings[i.id] ? t.evidence.readings[i.id].value.toFixed(3) : '—'}</b></div>`).join('')}</details></article>`,
         )
         .join('') ||
       '<div class="archive-empty">' + controlIcon('records') + '<b>저장된 비행 없음</b></div>'

@@ -1,4 +1,5 @@
 import { installAuthoredGoals } from './authored-goals';
+import AuditWorker from './audit.worker?worker&inline';
 import { placeSpawn, placementSnapshot, followSpawn } from './spawn-placement';
 import { markerGuide, markerGuides } from './marker-guide';
 import {
@@ -356,7 +357,13 @@ export function editorScreen(app: App): Screen {
     showAudit();
     const current = revision;
     timer = setTimeout(() => {
-      worker = new Worker(new URL('./audit.worker.ts', import.meta.url), { type: 'module' });
+      try {
+        worker = new AuditWorker({ name: 'stage-audit' });
+      } catch (error) {
+        message(`검사를 시작하지 못했습니다. ${error instanceof Error ? error.message : ''}`);
+        return;
+      }
+      const audit = worker;
       worker.onmessage = (e) => {
         if (e.data.revision !== revision) return;
         if (e.data.error) {
@@ -366,8 +373,23 @@ export function editorScreen(app: App): Screen {
         result = e.data.result;
         showAudit();
       };
-      worker.onerror = () => message('검사 작업자 오류. 콘솔을 확인하세요.');
-      worker.postMessage({ revision: current, stage: structuredClone(model.stage) });
+      worker.onerror = (event) => {
+        event.preventDefault();
+        audit.terminate();
+        if (current === revision)
+          message(`설계 검사 중단 · ${event.message || '다시 검사해 주세요.'}`);
+      };
+      worker.onmessageerror = () => {
+        audit.terminate();
+        if (current === revision) message('검사 결과를 전달하지 못했습니다. 다시 검사해 주세요.');
+      };
+      try {
+        worker.postMessage({ revision: current, stage: structuredClone(model.stage) });
+      } catch (error) {
+        audit.terminate();
+        if (current === revision)
+          message(`검사 전달 중단 · ${error instanceof Error ? error.message : ''}`);
+      }
     }, 500);
   }
   const links = () =>

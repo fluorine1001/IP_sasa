@@ -22,26 +22,56 @@
   padding: 8px;
 }
 .editor-menu {
-  position: relative;
-  font-size: 13px;
-  padding: 8px;
+  flex: 0 0 auto;
+}
+.editor-menu-trigger::after {
+  content: '⌄';
+  margin-left: 8px;
+}
+.editor-menu-trigger[aria-expanded='true'] {
+  background: #87c4ac;
 }
 .editor-menu-content {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 8;
-  width: 260px;
-  display: grid;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(300px, calc(100vw - 24px));
+  max-height: min(480px, calc(100dvh - 24px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: none;
   gap: 8px;
   padding: 12px;
   border: 1px solid #6c9987;
   border-radius: 10px;
   background: #19333f;
   box-shadow: 0 8px 22px #06131c88;
+  color: #e5ddbd;
+  scrollbar-width: thin;
+  scrollbar-color: #b99b63 #17323c;
 }
-.editor-menu:not([open]) .editor-menu-content {
-  display: none;
+.editor-menu-content:popover-open {
+  display: grid;
+}
+.editor-menu-content > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.editor-menu-content > label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.editor-top .editor-menu-content #stage-source {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.editor-menu-content > button {
+  width: 100%;
+  text-align: left;
 }
 .palette-group {
   margin: 12px 0;
@@ -374,7 +404,7 @@
 }
 
 .editor-top {
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .editor-palette label input {
@@ -653,13 +683,12 @@
     width: 100%;
     min-height: 100dvh;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 120px minmax(300px, 45dvh) 200px minmax(360px, 50dvh) 220px 120px;
+    grid-template-rows: auto minmax(300px, 45dvh) 200px minmax(360px, 50dvh) 220px 120px;
     overflow-y: auto;
   }
   .editor-top {
     grid-row: 1;
-    max-height: 160px;
-    overflow: auto;
+    overflow: visible;
   }
   .editor-viewport {
     grid-row: 2;
@@ -1048,7 +1077,7 @@
 @media (max-width: 680px) {
   .editor {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 120px minmax(300px, 45dvh) 220px minmax(360px, 50dvh) minmax(360px, 55dvh);
+    grid-template-rows: auto minmax(300px, 45dvh) 220px minmax(360px, 50dvh) minmax(360px, 55dvh);
     width: 100%;
   }
   .editor-search {
@@ -1077,7 +1106,7 @@
 
 @media (max-width: 680px) {
   .editor:has(.marker-placement-dock:not([hidden])) {
-    grid-template-rows: 120px minmax(530px, calc(45dvh + 230px)) 220px minmax(360px, 50dvh) minmax(
+    grid-template-rows: auto minmax(530px, calc(45dvh + 230px)) 220px minmax(360px, 50dvh) minmax(
         360px,
         55dvh
       );

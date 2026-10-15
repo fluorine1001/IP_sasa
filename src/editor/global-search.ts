@@ -152,6 +152,12 @@ export function* globalSearch(
       elapsed: performance.now() - start,
       frontier: caseJobs.length + jobs.reduce((n, j) => n + (j.report?.frontier ?? 0), 0),
       families: merged,
+      sensitivity: {
+        ticks: jobs.reduce((n, j) => n + (j.report?.sensitivity?.ticks ?? 0), 0),
+        passes: jobs.reduce((n, j) => n + (j.report?.sensitivity?.passes ?? 0), 0),
+        dimensions: jobs.reduce((n, j) => Math.max(n, j.report?.sensitivity?.dimensions ?? 0), 0),
+        stateWidth: jobs.reduce((n, j) => Math.max(n, j.report?.sensitivity?.stateWidth ?? 0), 0),
+      },
       profiles: done
         ? jobs.map((j, i) => ({
             program: [...keys][i],

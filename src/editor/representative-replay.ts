@@ -6,6 +6,7 @@ import type { Stage, Run, RoutePlan } from '../world/types';
 import type { SolutionFamily } from './solution-search';
 import { reservationBar, reservationDetail } from './reservation-view';
 import { programEvents } from '../world/program';
+import PathWorker from './path.worker?worker&inline';
 
 /** One recorder at a time. Background paths contain no frames; video is captured on selection. */
 export function representativeReplay(
@@ -22,6 +23,7 @@ export function representativeReplay(
     playing = false,
     cursor = 0;
   let reservation = -1;
+  let recordingError = '';
   let video: Run | undefined,
     worker: Worker | undefined,
     active = false,
@@ -38,13 +40,36 @@ export function representativeReplay(
       epoch = generation;
     active = true;
     activeKey = job.key;
-    worker = new Worker(new URL('./path.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (event) => {
-      worker?.terminate();
+    let recorder: Worker | undefined;
+    const failed = (text: string) => {
+      recorder?.terminate();
+      if (epoch !== generation || (recorder && recorder !== worker)) return;
       worker = undefined;
       active = false;
       activeKey = '';
-      if (epoch !== generation) return;
+      queue.length = 0;
+      recordingError = text;
+      draw();
+    };
+    try {
+      worker = new PathWorker({ name: 'solution-replay' });
+      recorder = worker;
+    } catch (error) {
+      failed(`기록 시작 중단 · ${error instanceof Error ? error.message : '다시 선택해 주세요.'}`);
+      return;
+    }
+    worker.onmessage = (event) => {
+      if (epoch !== generation || recorder !== worker) return;
+      recorder?.terminate();
+      worker = undefined;
+      active = false;
+      activeKey = '';
+      if (event.data.error) {
+        recordingError = event.data.error;
+        queue.length = 0;
+        draw();
+        return;
+      }
       if (event.data.trail) paths.set(job.key, event.data.trail);
       if (job.video && selected === job.key && event.data.run) {
         video = event.data.run;
@@ -54,19 +79,21 @@ export function representativeReplay(
       draw();
       pump();
     };
-    worker.onerror = () => {
-      worker?.terminate();
-      worker = undefined;
-      active = false;
-      draw();
-      pump();
+    worker.onerror = (event) => {
+      event.preventDefault();
+      if (epoch === generation) failed(`기록 중단 · ${event.message || '다시 선택해 주세요.'}`);
     };
-    worker.postMessage({
-      stage: structuredClone(getStage()),
-      plan: job.plan,
-      video: job.video,
-      horizon: job.horizon,
-    });
+    worker.onmessageerror = () => failed('기록을 전달하지 못했습니다. 다시 선택해 주세요.');
+    try {
+      worker.postMessage({
+        stage: structuredClone(getStage()),
+        plan: job.plan,
+        video: job.video,
+        horizon: job.horizon,
+      });
+    } catch (error) {
+      failed(`기록 전달 중단 · ${error instanceof Error ? error.message : '다시 선택해 주세요.'}`);
+    }
   }
   function draw() {
     panel.hidden = closed || !families.length || !selected;
@@ -77,8 +104,15 @@ export function representativeReplay(
       1,
     );
     panel.innerHTML = `<header><b>선택한 풀이 · ${families.indexOf(family!) + 1}</b><button data-video-close aria-label="대표 다시보기 닫기">장면으로</button></header>${family ? reservationBar(family.representative, end) : ''}<div><button data-video-play ${video ? '' : 'disabled'}>${playing ? 'Ⅱ 정지' : '▶ 재생'}</button><input aria-label="대표 비행 재생 시각" type="range" min="0" max="${video?.time ?? 0}" step="0.05" value="${cursor}"><output>${cursor.toFixed(1)} / ${(video?.time ?? 0).toFixed(1)}초</output></div><div data-reservation-detail>${family && reservation >= 0 ? reservationDetail(getStage(), family.representative, reservation) : '<small>예약 그림을 누르면 설정이 표시됩니다.</small>'}</div><small>${video ? '실제 기록' : active ? '기록 중…' : '풀이를 선택하세요.'}</small>`;
+    if (recordingError) {
+      const error = document.createElement('p');
+      error.className = 'bad';
+      error.textContent = recordingError;
+      panel.append(error);
+    }
   }
   function select(family: SolutionFamily, start = false) {
+    recordingError = '';
     families = families.some((f) => f.id === family.id)
       ? families.map((f) => (f.id === family.id ? family : f))
       : [...families, family];

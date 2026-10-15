@@ -75,6 +75,7 @@ try {
         maxSlice: Math.round(maxSlice),
         coverage: last.coverage,
         reuse: last.reuse,
+        sensitivity: last.sensitivity,
         verified: last.families.map((f) => execute(stage, f.representative).status),
       }),
     );

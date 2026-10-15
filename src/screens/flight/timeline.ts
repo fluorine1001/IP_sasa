@@ -1,5 +1,6 @@
 import {
   timelineDuration,
+  launchFraction,
   planningTimeLimit,
   missionTimeLimit,
   canAddCommand,
@@ -205,9 +206,9 @@ export function flightTimeline(
       '><legend>0초 · 발사</legend><label>첫 ' +
       (stage.rocket ? '엔진 출력' : '추진 세기') +
       '<input id="program-launch-power" type="range" min="0" max="100" step="0.01" value="' +
-      (length(plan.launch) / stage.rules.launchLimit) * 100 +
+      launchFraction(stage, plan) * 100 +
       '"><output id="program-launch-percent">' +
-      Math.round((length(plan.launch) / stage.rules.launchLimit) * 100) +
+      Math.round(launchFraction(stage, plan) * 100) +
       '%</output></label>' +
       (stage.rocket
         ? '<p class="direction-key">초기 자세는 발사대가 고정합니다. 자세 변경은 회전 명령으로 예약합니다.</p>'

@@ -60,7 +60,7 @@ export function programEvents(plan: RoutePlan): ProgramEvent[] {
   ].sort((a, b) => a.time - b.time);
 }
 export function launchReadout(stage: Stage, plan: RoutePlan) {
-  const throttle = length(plan.launch) / stage.rules.launchLimit;
+  const throttle = launchFraction(stage, plan);
   if (!stage.rocket) return { powered: false as const, speed: length(plan.launch), throttle };
   const part = stage.rocket.parts[0];
   const mass =
@@ -81,6 +81,9 @@ export function launchReadout(stage: Stage, plan: RoutePlan) {
         : Infinity,
   };
 }
+export function launchFraction(stage: Stage, plan: RoutePlan) {
+  return stage.rules.launchLimit > 0 ? length(plan.launch) / stage.rules.launchLimit : 0;
+}
 export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
   const warnings: string[] = planConstraints(stage, plan);
   if (plan.impulses.reduce((n, c) => n + length(c.vector), 0) > stage.rules.maneuverBudget + 1e-8)
@@ -88,7 +91,7 @@ export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
   if (!stage.rocket) return warnings;
   const config = stage.rocket;
   let index = 0,
-    throttle = Math.min(1, length(plan.launch) / stage.rules.launchLimit),
+    throttle = Math.min(1, launchFraction(stage, plan)),
     time = 0;
   const fuel = config.parts.map((p) => p.fuelMass),
     ignitions = config.parts.map((_, i) => (i === 0 && throttle > 0 ? 1 : 0));

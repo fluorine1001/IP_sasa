@@ -1,20 +1,8 @@
-import { searchSolutions, type SearchTemplate, type SearchReport } from './solution-search';
+import { searchSolutions, type SearchReport } from './solution-search';
 import { globalSearch } from './global-search';
-import type { Stage } from '../world/types';
 import { issues } from '../stages/validation';
+import type { SearchRequest as Request, SearchResponse } from './search-client';
 
-type Request = {
-  revision: number;
-  stage: Stage;
-  templates: SearchTemplate[];
-  budget: number;
-  global?: boolean;
-  maxCommands?: number;
-  continue?: boolean;
-  extraBudget?: number;
-  continuous?: boolean;
-  pause?: boolean;
-};
 let session:
   | {
       revision: number;
@@ -29,9 +17,31 @@ let session:
   | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let sent = 0;
+let inFlight = false;
+let queued: SearchReport | undefined;
 function publish(result: SearchReport) {
-  self.postMessage({ revision: session!.revision, result });
+  if (inFlight) {
+    queued = result;
+    return;
+  }
+  self.postMessage({ revision: session!.revision, result } satisfies SearchResponse);
+  inFlight = true;
   sent = performance.now();
+}
+function fault(error: unknown, phase: 'input' | 'runtime', revision: number) {
+  clearTimeout(timer);
+  timer = undefined;
+  queued = undefined;
+  inFlight = false;
+  self.postMessage({
+    revision,
+    fault: {
+      phase,
+      name: error instanceof Error ? error.name : 'Error',
+      message: (error instanceof Error ? error.message : String(error)).slice(0, 300),
+    },
+  } satisfies SearchResponse);
+  session = undefined;
 }
 function pump() {
   timer = undefined;
@@ -68,13 +78,22 @@ function pump() {
     }
     timer = setTimeout(pump, 0);
   } catch (error) {
-    if (session) self.postMessage({ revision: session.revision, error: String(error) });
-    session = undefined;
+    if (session) fault(error, 'runtime', session.revision);
   }
 }
 self.onmessage = (event: MessageEvent<Request>) => {
   try {
     const message = event.data;
+    if (message.ack) {
+      if (session?.revision !== message.revision) return;
+      inFlight = false;
+      if (queued) {
+        const next = queued;
+        queued = undefined;
+        publish(next);
+      }
+      return;
+    }
     if (message.pause) {
       if (session?.revision === message.revision) {
         session.paused = true;
@@ -99,12 +118,16 @@ self.onmessage = (event: MessageEvent<Request>) => {
       session.continuous = message.continuous ?? session.continuous;
       session.paused = false;
     } else {
+      if (!message.stage || !Array.isArray(message.templates) || typeof message.budget !== 'number')
+        throw Error('스테이지와 탐색 설정이 필요합니다.');
       const errors = issues(message.stage);
       if (errors.length) throw Error(errors[0]);
       if (!Number.isFinite(message.budget)) throw Error('작업 묶음 크기는 유한해야 합니다.');
       if (!message.global && !message.templates[0]) throw Error('조사할 예약 구성이 없습니다.');
       clearTimeout(timer);
       timer = undefined;
+      queued = undefined;
+      inFlight = false;
       const batch = Math.max(1, Math.min(8192, Math.floor(message.budget)));
       const quota = { remaining: batch, total: batch };
       session = {
@@ -119,9 +142,10 @@ self.onmessage = (event: MessageEvent<Request>) => {
           : searchSolutions(message.stage, message.templates[0], batch),
       };
       sent = 0;
+      self.postMessage({ revision: message.revision, ready: true } satisfies SearchResponse);
     }
     if (timer === undefined) timer = setTimeout(pump, 0);
   } catch (error) {
-    self.postMessage({ revision: event.data.revision, error: String(error) });
+    fault(error, 'input', event.data?.revision);
   }
 };

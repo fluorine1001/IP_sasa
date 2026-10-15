@@ -1,4 +1,6 @@
 import { paintRocket } from './rocket-sprite';
+import { paintLaunchPad } from './launch-pad';
+import { paintCraftLocator } from './craft-locator';
 import { paintGoalRegion } from './goal-region';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
@@ -395,16 +397,10 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   if (!visible('spawn') || (s.stage.spawn.placed === false && !s.run)) return { ctx, w, h };
   const surface = surfaceLaunch(s.stage, t);
   const pad = screen(surface?.position ?? s.stage.spawn.position);
-  ctx.fillStyle = '#8ab5ab';
-  ctx.strokeStyle = '#101e29';
-  ctx.lineWidth = 3;
   ctx.save();
   ctx.translate(pad.x, pad.y);
   ctx.rotate(-(surface?.angle ?? s.stage.launchAngle ?? 0));
-  if (surface) {
-    ctx.fillRect(0, -17, 4, 34);
-    ctx.strokeRect(0, -17, 4, 34);
-  }
+  if (surface) paintLaunchPad(ctx, c.zoom);
   ctx.restore();
   const sprite = (
     position: Vec,
@@ -423,6 +419,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     if (s.replay) ctx.globalAlpha = 0.72;
     ctx.translate(p.x, p.y);
     ctx.rotate(-Math.atan2(direction.y, direction.x));
+    paintCraftLocator(ctx, c.zoom, count, booster, selected);
     paintExhaust(ctx, flame, c.zoom, t, !!s.reducedMotion);
     paintRocket(ctx, count, firstPart, booster, c.zoom);
     if (selected && s.run && !s.run.impact && !s.run.landed && (s.run.rocket?.airborne ?? true)) {
@@ -440,6 +437,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(-Math.atan2(actor.direction.y, actor.direction.x));
+      paintCraftLocator(ctx, c.zoom, 1, true, actor.id === s.controlledId);
       ctx.fillStyle = '#78b5d1';
       ctx.beginPath();
       ctx.roundRect(

@@ -5,7 +5,7 @@ await mkdir(directory, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage();
 try {
-  await page.goto('http://127.0.0.1:5173/');
+  await page.goto(process.argv[2] ?? 'http://127.0.0.1:5173/');
   const assets = await page.evaluate(async () => {
     const { paintRocket } = await import('/src/render/rocket-sprite.ts');
     const { hullSize } = await import('/src/world/hull.ts');

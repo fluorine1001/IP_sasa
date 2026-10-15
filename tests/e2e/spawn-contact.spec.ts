@@ -81,11 +81,12 @@ test('천체를 로켓 쪽으로 드래그하면 접촉 직후부터 같은 표�
         const ratio = c.width / r.width,
           ctx = c.getContext('2d')!;
         return (
-          [-12, -9, -6, 6, 9, 12].reduce(
+          // The zoom-scaled deck is behind X=contact, not inside the rocket.
+          [-5, -3, -1, 1, 3, 5].reduce(
             (sum, offset) =>
               sum +
               ctx.getImageData(
-                Math.round((x - r.left + 2) * ratio),
+                Math.floor((x - r.left - 1) * ratio),
                 Math.round((y - r.top + offset) * ratio),
                 1,
                 1,

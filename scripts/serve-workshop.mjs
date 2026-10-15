@@ -30,6 +30,18 @@ if (process.env.DATABASE_URL) {
   storage = await postgresStageStorage(process.env.DATABASE_URL);
   if (process.env.STAGE_SEED_BUNDLED === '1')
     await storage.seed(await fileStageStorage(root).list());
+  if (process.env.STAGE_SEED_BUNDLED === '1') {
+    const { workshopExampleDrafts, workshopExamplesVersion } = await runtime.ssrLoadModule(
+      '/scripts/workshop-examples.ts',
+    );
+    const examples = workshopExampleDrafts();
+    await storage.seed(examples, workshopExamplesVersion);
+    let present = 0;
+    for (const entry of examples) if (await storage.get(JSON.parse(entry.raw).id)) present++;
+    console.log(
+      `Workshop example drafts: ${present}/${examples.length} present; existing edits/deletions preserved.`,
+    );
+  }
 } else storage = fileStageStorage(root);
 const api = workshopApi(
   root,

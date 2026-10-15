@@ -24,11 +24,12 @@ async function addRow(page: Page, kind: string) {
 /** Test-only entry of author verification inputs through actual UI; no solution button. */
 export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
   await page.locator('#program-toggle').click();
-  await value(
-    page,
-    '#program-launch-power',
-    (Math.hypot(plan.launch.x, plan.launch.y) / stage.rules.launchLimit) * 100,
-  );
+  if (stage.rules.launchLimit > 0)
+    await value(
+      page,
+      '#program-launch-power',
+      (Math.hypot(plan.launch.x, plan.launch.y) / stage.rules.launchLimit) * 100,
+    );
   const degrees = (v: { x: number; y: number }) =>
     (Math.atan2(
       Math.sin(Math.atan2(v.y, v.x) - (stage.launchAngle ?? 0)),
@@ -36,17 +37,21 @@ export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
     ) *
       180) /
     Math.PI;
-  if (!stage.rocket) await value(page, '#program-launch-angle', degrees(plan.launch));
+  if (!stage.rocket && stage.rules.launchLimit > 0)
+    await value(page, '#program-launch-angle', degrees(plan.launch));
   for (const c of plan.engineCommands ?? []) {
     await page.locator('[data-time="new"]').fill(String(c.time));
-    const kind = c.separate
-      ? 'separate'
-      : c.throttle !== undefined
-        ? c.throttle > 0
-          ? 'ignite'
-          : 'stop'
-        : 'turn';
+    const kind = c.releasePayload
+      ? 'deploy'
+      : c.separate
+        ? 'separate'
+        : c.throttle !== undefined
+          ? c.throttle > 0
+            ? 'ignite'
+            : 'stop'
+          : 'turn';
     const row = await addRow(page, kind);
+    expect(Number(await row.locator('[data-time]').inputValue())).toBe(c.time);
     if (c.throttle && c.throttle !== 1)
       await row.locator('[data-output]').fill(String(c.throttle * 100));
     if (c.direction && c.throttle === undefined)
@@ -60,6 +65,7 @@ export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
   for (const c of plan.impulses) {
     await page.locator('[data-time="new"]').fill(String(c.time));
     const row = await addRow(page, 'push');
+    expect(Number(await row.locator('[data-time]').inputValue())).toBe(c.time);
     await row.locator('[data-push]').fill(String(Math.hypot(c.vector.x, c.vector.y)));
     await row.locator('[data-angle]').evaluate((e: HTMLInputElement, n) => {
       e.step = 'any';

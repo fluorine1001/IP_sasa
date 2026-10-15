@@ -12,6 +12,7 @@ import type { Stage, RoutePlan, Run } from '../world/types';
 import SearchWorker from './search.worker?worker&inline';
 import BlockerWorker from './blockers.worker?worker&inline';
 import { SearchClient } from './search-client';
+import { launchBalanceMarkup } from './launch-balance';
 export function solutionSearchPanel(
   root: HTMLElement,
   signal: AbortSignal,
@@ -54,6 +55,9 @@ export function solutionSearchPanel(
       panel.querySelector('.search-results')!.append(review);
     }
     parameters();
+    panel
+      .querySelector('.search-config')!
+      .insertAdjacentHTML('beforeend', launchBalanceMarkup(getStage()));
   }
   function parameters() {
     panel.querySelector('#search-parameters')!.innerHTML =
@@ -75,7 +79,9 @@ export function solutionSearchPanel(
       return;
     }
     status.textContent = result.proof
-      ? '조건 충돌 확인 · ' + result.proof.reasons.join(' ')
+      ? result.proof.kind === 'control-envelope'
+        ? '도달 한계 확인 · 허용된 추진 전체의 도달 범위와 목표가 겹치지 않습니다.'
+        : '조건 충돌 확인 · ' + result.proof.reasons.join(' ')
       : `${paused ? '탐색 중지' : result.done ? '이번 검사 완료' : '조사 중'} · ${continuous && selected === 'all' && !paused && !result.done ? `${result.evaluated}회` : `${result.evaluated}/${result.budget}`} · 성공 ${result.successes} · 풀이 그룹 ${result.families.length} · ${(result.evaluated / Math.max(0.001, result.elapsed / 1000)).toFixed(0)}회/초`;
     const progress = panel.querySelector<HTMLProgressElement>('#search-progress')!;
     progress.max = result.budget;
@@ -83,9 +89,11 @@ export function solutionSearchPanel(
     if (continuous && selected === 'all' && !paused && !result.done)
       progress.removeAttribute('value');
     const scope = result.scope;
-    panel.querySelector('#search-coverage')!.textContent = scope
-      ? `예약 길이 ${scope.maxCommands}개까지 · 시간 창 ${scope.horizon}초 · 정밀도 ${result.coverage?.divisions ?? '-'} · 공통 구간 ${result.reuse?.prefixes ?? 0}회 재사용 · 기존 위치부터 진행`
-      : '선택한 구성·변수 범위만 조사 중';
+    panel.querySelector('#search-coverage')!.textContent = result.proof
+      ? '실제 비행 표본이 아닌 전체 허용 범위의 필요조건 검사'
+      : scope
+        ? `예약 길이 ${scope.maxCommands}개까지 · 시간 창 ${scope.horizon}초 · 정밀도 ${result.coverage?.divisions ?? '-'} · 공통 구간 ${result.reuse?.prefixes ?? 0}회 재사용 · 기존 위치부터 진행`
+        : '선택한 구성·변수 범위만 조사 중';
     const more = panel.querySelector<HTMLButtonElement>('#search-continue')!;
     more.hidden = !(
       selected === 'all' &&
@@ -118,7 +126,9 @@ export function solutionSearchPanel(
       </details></article>`,
         )
         .join('') ||
-      '<p class="search-empty">아직 성공 기록이 없습니다. 더 조사하거나 실제 비행으로 조건·기체 성능을 확인하세요.</p>';
+      (result.proof
+        ? ''
+        : '<p class="search-empty">아직 성공 기록이 없습니다. 더 조사하거나 실제 비행으로 조건·기체 성능을 확인하세요.</p>');
   }
 
   function invalidate() {

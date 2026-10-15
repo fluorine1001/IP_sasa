@@ -13,6 +13,10 @@ import type { Stage } from '../world/types';
 import { conditionDomain } from './condition-domain';
 import { FlightPrefixCache } from './flight-prefix';
 import { conicPrograms } from './conic-programs';
+import { controlEnvelope } from './control-envelope';
+import { orbitShooting } from './orbit-shooting';
+import { contactShooting } from './contact-shooting';
+import { periodicPrograms } from './periodic-programs';
 import {
   programEvents,
   commandNames,
@@ -33,7 +37,11 @@ export function* globalSearch(
 ): Generator<SearchReport> {
   if (!Number.isFinite(budget)) throw Error('유한한 검사 예산을 지정하세요.');
   budget = Math.max(1, Math.min(8192, Math.floor(budget)));
-  const proof = conditionDomain(stage);
+  const logical = conditionDomain(stage);
+  const envelope = !logical.impossible ? controlEnvelope(stage) : undefined;
+  const proof = envelope?.proofReady
+    ? conditionDomain(stage, { metricRange: envelope.metricRange })
+    : logical;
   if (proof.impossible) {
     yield {
       evaluated: 0,
@@ -46,7 +54,11 @@ export function* globalSearch(
       frontier: 0,
       continuable: false,
       families: [],
-      proof: { kind: 'predicate-domain', reasons: proof.reasons, visited: proof.visited },
+      proof: {
+        kind: logical.impossible ? 'predicate-domain' : 'control-envelope',
+        reasons: proof.reasons,
+        visited: proof.visited,
+      },
     };
     return;
   }
@@ -56,8 +68,20 @@ export function* globalSearch(
   const quota = continuation ?? { remaining: budget, total: budget };
   const start = performance.now();
   const prefixes = new FlightPrefixCache();
-  const inverse = conicPrograms(stage);
+  const shootingWork = { trials: 0, ticks: 0, steps: 0 };
+  function* inversePrograms() {
+    if (stage.rocket && !stage.launchBodyId) yield { launch: { x: 0, y: 0 }, impulses: [] };
+    yield* contactShooting(stage, { launch: { x: 0, y: 0 }, impulses: [] }, quota, shootingWork);
+    yield* periodicPrograms(stage);
+    yield* conicPrograms(stage);
+    for (const plan of orbitShooting(stage, quota, shootingWork)) {
+      yield plan;
+      if (plan) yield* contactShooting(stage, plan, quota, shootingWork);
+    }
+  }
+  const inverse = inversePrograms();
   let inverseDone = false;
+  let inversePending = false;
   type Job = {
     iterator: Generator<SearchReport>;
     report?: SearchReport;
@@ -163,8 +187,10 @@ export function* globalSearch(
       frontier: caseJobs.length + jobs.reduce((n, j) => n + (j.report?.frontier ?? 0), 0),
       families: merged,
       sensitivity: {
-        ticks: jobs.reduce((n, j) => n + (j.report?.sensitivity?.ticks ?? 0), 0),
-        passes: jobs.reduce((n, j) => n + (j.report?.sensitivity?.passes ?? 0), 0),
+        ticks:
+          shootingWork.ticks + jobs.reduce((n, j) => n + (j.report?.sensitivity?.ticks ?? 0), 0),
+        passes:
+          shootingWork.steps + jobs.reduce((n, j) => n + (j.report?.sensitivity?.passes ?? 0), 0),
         dimensions: jobs.reduce((n, j) => Math.max(n, j.report?.sensitivity?.dimensions ?? 0), 0),
         stateWidth: jobs.reduce((n, j) => Math.max(n, j.report?.sensitivity?.stateWidth ?? 0), 0),
       },
@@ -197,8 +223,11 @@ export function* globalSearch(
       // Alternate analytic boundary-graph expansion with the general grammar. The
       // operator eliminates continuous controls; only its derived trajectories are flown.
       const branch =
-        !inverseDone && (expansionTurn++ % 2 === 0 || cases.exhausted) ? inverse.next() : undefined;
+        !inverseDone && (inversePending || expansionTurn++ % 2 === 0 || cases.exhausted)
+          ? inverse.next()
+          : undefined;
       if (branch?.done) inverseDone = true;
+      if (branch) inversePending = !branch.done && !branch.value;
       if (branch && !branch.done && !branch.value) return;
       const conic = branch && !branch.done ? branch.value : undefined;
       if (
@@ -278,7 +307,7 @@ export function* globalSearch(
         active = jobs.filter((j) => !j.report?.done);
       }
       if (
-        (slot % 2 === 0 && caseJobs.some((j) => j.analytic)) ||
+        (slot % 2 === 0 && (inversePending || caseJobs.some((j) => j.analytic))) ||
         (slot % 4 === 3 && (caseJobs.length || quota.remaining > 0)) ||
         (caseJobs.length && !active.length && quota.remaining <= 0)
       ) {

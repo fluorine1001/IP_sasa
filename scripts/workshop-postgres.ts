@@ -62,12 +62,13 @@ export async function postgresStageStorage(
       );
       return result.rows[0] ? row(result.rows[0]) : undefined;
     },
-    async seed(entries) {
+    async seed(entries, version = 'seeded') {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
         const first = await client.query(
-          "INSERT INTO workshop_meta(name) VALUES('seeded') ON CONFLICT DO NOTHING RETURNING name",
+          'INSERT INTO workshop_meta(name) VALUES($1) ON CONFLICT DO NOTHING RETURNING name',
+          [version],
         );
         if (first.rows.length)
           for (const entry of entries) {

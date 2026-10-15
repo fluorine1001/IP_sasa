@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { blankStage } from '../../src/stages/factory';
 import { createMarker, compileMarker } from '../../src/stages/goal-marker';
+import { authoringHandles } from '../../src/editor/marker-feedback';
 
 test('기울어진 타원의 허용 띠는 곡선에서 같은 거리이며 폭 손잡이가 보이는 경계와 일치한다', async ({
   page,
@@ -67,8 +68,11 @@ test('기울어진 타원의 허용 띠는 곡선에서 같은 거리이며 폭 
   }
   await canvas.press('Control+z');
   await expect(page.locator('.marker-inspector')).toBeVisible();
-  const start = screen(1.42 * Math.cos(0.5), 1.42 * Math.sin(0.5)),
-    end = screen(1.65 * Math.cos(0.5), 1.65 * Math.sin(0.5));
+  const handle = authoringHandles(s, g, s.camera, r.width, r.height).find(
+    (h) => h.kind === 'width',
+  )!;
+  const start = screen(handle.position.x, handle.position.y),
+    end = { x: start.x + 0.23 * Math.cos(0.5) * 80, y: start.y - 0.23 * Math.sin(0.5) * 80 };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(end.x, end.y, { steps: 6 });

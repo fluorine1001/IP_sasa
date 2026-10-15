@@ -3,54 +3,136 @@ import type { Stage } from '../world/types';
 import { objectiveGoals } from '../world/goals';
 import { missionTimeLimit } from '../world/program';
 import { WORLD_STEP } from '../world/engine';
+import {
+  adjacent as next,
+  enclosing,
+  intersection as intersect,
+  valid,
+  whole as full,
+  point,
+  plus,
+  minus,
+  times,
+  divided,
+  squared,
+  root,
+  type Interval as Range,
+} from './interval';
 
-type Range = { lo: number; hi: number };
 type Box = Map<string, Range>;
 type Binding = { actor?: string; target?: string };
-const full = (): Range => ({ lo: -Infinity, hi: Infinity });
-const bits = new DataView(new ArrayBuffer(8));
-/** Outward rounding for IEEE-754 arithmetic, including subnormal zero. */
-function next(x: number, up: boolean) {
-  if (Number.isNaN(x) || x === (up ? Infinity : -Infinity)) return x;
-  if (x === 0) return up ? Number.MIN_VALUE : -Number.MIN_VALUE;
-  bits.setFloat64(0, x);
-  bits.setBigUint64(0, bits.getBigUint64(0) + (x > 0 === up ? 1n : -1n));
-  return bits.getFloat64(0);
-}
-const enclosing = (lo: number, hi: number): Range =>
-  Number.isNaN(lo) || Number.isNaN(hi) ? full() : { lo: next(lo, false), hi: next(hi, true) };
-const intersect = (a: Range, b: Range): Range => ({
-  lo: Math.max(a.lo, b.lo),
-  hi: Math.min(a.hi, b.hi),
-});
-const valid = (r: Range) => r.lo <= r.hi;
 const volatile = new Set(['angularTravel', 'traveledDistance', 'orbitTurns']);
+export type DomainOptions = {
+  /** Must contain EVERY reachable value, including earlier temporal phases.
+   * A sampled min/max or a local gradient is not a valid implementation. */
+  metricRange?: (e: Extract<Expression, { kind: 'metric' }>, horizon: number) => Range | undefined;
+};
 
 /** Necessary-condition contractor over entire predicate domains, NOT a sampled
  * reachability proof. Unknown dynamics stay unbounded; they are never rejected.
  * Each simultaneous block shares bounds. Different temporal phases do not. */
-export function conditionDomain(stage: Stage) {
+export function conditionDomain(stage: Stage, options: DomainOptions = {}) {
   let visited = 0;
+  let revision = 0;
   const reasons: string[] = [];
+  const work = {
+    expressions: 0,
+    cacheHits: 0,
+    invalidations: 0,
+    symbolicNodes: 0,
+    symbolicBytes: 0,
+  };
+  const symbols = new Map<string, string>();
+  const parents = new Map<string, Set<string>>();
+  const keys = new WeakMap<Expression, Map<string, string | undefined>>();
+  const ranges = new WeakMap<Box, Map<number, Map<string, Range>>>();
+  function intern(signature: unknown[], children: string[] = []) {
+    const text = JSON.stringify(signature);
+    const old = symbols.get(text);
+    if (old) return old;
+    const id = `n${symbols.size}`;
+    symbols.set(text, id);
+    work.symbolicNodes++;
+    work.symbolicBytes += text.length;
+    for (const child of children) {
+      const users = parents.get(child) ?? new Set<string>();
+      users.add(id);
+      parents.set(child, users);
+    }
+    return id;
+  }
+  function cacheFor(box: Box, horizon: number) {
+    let horizons = ranges.get(box);
+    if (!horizons) {
+      horizons = new Map();
+      ranges.set(box, horizons);
+    }
+    let cached = horizons.get(horizon);
+    if (!cached) {
+      cached = new Map();
+      horizons.set(horizon, cached);
+    }
+    return cached;
+  }
+  function invalidate(box: Box, id: string) {
+    const horizons = ranges.get(box);
+    if (!horizons) return;
+    const queue = [id],
+      seen = new Set<string>();
+    while (queue.length) {
+      const at = queue.pop()!;
+      if (seen.has(at)) continue;
+      seen.add(at);
+      let removed = false;
+      for (const cached of horizons.values())
+        if (cached.delete(at)) {
+          work.invalidations++;
+          removed = true;
+        }
+      // A cached parent always has cached inputs. Once that parent was removed,
+      // walking its ancestors again for every descendant would be quadratic.
+      if (removed) queue.push(...(parents.get(at) ?? []));
+    }
+  }
   function key(e: Expression, b: Binding): string | undefined {
+    const binding = JSON.stringify([b.actor, b.target]);
+    let entries = keys.get(e);
+    if (!entries) {
+      entries = new Map();
+      keys.set(e, entries);
+    }
+    if (entries.has(binding)) return entries.get(binding);
+    const result = expressionKey(e, b);
+    entries.set(binding, result);
+    return result;
+  }
+  function expressionKey(e: Expression, b: Binding): string | undefined {
     if (e.kind === 'metric') {
       if (volatile.has(e.metric)) return;
-      return JSON.stringify([
+      return intern([
+        'metric',
         e.metric,
         e.actorId === '$actor' ? b.actor : (e.actorId ?? 'craft'),
         e.targetId === '$target' ? b.target : e.targetId,
       ]);
     }
     if (e.kind === 'calculate') {
-      const keys = e.args.map((a) => key(a, b));
-      return keys.every((v) => v !== undefined)
-        ? JSON.stringify([e.operation, ...keys])
+      const inputs = e.args.map((a) => key(a, b));
+      return inputs.every((v): v is string => v !== undefined)
+        ? intern([e.operation, ...inputs], inputs)
         : undefined;
     }
-    if (e.kind === 'constant') return `=${e.value}`;
+    if (e.kind === 'constant') return intern(['constant', Object.is(e.value, -0) ? '-0' : e.value]);
   }
   function range(e: Expression, box: Box, b: Binding, horizon: number): Range {
     const k = key(e, b);
+    const cached = k ? cacheFor(box, horizon) : undefined;
+    const old = k ? cached?.get(k) : undefined;
+    if (old) {
+      work.cacheHits++;
+      return old;
+    }
+    work.expressions++;
     let r = full();
     if (e.kind === 'constant') r = { lo: e.value, hi: e.value };
     if (e.kind === 'metric') {
@@ -108,31 +190,24 @@ export function conditionDomain(stage: Stage) {
         )
         .filter(Number.isFinite);
       if (limits?.length) r = { lo: Math.min(...limits), hi: Math.max(...limits) };
+      const physical = options.metricRange?.(
+        { ...e, actorId: actor, targetId: target ?? '' },
+        horizon,
+      );
+      if (physical) r = intersect(r, physical);
     }
     if (e.kind === 'calculate') {
       const a = e.args.map((v) => range(v, box, b, horizon));
-      if (e.operation === 'add')
-        r = a.reduce((x, y) => enclosing(x.lo + y.lo, x.hi + y.hi), { lo: 0, hi: 0 });
-      if (e.operation === 'subtract') r = enclosing(a[0].lo - a[1].hi, a[0].hi - a[1].lo);
+      if (e.operation === 'add') r = a.reduce(plus, point(0));
+      if (e.operation === 'subtract') r = minus(a[0], a[1]);
       if (e.operation === 'multiply')
-        r = a.reduce(
-          (x, y) => {
-            const products = [x.lo * y.lo, x.lo * y.hi, x.hi * y.lo, x.hi * y.hi];
-            return products.some(Number.isNaN)
-              ? full()
-              : enclosing(Math.min(...products), Math.max(...products));
-          },
-          { lo: 1, hi: 1 },
-        );
-      if (e.operation === 'divide' && !(a[1].lo <= 0 && a[1].hi >= 0)) {
-        const products = [
-          a[0].lo / a[1].lo,
-          a[0].lo / a[1].hi,
-          a[0].hi / a[1].lo,
-          a[0].hi / a[1].hi,
-        ];
-        r = enclosing(Math.min(...products), Math.max(...products));
-      }
+        r =
+          a.length === 2 &&
+          key(e.args[0], b) !== undefined &&
+          key(e.args[0], b) === key(e.args[1], b)
+            ? squared(a[0])
+            : a.reduce(times, point(1));
+      if (e.operation === 'divide') r = divided(a[0], a[1]);
       if (e.operation === 'abs')
         r = {
           lo: a[0].lo <= 0 && a[0].hi >= 0 ? 0 : Math.min(Math.abs(a[0].lo), Math.abs(a[0].hi)),
@@ -149,13 +224,84 @@ export function conditionDomain(stage: Stage) {
       if (e.operation === 'max')
         r = { lo: Math.max(...a.map((v) => v.lo)), hi: Math.max(...a.map((v) => v.hi)) };
     }
-    return k && box.has(k) ? intersect(r, box.get(k)!) : r;
+    const result = k && box.has(k) ? intersect(r, box.get(k)!) : r;
+    if (k) cached!.set(k, result);
+    return result;
   }
-  function narrow(e: Expression, r: Range, box: Box, b: Binding, horizon: number) {
+  function narrow(
+    e: Expression,
+    r: Range,
+    box: Box,
+    b: Binding,
+    horizon: number,
+    depth = 0,
+  ): boolean {
+    if (depth > 64 || visited++ >= 32768) return true;
     r = intersect(range(e, box, b, horizon), r);
     if (!valid(r)) return false;
     const k = key(e, b);
-    if (k && e.kind !== 'constant') box.set(k, r);
+    if (k && e.kind !== 'constant') {
+      const old = box.get(k);
+      if (!old || r.lo > old.lo || r.hi < old.hi) {
+        box.set(k, r);
+        invalidate(box, k);
+        revision++;
+      }
+    }
+    if (e.kind !== 'calculate') return true;
+    const a = e.args.map((x) => range(x, box, b, horizon));
+    // Undo the final rounded arithmetic operation with one extra output ulp.
+    // Inverting a rounded result as an exact equation would lose edge solutions.
+    const output = enclosing(r.lo, r.hi);
+    const back = (i: number, bound: Range) => narrow(e.args[i], bound, box, b, horizon, depth + 1);
+    if (e.operation === 'subtract')
+      return back(0, plus(output, a[1])) && back(1, minus(a[0], output));
+    if (e.operation === 'divide')
+      return back(0, times(output, a[1])) && back(1, divided(a[0], output));
+    if (e.operation === 'add' || e.operation === 'multiply') {
+      if (
+        e.operation === 'multiply' &&
+        a.length === 2 &&
+        k &&
+        key(e.args[0], b) !== undefined &&
+        key(e.args[0], b) === key(e.args[1], b)
+      ) {
+        const s = root(output);
+        const bound =
+          a[0].lo >= 0 ? s : a[0].hi <= 0 ? { lo: -s.hi, hi: -s.lo } : { lo: -s.hi, hi: s.hi };
+        return back(0, bound) && back(1, bound);
+      }
+      // Invert the ORIGINAL left fold, one rounded operation at a time. A sum
+      // of all other operands would reassociate floating-point cancellation.
+      // Cached forward prefixes keep this pass linear in the expression arity.
+      const op = e.operation === 'add' ? plus : times;
+      const identity = point(e.operation === 'add' ? 0 : 1);
+      const prefix = [identity];
+      for (const item of a) prefix.push(op(prefix.at(-1)!, item));
+      let allowed = r;
+      for (let i = a.length - 1; i >= 0; i--) {
+        const rounded = enclosing(allowed.lo, allowed.hi);
+        const inverse = e.operation === 'add' ? minus : divided;
+        if (!back(i, inverse(rounded, prefix[i]))) return false;
+        allowed = intersect(prefix[i], inverse(rounded, a[i]));
+        if (!valid(allowed)) return false;
+      }
+    }
+    if (e.operation === 'abs') {
+      const bound =
+        a[0].lo >= 0
+          ? output
+          : a[0].hi <= 0
+            ? { lo: -output.hi, hi: -output.lo }
+            : { lo: -output.hi, hi: output.hi };
+      return back(0, bound);
+    }
+    if (e.operation === 'min' || e.operation === 'max') {
+      const min = e.operation === 'min';
+      for (let i = 0; i < a.length; i++)
+        if (!back(i, min ? { lo: output.lo, hi: Infinity } : { lo: -Infinity, hi: output.hi }))
+          return false;
+    }
     return true;
   }
   function feasible(
@@ -194,9 +340,12 @@ export function conditionDomain(stage: Stage) {
         c.kind === 'all' ? c.children.flatMap(flat) : [c];
       const children = node.children.flatMap(flat);
       // Bounded fixpoint; stopping contraction early is conservative.
-      for (let pass = 0; pass < 4; pass++)
+      for (let pass = 0; pass < 32 && visited < 32768; pass++) {
+        const before = revision;
         for (const child of children)
           if (!feasible(child, box, b, horizon, window, refs)) return false;
+        if (revision === before) break;
+      }
       return true;
     }
     if (node.kind === 'any')
@@ -263,5 +412,6 @@ export function conditionDomain(stage: Stage) {
       (stage.goalMode === 'all' ? results.includes(false) : results.every((v) => !v)),
     reasons,
     visited,
+    work,
   };
 }

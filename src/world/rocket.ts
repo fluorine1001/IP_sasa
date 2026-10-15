@@ -157,13 +157,16 @@ export function controlEngine(
   const booster =
       actorId === 'craft'
         ? undefined
-        : run.detached.find((a) => a.id === actorId && a.status === 'flying'),
+        : run.detached.find((a) => a.id === actorId && a.status !== 'crashed'),
     state = booster ?? run.rocket,
     part =
       stage.rocket.parts[
         booster ? stage.rocket.parts.findIndex((p) => p.id === booster.id) : run.rocket.partIndex
       ];
   if (!part || (actorId !== 'craft' && !booster)) return false;
+  // Touchdown already extinguishes a detached engine. A scheduled cutoff is
+  // idempotent, not a failed ignition or an unsupported ground relaunch.
+  if (booster?.status === 'landed') return throttle === 0 && !direction;
   if (direction && length(direction) > 1e-8) state.targetDirection = unit(direction);
   if (throttle !== undefined) {
     const value = Math.max(0, Math.min(1, throttle)),

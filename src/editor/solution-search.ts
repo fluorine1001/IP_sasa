@@ -73,7 +73,7 @@ export type SearchReport = {
   quality?: number;
   profiles?: { program: string; evaluated: number; quality: number }[];
   coverage?: { divisions: number | string; checked: string; total?: string; exhausted: boolean };
-  proof?: { kind: 'predicate-domain'; reasons: string[]; visited: number };
+  proof?: { kind: 'predicate-domain' | 'control-envelope'; reasons: string[]; visited: number };
   reuse?: { prefixes: number; terminal: number; savedSeconds: number };
   sensitivity?: { ticks: number; passes: number; dimensions: number; stateWidth: number };
 };

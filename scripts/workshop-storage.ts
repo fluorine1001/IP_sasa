@@ -22,7 +22,7 @@ export interface StageStorage {
     expected: string | undefined,
   ): Promise<{ revision?: string }>;
   close?(): Promise<void>;
-  seed?(entries: StoredStage[]): Promise<void>;
+  seed?(entries: StoredStage[], version?: string): Promise<void>;
 }
 export function fileStageStorage(root: string): StageStorage {
   const directory = path.resolve(root, 'data/stages');

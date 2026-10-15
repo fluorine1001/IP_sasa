@@ -21,6 +21,44 @@
   font-size: 11px;
   padding: 8px;
 }
+.launch-balance {
+  flex-basis: 100%;
+  border-top: 1px solid #87c4ac55;
+  padding-top: 8px;
+  font-size: 12px;
+}
+.launch-balance summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.launch-balance summary::before {
+  content: '▸';
+  color: #efb95c;
+}
+.launch-balance[open] summary::before {
+  content: '▾';
+}
+.launch-balance svg {
+  width: 158px;
+  height: 36px;
+}
+.launch-balance svg text {
+  font: 11px sans-serif;
+  fill: #d5e3df;
+}
+.launch-balance svg path {
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.launch-balance p {
+  max-width: 600px;
+  margin: 8px 0;
+  color: #bbcfcc;
+  line-height: 1.6;
+}
 .editor-menu {
   flex: 0 0 auto;
 }

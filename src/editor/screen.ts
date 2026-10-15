@@ -17,6 +17,7 @@ import {
   authoringHandles,
   gaugeValue,
   handlePhysicalPoint,
+  hitAuthoringHandle,
   paintAuthoringFeedback,
   type AuthoringHandle,
 } from './marker-feedback';
@@ -1379,17 +1380,18 @@ export function editorScreen(app: App): Screen {
             camera,
             bounds.width,
             bounds.height,
-          ).find((point) => length(sub(point.position, p)) * camera.zoom < 12);
+          ).find((point) => hitAuthoringHandle(point, p, camera, bounds.width, bounds.height));
           if (handle) {
             if (!hits.includes(goal.id)) hits.unshift(goal.id);
             drag = {
               screenStart,
-              tap,
+              // A named editing control must not cycle into objects under its label.
+              tap: undefined,
               marker: {
                 goalId: goal.id,
                 kind: handle.kind,
                 original: structuredClone(goal),
-                grabOffset: sub(handle.position, p),
+                grabOffset: sub(handle.physicalPosition ?? handle.position, p),
               },
               pan: false,
               start: p,

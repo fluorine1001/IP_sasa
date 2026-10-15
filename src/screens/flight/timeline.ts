@@ -92,13 +92,15 @@ export function flightTimeline(
   };
   function selectTime(time: number) {
     if (!editable() || !Number.isFinite(time)) return;
-    selectedTime = Math.max(0, Math.min(planningTimeLimit(stage), Number(time.toFixed(2))));
+    // Formatting a clock must not silently change the requested control time.
+    // In particular an editor representative must remain the same plan in play.
+    selectedTime = Math.max(0, Math.min(planningTimeLimit(stage), time));
     action?.('choose-time');
     viewDuration = Math.max(viewDuration, selectedTime);
     planner.deselect();
     update();
     const field = root.querySelector<HTMLInputElement>('[data-time="new"]');
-    if (field && field !== document.activeElement) field.value = selectedTime.toFixed(2);
+    if (field && field !== document.activeElement) field.value = String(selectedTime);
   }
   function degrees(v: { x: number; y: number }) {
     let d = ((Math.atan2(v.y, v.x) - (stage.launchAngle ?? 0)) * 180) / Math.PI;
@@ -118,7 +120,7 @@ export function flightTimeline(
     '" type="number" min="0" ' +
     (Number.isFinite(planningTimeLimit(stage)) ? 'max="' + planningTimeLimit(stage) + '" ' : '') +
     'step="0.01" value="' +
-    t.toFixed(2) +
+    t +
     '" aria-label="예약 시각"> 초</label>';
   function refreshFields() {
     if (!editorOpen) return;

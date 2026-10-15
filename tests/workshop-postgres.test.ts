@@ -2,6 +2,7 @@ import { it, expect } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { postgresStageStorage, type SqlPool } from '../scripts/workshop-postgres';
 import { blankStage } from '../src/stages/factory';
+import { workshopExampleDrafts, workshopExamplesVersion } from '../scripts/workshop-examples';
 it('이식 가능한 실제 PostgreSQL 저장은 다중 제작자 충돌·삭제 보존·복원을 원자적으로 처리한다', async () => {
   const db = new PGlite();
   const query = (sql: string, params?: unknown[]) => db.query<Record<string, unknown>>(sql, params);
@@ -43,6 +44,38 @@ it('이식 가능한 실제 PostgreSQL 저장은 다중 제작자 충돌·삭제
     expect((await query('SELECT * FROM workshop_history')).rows).toHaveLength(2);
     await a.mutate('POST', stage.id, raw, undefined);
     expect((await b.get(stage.id))!.raw).toBe(raw);
+    const examples = workshopExampleDrafts();
+    expect(examples).toHaveLength(18);
+    const ids = examples.map((e) => JSON.parse(e.raw).id as string);
+    expect(new Set(ids).size).toBe(18);
+    expect(workshopExampleDrafts().map((e) => JSON.parse(e.raw).id)).toEqual(ids);
+    expect(
+      examples.every(
+        (e) => !JSON.parse(e.raw).published && JSON.parse(e.raw).referencePlans.length === 0,
+      ),
+    ).toBe(true);
+    // A named, one-shot deployment batch works after the original catalog seed.
+    await a.seed!(examples, workshopExamplesVersion);
+    expect(await b.list()).toHaveLength(19);
+    for (const entry of examples) expect(await b.get(JSON.parse(entry.raw).id)).toEqual(entry);
+    const original = (await a.get(ids[0]))!;
+    const edited = JSON.stringify({ ...JSON.parse(original.raw), title: '제작자가 수정한 사례' });
+    const saved = await b.mutate('PUT', ids[0], edited, original.revision);
+    const removed = (await a.get(ids[1]))!;
+    await a.mutate('DELETE', ids[1], undefined, removed.revision);
+    await Promise.all([
+      a.seed!(workshopExampleDrafts(), workshopExamplesVersion),
+      b.seed!(examples, workshopExamplesVersion),
+    ]);
+    expect((await a.get(ids[0]))!.raw).toBe(edited);
+    expect((await a.get(ids[0]))!.revision).toBe(saved.revision);
+    expect(await a.get(ids[1])).toBeUndefined();
+    expect((await a.get(stage.id))!.raw).toBe(raw);
+    expect(await a.list()).toHaveLength(18);
+    // Even a future batch containing the old UUID cannot resurrect a tombstone.
+    await a.seed!(examples, 'future-example-batch');
+    expect(await b.get(ids[1])).toBeUndefined();
+    expect((await b.get(ids[0]))!.raw).toBe(edited);
   } finally {
     await db.close();
   }

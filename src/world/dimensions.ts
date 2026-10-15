@@ -14,10 +14,12 @@ const units: Record<string, Dimension> = {
   '질량/u/t²': [-1, -2],
   '질량/u³': [-3, 0],
   질량: zero,
+  비율: zero,
   개: zero,
   회: zero,
   rad: zero,
   '0~1': zero,
+  '0 또는 1': zero,
   '게임 열 단위': [3.5, -2],
 };
 export function scaleConditions(source: Condition, lengthScale: number, timeScale: number) {

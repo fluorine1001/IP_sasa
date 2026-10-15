@@ -5,7 +5,14 @@ import { markerAxis } from './marker-inspector';
 import { metrics } from '../world/metrics';
 import type { Goal, Stage } from '../world/types';
 import type { Vec } from '../physics/vector';
-export type AuthoringHandle = { kind: MarkerHandle['kind'] | 'lower' | 'upper'; position: Vec };
+import { layoutHandles, type HandleBox } from './handle-layout';
+export type AuthoringHandle = {
+  kind: MarkerHandle['kind'] | 'lower' | 'upper';
+  position: Vec;
+  physicalPosition?: Vec;
+  box?: HandleBox;
+  label?: string;
+};
 function gauge(stage: Stage, goal: Goal, camera: Camera, w: number, h: number) {
   const p = toScreen(goal.position, camera, w, h);
   return {
@@ -23,6 +30,25 @@ export function authoringHandles(
   h: number,
 ): AuthoringHandle[] {
   if (goal.marker?.managed === false) return [];
+  if (goal.marker?.kind === 'orbit') {
+    const raw = markerHandles(stage, goal);
+    const labels = { radius: '긴 반경', minor: '짧은 반경', width: '허용 폭', angle: '방향' };
+    return layoutHandles(
+      raw.map((handle) => ({
+        kind: handle.kind,
+        label: labels[handle.kind as keyof typeof labels] ?? handle.kind,
+        anchor: toScreen(handle.position, camera, w, h),
+      })),
+      w,
+      h,
+    ).map((handle) => ({
+      kind: handle.kind,
+      position: toWorld(handle.position, camera, w, h),
+      physicalPosition: raw.find((h) => h.kind === handle.kind)!.position,
+      box: handle.box,
+      label: handle.label,
+    }));
+  }
   if (goal.marker?.kind !== 'state')
     return markerHandles(stage, goal).map((handle) => {
       const m = goal.marker!;
@@ -79,6 +105,20 @@ export function authoringHandles(
       ? []
       : [{ kind: 'upper' as const, position: position(m.upper, true) }]),
   ];
+}
+export function hitAuthoringHandle(
+  handle: AuthoringHandle,
+  point: Vec,
+  camera: Camera,
+  w: number,
+  h: number,
+) {
+  const p = toScreen(point, camera, w, h);
+  if (handle.box) {
+    const b = handle.box;
+    return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+  }
+  return Math.hypot(point.x - handle.position.x, point.y - handle.position.y) * camera.zoom < 12;
 }
 /** A leader expands the hit target, not the physical acceptance set. Undo its screen offset. */
 export function handlePhysicalPoint(
@@ -190,8 +230,8 @@ export function paintAuthoringFeedback(
     arrow(peri.x, peri.y, Math.sin(a) * 32, Math.cos(a) * 32);
     ctx.fillText(
       m.span === 'revolution' ? '↻ 실제 한 바퀴 · 엔진 꺼짐' : '궤도 형태 · 엔진 꺼짐',
-      Math.max(8, Math.min(w - 220, peri.x + 12)),
-      Math.max(28, peri.y - 42),
+      12,
+      22,
     );
     const center = toScreen(referencePosition(stage, body.id)!, camera, w, h);
     ctx.fillStyle = '#ce746431';
@@ -291,6 +331,15 @@ export function paintAuthoringFeedback(
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
+      if (handle.box) {
+        const b = handle.box;
+        ctx.fillStyle = '#17303bf0';
+        ctx.strokeStyle = '#a9d6ba';
+        ctx.beginPath();
+        ctx.roundRect(b.x, b.y, b.width, b.height, 6);
+        ctx.fill();
+        ctx.stroke();
+      }
       ctx.fillStyle = '#f4d284';
       ctx.strokeStyle = '#17303b';
       ctx.lineWidth = 2;
@@ -298,6 +347,11 @@ export function paintAuthoringFeedback(
       ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+    }
+    if (handle.box) {
+      ctx.fillStyle = '#f4d284';
+      ctx.fillText(handle.label!, handle.box.x + 24, handle.box.y + 18);
+      continue;
     }
     const label = labels[handle.kind];
     const labelY =

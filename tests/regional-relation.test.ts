@@ -32,6 +32,23 @@ it('불확실한 사건과 선택하지 않은 미정의 식을 임의로 확정
   expect(r.enclosure(r.lte(x, r.literal(0))).range).toEqual({ lo: 0, hi: 1 });
 });
 
+it('공유 시간 차의 상쇄로 사건 도달과 다음 스텝의 지배 분기를 집합 전체에서 확정한다', () => {
+  const r = regionalRelation({ now: [{ lo: 0, hi: 0.01 }], event: [{ lo: 0.02, hi: 0.03 }] }),
+    now = r.input('now'),
+    event = r.input('event');
+  const arrival = r.add(now, r.subtract(event, now)),
+    due = r.lte(event, r.add(arrival, r.literal(1e-8))),
+    rest = r.subtract(r.literal(0.1), arrival);
+  expect(r.constantValue(due)).toBe(1);
+  expect(r.min(r.literal(0.01), rest)).toBe(r.literal(0.01));
+  expect(r.enclosure(arrival).range.lo).toBeGreaterThan(0.019999999);
+  expect(r.enclosure(arrival).range.hi).toBeLessThan(0.030000001);
+  // Undefined expressions cannot be cancelled to invent a defined result.
+  const bad = r.divide(r.literal(1), r.literal(0));
+  expect(r.enclosure(r.subtract(r.add(bad, event), bad)).defined).toBe(false);
+  expect(r.constantValue(r.hypot(r.literal(0), r.literal(0)))).toBe(0);
+});
+
 it('비선형 공유 DAG의 영역 재컴파일은 수치 실행을 보존하고 전방 범위가 모든 대조점을 포함한다', () => {
   const source = new NonlinearRelation(),
     x = source.input('x'),

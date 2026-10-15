@@ -26,7 +26,7 @@ export function* successProjection(
   relation: NonlinearRelation,
   success: Term,
   bounds: Readonly<Record<string, RealDomain>>,
-  options: { cells?: number; resolution?: number; work?: number } = {},
+  options: { cells?: number; resolution?: number; work?: number; interiorFirst?: boolean } = {},
 ): Generator<ProjectionStep> {
   const limit = options.cells ?? 256,
     resolution = options.resolution ?? 1e-5;
@@ -35,6 +35,7 @@ export function* successProjection(
   const initial = Object.fromEntries(Object.entries(bounds).map(([k, v]) => [k, normalize(v)]));
   if (Object.values(initial).some((d) => !d.length)) return;
   const queue: Record<string, RealDomain>[] = [initial];
+  let interior: Record<string, RealDomain> | undefined;
   const relevant = new Set(relation.inputs([success]));
   let cursor = 0,
     boundaries = 0,
@@ -42,16 +43,17 @@ export function* successProjection(
   const statistics = { cells: 0, visits: 0, excluded: 0, pointEvaluations: 0 as const };
   const report = (accepted: ProjectionCell[] = []): ProjectionStep => ({
     accepted,
-    complete: cursor === queue.length && boundaries === 0,
-    pending: queue.length - cursor + boundaries,
+    complete: cursor === queue.length && !interior && boundaries === 0,
+    pending: queue.length - cursor + Number(!!interior) + boundaries,
     statistics: { ...statistics },
   });
-  while (cursor < queue.length && statistics.cells < limit) {
+  while ((interior || cursor < queue.length) && statistics.cells < limit) {
     if (cursor >= 1024) {
       queue.splice(0, cursor);
       cursor = 0;
     }
-    const current = queue[cursor++];
+    const current = interior ?? queue[cursor++];
+    interior = undefined;
     statistics.cells++;
     const specialised = regionalRelation(current);
     let [predicate] = relation.rebase([success], specialised);
@@ -159,10 +161,25 @@ export function* successProjection(
       yield report();
       continue;
     }
-    queue.push(
-      { ...yes.domains, [key]: [{ lo, hi: mid }] },
-      { ...yes.domains, [key]: [{ lo: mid, hi }] },
-    );
+    if (options.interiorFirst && Number.isFinite(hi - lo)) {
+      // An inner BOX, never a sampled flight. Preserve both outer slabs in the
+      // fair FIFO and refine the core first; this avoids spending a whole level
+      // of breadth-first work before any robust region becomes provable.
+      const lower = lo / 2 + mid / 2,
+        upper = mid / 2 + hi / 2;
+      if (lo < lower && lower < upper && upper < hi) {
+        queue.push(
+          { ...yes.domains, [key]: [{ lo, hi: lower }] },
+          { ...yes.domains, [key]: [{ lo: upper, hi }] },
+        );
+        interior = { ...yes.domains, [key]: [{ lo: lower, hi: upper }] };
+      }
+    }
+    if (!interior)
+      queue.push(
+        { ...yes.domains, [key]: [{ lo, hi: mid }] },
+        { ...yes.domains, [key]: [{ lo: mid, hi }] },
+      );
     yield report();
   }
   yield report();

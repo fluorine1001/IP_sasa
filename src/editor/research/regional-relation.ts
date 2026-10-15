@@ -2,6 +2,7 @@ import { NonlinearRelation, type Term } from './nonlinear-relation';
 import * as I from '../interval';
 import { equal, intersect, normalize, type RealDomain } from './real-domains';
 import { logDomains } from './log-domain';
+import { AdditiveEnclosure } from './additive-enclosure';
 
 /** Region-specialised real relation. A single forward enclosure per DAG node
  * proves constant guards before they duplicate fuel/history modes. No control
@@ -20,6 +21,7 @@ export function regionalRelation(
     r.constantValue(t);
     return metadata.get(t.id) ?? { range: I.whole(), defined: false };
   };
+  const additive = new AdditiveEnclosure((t) => read(t).range);
   const record = (t: Term, range: I.Interval, defined: boolean) => {
     const value = r.constantValue(t);
     metadata.set(
@@ -57,11 +59,24 @@ export function regionalRelation(
       if ((op === 'add' || op === 'subtract') && v === 0) return x;
       if (op === 'subtract' && x === y && a.defined) return r.literal(0);
       if (op === 'divide' && v === 1) return x;
+      if (op === 'hypot' && u === 0 && v === 0) return r.literal(0);
       if ((op === 'min' || op === 'max') && x === y) return x;
+      const defined = a.defined && b.defined;
+      if (defined && (op === 'min' || op === 'max')) {
+        const d = additive.difference(x, y) ?? I.minus(a.range, b.range);
+        if (d.hi <= 0) return op === 'min' ? x : y;
+        if (d.lo >= 0) return op === 'min' ? y : x;
+      }
+      const term = base(x, y);
+      let enclosure = range(a.range, b.range);
+      if (defined && (op === 'add' || op === 'subtract')) {
+        const linear = additive.sum(term, x, y, op === 'add' ? 1 : -1);
+        if (linear) enclosure = I.intersection(enclosure, linear);
+      }
       return record(
-        base(x, y),
-        range(a.range, b.range),
-        a.defined && b.defined && (op !== 'divide' || b.range.lo > 0 || b.range.hi < 0),
+        term,
+        enclosure,
+        defined && (op !== 'divide' || b.range.lo > 0 || b.range.hi < 0),
       );
     };
   };
@@ -100,8 +115,9 @@ export function regionalRelation(
       const a = read(x),
         b = read(y);
       if (a.defined && b.defined) {
-        const yes = op === 'lt' ? a.range.hi < b.range.lo : a.range.hi <= b.range.lo;
-        const no = op === 'lt' ? a.range.lo >= b.range.hi : a.range.lo > b.range.hi;
+        const d = additive.difference(x, y) ?? I.minus(a.range, b.range);
+        const yes = op === 'lt' ? d.hi < 0 : d.hi <= 0;
+        const no = op === 'lt' ? d.lo >= 0 : d.lo > 0;
         if (yes || no) return r.literal(Number(yes));
       }
       return record(base(x, y), { lo: 0, hi: 1 }, a.defined && b.defined);

@@ -3,6 +3,64 @@ import { emptyStage } from '../../src/stages/factory';
 import { documentsKey } from '../../src/editor/documents';
 import { removeFixtureStageFiles } from './helpers';
 
+test('새 서버 파일의 생성·수정·삭제가 열린 제작 문서와 보관함을 새로고침하지 않는다', async ({
+  page,
+  request,
+}) => {
+  const stage = emptyStage();
+  stage.title = 'HMR 회귀 임시 문서';
+  let revision: string | undefined;
+  try {
+    await page.goto('/editor.html');
+    await page.locator('#search-auto').uncheck();
+    await page.locator('#open-library').click();
+    await page.evaluate(
+      () => (document.documentElement.dataset.workshopInstance = 'keep-this-document'),
+    );
+    const create = await request.post('/api/workshop/stages?release=draft', { data: stage });
+    expect(create.ok()).toBe(true);
+    revision = (await create.json()).revision;
+    // Negative event assertion: allow the asynchronous filesystem watcher and
+    // websocket message to settle, not the game's simulation or UI animation.
+    await page.waitForTimeout(700);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-workshop-instance',
+      'keep-this-document',
+    );
+    await expect(page.locator('#stage-library')).toBeVisible();
+    expect(await (await request.get('/src/stages/catalog.ts')).text()).toContain(stage.id);
+    const update = await request.put('/api/workshop/stages/' + stage.id + '?release=draft', {
+      data: { ...stage, title: 'HMR 수정' },
+      headers: { 'If-Match': revision! },
+    });
+    expect(update.ok()).toBe(true);
+    revision = (await update.json()).revision;
+    expect(
+      (
+        await request.delete('/api/workshop/stages/' + stage.id, {
+          headers: { 'If-Match': revision! },
+        })
+      ).ok(),
+    ).toBe(true);
+    revision = undefined;
+    removeFixtureStageFiles(stage.id);
+    await page.waitForTimeout(700);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-workshop-instance',
+      'keep-this-document',
+    );
+    await expect(page.locator('#stage-library')).toBeVisible();
+    expect(await (await request.get('/src/stages/catalog.ts')).text()).not.toContain(stage.id);
+  } finally {
+    await page.close();
+    if (revision)
+      await request.delete('/api/workshop/stages/' + stage.id, {
+        headers: { 'If-Match': revision },
+      });
+    removeFixtureStageFiles(stage.id);
+  }
+});
+
 for (const width of [390, 1440])
   test(`스테이지 목록에서 로컬 생성·이름·왕복·휴지통 복원 ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });

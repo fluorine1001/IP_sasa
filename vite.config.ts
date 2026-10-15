@@ -8,11 +8,20 @@ function stageWorkshop(): Plugin {
   return {
     name: 'local-stage-workshop',
     apply: 'serve',
-    handleHotUpdate({ file }) {
-      // Stage writes are data, not code edits. Reloading the editor here drops
-      // its open library and tab-only credentials during a rename/save. Public
-      // menus read the live API; manual reload still refreshes bundled imports.
-      if (/\/data\/(stages|releases)\/[^/]+\.json$/.test(file.replace(/\\/g, '/'))) return [];
+    hotUpdate: {
+      // Run AFTER import-glob adds the catalog on create/delete. Filtering it
+      // earlier lets that built-in hook reintroduce a full-page reload.
+      order: 'post',
+      handler({ file, modules }) {
+        // Data writes must not discard the open document or tab-only key.
+        // Live menus read the API; manual reload refreshes bundled imports.
+        if (/\/data\/(stages|releases)\/[^/]+\.json$/.test(file.replace(/\\/g, '/'))) {
+          // Clear transform caches without pushing an unsolicited navigation.
+          // A later manual load must still see new/deleted glob members.
+          for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
+          return [];
+        }
+      },
     },
     configureServer(server) {
       let handler: ReturnType<typeof workshopApi> | undefined;

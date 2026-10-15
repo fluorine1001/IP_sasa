@@ -27,6 +27,8 @@ import {
 } from './celestial.ts';
 import { freshProgress, updateGoals, objectiveGoals } from './goals.ts';
 import { dueEvents, nextEventTime } from './event-schedule';
+import { nativeRk4 } from '../physics/nonlinear-native';
+import { flightOutcome, hybridFloat } from '../physics/hybrid-kernel';
 import type { Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
 export const WORLD_STEP = 0.01;
 const solidRadius = (object: WorldObject) =>
@@ -136,20 +138,7 @@ function integrate(
 ): [Vec, Vec] {
   const acceleration = (p: Vec, v: Vec, t: number) =>
     add(gravity(stage, p, t), drag(stage, p, v, t, mass, area));
-  const a = acceleration(p, v, t),
-    vb = add(v, scale(a, dt / 2)),
-    pb = add(p, scale(v, dt / 2)),
-    b = acceleration(pb, vb, t + dt / 2),
-    vc = add(v, scale(b, dt / 2)),
-    pc = add(p, scale(vb, dt / 2)),
-    c = acceleration(pc, vc, t + dt / 2),
-    vd = add(v, scale(c, dt)),
-    pd = add(p, scale(vc, dt)),
-    d = acceleration(pd, vd, t + dt);
-  return [
-    add(p, scale(add(add(v, scale(vb, 2)), add(scale(vc, 2), vd)), dt / 6)),
-    add(v, scale(add(add(a, scale(b, 2)), add(scale(c, 2), d)), dt / 6)),
-  ];
+  return nativeRk4(acceleration, p, v, t, dt);
 }
 export function impulse(run: Run, stage: Stage, vector: Vec, id: string): boolean {
   if (run.status !== 'running' || ![vector.x, vector.y].every(Number.isFinite)) return false;
@@ -544,11 +533,23 @@ export function tick(
           solidRadius(o),
         ) !== undefined,
     );
-    const safeCompletion = !hazard && (!collisionBodyId || !!run.landed);
-    if (won && safeCompletion && !run.probe) {
+    const outcome = flightOutcome(hybridFloat, {
+      goals: Number(won),
+      collision: Number(!!collisionBodyId),
+      landed: Number(!!run.landed),
+      hazard: Number(hazard),
+      probe: Number(run.probe),
+      expired: Number(
+        !Number.isFinite(run.position.x) ||
+          !Number.isFinite(run.position.y) ||
+          length(run.position) > stage.rules.worldRadius ||
+          run.time >= missionTimeLimit(stage) - 1e-8,
+      ),
+    });
+    if (outcome.won) {
       run.status = 'won';
       run.reason = '임무 완료! 계획한 경로가 목표를 달성했습니다.';
-    } else if (collisionBodyId && !run.landed) {
+    } else if (outcome.impact) {
       const body = stage.bodies.find((b) => b.id === collisionBodyId)!,
         center = bodyPosition(stage, body, run.time),
         normal = scale(
@@ -574,15 +575,10 @@ export function tick(
         ? '착륙 속도가 너무 컸습니다. 가까워질 때 반대 방향으로 추진해보세요.'
         : '천체와 충돌했습니다. 가까워질 때의 속력과 접근 방향을 확인해보세요.';
       run.impact = beginImpact(run, stage, body, incomingDirection);
-    } else if (hazard) {
+    } else if (outcome.hazard) {
       run.status = 'failed';
       run.reason = '위성·정거장·파편에 충돌했습니다.';
-    } else if (
-      !Number.isFinite(run.position.x) ||
-      !Number.isFinite(run.position.y) ||
-      length(run.position) > stage.rules.worldRadius ||
-      run.time >= missionTimeLimit(stage) - 1e-8
-    ) {
+    } else if (outcome.failed || outcome.observed) {
       run.status = run.probe ? 'observed' : 'failed';
       run.reason = run.probe
         ? '시험 비행의 기록을 가져왔습니다.'

@@ -194,6 +194,14 @@ export function* globalSearch(
         dimensions: jobs.reduce((n, j) => Math.max(n, j.report?.sensitivity?.dimensions ?? 0), 0),
         stateWidth: jobs.reduce((n, j) => Math.max(n, j.report?.sensitivity?.stateWidth ?? 0), 0),
       },
+      projection: jobs.some((j) => j.report?.projection)
+        ? {
+            cells: jobs.reduce((sum, j) => sum + (j.report?.projection?.cells ?? 0), 0),
+            visits: jobs.reduce((sum, j) => sum + (j.report?.projection?.visits ?? 0), 0),
+            regions: jobs.reduce((sum, j) => sum + (j.report?.projection?.regions ?? 0), 0),
+            groups: jobs.reduce((sum, j) => sum + (j.report?.projection?.groups ?? 0), 0),
+          }
+        : undefined,
       profiles: done
         ? jobs.map((j, i) => ({
             program: [...keys][i],

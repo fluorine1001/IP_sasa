@@ -309,7 +309,32 @@ function interpret(e: Expression, c: GoalContext, p: GoalProgress, path = 'expre
     return m.value;
   }
   const a = e.args.map((x, i) => expressionValue(x, c, p, `${path}.args.${i}`));
-  switch (e.operation) {
+  return calculate(e.operation, a);
+}
+/** Observe the last actual window sample. Reading a search objective must not
+ * advance a queue, capture, angular travel or other live goal memory. Unvisited
+ * window expressions remain unknown, not synthetic zero-valued statistics. */
+export function observedExpression(
+  e: Expression,
+  c: GoalContext,
+  p: GoalProgress,
+  path = 'expression',
+): number {
+  let observer: GoalProgress | undefined;
+  const read = (e: Expression, path: string): number => {
+    if (e.kind === 'window') return p.windows?.[path]?.value ?? NaN;
+    if (e.kind === 'calculate')
+      return calculate(
+        e.operation,
+        e.args.map((v, i) => read(v, `${path}.args.${i}`)),
+      );
+    observer ??= { ...p, conditionMemory: structuredClone(p.conditionMemory) };
+    return expressionValue(e, c, observer, path);
+  };
+  return read(e, path);
+}
+function calculate(operation: Calculation, a: number[]): number {
+  switch (operation) {
     case 'add':
       return a.reduce((n, v) => n + v, 0);
     case 'subtract':

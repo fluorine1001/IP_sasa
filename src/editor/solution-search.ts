@@ -7,6 +7,7 @@ import { flightShape, type FlightShape } from './flight-shape';
 import { craftCenter } from '../world/craft-center';
 import { hardwarePlans } from './hardware-search';
 import { FlightPrefixCache } from './flight-prefix';
+import { inverseProjection } from './inverse-projection';
 export type SearchParameter = {
   key: string;
   label: string;
@@ -76,6 +77,7 @@ export type SearchReport = {
   proof?: { kind: 'predicate-domain' | 'control-envelope'; reasons: string[]; visited: number };
   reuse?: { prefixes: number; terminal: number; savedSeconds: number };
   sensitivity?: { ticks: number; passes: number; dimensions: number; stateWidth: number };
+  projection?: { cells: number; visits: number; regions: number; groups: number };
 };
 const vector = (angle: number, power = 1) => ({
   x: Math.cos(angle) * power,
@@ -427,6 +429,7 @@ export function* searchSolutions(
     illegal = 0,
     quality = 0;
   const sensitivity = { ticks: 0, passes: 0, dimensions: parameters.length, stateWidth: 0 };
+  let projection: SearchReport['projection'];
   const find = (id: number): number => {
     while (parents[id] !== id) {
       parents[id] = parents[parents[id]];
@@ -657,6 +660,7 @@ export function* searchSolutions(
       pending,
       quality,
       sensitivity: { ...sensitivity },
+      projection,
       reuse: {
         prefixes: prefixes.reused,
         terminal: prefixes.terminalReused,
@@ -664,9 +668,28 @@ export function* searchSolutions(
       },
     };
   };
-  const seed = seedCoordinates(template);
+  let seed = seedCoordinates(template);
+  const projected: number[][] = [];
+  if (parameters.length && (!quota || quota.remaining > 0)) {
+    for (const progress of inverseProjection(
+      stage,
+      template,
+      seed,
+      parameterPlan(template, seed),
+    )) {
+      projection = progress.statistics;
+      if (progress.coordinates) projected.push(progress.coordinates);
+      yield report(false, true);
+    }
+  }
+  if (projected.length) seed = projected.shift()!;
   const initial = (yield* evaluate(seed))!;
   yield report(false);
+  for (const point of projected) {
+    if (evaluated >= budget || (quota && quota.remaining <= 0)) break;
+    yield* evaluate(point);
+    yield report(false);
+  }
   for (const plan of template.seeds ?? []) {
     const values = new Map(searchParameters(stage, plan).map((p) => [p.key, p.value]));
     const seeded = {

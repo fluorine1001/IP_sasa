@@ -3,6 +3,7 @@ import type { Vec } from '../physics/vector.ts';
 import type { Stage, Run } from './types.ts';
 import { bodyPosition, bodyVelocity } from './celestial.ts';
 import { add, sub, length, scale, unit } from '../physics/vector.ts';
+import { burn, engineSetting, hybridFloat, separationReset } from '../physics/hybrid-kernel';
 export type RocketPart = {
   id: string;
   name: string;
@@ -169,15 +170,20 @@ export function controlEngine(
   if (booster?.status === 'landed') return throttle === 0 && !direction;
   if (direction && length(direction) > 1e-8) state.targetDirection = unit(direction);
   if (throttle !== undefined) {
-    const value = Math.max(0, Math.min(1, throttle)),
-      fuel = booster ? booster.fuel : run.rocket.fuel[run.rocket.partIndex],
+    const fuel = booster ? booster.fuel : run.rocket.fuel[run.rocket.partIndex],
       ignitions = booster ? booster.ignitions : run.rocket.ignitions[run.rocket.partIndex];
-    if (value > 0 && state.throttle === 0) {
-      if (fuel <= 0 || ignitions >= part.ignitionLimit) return false;
-      if (booster) booster.ignitions++;
-      else run.rocket.ignitions[run.rocket.partIndex]++;
-    }
-    state.throttle = fuel > 0 ? value : 0;
+    const next = engineSetting(
+      hybridFloat,
+      fuel,
+      state.throttle,
+      ignitions,
+      part.ignitionLimit,
+      throttle,
+    );
+    if (!next.accepted) return false;
+    if (booster) booster.ignitions = next.ignitions;
+    else run.rocket.ignitions[run.rocket.partIndex] = next.ignitions;
+    state.throttle = next.throttle;
   }
   return true;
 }
@@ -188,18 +194,20 @@ export function separate(run: Run, stage: Stage): boolean {
   if (!part) return false;
   const totalMass = rocketMass(stage, run),
     detachedMass = part.dryMass + run.rocket.fuel[index];
-  // Springs supply a small relative separation speed while conserving total momentum.
-  const separationSpeed = 0.025;
-  const upperMass = Math.max(1e-9, totalMass - detachedMass);
-  const previousVelocity = { ...run.velocity };
+  const reset = separationReset(
+    hybridFloat,
+    run.position,
+    run.velocity,
+    run.rocket.direction,
+    totalMass,
+    detachedMass,
+    ROCKET_SEGMENT_LENGTH,
+  );
   run.detached.push({
     id: part.id,
     name: part.name,
     position: { ...run.position },
-    velocity: sub(
-      previousVelocity,
-      scale(run.rocket.direction, (separationSpeed * upperMass) / totalMass),
-    ),
+    velocity: reset.detachedVelocity,
     fuel: run.rocket.fuel[index],
     dryMass: part.dryMass,
     direction: { ...run.rocket.direction },
@@ -213,11 +221,8 @@ export function separate(run: Run, stage: Stage): boolean {
   });
   run.rocket.separatedAt[part.id] = run.time;
   // The detached segment occupied the bottom 0.12 world units. Keep the upper nose fixed.
-  run.position = add(run.position, scale(run.rocket.direction, ROCKET_SEGMENT_LENGTH));
-  run.velocity = add(
-    previousVelocity,
-    scale(run.rocket.direction, (separationSpeed * detachedMass) / totalMass),
-  );
+  run.position = reset.position;
+  run.velocity = reset.velocity;
   run.rocket.partIndex++;
   run.rocket.throttle = 0;
   run.rocket.heat = 0;
@@ -296,18 +301,22 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     else if (run.rocket.airborne)
       run.position = add(run.position, scale(sub(old, state.direction), extent / 2));
   }
-  const before = actor ? actor.dryMass + actor.fuel : rocketMass(stage, run),
-    fuel = actor ? actor.fuel : run.rocket.fuel[index],
-    spent = Math.min(fuel, (part.thrust * state.throttle * dt) / part.exhaustSpeed),
-    delta = spent > 0 ? part.exhaustSpeed * Math.log(before / (before - spent)) : 0;
+  const next = burn(hybridFloat, {
+    mass: actor ? actor.dryMass + actor.fuel : rocketMass(stage, run),
+    fuel: actor ? actor.fuel : run.rocket.fuel[index],
+    thrust: part.thrust,
+    throttle: state.throttle,
+    dt,
+    exhaustSpeed: part.exhaustSpeed,
+  });
   if (actor) {
-    actor.fuel -= spent;
-    actor.velocity = add(actor.velocity, scale(state.direction, delta));
+    actor.fuel = next.fuel;
+    actor.velocity = add(actor.velocity, scale(state.direction, next.delta));
   } else {
-    run.rocket.fuel[index] -= spent;
-    run.velocity = add(run.velocity, scale(state.direction, delta));
+    run.rocket.fuel[index] = next.fuel;
+    run.velocity = add(run.velocity, scale(state.direction, next.delta));
   }
-  if (fuel - spent < 1e-9) state.throttle = 0;
+  state.throttle = next.throttle;
   const a = atmosphericState(
     stage,
     actor?.position ?? run.position,

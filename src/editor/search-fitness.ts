@@ -1,15 +1,16 @@
 import { expressionValue, type Condition, type Expression } from '../world/conditions';
+import { observedExpression } from '../world/expressions';
 import { dynamicView } from '../world/dynamics';
 import { objectiveGoals } from '../world/goals';
 import { metrics } from '../world/metrics';
 import type { Stage, Run, GoalContext, GoalProgress } from '../world/types';
-const stateful = new WeakMap<Expression, boolean>();
 const observers = new WeakMap<Run, Map<GoalProgress, GoalProgress>>();
+const windows = new WeakMap<Expression, boolean>();
 function hasWindow(e: Expression): boolean {
-  const old = stateful.get(e);
-  if (old !== undefined) return old;
+  const previous = windows.get(e);
+  if (previous !== undefined) return previous;
   const value = e.kind === 'window' || (e.kind === 'calculate' && e.args.some(hasWindow));
-  stateful.set(e, value);
+  windows.set(e, value);
   return value;
 }
 
@@ -56,11 +57,11 @@ export function searchFitness(stage: Stage, run: Run) {
     }
     if (node.kind === 'compare') {
       // Stateful window expressions are owned by the real evaluator; this observer must not advance them.
-      const read = (e: typeof node.left): number =>
+      const read = (e: typeof node.left, side: string): number =>
         hasWindow(e)
-          ? NaN
-          : expressionValue(e, c, p, `${path}.${e === node.left ? 'left' : 'right'}`);
-      let a = read(node.left);
+          ? observedExpression(e, c, p, `${path}.${side}`)
+          : expressionValue(e, c, p, `${path}.${side}`);
+      let a = read(node.left, 'left');
       if (
         !Number.isFinite(a) &&
         node.left.kind === 'metric' &&
@@ -86,7 +87,7 @@ export function searchFitness(stage: Stage, run: Run) {
             );
         }
       }
-      const b = read(node.right);
+      const b = read(node.right, 'right');
       if (!Number.isFinite(a) || !Number.isFinite(b)) return p.ratio * 0.8;
       if (node.left.kind === 'metric' && node.left.metric === 'landed' && a < 0.5 && b >= 0.5) {
         const targetId =
@@ -159,7 +160,7 @@ export function searchFitness(stage: Stage, run: Run) {
     }
     Object.assign(observer, p);
     observer.conditionMemory = structuredClone(p.conditionMemory);
-    observer.windows = undefined;
+    observer.windows = p.windows;
     return scalar(g.condition, context, observer);
   });
   return stage.goalMode === 'any' ? Math.max(0, ...scores) : aggregate(scores);

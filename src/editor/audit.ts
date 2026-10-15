@@ -92,13 +92,14 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     result.warnings.push('목표 중 하나만 달성해도 성공합니다. 의도한 조건인지 확인하세요.');
   const limit = stage.rules.launchLimit,
     base = stage.spawn.velocity,
-    nearest = stage.bodies.reduce((a, b) =>
-      length(sub(bodyPosition(stage, a, 0), stage.spawn.position)) <
-      length(sub(bodyPosition(stage, b, 0), stage.spawn.position))
-        ? a
-        : b,
-    ),
-    toward = unit(sub(bodyPosition(stage, nearest, 0), stage.spawn.position));
+    nearest = stage.bodies.length
+      ? stage.bodies.reduce((a, b) =>
+          length(sub(bodyPosition(stage, a, 0), stage.spawn.position)) <
+          length(sub(bodyPosition(stage, b, 0), stage.spawn.position))
+            ? a
+            : b,
+        )
+      : undefined;
   const simple: [string, RoutePlan][] = [
     ['무추진', { launch: { x: 0, y: 0 }, impulses: [] }],
     [
@@ -109,9 +110,14 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
       '최대 역방향 추진',
       { launch: scale(length(base) ? unit(base) : { x: 0, y: 1 }, -limit), impulses: [] },
     ],
-    ['천체를 향해 직진', { launch: scale(toward, limit), impulses: [] }],
-    ['천체에서 멀어지기', { launch: scale(toward, -limit), impulses: [] }],
   ];
+  if (nearest) {
+    const toward = unit(sub(bodyPosition(stage, nearest, 0), stage.spawn.position));
+    simple.push(
+      ['천체를 향해 직진', { launch: scale(toward, limit), impulses: [] }],
+      ['천체에서 멀어지기', { launch: scale(toward, -limit), impulses: [] }],
+    );
+  }
   for (const [label, plan] of simple)
     if (execute(stage, plan).status === 'won') {
       result.simpleWins.push(label);

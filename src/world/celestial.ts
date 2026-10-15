@@ -1,5 +1,6 @@
-import { add, sub, scale, length, type Vec } from '../physics/vector.ts';
+import { add, sub, scale, type Vec } from '../physics/vector.ts';
 import type { Body, Stage, WorldObject } from './types.ts';
+import { nativeGravity } from '../physics/nonlinear-native';
 export function bodyPosition(stage: Stage, body: Body, time: number): Vec {
   if (body.dynamic)
     return add(body.position, scale(body.dynamic.velocity, time - (body.dynamic.epoch ?? 0)));
@@ -25,14 +26,7 @@ export function bodyVelocity(stage: Stage, body: Body, time: number): Vec {
   });
 }
 export function gravity(stage: Stage, position: Vec, time: number): Vec {
-  return stage.bodies.reduce(
-    (sum, body) => {
-      const d = sub(bodyPosition(stage, body, time), position),
-        r = Math.max(length(d), body.radius * 0.2);
-      return add(sum, scale(d, body.mu / r ** 3));
-    },
-    { x: 0, y: 0 },
-  );
+  return nativeGravity(stage, stage.bodies, position, time, bodyPosition);
 }
 export function previewStage(stage: Stage, estimates: Record<string, number>): Stage {
   return {

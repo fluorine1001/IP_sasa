@@ -626,6 +626,50 @@
   color: #a9c4ba;
   font-size: 11px;
 }
+.library-tabs,
+.library-tools,
+.library-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.library-tabs {
+  margin: 12px 0;
+}
+.library-tabs [aria-pressed='true'] {
+  background: #8ec7b5;
+  color: #132832;
+}
+.library-tools input {
+  flex: 1;
+  min-width: 120px;
+}
+.library-card {
+  flex-wrap: wrap;
+}
+.library-card > div:first-child {
+  min-width: 180px;
+  overflow-wrap: anywhere;
+}
+.library-card .library-actions {
+  flex: 0 1 auto;
+}
+.library-connect {
+  margin-top: 12px;
+}
+.library-connect label {
+  display: block;
+}
+.library-publication {
+  margin-top: 6px;
+}
+#library-list {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
 .editor *,
 .workshop-dialog {
   scrollbar-width: thin;

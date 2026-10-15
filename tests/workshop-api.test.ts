@@ -67,7 +67,7 @@ it('공유 API는 공개 목록에서 검증 계획을 숨기고 저장 충돌·
         })
       ).status,
     ).toBe(409);
-    const update = await (
+    let update = await (
       await fetch(base + '/api/workshop/stages/' + stage.id, {
         method: 'PUT',
         headers: { ...headers, 'If-Match': version.revision },
@@ -77,6 +77,34 @@ it('공유 API는 공개 목록에서 검증 계획을 숨기고 저장 충돌·
     expect(
       JSON.parse(await readFile(path.join(root, 'data/stages', stage.id + '.json'), 'utf8')).title,
     ).toBe('updated');
+    stage.title = '아직 공개하지 않은 수정';
+    stage.published = false;
+    update = await (
+      await fetch(base + '/api/workshop/stages/' + stage.id + '?release=draft', {
+        method: 'PUT',
+        headers: { ...headers, 'If-Match': update.revision },
+        body: JSON.stringify(stage),
+      })
+    ).json();
+    expect((await (await fetch(base + '/api/stages')).json()).stages[0].stage.title).toBe(
+      'updated',
+    );
+    const working = await (
+      await fetch(base + '/api/workshop/stages/' + stage.id, { headers })
+    ).json();
+    expect(working.stage.title).toBe(stage.title);
+    expect(working.publication.title).toBe('updated');
+    expect(working.publication.revision).not.toBe(working.revision);
+    update = await (
+      await fetch(base + '/api/workshop/stages/' + stage.id + '?release=publish', {
+        method: 'PUT',
+        headers: { ...headers, 'If-Match': update.revision },
+        body: JSON.stringify(stage),
+      })
+    ).json();
+    expect((await (await fetch(base + '/api/stages')).json()).stages[0].stage.title).toBe(
+      stage.title,
+    );
     expect(
       (
         await fetch(base + '/api/workshop/stages/' + stage.id, {

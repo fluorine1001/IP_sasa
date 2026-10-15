@@ -394,7 +394,7 @@ export function solutionSearchPanel(
             others: structuredClone(
               result!.families
                 .filter((item) => item.id !== family.id)
-                .map((item) => item.representative),
+                .flatMap((item) => [item.representative, ...item.samples]),
             ),
           });
         } catch (error) {

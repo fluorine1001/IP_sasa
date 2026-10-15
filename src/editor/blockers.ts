@@ -122,14 +122,25 @@ export function blockerProposals(stage: Stage, family: SolutionFamily, others: R
     if (goal.marker && goal.marker.managed !== false) return;
     inspect(goal.condition, ['goals', i, 'condition']);
   });
-  const comparisonPlans = [...others, ...stage.referencePlans]
-    .filter(
-      (plan) => !family.samples.some((sample) => JSON.stringify(sample) === JSON.stringify(plan)),
-    )
-    .slice(0, 64);
-  const neighbors = comparisonPlans
+  const targetKeys = new Set(family.samples.map((p) => physicalPlanKey(stage, p)));
+  const comparisonPlans = [...others, ...stage.referencePlans].filter(
+    (plan) => !targetKeys.has(physicalPlanKey(stage, plan)),
+  );
+  const originalWins = new Map<string, boolean>();
+  const wasWinning = (plan: RoutePlan) => {
+    const key = physicalPlanKey(stage, plan);
+    if (!originalWins.has(key))
+      originalWins.set(key, execute(stage, plan, false, horizon).status === 'won');
+    return originalWins.get(key)!;
+  };
+  const retained = [
+    ...new Map(
+      comparisonPlans.filter(wasWinning).map((p) => [physicalPlanKey(stage, p), p]),
+    ).values(),
+  ];
+  const neighbors = retained
     .flatMap((plan) => nearbyPlans(stage, plan).slice(0, 4))
-    .slice(0, 64);
+    .filter(wasWinning);
   if (!family.samples.length) return [];
   const seen = new Set<string>();
   return candidates
@@ -153,14 +164,18 @@ export function blockerProposals(stage: Stage, family: SolutionFamily, others: R
         if (wins(plan)) return [];
         blocked++;
       }
-      const remaining = comparisonPlans.filter(wins).length;
-      const nearby = neighbors.filter(wins).length;
+      // Killing any known different success is NOT a selective blocker. Ranking
+      // collateral damage below a better candidate is not sufficient. Stop on
+      // the first counterexample instead of replaying every remaining flight.
+      if (retained.some((plan) => !wins(plan)) || neighbors.some((plan) => !wins(plan))) return [];
+      const remaining = retained.length,
+        nearby = neighbors.length;
       return [
         {
           ...candidate,
           blocked,
           remaining,
-          otherTotal: comparisonPlans.length,
+          otherTotal: retained.length,
           nearby,
           nearbyTotal: neighbors.length,
         },

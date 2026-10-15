@@ -1,5 +1,20 @@
 import { expect, type Page } from '@playwright/test';
+import { rmSync } from 'node:fs';
+import path from 'node:path';
 import type { RoutePlan, Stage } from '../../src/world/types';
+
+/** Only for fresh UUIDs allocated by a test, never an existing authored stage.
+ * Releases are versioned data now; a test must not leave withdrawal files in Git. */
+export function removeFixtureStageFiles(id: string) {
+  if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))
+    throw Error('Invalid test fixture UUID');
+  for (const area of ['stages', 'releases']) {
+    const directory = path.resolve('data', area),
+      file = path.resolve(directory, id + '.json');
+    if (path.dirname(file) !== directory) throw Error('Fixture path outside data');
+    rmSync(file, { force: true });
+  }
+}
 async function value(page: Page, selector: string, n: number) {
   await page.locator(selector).evaluate((e: HTMLInputElement, n) => {
     e.step = 'any';

@@ -26,17 +26,24 @@ export function flightShape(stage: Stage, plan: RoutePlan, trace: Vec[], run: Ru
   });
   const xs = points.map((p) => p.x),
     ys = points.map((p) => p.y);
+  // Independent actors' clock interleavings are not different solution styles.
+  // Consecutive output/attitude updates form one physical control segment;
+  // actual path and separated outcomes still have to match below.
+  const words = new Map<string, string[]>();
+  for (const e of programEvents(plan).filter(
+    (e) => e.id === 'launch' || run.applied.has(e.id.replace(/:turn$/, '')),
+  )) {
+    const word = words.get(e.actorId) ?? [];
+    if (word.at(-1) !== e.kind || !['ignite', 'turn'].includes(e.kind)) word.push(e.kind);
+    words.set(e.actorId, word);
+  }
   return {
     points,
     scale: Math.max(0.5, Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)),
     actors: run.detached
       .map((a) => ({ id: a.id, position: { ...a.position }, status: a.status }))
       .sort((a, b) => a.id.localeCompare(b.id)),
-    style: JSON.stringify(
-      programEvents(plan)
-        .filter((e) => e.id === 'launch' || run.applied.has(e.id.replace(/:turn$/, '')))
-        .map((e) => [e.kind, e.actorId]),
-    ),
+    style: JSON.stringify([...words.entries()].sort(([a], [b]) => a.localeCompare(b))),
   };
 }
 /** Compare spatial progress, not absolute playback clocks. This is a solution-style group,

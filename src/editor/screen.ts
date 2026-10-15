@@ -37,6 +37,7 @@ import { compileOutcome, type Outcome } from '../stages/outcomes';
 import { syncOutcomeFields } from './outcome-inspector';
 import { readOutcome } from './outcome-values';
 import { restoreDraft } from './draft';
+import { StageDocuments } from './documents';
 import { createGoalMonitor } from './goal-monitor.ts';
 import { defaultRocket } from '../world/rocket.ts';
 import { binaryPair } from '../world/dynamics.ts';
@@ -73,6 +74,10 @@ export function editorScreen(app: App): Screen {
   const restored = activeModel ? { stage: activeModel.stage } : initialStage();
   let recovery = restored.recovery;
   let model = activeModel ?? new EditorModel(restored.stage);
+  const documents = new StageDocuments({
+    getItem: (key) => localStorage.getItem(key),
+    setItem: (key, value) => localStorage.setItem(key, value),
+  });
   activeModel = model;
   const abort = new AbortController(),
     signal = abort.signal,
@@ -231,12 +236,21 @@ export function editorScreen(app: App): Screen {
     app.root,
     signal,
     (stage) => {
+      preserveIncoming(stage);
       model = new EditorModel(stage);
       Object.assign(camera, stage.camera);
       changed();
-      message('서버의 최신 스테이지를 열었습니다.');
+      message('스테이지를 열었습니다. 이전 초안은 이 기기 목록에 보존됩니다.');
     },
     message,
+    {
+      current: () => model.stage,
+      documents,
+      rename: (title) => {
+        model.change((s) => (s.title = title));
+        changed(false);
+      },
+    },
   );
   el('open-library').onclick = () => library.open();
   if (recovery) {
@@ -310,8 +324,22 @@ export function editorScreen(app: App): Screen {
     model.stage.camera = { ...camera };
     if (!recovery) {
       writeSaved('orbit-editor-draft-v2', model.stage);
+      // Archive the complete workspace only at a document boundary/list open;
+      // pointer motion must not reserialize every saved stage each frame.
       activeModel = model;
     } else activeModel = undefined;
+  }
+  function archiveCurrent() {
+    if (recovery) throw Error('보존 중인 초안을 먼저 내보내거나 백업하세요.');
+    model.stage.camera = { ...camera };
+    documents.put(model.stage);
+  }
+  function preserveIncoming(stage: Stage) {
+    archiveCurrent();
+    const prior = documents.get(stage.id);
+    const content = (s: Stage) => JSON.stringify({ ...s, camera: undefined, published: undefined });
+    if (prior && content(prior) !== content(stage))
+      documents.put({ ...prior, id: uid(), title: prior.title + ' · 전환 전 백업' });
   }
   function message(text: string) {
     status = text;
@@ -465,10 +493,12 @@ export function editorScreen(app: App): Screen {
       const data = parseStage({ ...model.stage, published: publish }, !publish);
       model.stage = data;
       persist();
-      await library.save(data);
+      await library.save(data, publish ? 'publish' : 'draft');
       model.stage = data;
       message(
-        `저장 완료: data/stages/${data.id}.json · ${publish ? '게임에서 선택 가능' : '제작용 초안'}`,
+        publish
+          ? '공개 완료 · 게임의 임무 목록에서 선택할 수 있습니다.'
+          : '서버 초안 저장 완료 · 기존 게임 공개 버전은 유지됩니다.',
       );
     } catch (error) {
       message(String(error));
@@ -489,6 +519,12 @@ export function editorScreen(app: App): Screen {
     app.root,
     {
       'new-stage': () => {
+        try {
+          archiveCurrent();
+        } catch (error) {
+          message(String(error));
+          return;
+        }
         tool = 'select';
         candidate = undefined;
         placement = undefined;
@@ -552,6 +588,12 @@ export function editorScreen(app: App): Screen {
     (e) => {
       const s = stages.find((s) => s.id === (e.target as HTMLSelectElement).value);
       if (s) {
+        try {
+          preserveIncoming(s);
+        } catch (error) {
+          message(String(error));
+          return;
+        }
         model = new EditorModel(s);
         void library.track(s);
         Object.assign(camera, s.camera);
@@ -570,7 +612,9 @@ export function editorScreen(app: App): Screen {
       if (!file) return;
       try {
         if (file.size > 1_000_000) throw new Error('파일이 너무 큽니다.');
-        model = new EditorModel(parseStage(JSON.parse(await file.text()), true));
+        const imported = parseStage(JSON.parse(await file.text()), true);
+        preserveIncoming(imported);
+        model = new EditorModel(imported);
         Object.assign(camera, model.stage.camera);
         changed();
         message('스테이지를 불러왔습니다.');

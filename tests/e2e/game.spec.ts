@@ -1,7 +1,7 @@
-import { testAuthorPlan, enterPlan } from './helpers';
+import { testAuthorPlan, enterPlan, removeFixtureStageFiles } from './helpers';
 import { toScreen, zoomAt } from '../../src/render/camera';
 import { test, expect, type Page } from '@playwright/test';
-import { readdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 const directory = path.resolve('data/stages'),
   stages = readdirSync(directory)
@@ -222,12 +222,13 @@ test('제작 도구가 IP_sasa에 JSON 초안을 저장하며 원본 스테이�
     await page.locator('[data-field="title"]').press('Tab');
     id = await page.evaluate(() => JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!).id);
     const response = page.waitForResponse(
-      (r) => r.url().endsWith('/api/workshop/stages') && r.request().method() === 'POST',
+      (r) =>
+        new URL(r.url()).pathname === '/api/workshop/stages' && r.request().method() === 'POST',
     );
     await page.locator('#save-stage').click();
     const result = await response;
     expect(result.status()).toBe(200);
-    // Vite can reload when import.meta.glob discovers the newly saved file; retain the known request ID.
+    // The request owns this fresh UUID; stage data writes must not reload the editor.
     expect(id).toMatch(/^[0-9a-f-]{36}$/);
     const saved = JSON.parse(readFileSync(path.join(directory, `${id}.json`), 'utf8'));
     expect(saved.title).toBe('자동 검증 초안');
@@ -235,7 +236,7 @@ test('제작 도구가 IP_sasa에 JSON 초안을 저장하며 원본 스테이�
     expect(stages.some((s) => s.id === id)).toBe(false);
   } finally {
     await page.close();
-    if (id && /^[0-9a-f-]{36}$/.test(id)) unlinkSync(path.join(directory, `${id}.json`));
+    if (id && /^[0-9a-f-]{36}$/.test(id)) removeFixtureStageFiles(id);
   }
 });
 

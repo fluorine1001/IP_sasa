@@ -43,21 +43,45 @@ export async function postgresStageStorage(
     'CREATE TABLE IF NOT EXISTS workshop_stages (id uuid PRIMARY KEY, raw text NOT NULL, revision text NOT NULL, deleted boolean NOT NULL DEFAULT false, updated_at timestamptz NOT NULL DEFAULT now())',
     'CREATE TABLE IF NOT EXISTS workshop_history (entry bigserial PRIMARY KEY, id uuid NOT NULL, raw text NOT NULL, revision text NOT NULL, operation text NOT NULL, archived_at timestamptz NOT NULL DEFAULT now())',
     'CREATE TABLE IF NOT EXISTS workshop_meta (name text PRIMARY KEY)',
+    'ALTER TABLE workshop_stages ADD COLUMN IF NOT EXISTS published_raw text',
+    'ALTER TABLE workshop_stages ADD COLUMN IF NOT EXISTS published_revision text',
   ])
     await pool.query(sql);
+  const migration = await pool.connect();
+  try {
+    await migration.query('BEGIN');
+    const first = await migration.query(
+      "INSERT INTO workshop_meta(name) VALUES('publication-snapshot-v1') ON CONFLICT DO NOTHING RETURNING name",
+    );
+    if (first.rows.length)
+      await migration.query(
+        "UPDATE workshop_stages SET published_raw=raw,published_revision=revision WHERE NOT deleted AND COALESCE((raw::jsonb->>'published')::boolean,true)",
+      );
+    await migration.query('COMMIT');
+  } catch (error) {
+    await migration.query('ROLLBACK');
+    throw error;
+  } finally {
+    migration.release();
+  }
   const row = (r: Record<string, unknown>): StoredStage => ({
     raw: String(r.raw),
     revision: String(r.revision),
+    ...(r.published_raw
+      ? { publishedRaw: String(r.published_raw), publishedRevision: String(r.published_revision) }
+      : {}),
   });
   return {
     async list() {
       return (
-        await pool.query('SELECT raw,revision FROM workshop_stages WHERE NOT deleted ORDER BY id')
+        await pool.query(
+          'SELECT raw,revision,published_raw,published_revision FROM workshop_stages WHERE NOT deleted ORDER BY id',
+        )
       ).rows.map(row);
     },
     async get(id) {
       const result = await pool.query(
-        'SELECT raw,revision FROM workshop_stages WHERE id=$1 AND NOT deleted',
+        'SELECT raw,revision,published_raw,published_revision FROM workshop_stages WHERE id=$1 AND NOT deleted',
         [id],
       );
       return result.rows[0] ? row(result.rows[0]) : undefined;
@@ -74,8 +98,16 @@ export async function postgresStageStorage(
           for (const entry of entries) {
             const id = JSON.parse(entry.raw).id;
             await client.query(
-              'INSERT INTO workshop_stages(id,raw,revision) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
-              [id, entry.raw, stageRevision(entry.raw)],
+              'INSERT INTO workshop_stages(id,raw,revision,published_raw,published_revision) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',
+              [
+                id,
+                entry.raw,
+                stageRevision(entry.raw),
+                // File storage already resolves legacy snapshots/withdrawals.
+                // Never re-infer publication from the editable draft's flag.
+                entry.publishedRaw ?? null,
+                entry.publishedRaw ? stageRevision(entry.publishedRaw) : null,
+              ],
             );
           }
         await client.query('COMMIT');
@@ -86,12 +118,12 @@ export async function postgresStageStorage(
         client.release();
       }
     },
-    async mutate(method, id, raw, expected) {
+    async mutate(method, id, raw, expected, publication) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
         const result = await client.query(
-            'SELECT raw,revision,deleted FROM workshop_stages WHERE id=$1 FOR UPDATE',
+            'SELECT raw,revision,deleted,published_raw,published_revision FROM workshop_stages WHERE id=$1 FOR UPDATE',
             [id],
           ),
           previous = result.rows[0],
@@ -101,6 +133,15 @@ export async function postgresStageStorage(
         if (method !== 'POST' && !exists) throw new StorageError(404, '스테이지가 없습니다.');
         if (exists && expected !== previous.revision)
           throw new StorageError(409, '다른 제작자가 수정했습니다. 최신본을 다시 열어 비교하세요.');
+        const mode =
+          publication ?? (raw && JSON.parse(raw).published !== false ? 'publish' : 'withdraw');
+        const publishedRaw =
+          method === 'DELETE' || mode === 'withdraw'
+            ? null
+            : mode === 'publish'
+              ? raw!
+              : (previous?.published_raw ?? null);
+        const publishedRevision = publishedRaw ? stageRevision(String(publishedRaw)) : null;
         if (previous)
           await client.query(
             'INSERT INTO workshop_history(id,raw,revision,operation) VALUES($1,$2,$3,$4)',
@@ -108,20 +149,19 @@ export async function postgresStageStorage(
           );
         if (method === 'DELETE')
           await client.query(
-            'UPDATE workshop_stages SET deleted=true,updated_at=now() WHERE id=$1',
+            'UPDATE workshop_stages SET deleted=true,published_raw=NULL,published_revision=NULL,updated_at=now() WHERE id=$1',
             [id],
           );
         else if (previous)
           await client.query(
-            'UPDATE workshop_stages SET raw=$2,revision=$3,deleted=false,updated_at=now() WHERE id=$1',
-            [id, raw, stageRevision(raw!)],
+            'UPDATE workshop_stages SET raw=$2,revision=$3,published_raw=$4,published_revision=$5,deleted=false,updated_at=now() WHERE id=$1',
+            [id, raw, stageRevision(raw!), publishedRaw, publishedRevision],
           );
         else
-          await client.query('INSERT INTO workshop_stages(id,raw,revision) VALUES($1,$2,$3)', [
-            id,
-            raw,
-            stageRevision(raw!),
-          ]);
+          await client.query(
+            'INSERT INTO workshop_stages(id,raw,revision,published_raw,published_revision) VALUES($1,$2,$3,$4,$5)',
+            [id, raw, stageRevision(raw!), publishedRaw, publishedRevision],
+          );
         await client.query('COMMIT');
         return method === 'DELETE' ? {} : { revision: stageRevision(raw!) };
       } catch (error) {

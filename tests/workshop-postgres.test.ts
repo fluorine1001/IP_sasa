@@ -3,6 +3,44 @@ import { PGlite } from '@electric-sql/pglite';
 import { postgresStageStorage, type SqlPool } from '../scripts/workshop-postgres';
 import { blankStage } from '../src/stages/factory';
 import { workshopExampleDrafts, workshopExamplesVersion } from '../scripts/workshop-examples';
+import { fileStageStorage } from '../scripts/workshop-storage';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+it('파일→DB 초기 이관은 초안의 플래그가 아니라 실제 공개 스냅샷과 철회를 보존한다', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'orbit-release-seed-'));
+  const db = new PGlite();
+  const query = (sql: string, params?: unknown[]) => db.query<Record<string, unknown>>(sql, params);
+  const pool: SqlPool = {
+    query,
+    end: () => db.close(),
+    async connect() {
+      return { query, release() {} };
+    },
+  };
+  try {
+    const files = fileStageStorage(root),
+      s = blankStage();
+    const publicRaw = JSON.stringify({ ...s, title: '마지막 공개본', published: true });
+    let saved = await files.mutate('POST', s.id, publicRaw, undefined, 'publish');
+    const draft = JSON.stringify({ ...s, title: '미공개 수정본', published: false });
+    await files.mutate('PUT', s.id, draft, saved.revision, 'draft');
+    const withdrawn = blankStage(),
+      withdrawnRaw = JSON.stringify({ ...withdrawn, published: true });
+    saved = await files.mutate('POST', withdrawn.id, withdrawnRaw, undefined, 'publish');
+    // Explicit withdrawal takes precedence over a legacy raw published flag.
+    await files.mutate('PUT', withdrawn.id, withdrawnRaw, saved.revision, 'withdraw');
+    const store = await postgresStageStorage('postgres://localhost/test?sslmode=disable', pool);
+    await store.seed!(await files.list(), 'file-snapshots');
+    expect((await store.get(s.id))!.raw).toBe(draft);
+    expect((await store.get(s.id))!.publishedRaw).toBe(publicRaw);
+    expect((await store.get(withdrawn.id))!.publishedRaw).toBeUndefined();
+  } finally {
+    await db.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
 it('이식 가능한 실제 PostgreSQL 저장은 다중 제작자 충돌·삭제 보존·복원을 원자적으로 처리한다', async () => {
   const db = new PGlite();
   const query = (sql: string, params?: unknown[]) => db.query<Record<string, unknown>>(sql, params);
@@ -76,6 +114,25 @@ it('이식 가능한 실제 PostgreSQL 저장은 다중 제작자 충돌·삭제
     await a.seed!(examples, 'future-example-batch');
     expect(await b.get(ids[1])).toBeUndefined();
     expect((await b.get(ids[0]))!.raw).toBe(edited);
+    const currentExample = (await a.get(ids[0]))!;
+    const releaseRaw = JSON.stringify({
+      ...JSON.parse(currentExample.raw),
+      title: '게임 공개본',
+      published: true,
+    });
+    const released = await a.mutate('PUT', ids[0], releaseRaw, currentExample.revision, 'publish');
+    const draftRaw = JSON.stringify({
+      ...JSON.parse(releaseRaw),
+      title: '미공개 편집본',
+      published: false,
+    });
+    const draft = await b.mutate('PUT', ids[0], draftRaw, released.revision, 'draft');
+    expect((await a.get(ids[0]))!.publishedRaw).toBe(releaseRaw);
+    expect((await a.get(ids[0]))!.raw).toBe(draftRaw);
+    const restarted = await postgresStageStorage('postgres://localhost/test?sslmode=disable', pool);
+    expect((await restarted.get(ids[0]))!.publishedRaw).toBe(releaseRaw);
+    await restarted.mutate('PUT', ids[0], draftRaw, draft.revision, 'withdraw');
+    expect((await a.get(ids[0]))!.publishedRaw).toBeUndefined();
   } finally {
     await db.close();
   }

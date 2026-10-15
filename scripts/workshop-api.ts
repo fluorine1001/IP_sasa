@@ -104,10 +104,24 @@ export function workshopApi(
     try {
       if (req.method === 'GET' && (publicRead || !id)) {
         const entries = (await storage.list())
-          .filter(({ raw }) => !publicRead || JSON.parse(raw).published !== false)
-          .map(({ raw, revision }) => {
-            const stage = parse(JSON.parse(raw), !publicRead);
-            return { stage: publicRead ? playerStage(stage) : stage, revision };
+          .filter((e) => !publicRead || !!e.publishedRaw)
+          .map((entry) => {
+            const stage = parse(
+              JSON.parse(publicRead ? entry.publishedRaw! : entry.raw),
+              !publicRead,
+            );
+            return {
+              stage: publicRead ? playerStage(stage) : stage,
+              revision: publicRead ? entry.publishedRevision! : entry.revision,
+              ...(!publicRead && entry.publishedRaw
+                ? {
+                    publication: {
+                      title: JSON.parse(entry.publishedRaw).title,
+                      revision: entry.publishedRevision,
+                    },
+                  }
+                : {}),
+            };
           });
         return send(200, {
           stages: entries
@@ -119,7 +133,18 @@ export function workshopApi(
         const entry = await storage.get(id);
         if (!entry) return send(404, { error: '스테이지가 없습니다.' });
         res.setHeader('ETag', entry.revision);
-        return send(200, { stage: parse(JSON.parse(entry.raw), true), revision: entry.revision });
+        return send(200, {
+          stage: parse(JSON.parse(entry.raw), true),
+          revision: entry.revision,
+          ...(entry.publishedRaw
+            ? {
+                publication: {
+                  title: JSON.parse(entry.publishedRaw).title,
+                  revision: entry.publishedRevision,
+                },
+              }
+            : {}),
+        });
       }
       if (!['POST', 'PUT', 'DELETE'].includes(req.method ?? ''))
         return send(405, { error: '지원하지 않은 요청입니다.' });
@@ -137,9 +162,21 @@ export function workshopApi(
       }
       raw += decoder.end();
       const data = req.method === 'DELETE' ? undefined : parse(JSON.parse(raw), true);
+      const release = url.searchParams.get('release');
+      if (release && !['draft', 'publish', 'withdraw'].includes(release))
+        return send(400, { error: '알 수 없는 공개 작업입니다.' });
+      const publication =
+        release === 'draft'
+          ? 'draft'
+          : release === 'withdraw'
+            ? 'withdraw'
+            : data?.published || release === 'publish'
+              ? 'publish'
+              : 'withdraw';
+      if (data) data.published = publication === 'publish';
       if (data && id && data.id !== id)
         return send(400, { error: '경로와 스테이지 ID가 다릅니다.' });
-      if (data?.published) {
+      if (data && publication === 'publish') {
         let checked;
         const inspection = audit(data);
         if ('then' in inspection) checked = await inspection;
@@ -166,6 +203,7 @@ export function workshopApi(
         targetId,
         contents,
         req.headers['if-match'],
+        publication,
       );
       return send(200, {
         ok: true,

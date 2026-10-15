@@ -3,10 +3,17 @@ import { writeFile, rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { workshopApi } from './scripts/workshop-api';
 import { publicationAuditor } from './scripts/workshop-auditor';
+import { readStageRelease } from './scripts/stage-release';
 function stageWorkshop(): Plugin {
   return {
     name: 'local-stage-workshop',
     apply: 'serve',
+    handleHotUpdate({ file }) {
+      // Stage writes are data, not code edits. Reloading the editor here drops
+      // its open library and tab-only credentials during a rename/save. Public
+      // menus read the live API; manual reload still refreshes bundled imports.
+      if (/\/data\/(stages|releases)\/[^/]+\.json$/.test(file.replace(/\\/g, '/'))) return [];
+    },
     configureServer(server) {
       let handler: ReturnType<typeof workshopApi> | undefined;
       server.middlewares.use(async (req, res, next) => {
@@ -61,14 +68,31 @@ function stageWorkshop(): Plugin {
     },
   };
 }
-export function playerStages(): Plugin {
+export function playerStages(root = process.cwd()): Plugin {
   return {
     name: 'player-stages-without-proofs',
     apply: 'build',
     enforce: 'pre',
-    transform(code, id) {
+    configResolved(config) {
+      root = config.root;
+    },
+    async transform(code, id) {
       if (!id.replace(/\\/g, '/').includes('/data/stages/') || !id.endsWith('.json')) return;
-      const stage = JSON.parse(code);
+      let stage = JSON.parse(code);
+      // Editable source and the last audited release are separate documents.
+      // A draft save must not withdraw/replace the stage in the offline build.
+      if (/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(stage.id)) {
+        const snapshot = await readStageRelease(root, stage.id);
+        if (snapshot) {
+          if (snapshot.raw === null) stage.published = false;
+          else {
+            const release = JSON.parse(snapshot.raw);
+            if (release.id !== stage.id || release.published === false)
+              throw Error('Invalid published stage snapshot: ' + stage.id);
+            stage = release;
+          }
+        }
+      }
       stage.referencePlans = [];
       delete stage.randomization;
       return { code: JSON.stringify(stage), map: null };

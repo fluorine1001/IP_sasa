@@ -20,6 +20,10 @@
 추가 전 전체80개 실행과 별개 후속 검사입니다. 공유 제작소 빌드511.11kB/gzip165.48kB,
 `editor-DXTzkmaN.js`. 청크500kB 안내는 남으며 이를 숨기지 않았습니다.
 
+개인 배포 브랜치의 코드 커밋833258b를 push했습니다. 공개 HTTP 읽기로 editor.html 200,
+동일한 `editor-DXTzkmaN.js`, healthz ok/PostgreSQL, 공개 스테이지9개 및 공개된 검증 계획0개를
+확인했습니다. 운영 초안/인증 상태는 새로고침하거나 서버에 덮어쓰지 않았습니다.
+
 ## 2026-10-15 · 거리 기반 타원 띠·과정형 전이 경계값 탐색
 
 `npm run format`, `npm run verify` 정상 종료: TypeScript/담당 경계/9 UUID,

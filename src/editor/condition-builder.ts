@@ -7,6 +7,7 @@ import {
   type Expression,
 } from '../world/conditions.ts';
 import type { Stage } from '../world/types.ts';
+import { sceneActorOptions } from './moving-objects';
 const select = (path: string, field: string, value: string, options: [string, string][]) =>
   `<select data-block-path="${path}" data-block-field="${field}">${options.map(([id, label]) => `<option value="${escape(id)}" ${id === value ? 'selected' : ''}>${escape(label)}</option>`).join('')}</select>`;
 const number = (path: string, field: string, value: number, label: string) =>
@@ -14,9 +15,8 @@ const number = (path: string, field: string, value: number, label: string) =>
 const text = (path: string, key: string, value: string) =>
   `<label>기록 이름 (영문)<input type="text" data-block-path="${path}" data-block-field="${key}" value="${escape(value)}" maxlength="48"></label>`;
 const actors = (stage: Stage): [string, string][] => [
-  ['craft', '주 로켓 / 탑재체'],
-  ...(stage.rocket?.parts ?? []).map((p) => [p.id, `${p.name} (분리 후)`] as [string, string]),
-  ...stage.bodies.map((b) => [b.id, b.name] as [string, string]),
+  ...sceneActorOptions(stage),
+  ['$actor', '현재 집합의 기체'],
 ];
 export function expressionBuilder(e: Expression, path: string, stage: Stage): string {
   const types: [string, string][] = [
@@ -42,6 +42,8 @@ export function expressionBuilder(e: Expression, path: string, stage: Stage): st
       (metrics[e.metric]?.target
         ? select(path, 'targetId', e.targetId, [
             ['', '고정 공간 기준'],
+            ['$target', '현재 집합의 기준 대상'],
+            ['origin', '고정 좌표 · 우주 기준'],
             ...stage.bodies.map((b) => [b.id, b.name] as [string, string]),
             ...stage.objects.map((o) => [o.id, o.name] as [string, string]),
           ])
@@ -77,9 +79,18 @@ export function conditionBuilder(c: Condition, path: string, stage: Stage): stri
     ['not', '조건 반전 (NOT)'],
     ['event', '사건 발생'],
     ['capture', '조건 만족 순간 값을 기록'],
+    ['quantify', '대상 집합 · 모두 / 일부'],
+    ['reference', '장면의 판정 오브젝트 연결'],
   ];
   let html = '';
-  if (c.kind === 'compare')
+  if (c.kind === 'reference')
+    html = select(
+      path,
+      'goalId',
+      c.goalId,
+      stage.goals.map((g) => [g.id, g.title]),
+    );
+  else if (c.kind === 'compare')
     html =
       expressionBuilder(c.left, `${path}.left`, stage) +
       select(path, 'operator', c.operator, [
@@ -98,6 +109,16 @@ export function conditionBuilder(c: Condition, path: string, stage: Stage): stri
             `<div class="block-child">${conditionBuilder(child, `${path}.children.${i}`, stage)}<div class="block-tools"><button data-move-block="${path}.children.${i}" data-direction="-1" ${i === 0 ? 'disabled' : ''}>↑</button><button data-move-block="${path}.children.${i}" data-direction="1" ${i === c.children.length - 1 ? 'disabled' : ''}>↓</button><button data-clone-block="${path}.children.${i}">복제</button><button data-remove-block="${path}.children.${i}">삭제</button></div></div>`,
         )
         .join('') + `<button data-add-block="${path}">+ 조건 추가</button>`;
+  else if (c.kind === 'quantify')
+    html =
+      `<label>기체 집합 (쉼표 ID)<input data-block-path="${path}" data-block-field="actorIds" value="${escape(c.actorIds.join(','))}"></label><label>대상 집합 (쉼표 ID)<input data-block-path="${path}" data-block-field="targetIds" value="${escape(c.targetIds?.join(',') ?? '')}"></label>` +
+      select(path, 'mode', c.mode, [
+        ['all', '전부'],
+        ['any', '하나 이상'],
+        ['atLeast', '지정한 개수 이상'],
+      ]) +
+      (c.mode === 'atLeast' ? number(path, 'count', c.count ?? 1, '필요한 달성 수') : '') +
+      conditionBuilder(c.child, `${path}.child`, stage);
   else if (c.kind === 'capture')
     html =
       text(path, 'key', c.key) +
@@ -106,20 +127,30 @@ export function conditionBuilder(c: Condition, path: string, stage: Stage): stri
     html =
       select(path, 'event', c.event, [
         ['collision', '천체 표면에 접촉'],
-        ['gate', '게이트 통과'],
+        ...(c.event === 'gate' ? [['gate', '구형 관측면 통과'] as [string, string]] : []),
         ['burn', '추진 실행'],
         ['separation', '로켓 단 분리'],
       ]) +
-      (c.event === 'collision' || c.event === 'gate'
+      (c.event === 'collision' || c.event === 'gate' || c.event === 'burn'
         ? select(
             path,
             'actorId',
-            c.actorId ?? 'craft',
-            c.event === 'collision'
-              ? actors(stage).filter(
-                  ([id]) => id === 'craft' || stage.rocket?.parts.some((p) => p.id === id),
-                )
-              : actors(stage),
+            c.actorId ?? (c.event === 'burn' ? '' : 'craft'),
+            c.event === 'burn'
+              ? [
+                  ['', '모든 비행체'],
+                  ['craft', '주 로켓'],
+                  ...(stage.rocket?.parts ?? []).map((p) => [p.id, p.name] as [string, string]),
+                ]
+              : c.event === 'collision'
+                ? actors(stage).filter(
+                    ([id]) =>
+                      id === 'craft' ||
+                      [...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].some(
+                        (p) => p.id === id,
+                      ),
+                  )
+                : actors(stage),
           )
         : '') +
       (['collision', 'gate', 'separation'].includes(c.event)
@@ -130,7 +161,10 @@ export function conditionBuilder(c: Condition, path: string, stage: Stage): stri
             c.event === 'collision'
               ? stage.bodies.map((b) => [b.id, b.name])
               : c.event === 'separation'
-                ? (stage.rocket?.parts ?? []).map((p) => [p.id, p.name])
+                ? [...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].map((p) => [
+                    p.id,
+                    p.name,
+                  ])
                 : stage.objects.filter((o) => o.kind === 'gate').map((o) => [o.id, o.name]),
           )
         : '');
@@ -164,6 +198,9 @@ export function replaceBlockKind(kind: string, expression = false): Condition | 
   }
   if (['all', 'any', 'sequence'].includes(kind))
     return { kind: kind as 'all', children: [comparison()] };
+  if (kind === 'reference') return { kind: 'reference', goalId: '' };
+  if (kind === 'quantify')
+    return { kind: 'quantify', actorIds: ['craft'], mode: 'all', child: comparison() };
   if (kind === 'capture')
     return {
       kind: 'capture',

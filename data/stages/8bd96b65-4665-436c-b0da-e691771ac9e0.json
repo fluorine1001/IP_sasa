@@ -4,7 +4,7 @@
   "launchAngle": 0,
   "id": "8bd96b65-4665-436c-b0da-e691771ac9e0",
   "title": "대기권의 문을 지나",
-  "description": "대기권을 지나 지정된 고도 구역에서 연료를 남긴 채 안정적으로 비행하세요. 기체의 단별 특성과 실제 관측을 활용해 비행 순서를 설계합니다.",
+  "description": "대기권을 지나 목표 높이 띠에 머무르세요.",
   "order": 1,
   "theme": "frontier",
   "bodies": [
@@ -307,7 +307,7 @@
   "goals": [
     {
       "id": "689dab5f-0d53-4b1d-904b-ed90bd33ceeb",
-      "title": "대기권을 지나 연료를 남기고 안정 비행",
+      "title": "대기권 바깥 목표 띠에서 비행",
       "position": {
         "x": 3,
         "y": 0
@@ -316,164 +316,44 @@
       "endTime": 18,
       "dependsOn": [],
       "condition": {
-        "kind": "sequence",
-        "children": [
-          {
-            "kind": "all",
-            "children": [
-              {
-                "kind": "event",
-                "event": "separation",
-                "targetId": "a2d2355c-63a5-437a-bd97-1ca635239d97"
+        "kind": "hold",
+        "child": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "altitude",
+                "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7"
               },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "metric",
-                  "metric": "altitude",
-                  "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
-                  "actorId": "craft"
-                },
-                "operator": "gte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.12
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "metric",
-                  "metric": "altitude",
-                  "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
-                  "actorId": "craft"
-                },
-                "operator": "lte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.55
-                }
+              "operator": "gte",
+              "right": {
+                "kind": "constant",
+                "value": 1.2
               }
-            ]
-          },
-          {
-            "kind": "all",
-            "children": [
-              {
-                "kind": "event",
-                "event": "separation",
-                "targetId": "30bcf420-34f2-4b28-b513-ad759a57c7b7"
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "altitude",
+                "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7"
               },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "metric",
-                  "metric": "altitude",
-                  "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
-                  "actorId": "craft"
-                },
-                "operator": "gte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.8
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "metric",
-                  "metric": "airDensity",
-                  "targetId": "",
-                  "actorId": "craft"
-                },
-                "operator": "lte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.02
-                }
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 3.2
               }
-            ]
-          },
-          {
-            "kind": "hold",
-            "duration": 1,
-            "child": {
-              "kind": "all",
-              "children": [
-                {
-                  "kind": "compare",
-                  "left": {
-                    "kind": "metric",
-                    "metric": "altitude",
-                    "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
-                    "actorId": "craft"
-                  },
-                  "operator": "gte",
-                  "right": {
-                    "kind": "constant",
-                    "value": 1.4
-                  }
-                },
-                {
-                  "kind": "compare",
-                  "left": {
-                    "kind": "metric",
-                    "metric": "altitude",
-                    "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
-                    "actorId": "craft"
-                  },
-                  "operator": "lte",
-                  "right": {
-                    "kind": "constant",
-                    "value": 2.8
-                  }
-                },
-                {
-                  "kind": "compare",
-                  "left": {
-                    "kind": "metric",
-                    "metric": "speed",
-                    "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
-                    "actorId": "craft"
-                  },
-                  "operator": "gte",
-                  "right": {
-                    "kind": "constant",
-                    "value": 0.2
-                  }
-                },
-                {
-                  "kind": "compare",
-                  "left": {
-                    "kind": "metric",
-                    "metric": "speed",
-                    "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
-                    "actorId": "craft"
-                  },
-                  "operator": "lte",
-                  "right": {
-                    "kind": "constant",
-                    "value": 0.45
-                  }
-                },
-                {
-                  "kind": "compare",
-                  "left": {
-                    "kind": "metric",
-                    "metric": "fuel",
-                    "targetId": "",
-                    "actorId": "craft"
-                  },
-                  "operator": "gte",
-                  "right": {
-                    "kind": "constant",
-                    "value": 0.1
-                  }
-                }
-              ]
             }
-          }
-        ]
+          ]
+        },
+        "duration": 1.5
+      },
+      "display": {
+        "targetId": "3163b4bb-1fa7-48a6-8350-83b63159c4b7",
+        "min": 2.2,
+        "max": 4.2
       }
     }
   ],

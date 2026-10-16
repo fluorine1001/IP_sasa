@@ -27,7 +27,7 @@ it('예약 한도는 초기 발사를 제외하고 복합 명령의 각 조작�
     throttle: 1,
     direction: { x: 0, y: 1 },
   });
-  expect(commandUsage(p)).toEqual({ ignite: 1, turn: 1, stop: 0, separate: 0, push: 0 });
+  expect(commandUsage(p)).toEqual({ ignite: 1, turn: 1, stop: 0, separate: 0, push: 0, deploy: 0 });
   expect(canAddCommand(s, p, 'turn')).toBe(false);
   p.engineCommands!.push({ id: 'turn2', time: 2, actorId: 'craft', direction: { x: 0, y: 1 } });
   expect(planConstraints(s, p)[0]).toContain('방향 회전');

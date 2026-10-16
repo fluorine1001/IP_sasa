@@ -19,7 +19,7 @@ export type Body = {
 export type DeviceKind = 'speed' | 'gravity' | 'distance' | 'direction' | 'clock';
 export type WorldObject = {
   id: string;
-  kind: 'sensor' | 'gate' | 'hazard' | 'station' | 'path';
+  kind: 'sensor' | 'gate' | 'hazard' | 'station' | 'path' | 'satellite' | 'debris' | 'landing-site';
   name: string;
   position: Vec;
   radius: number;
@@ -27,8 +27,13 @@ export type WorldObject = {
   points?: Vec[];
   sensor: DeviceKind;
   motion?: Body['motion'];
+  dynamic?: { velocity: Vec; epoch?: number };
+  surface?: { bodyId: string; angle: number };
+  /** Old station records described a tracking point, not collision geometry. */
+  physicalRadius?: number;
 };
 export type Goal = {
+  editorSeed?: string;
   id: string;
   title: string;
   condition: Condition;
@@ -38,6 +43,11 @@ export type Goal = {
   endTimeUnlimited?: boolean;
   dependsOn: string[];
   display?: { targetId: string; min: number; max: number };
+  /** Editor recipe only; the condition tree remains the sole runtime predicate. */
+  outcome?: import('../stages/outcomes').Outcome;
+  intent?: import('../stages/mission-intent').MissionIntent;
+  sketch?: import('../stages/goal-sketch').GoalSketch;
+  marker?: import('../stages/goal-marker').GoalMarker;
 };
 export type Impulse = { id: string; time: number; vector: Vec };
 export type RoutePlan = {
@@ -50,11 +60,18 @@ export type RoutePlan = {
     throttle?: number;
     direction?: Vec;
     separate?: boolean;
+    releasePayload?: string;
   }[];
   deployments?: { id: string; time: number; kind: DeviceKind }[];
 };
 export type Stage = {
   version: 2;
+  track?: 'campaign' | 'tutorial';
+  tutorial?: {
+    lesson: number;
+    objective: string;
+    steps: { id: string; label: string; detail?: string; target?: string }[];
+  };
   learning?: import('./evidence').LearningDesign;
   randomization?: import('./variation').VariationBank;
   published?: boolean;
@@ -70,7 +87,11 @@ export type Stage = {
   objects: WorldObject[];
   goals: Goal[];
   goalMode: 'all' | 'any';
-  spawn: { position: Vec; velocity: Vec };
+  spawn: {
+    position: Vec;
+    velocity: Vec;
+    /** Incomplete editor drafts only. Absent means placed. */ placed?: boolean;
+  };
   rules: {
     surfaceClearance?: number;
     launchLimit: number;
@@ -80,7 +101,9 @@ export type Stage = {
     /** Planning rail duration; remaining mission time is observation/coasting. */
     timelineDuration?: number;
     timelineUnlimited?: boolean;
-    commandLimits?: Partial<Record<'ignite' | 'stop' | 'turn' | 'separate' | 'push', number>>;
+    commandLimits?: Partial<
+      Record<'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy', number>
+    >;
     worldRadius: number;
     sensorSlots: number;
     attempts: number;
@@ -120,6 +143,7 @@ export type Run = {
   observations: Observation[];
   sampled: Set<string>;
   goals: Record<string, GoalProgress>;
+  goalRoots?: string[];
   frames?: import('./replay').FlightFrame[];
   initialPlan?: RoutePlan;
   lastTrail: number;
@@ -128,8 +152,10 @@ export type Run = {
   rocket?: RocketState;
   detached: Detached[];
   bodies?: Record<string, import('./dynamics.ts').BodyState>;
+  objects?: Record<string, import('./dynamics.ts').BodyState>;
   landed?: { bodyId: string; angle: number };
   touchdownSpeed?: number;
+  touchdownTilt?: number;
   impact?: import('./impact').Impact;
   buoys: { id: string; kind: DeviceKind; position: Vec; velocity: Vec; lastSample: number }[];
 };
@@ -142,4 +168,7 @@ export type GoalContext = {
   previousTime: number;
   collisionBodyId?: string;
   actorId?: string;
+  primary?: { position: Vec; velocity: Vec };
+  bindings?: { actorId?: string; targetId?: string; scope: string };
+  references?: string[];
 };

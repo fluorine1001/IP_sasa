@@ -30,6 +30,17 @@ export function energy(state: BodyState, mu: number): number {
 export function angularMomentum(state: BodyState): number {
   return state.position.x * state.velocity.y - state.position.y * state.velocity.x;
 }
+export function eccentricity(state: BodyState, mu: number): number {
+  return length(eccentricityVector(state, mu));
+}
+/** Physical conic geometry for propagation/authoring, not a mission criterion. */
+export function eccentricityVector(state: BodyState, mu: number): Vec {
+  const radius = length(state.position);
+  if (!(mu > 0) || radius <= 0) return { x: NaN, y: NaN };
+  const v2 = dot(state.velocity, state.velocity),
+    rv = dot(state.position, state.velocity);
+  return scale(sub(scale(state.position, v2 - mu / radius), scale(state.velocity, rv)), 1 / mu);
+}
 export function segmentHitsCircle(a: Vec, b: Vec, radius: number): boolean {
   const ab = sub(b, a),
     t = Math.max(0, Math.min(1, -dot(a, ab) / (dot(ab, ab) || 1)));

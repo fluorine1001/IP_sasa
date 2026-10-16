@@ -1,4 +1,5 @@
 import { PAD_CLEARANCE } from '../world/launch.ts';
+import { defaultRocket } from '../world/rocket.ts';
 import { comparison } from '../world/conditions.ts';
 import type { Body, Goal, Stage, WorldObject } from '../world/types.ts';
 export const uid = () => crypto.randomUUID();
@@ -28,13 +29,19 @@ export function newObject(kind: WorldObject['kind'] = 'sensor'): WorldObject {
     id: uid(),
     kind,
     name:
-      kind === 'sensor'
-        ? '고정 관측 구역'
-        : kind === 'gate'
-          ? '통과 게이트'
-          : kind === 'hazard'
-            ? '위험 구역'
-            : '정거장',
+      kind === 'satellite'
+        ? '기존 위성'
+        : kind === 'debris'
+          ? '소행성 / 파편'
+          : kind === 'landing-site'
+            ? '착륙 지점'
+            : kind === 'sensor'
+              ? '고정 관측 구역'
+              : kind === 'gate'
+                ? '통과 게이트'
+                : kind === 'hazard'
+                  ? '위험 구역'
+                  : '정거장',
     position: { x: 0, y: 0 },
     radius: kind === 'sensor' ? 0.45 : 0.6,
     angle: 0,
@@ -46,6 +53,7 @@ export function newObject(kind: WorldObject['kind'] = 'sensor'): WorldObject {
           ]
         : undefined,
     sensor: 'gravity',
+    ...(kind === 'station' ? { physicalRadius: 0.08 } : {}),
   };
 }
 export function newGoal(): Goal {
@@ -76,6 +84,7 @@ export function blankStage(): Stage {
   };
   return {
     version: 2,
+    rocket: defaultRocket(),
     launchBodyId: body.id,
     launchAngle: 0,
     id: uid(),
@@ -85,7 +94,7 @@ export function blankStage(): Stage {
     theme: 'frontier',
     bodies: [body],
     objects: [],
-    goals: [goal],
+    goals: [{ ...goal, editorSeed: JSON.stringify(goal) }],
     goalMode: 'all',
     spawn: { position: { x: body.radius + PAD_CLEARANCE, y: 0 }, velocity: { x: 0, y: 0 } },
     rules: {
@@ -102,4 +111,17 @@ export function blankStage(): Stage {
     referencePlans: [],
     audit: { samples: 128, maxPassRate: 0.01, seed: 31415 },
   };
+}
+/** A new workshop document contains no pre-authored world, vehicle, or objective. */
+export function emptyStage(): Stage {
+  const stage = blankStage();
+  stage.bodies = [];
+  stage.goals = [];
+  stage.rocket = undefined;
+  stage.launchBodyId = undefined;
+  stage.launchAngle = 0;
+  stage.spawn = { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 }, placed: false };
+  stage.published = false;
+  stage.description = '';
+  return stage;
 }

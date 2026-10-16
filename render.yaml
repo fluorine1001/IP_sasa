@@ -1,0 +1,20 @@
+# Free only. Do not add a card or upgrade without the project owner's approval.
+services:
+  - type: web
+    name: ip-sasa-workshop
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npx vite build --config vite.workshop.config.ts
+    startCommand: node scripts/serve-workshop.mjs --lan --no-build
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: DATABASE_URL
+        sync: false
+      - key: STAGE_EDITOR_TOKEN
+        generateValue: true
+      - key: STAGE_SEED_BUNDLED
+        value: '1'
+      - key: STAGE_ALLOWED_ORIGINS
+        value: 'http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5187,http://localhost:5187'

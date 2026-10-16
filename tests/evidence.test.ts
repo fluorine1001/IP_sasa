@@ -4,7 +4,8 @@ import { createRun, tick, execute, impulse } from '../src/world/engine';
 import { learningDesign, readingText, recordTrial, compareTrials } from '../src/world/evidence';
 import { scale, unit, length } from '../src/physics/vector';
 import { parseStage } from '../src/stages/validation';
-const stage = stages.find((s) => s.id === 'aefa2afd-1717-4954-9413-a63c077320e8')!;
+import { legacyStage } from './fixtures/legacy-stage';
+const stage = legacyStage();
 function flightToTurn(strength: number, dt = 0.1) {
   const run = createRun(stage, { launch: { x: 0, y: strength }, impulses: [] });
   while (run.status === 'running' && !run.evidence.cues.length)
@@ -66,6 +67,7 @@ it('실험 카드는 실제로 적용한 조작만 복사하고 서로 다른 �
   expect(a.plan.impulses).toEqual([]);
   const b = structuredClone(a);
   b.plan.impulses.push({ id: 'burn', time: 0.2, vector: { x: 0.1, y: 0 } });
+  b.scheduledPlan.impulses.push({ id: 'burn', time: 0.2, vector: { x: 0.1, y: 0 } });
   expect(compareTrials(a, b)).toContain('단정할 수 없습니다');
 });
 it('사용자 단서의 수식·범위·참조를 검증하고 목표 메모리와 독립적으로 기록한다', () => {

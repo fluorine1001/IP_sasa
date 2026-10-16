@@ -1,0 +1,56 @@
+.tutorial-hub .muted {
+  max-width: 760px;
+}
+
+.tutorial-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 740px;
+  gap: 16px;
+  margin: 28px 0;
+}
+
+.tutorial-card {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 6px 14px;
+  text-align: left;
+  padding: 20px;
+  color: var(--paper);
+  background: #253d4b;
+  border: 2px solid #597b83;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #081824;
+  cursor: pointer;
+}
+
+.tutorial-card:hover,
+.tutorial-card:focus-visible {
+  border-color: #eecb86;
+  transform: translateY(-2px);
+}
+
+.tutorial-card.done {
+  border-color: #72ba94;
+}
+
+.tutorial-number {
+  grid-row: span 3;
+  font-size: 28px;
+  color: #edca87;
+}
+
+.tutorial-card strong {
+  font-size: 18px;
+}
+
+.tutorial-card span:not(.tutorial-number),
+.tutorial-card small {
+  color: #c4d3d4;
+}
+
+@media (max-width: 650px) {
+  .tutorial-grid {
+    grid-template-columns: 1fr;
+  }
+}

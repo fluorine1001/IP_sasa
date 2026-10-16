@@ -1,11 +1,43 @@
 import { defineConfig, type Plugin } from 'vite';
 import { writeFile, rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { workshopApi } from './scripts/workshop-api';
+import { publicationAuditor } from './scripts/workshop-auditor';
+import { readStageRelease } from './scripts/stage-release';
 function stageWorkshop(): Plugin {
   return {
     name: 'local-stage-workshop',
     apply: 'serve',
+    hotUpdate: {
+      // Run AFTER import-glob adds the catalog on create/delete. Filtering it
+      // earlier lets that built-in hook reintroduce a full-page reload.
+      order: 'post',
+      handler({ file, modules }) {
+        // Data writes must not discard the open document or tab-only key.
+        // Live menus read the API; manual reload refreshes bundled imports.
+        if (/\/data\/(stages|releases)\/[^/]+\.json$/.test(file.replace(/\\/g, '/'))) {
+          // Clear transform caches without pushing an unsolicited navigation.
+          // A later manual load must still see new/deleted glob members.
+          for (const module of modules) this.environment.moduleGraph.invalidateModule(module);
+          return [];
+        }
+      },
+    },
     configureServer(server) {
+      let handler: ReturnType<typeof workshopApi> | undefined;
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url?.startsWith('/api/stages') && !req.url?.startsWith('/api/workshop/stages'))
+          return next();
+        if (!handler) {
+          const { parseStage } = await server.ssrLoadModule('/src/stages/validation.ts');
+          handler = workshopApi(
+            server.config.root,
+            parseStage,
+            publicationAuditor(server.config.root),
+          );
+        }
+        await handler(req, res);
+      });
       server.middlewares.use('/__dev/stages', async (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         const reject = (code: number, error: string) => {
@@ -13,6 +45,8 @@ function stageWorkshop(): Plugin {
           res.end(JSON.stringify({ error }));
         };
         if (req.method !== 'POST') return reject(405, 'POST only');
+        if (process.env.STAGE_EDITOR_TOKEN)
+          return reject(403, 'Use the authenticated workshop API');
         const address = req.socket.remoteAddress ?? '',
           host = req.headers.host ?? '';
         if (
@@ -43,14 +77,31 @@ function stageWorkshop(): Plugin {
     },
   };
 }
-export function playerStages(): Plugin {
+export function playerStages(root = process.cwd()): Plugin {
   return {
     name: 'player-stages-without-proofs',
     apply: 'build',
     enforce: 'pre',
-    transform(code, id) {
+    configResolved(config) {
+      root = config.root;
+    },
+    async transform(code, id) {
       if (!id.replace(/\\/g, '/').includes('/data/stages/') || !id.endsWith('.json')) return;
-      const stage = JSON.parse(code);
+      let stage = JSON.parse(code);
+      // Editable source and the last audited release are separate documents.
+      // A draft save must not withdraw/replace the stage in the offline build.
+      if (/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(stage.id)) {
+        const snapshot = await readStageRelease(root, stage.id);
+        if (snapshot) {
+          if (snapshot.raw === null) stage.published = false;
+          else {
+            const release = JSON.parse(snapshot.raw);
+            if (release.id !== stage.id || release.published === false)
+              throw Error('Invalid published stage snapshot: ' + stage.id);
+            stage = release;
+          }
+        }
+      }
       stage.referencePlans = [];
       delete stage.randomization;
       return { code: JSON.stringify(stage), map: null };

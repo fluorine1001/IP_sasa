@@ -1,3 +1,4 @@
+import { conditionKey } from '../stages/mission-intent';
 import { stageFingerprint } from '../world/variation';
 import type { Condition } from '../world/conditions.ts';
 import type { Stage, Body, WorldObject, Goal } from '../world/types.ts';
@@ -71,6 +72,9 @@ export class EditorModel {
         const r = node as Record<string, unknown>;
         for (const key of ['targetId', 'actorId', 'parentId'])
           if (typeof r[key] === 'string') r[key] = remap.get(r[key] as string) ?? r[key];
+        for (const key of ['actorIds', 'targetIds', 'companions'])
+          if (Array.isArray(r[key])) r[key] = (r[key] as string[]).map((id) => remap.get(id) ?? id);
+        if (typeof r.goalId === 'string') r.goalId = remap.get(r.goalId) ?? r.goalId;
         Object.values(r).forEach(references);
       };
       const copies = structuredClone(entities);
@@ -81,14 +85,23 @@ export class EditorModel {
         references(e);
         if ('dependsOn' in e) e.dependsOn = e.dependsOn.map((id) => remap.get(id) ?? id);
         if ('mu' in e) s.bodies.push(e);
-        else if ('condition' in e) s.goals.push(e);
-        else s.objects.push(e);
+        else if ('condition' in e) {
+          for (const metadata of [e.marker, e.sketch, e.intent])
+            if (metadata?.managed !== false && metadata?.compiledKey)
+              metadata.compiledKey = conditionKey(e.condition);
+          s.goals.push(e);
+        } else s.objects.push(e);
       }
       this.selection = new Set(copies.map((e) => e.id));
     });
   }
   delete() {
     this.change((s) => {
+      if (this.selection.has('spawn')) {
+        s.spawn.placed = false;
+        s.rocket = undefined;
+        s.launchBodyId = undefined;
+      }
       s.bodies = s.bodies.filter((e) => !this.selection.has(e.id));
       s.objects = s.objects.filter((e) => !this.selection.has(e.id));
       s.goals = s.goals.filter((e) => !this.selection.has(e.id));

@@ -1,0 +1,7 @@
+[data-workspace='manual'] #manual-save-status {
+  display: block;
+  margin-top: 10px;
+  color: var(--mint);
+  font-size: 11px;
+  line-height: 1.5;
+}

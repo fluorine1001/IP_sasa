@@ -1,8 +1,8 @@
 .editor {
   height: 100dvh;
   display: grid;
-  grid-template-columns: 180px 1fr 305px;
-  grid-template-rows: 65px 1fr 170px;
+  grid-template-columns: 190px minmax(300px, 1fr) 330px;
+  grid-template-rows: auto minmax(300px, 1fr) minmax(220px, 34dvh);
   background: #142332;
   gap: 8px;
   padding: 8px;
@@ -14,11 +14,223 @@
   align-items: center;
   gap: 7px;
   padding: 8px;
+  flex-wrap: wrap;
 }
 
 .editor-top button {
   font-size: 11px;
   padding: 8px;
+}
+.launch-balance {
+  flex-basis: 100%;
+  border-top: 1px solid #87c4ac55;
+  padding-top: 8px;
+  font-size: 12px;
+}
+.launch-balance summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.launch-balance summary::before {
+  content: '▸';
+  color: #efb95c;
+}
+.launch-balance[open] summary::before {
+  content: '▾';
+}
+.launch-balance svg {
+  width: 158px;
+  height: 36px;
+}
+.launch-balance svg text {
+  font: 11px sans-serif;
+  fill: #d5e3df;
+}
+.launch-balance svg path {
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.launch-balance p {
+  max-width: 600px;
+  margin: 8px 0;
+  color: #bbcfcc;
+  line-height: 1.6;
+}
+.editor-menu {
+  flex: 0 0 auto;
+}
+.editor-menu-trigger::after {
+  content: '⌄';
+  margin-left: 8px;
+}
+.editor-menu-trigger[aria-expanded='true'] {
+  background: #87c4ac;
+}
+.editor-menu-content {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(300px, calc(100vw - 24px));
+  max-height: min(480px, calc(100dvh - 24px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: none;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #6c9987;
+  border-radius: 10px;
+  background: #19333f;
+  box-shadow: 0 8px 22px #06131c88;
+  color: #e5ddbd;
+  scrollbar-width: thin;
+  scrollbar-color: #b99b63 #17323c;
+}
+.editor-menu-content:popover-open {
+  display: grid;
+}
+.editor-menu-content > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.editor-menu-content > label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.editor-top .editor-menu-content #stage-source {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.editor-menu-content > button {
+  width: 100%;
+  text-align: left;
+}
+.palette-group {
+  margin: 12px 0;
+  border-top: 1px solid #5c887455;
+  padding-top: 10px;
+}
+.palette-group summary {
+  color: #e5c984;
+  font-size: 13px;
+}
+.mission-builder {
+  width: min(640px, calc(100vw - 32px));
+  max-height: 85dvh;
+  overflow: auto;
+  padding: 24px;
+}
+.mission-builder header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mission-builder fieldset {
+  max-height: 180px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.mission-builder label {
+  display: block;
+  margin: 10px 0;
+}
+.goal-composer {
+  width: min(820px, calc(100vw - 24px));
+  padding: 24px;
+}
+.goal-composer header,
+.composer-join {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.goal-composer select {
+  width: 100%;
+  padding: 8px;
+}
+.goal-composer label {
+  display: block;
+  margin: 8px 0;
+}
+.composer-sets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.composer-sets fieldset {
+  max-height: 160px;
+  overflow: auto;
+}
+.composer-sets input[type='checkbox'] {
+  width: auto;
+}
+.relation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1.2fr) 34px;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #6b8e8266;
+}
+.relation-row button {
+  padding: 4px;
+}
+.goal-composer details {
+  margin: 14px 0;
+}
+.sketch-actions button {
+  width: 100%;
+  margin: 6px 0;
+}
+.marker-inspector fieldset {
+  max-height: 160px;
+  overflow: auto;
+}
+.marker-inspector fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+.marker-inspector input[type='checkbox'] {
+  width: auto;
+}
+.marker-gauge {
+  position: relative;
+  height: 24px;
+  border: 1px solid #719b8a;
+  border-radius: 8px;
+  background: #18313c;
+}
+.marker-gauge span {
+  position: absolute;
+  left: var(--low);
+  right: calc(100% - var(--high));
+  top: 4px;
+  bottom: 4px;
+  background: #e9c576;
+  border-radius: 4px;
+}
+@media (max-width: 640px) {
+  .relation-row {
+    grid-template-columns: 1fr 1fr 34px;
+  }
+  .relation-row > select:first-child {
+    grid-column: 1/-1;
+  }
+  .composer-join {
+    flex-wrap: wrap;
+  }
+}
+.mission-builder input[type='checkbox'] {
+  width: auto;
 }
 
 .editor-top input {
@@ -41,6 +253,44 @@
   position: relative;
   min-width: 0;
   min-height: 0;
+}
+
+.representative-replay {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 32px;
+  max-width: 540px;
+  z-index: 4;
+  padding: 12px;
+  background: #17303be8;
+}
+.representative-replay header,
+.representative-replay > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.representative-replay header {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.representative-replay button {
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.representative-replay input[type='range'] {
+  flex: 1;
+  min-width: 50px;
+}
+.representative-replay output {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.representative-replay small {
+  display: block;
+  margin-top: 6px;
 }
 
 .editor-viewport canvas {
@@ -79,6 +329,7 @@
 
 .editor-audit {
   grid-column: 1/-1;
+  grid-row: 4;
   overflow: auto;
   padding: 12px;
   font-size: 12px;
@@ -191,7 +442,7 @@
 }
 
 .editor-top {
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .editor-palette label input {
@@ -252,4 +503,703 @@
   min-width: 230px;
   padding: 10px;
   border-color: #e1bd6f80;
+}
+.editor-search {
+  grid-column: 1/-1;
+  grid-row: 3;
+  display: block;
+  gap: 18px;
+  padding: 12px;
+  overflow: auto;
+  font-size: 12px;
+}
+.search-config {
+  width: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  overflow: visible;
+}
+.search-config header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.search-config input[type='number'] {
+  width: 90px;
+}
+.search-results {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+}
+.search-results > small {
+  color: #b1c5c0;
+  display: block;
+  margin: 6px 0;
+}
+.editor-search button {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+#search-families {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  overflow: visible;
+}
+.solution-family {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 112px;
+  min-width: 240px;
+  padding: 9px;
+  background: #152c36;
+  border: 1px solid #5d8077;
+  border-radius: 8px;
+}
+.solution-family > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.solution-family small {
+  display: block;
+}
+.search-parameter {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 4px;
+  margin: 6px 0;
+}
+.search-parameter input {
+  max-width: 100%;
+}
+.search-config > label {
+  display: block;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+.search-config > label > input:not([type='checkbox']) {
+  display: block;
+  margin-top: 3px;
+  width: 100%;
+}
+.search-config small {
+  line-height: 1.6;
+  display: block;
+}
+.workshop-dialog {
+  width: min(800px, calc(100vw - 32px));
+  max-height: 80dvh;
+  overflow: auto;
+  background: #1c3540;
+  color: #e7dfc6;
+}
+.workshop-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.library-connect {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.library-connect input {
+  display: block;
+  padding: 8px;
+}
+.library-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid #55786c;
+}
+.library-card > div {
+  flex: 1;
+}
+.library-card small {
+  display: block;
+  color: #a9c4ba;
+  font-size: 11px;
+}
+.library-tabs,
+.library-tools,
+.library-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.library-tabs {
+  margin: 12px 0;
+}
+.library-tabs [aria-pressed='true'] {
+  background: #8ec7b5;
+  color: #132832;
+}
+.library-tools input {
+  flex: 1;
+  min-width: 120px;
+}
+.library-card {
+  flex-wrap: wrap;
+}
+.library-card > div:first-child {
+  min-width: 180px;
+  overflow-wrap: anywhere;
+}
+.library-card .library-actions {
+  flex: 0 1 auto;
+}
+.library-connect {
+  margin-top: 12px;
+}
+.library-connect label {
+  display: block;
+}
+.library-publication {
+  margin-top: 6px;
+}
+#library-list {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+.editor *,
+.workshop-dialog {
+  scrollbar-width: thin;
+  scrollbar-color: #b99b63 #17323c;
+}
+.outcome-builder [hidden] {
+  display: none !important;
+}
+#outcome-preview svg {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  margin: auto;
+}
+#outcome-preview p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #b7ccc2;
+}
+#search-pages {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.editor ::-webkit-scrollbar,
+.workshop-dialog::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.editor ::-webkit-scrollbar-track,
+.workshop-dialog::-webkit-scrollbar-track {
+  background: #17323c;
+  border-radius: 8px;
+}
+.editor ::-webkit-scrollbar-thumb,
+.workshop-dialog::-webkit-scrollbar-thumb {
+  background: #b99b63;
+  border: 2px solid #17323c;
+  border-radius: 8px;
+}
+@media (max-width: 950px) {
+  .editor {
+    grid-template-columns: 130px minmax(220px, 1fr) 250px;
+    overflow: auto;
+  }
+  .editor-top select {
+    max-width: 200px;
+  }
+  .search-config {
+    width: 200px;
+  }
+}
+.draft-recovery {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 24px));
+  z-index: 30;
+  border-color: #dfb36c;
+  padding: 16px;
+  box-shadow: 0 12px 40px #000b;
+}
+.solution-family meter {
+  display: block;
+  width: 100%;
+  height: 8px;
+  accent-color: #e3b764;
+}
+.marker-groups {
+  padding: 24px;
+}
+#marker-group-list {
+  max-height: 45dvh;
+  overflow: auto;
+}
+#marker-group-list > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #779b8355;
+}
+#marker-group-list input {
+  width: auto;
+}
+#marker-group-list button {
+  padding: 4px 10px;
+}
+@media (max-width: 680px) {
+  .editor {
+    height: 100dvh;
+    width: 100%;
+    min-height: 100dvh;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(300px, 45dvh) 200px minmax(360px, 50dvh) 220px 120px;
+    overflow-y: auto;
+  }
+  .editor-top {
+    grid-row: 1;
+    overflow: visible;
+  }
+  .editor-viewport {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .editor-palette {
+    grid-row: 3;
+    grid-column: 1;
+    max-height: 200px;
+  }
+  .editor-inspector {
+    grid-row: 4;
+    grid-column: 1;
+    max-height: 50dvh;
+  }
+  .editor-search {
+    grid-row: 5;
+    grid-column: 1;
+    grid-template-columns: 140px minmax(0, 1fr);
+    min-width: 0;
+  }
+  .editor > * {
+    min-width: 0;
+  }
+  .search-results {
+    min-width: 0;
+  }
+  .editor-audit {
+    grid-row: 6;
+    grid-column: 1;
+    max-height: 150px;
+  }
+  .search-config {
+    width: 140px;
+  }
+}
+
+/* Workshop hierarchy: one result scroller, contextual properties, no second replay tab. */
+.editor {
+  font-family: inherit;
+}
+.editor [hidden] {
+  display: none !important;
+}
+.editor button {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.editor-top button {
+  font-size: 13px;
+  padding: 9px 12px;
+}
+.editor-inspector {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.editor-inspector label {
+  margin: 10px 0;
+}
+.editor-palette button.marker-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 7px 10px;
+}
+.marker-tool .marker-diagram {
+  width: 42px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.marker-tool span {
+  font-size: 14px;
+}
+.marker-tool small {
+  display: block;
+  font-size: 11px;
+  color: #456353;
+}
+.marker-tool .marker-diagram {
+  stroke: #41675b;
+}
+.marker-guide {
+  border-bottom: 1px solid #72988755;
+  padding: 0 0 12px;
+  margin: 0 0 12px;
+}
+.marker-guide .marker-diagram {
+  display: block;
+  width: 150px;
+  max-width: 100%;
+  height: 80px;
+  margin: auto;
+}
+.marker-guide h3 {
+  font-size: 16px;
+  margin: 8px 0;
+}
+.marker-guide p {
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 6px 0;
+}
+.guide-pass {
+  color: #add4b9;
+}
+.guide-fail {
+  color: #dfaa98;
+}
+.placement-prompt {
+  color: #efc879;
+}
+.marker-help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.marker-help {
+  padding: 24px;
+}
+.guide-combinations {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.representative-replay {
+  position: static;
+  max-width: none;
+  z-index: auto;
+  margin: 10px 0;
+  padding: 12px;
+  background: #1b3742;
+}
+.reservation-bar {
+  position: relative;
+  margin: 8px 18px;
+  border-bottom: 2px solid #6c9587;
+  min-height: 36px;
+}
+.reservation-bar button {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid #76978c;
+  background: #23414c;
+  color: #edc879;
+}
+.reservation-bar svg,
+.reservation-detail > svg {
+  width: 24px;
+  height: 24px;
+}
+.reservation-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: #102832;
+  border-radius: 8px;
+}
+.reservation-detail small {
+  display: block;
+  color: #a2c2b7;
+}
+.reservation-power {
+  width: 100px;
+  position: relative;
+  height: 22px;
+  background: #294854;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.reservation-power i {
+  display: block;
+  height: 100%;
+  background: #bf8e36;
+}
+.reservation-power span {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  line-height: 22px;
+  color: #fff0cb;
+}
+.reservation-direction {
+  width: 50px;
+  height: 50px;
+}
+.search-config {
+  width: auto;
+}
+.search-config header {
+  gap: 12px;
+}
+.search-options > label {
+  display: block;
+  margin: 10px 0;
+}
+.search-options[open] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #597f73;
+  border-radius: 8px;
+}
+.search-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.search-heading progress {
+  flex: 1;
+  min-width: 100px;
+  max-width: 250px;
+  height: 8px;
+}
+.coverage-details,
+.design-review {
+  font-size: 12px;
+  color: #acc4b7;
+}
+.integrated-audit {
+  font-size: 13px;
+}
+.integrated-audit small {
+  display: block;
+}
+.integrated-audit .bad {
+  color: #e1a595;
+}
+.solution-family {
+  min-width: 0;
+}
+.solution-family.selected {
+  border-color: #efc574;
+  background: #25434c;
+}
+.solution-family header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.solution-family [data-family-path] {
+  flex: 1;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+.solution-family [data-family-path] span {
+  color: #9dc2b0;
+}
+.solution-family > small {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #acc1ba;
+}
+.family-ranges {
+  display: grid;
+  gap: 6px;
+}
+.family-ranges > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.family-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.solution-family [data-family-proposals] > div {
+  padding: 12px 0;
+  border-bottom: 1px solid #6b948255;
+}
+.editor-status:empty {
+  display: none;
+}
+
+.marker-placement-dock {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  left: 10px;
+  width: min(280px, calc(100% - 20px));
+  padding: 12px;
+  background: #17303bef;
+  border: 1px solid #71958e;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px #07182055;
+  font-size: 12px;
+}
+.marker-placement-dock[hidden] {
+  display: none;
+}
+.marker-placement-dock header,
+.marker-contract header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.marker-placement-dock header button {
+  padding: 2px 9px;
+  font-size: 16px;
+}
+.marker-placement-dock label {
+  display: block;
+  margin: 7px 0;
+}
+.marker-placement-dock small {
+  display: block;
+  color: #c0d3ce;
+  line-height: 1.5;
+}
+.marker-placement-dock output {
+  display: block;
+  color: #aad7bb;
+  min-height: 1.5em;
+  margin-top: 6px;
+}
+.marker-placement-dock output.bad {
+  color: #f0ab97;
+}
+.marker-contract {
+  border: 1px solid #71958e;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 8px 0 14px;
+}
+.marker-contract header span {
+  color: #edc77f;
+  font-size: 11px;
+}
+.marker-coverage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 10px 0;
+}
+.marker-coverage span {
+  color: #7e969c;
+  font-size: 11px;
+  background: #10242c;
+  padding: 6px;
+  border-radius: 5px;
+}
+.marker-coverage .tested {
+  color: #c1e5c9;
+  background: #2f554a;
+}
+.marker-contract > button {
+  width: 100%;
+  font-size: 12px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.marker-guard {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  color: #c0d3ce;
+}
+.marker-guard input {
+  flex: none;
+}
+.marker-contract details {
+  margin-top: 8px;
+}
+@media (max-width: 1000px) {
+  .editor {
+    grid-template-columns: 150px minmax(220px, 1fr) 280px;
+  }
+  .editor-inspector {
+    padding: 12px;
+  }
+}
+@media (max-width: 680px) {
+  .editor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(300px, 45dvh) 220px minmax(360px, 50dvh) minmax(360px, 55dvh);
+    width: 100%;
+  }
+  .editor-search {
+    display: block;
+    grid-row: 5;
+  }
+  .search-config {
+    width: auto;
+  }
+  .search-results {
+    overflow: visible;
+  }
+  #search-families {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .marker-help-grid {
+    grid-template-columns: 1fr;
+  }
+  .representative-replay output {
+    font-size: 11px;
+  }
+  .representative-replay input[type='range'] {
+    width: 100%;
+  }
+}
+
+@media (max-width: 680px) {
+  .editor:has(.marker-placement-dock:not([hidden])) {
+    grid-template-rows: auto minmax(530px, calc(45dvh + 230px)) 220px minmax(360px, 50dvh) minmax(
+        360px,
+        55dvh
+      );
+  }
+  .editor-viewport:has(.marker-placement-dock:not([hidden])) canvas {
+    top: 230px;
+    height: calc(100% - 230px);
+  }
+  .marker-placement-dock {
+    width: calc(100% - 20px);
+    max-height: 210px;
+    overflow-y: auto;
+  }
 }

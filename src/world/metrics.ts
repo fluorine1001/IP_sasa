@@ -17,16 +17,25 @@ type Metric = {
 function frame(c: GoalContext, id: string) {
   const body = c.stage.bodies.find((b) => b.id === id),
     object = c.stage.objects.find((o) => o.id === id),
+    actor = c.run.detached.find((a) => a.id === id && a.status !== 'crashed'),
     position = body
       ? bodyPosition(c.stage, body, c.run.time)
       : object
         ? objectPosition(c.stage, object, c.run.time)
-        : { x: 0, y: 0 },
+        : id === 'craft'
+          ? (c.primary?.position ?? c.run.position)
+          : actor
+            ? actor.position
+            : { x: 0, y: 0 },
     velocity = body
       ? bodyVelocity(c.stage, body, c.run.time)
       : object
         ? objectVelocity(c.stage, object, c.run.time)
-        : { x: 0, y: 0 };
+        : id === 'craft'
+          ? (c.primary?.velocity ?? c.run.velocity)
+          : actor
+            ? actor.velocity
+            : { x: 0, y: 0 };
   return {
     body,
     radius: body?.radius ?? object?.radius ?? 0,
@@ -35,6 +44,120 @@ function frame(c: GoalContext, id: string) {
   };
 }
 export const metrics: Record<string, Metric> = {
+  actorPropellantUsed: {
+    label: '선택 기체가 사용한 추진 연료',
+    unit: '질량',
+    target: false,
+    read: (c) => {
+      const config = c.stage.rocket,
+        state = c.run.rocket;
+      if (!config || !state) return 0;
+      if (c.actorId && c.actorId !== 'craft') {
+        if ([...c.stage.bodies, ...c.stage.objects].some((o) => o.id === c.actorId)) return 0;
+        const part = config.parts.find((p) => p.id === c.actorId),
+          actor = c.run.detached.find((a) => a.id === c.actorId);
+        return part && actor ? part.fuelMass - actor.fuel : actor?.payload ? 0 : NaN;
+      }
+      return config.parts.reduce((n, p, i) => n + p.fuelMass - state.fuel[i], 0);
+    },
+  },
+
+  semiMajorAxis: {
+    label: '실제 궤도 긴 반경',
+    unit: 'u',
+    target: true,
+    read: (c, id) => {
+      const f = frame(c, id);
+      if (!f.body?.mu) return NaN;
+      const energy =
+        0.5 * length(f.v) ** 2 -
+        (f.body.mu + (c.stage.bodies.find((b) => b.id === c.actorId)?.mu ?? 0)) /
+          Math.max(length(f.d), 1e-9);
+      return energy < 0
+        ? -(f.body.mu + (c.stage.bodies.find((b) => b.id === c.actorId)?.mu ?? 0)) / (2 * energy)
+        : NaN;
+    },
+  },
+  circularSpeed: {
+    label: '같은 위치의 원궤도 속력',
+    unit: 'u/t',
+    target: true,
+    read: (c, id) => {
+      const f = frame(c, id);
+      return f.body?.mu ? Math.sqrt(f.body.mu / Math.max(length(f.d), 1e-9)) : NaN;
+    },
+  },
+  pressureLimit: {
+    label: '기체 동압 한계',
+    unit: '질량/u/t²',
+    target: false,
+    read: (c) =>
+      (c.actorId && c.actorId !== 'craft'
+        ? c.stage.rocket?.parts.find((p) => p.id === c.actorId)
+        : c.stage.rocket?.parts[c.run.rocket?.partIndex ?? 0]
+      )?.maxQ ?? NaN,
+  },
+  heatLimit: {
+    label: '기체 가열 한계',
+    unit: '게임 열 단위',
+    target: false,
+    read: (c) =>
+      (c.actorId && c.actorId !== 'craft'
+        ? c.stage.rocket?.parts.find((p) => p.id === c.actorId)
+        : c.stage.rocket?.parts[c.run.rocket?.partIndex ?? 0]
+      )?.maxHeat ?? NaN,
+  },
+  landingLimit: {
+    label: '기체 착륙 속력 한계',
+    unit: 'u/t',
+    target: false,
+    read: (c) =>
+      (c.actorId && c.actorId !== 'craft'
+        ? c.stage.rocket?.parts.find((p) => p.id === c.actorId)
+        : c.stage.rocket?.parts[c.run.rocket?.partIndex ?? 0]
+      )?.maxLandingSpeed ?? 0.18,
+  },
+  touchdownTilt: {
+    label: '착륙 순간 수직에서 기울어진 각도',
+    unit: 'rad',
+    target: false,
+    read: (c) =>
+      c.actorId && c.actorId !== 'craft'
+        ? (c.run.detached.find((a) => a.id === c.actorId)?.touchdownTilt ?? NaN)
+        : (c.run.touchdownTilt ?? NaN),
+  },
+  propellantUsed: {
+    label: '전체 로켓이 사용한 추진 연료',
+    unit: '질량',
+    target: false,
+    read: (c) => {
+      const config = c.stage.rocket,
+        state = c.run.rocket;
+      if (!config || !state) return 0;
+      return config.parts.reduce(
+        (n, p, i) =>
+          n +
+          p.fuelMass -
+          (i < state.partIndex
+            ? (c.run.detached.find((a) => a.id === p.id)?.fuel ?? 0)
+            : state.fuel[i]),
+        0,
+      );
+    },
+  },
+  landed: {
+    label: '안전하게 표면에 정착한 상태',
+    unit: '0 또는 1',
+    target: true,
+    read: (c, id) =>
+      c.actorId && c.actorId !== 'craft'
+        ? Number(
+            c.run.detached.some(
+              (actor) => actor.id === c.actorId && actor.status === 'landed' && actor.bodyId === id,
+            ),
+          )
+        : Number(c.run.landed?.bodyId === id),
+  },
   targetGravityParameter: {
     label: '대상 천체의 중력 상수 GM',
     unit: 'u³/t²',
@@ -47,7 +170,9 @@ export const metrics: Record<string, Metric> = {
     target: false,
     read: (c) =>
       c.actorId && c.actorId !== 'craft'
-        ? (c.run.detached.find((a) => a.id === c.actorId)?.throttle ?? NaN)
+        ? [...c.stage.bodies, ...c.stage.objects].some((o) => o.id === c.actorId)
+          ? 0
+          : (c.run.detached.find((a) => a.id === c.actorId)?.throttle ?? NaN)
         : (c.run.rocket?.throttle ?? 0),
   },
   ignitions: {
@@ -131,6 +256,7 @@ export const metrics: Record<string, Metric> = {
     target: false,
     read: (c) => {
       const actor = c.run.detached.find((a) => a.id === c.actorId);
+      if (c.actorId && c.actorId !== 'craft' && !actor) return NaN;
       return actor ? actor.dryMass + actor.fuel : c.stage.rocket ? rocketMass(c.stage, c.run) : 1;
     },
   },
@@ -140,14 +266,24 @@ export const metrics: Record<string, Metric> = {
     target: false,
     read: (c) => {
       const actor = c.run.detached.find((a) => a.id === c.actorId);
-      return actor ? actor.fuel : (c.run.rocket?.fuel[c.run.rocket.partIndex] ?? 0);
+      return actor
+        ? actor.fuel
+        : c.actorId && c.actorId !== 'craft'
+          ? 0
+          : (c.run.rocket?.fuel[c.run.rocket.partIndex] ?? 0);
     },
   },
   separatedStages: {
     label: '분리한 로켓 단 수',
     unit: '개',
     target: false,
-    read: (c) => c.run.detached.length,
+    read: (c) => c.run.detached.filter((a) => !a.payload).length,
+  },
+  releasedPayloads: {
+    label: '분리한 탑재체 수',
+    unit: '개',
+    target: false,
+    read: (c) => c.run.detached.filter((a) => a.payload).length,
   },
   touchdownSpeed: {
     label: '지면에 닿은 순간 상대속력',
@@ -162,7 +298,10 @@ export const metrics: Record<string, Metric> = {
     label: '누적 가열',
     unit: '게임 열 단위',
     target: false,
-    read: (c) => c.run.detached.find((a) => a.id === c.actorId)?.heat ?? c.run.rocket?.heat ?? 0,
+    read: (c) =>
+      c.actorId && c.actorId !== 'craft'
+        ? (c.run.detached.find((a) => a.id === c.actorId)?.heat ?? NaN)
+        : (c.run.rocket?.heat ?? 0),
   },
   time: { label: '비행 시간', unit: 't', target: false, read: (c) => c.run.time },
   speed: { label: '상대 속력', unit: 'u/t', target: true, read: (c, id) => length(frame(c, id).v) },

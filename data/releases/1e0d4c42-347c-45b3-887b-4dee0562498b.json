@@ -1,0 +1,148 @@
+{
+  "version": 2,
+  "launchAngle": 0,
+  "id": "1e0d4c42-347c-45b3-887b-4dee0562498b",
+  "title": "궤도 위의 동행",
+  "description": "공전하는 정거장과 만나 상대 운동이 거의 없는 상태를 유지하세요.",
+  "order": 10,
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "733bacf8-69b0-5ac7-8a14-7b90e537a487",
+      "name": "행성 아라",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.6,
+      "mu": 0.08,
+      "color": "#65978b",
+      "hiddenGravity": false,
+      "estimateMu": 0.08
+    }
+  ],
+  "objects": [
+    {
+      "id": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8",
+      "kind": "station",
+      "name": "궤도 정거장",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.025,
+      "angle": 0,
+      "sensor": "gravity",
+      "physicalRadius": 0.025,
+      "motion": {
+        "parentId": "733bacf8-69b0-5ac7-8a14-7b90e537a487",
+        "radius": 2.4,
+        "phase": -1
+      }
+    }
+  ],
+  "goals": [
+    {
+      "id": "485cdd67-f002-5a03-8442-7d5f81b96b4a",
+      "title": "정거장 곁에서 상대속력을 낮추고 동행",
+      "condition": {
+        "kind": "hold",
+        "duration": 0.5,
+        "child": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "distance",
+                "targetId": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8"
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.43
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "speed",
+                "targetId": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8"
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.006
+              }
+            }
+          ]
+        }
+      },
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 120,
+      "dependsOn": [],
+      "display": {
+        "targetId": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8",
+        "min": 0,
+        "max": 0.43
+      },
+      "outcome": {
+        "kind": "rendezvous",
+        "targetId": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8",
+        "max": 0.43,
+        "speed": 0.006,
+        "duration": 0.5,
+        "actorId": "craft"
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "placed": true,
+    "position": {
+      "x": 2,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 0.3,
+    "maneuverBudget": 0.1,
+    "maxTime": 120,
+    "timelineDuration": 120,
+    "commandLimits": {
+      "ignite": 6,
+      "stop": 6,
+      "turn": 6,
+      "separate": 2,
+      "push": 3,
+      "deploy": 2
+    },
+    "worldRadius": 64,
+    "sensorSlots": 0,
+    "attempts": 3
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 60
+  },
+  "referencePlans": [],
+  "audit": {
+    "samples": 16,
+    "maxPassRate": 0.01,
+    "seed": 31415,
+    "timeLimit": 120
+  },
+  "published": true
+}

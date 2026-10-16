@@ -1,11 +1,11 @@
 # IP_sasa 작업 지침
 
-README.md, CONTRIBUTING.md, 관련 docs/ 계약을 먼저 읽는다. 게임 기준은 codex/game-workshop이다. 사용자 변경과 hello.py를 덮어쓰지 않는다.
+README.md, CONTRIBUTING.md, 관련 docs/ 계약을 먼저 읽는다. 실행/접속은 RUNNING.md다. 예전 게임 기준은 codex/game-workshop, 현재 배포 관리 브랜치는 codex/free-workshop-deployment다. 사용자 변경과 hello.py를 덮어쓰지 않는다. 요청 없이 push·배포하지 않는다.
 
-- 스테이지: 자신의 data/stages/<UUID>.json. 새 UUID, 파일명=ID. 목록 자동 발견.
-- 게임 시스템: screens/flight/, world/, physics/, render/, editor/, stages/.
-- 튜토리얼: screens/tutorial/ 자체 코드·CSS. 정답 시각/출력/경로를 제시하지 않는다.
-- 설정: screens/settings/ 자체 코드·CSS. 새 Settings 키는 공용 계약 담당과 조율.
+- 협업은 세 역할: 설정/가이드 창, UI, 스테이지 제작. world/physics·판정·검색·저장/빌드 코어는 화면/콘텐츠 업무와 구분한다.
+- 스테이지: 자신의 data/stages/<UUID>.json과 data/releases/<같은 UUID>.json. 새 UUID, 파일명=ID. 목록 자동 발견. 초안 저장과 게임 공개를 구분한다. 공개 해제 스냅샷은 JSON null이며 Git에 포함한다.
+- UI: screens/flight/, render/, editor/ 화면·CSS. 물리/판정 결함을 화면 우회로 감추지 않는다.
+- 설정/가이드: screens/settings/, screens/tutorial/ 자체 코드·CSS와 도움말. 정답 시각/출력/경로를 제시하지 않는다. 새 Settings 키·실습 이벤트는 공용 계약 담당과 조율.
 - main.ts, app/core.ts, style.css, world/types.ts, world/hull.ts, package/lockfile, Vite/CI는 공용. 불필요하게 수정하지 않는다.
 
 계획→실제 비행→관측→재생→수정. 비행 중 예약 수정, 미래 궤도, 무료 예행 비행, 정답 계획, 성공 가능성 안내 금지. 같은 스테이지 환경은 고정하고 시도 기록을 누적하며 임무 사이에 상태를 전달하지 않는다.

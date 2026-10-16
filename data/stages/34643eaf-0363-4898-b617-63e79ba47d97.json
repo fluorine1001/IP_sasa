@@ -1,0 +1,714 @@
+{
+  "version": 2,
+  "track": "tutorial",
+  "tutorial": {
+    "lesson": 1,
+    "objective": "목표를 읽고 계획을 예약한 뒤 실제 기록에서 근거를 찾으세요. 같은 훈련장 안에서 한 변수씩 바꿔 다시 발사합니다.",
+    "steps": [
+      {
+        "id": "goals",
+        "label": "먼저 클리어 조건 확인",
+        "detail": "성공 조건을 여세요. 목표는 띠를 잠깐 통과하는 것이 아니라, 엔진을 끈 상태에서 거의 원형인 궤도를 한 바퀴 유지하는 것입니다.",
+        "target": "#goal-details"
+      },
+      {
+        "id": "choose-time",
+        "label": "예약할 시각 고르기",
+        "detail": "시간 바를 클릭하거나 손잡이를 끄세요. 숫자를 입력하면 시각을 정확히 고를 수 있습니다.",
+        "target": "#flight-scrub"
+      },
+      {
+        "id": "reserve",
+        "label": "조작 하나 예약하기",
+        "detail": "선택한 시각에 출력 버튼을 누르세요. 새 표식은 예약한 조작입니다.",
+        "target": "#timeline-palette"
+      },
+      {
+        "id": "edit",
+        "label": "예약 값을 직접 바꾸기",
+        "detail": "출력 또는 회전 표식의 값을 바꿔보세요. 출력은 힘, 회전은 기체가 향할 방향입니다. 회전해도 기존 속도는 즉시 바뀌지 않습니다. 0°는 발사대 바깥, ±90°는 양옆입니다.",
+        "target": "#program-toggle"
+      },
+      {
+        "id": "move",
+        "label": "예약 시각 바꾸기",
+        "detail": "표식을 좌우로 끌거나 팝업의 시각을 바꾸세요. 빈 시간 바를 움직이는 것은 시각 선택이며 기존 예약을 옮기지 않습니다.",
+        "target": "#timeline-track"
+      },
+      {
+        "id": "remove",
+        "label": "필요 없는 예약 삭제하기",
+        "detail": "연습용 예약을 지우세요. 팝업의 삭제 또는 비행 계획 목록의 ×를 사용합니다.",
+        "target": "#program-toggle"
+      },
+      {
+        "id": "launch",
+        "label": "분리·재점화·회전·끄기를 계획하고 발사",
+        "detail": "분리·분리 뒤 점화·회전·끄기를 예약하세요. 시각과 출력은 직접 정하고 발사로 확인합니다.",
+        "target": "#launch"
+      },
+      {
+        "id": "pause",
+        "label": "실제 비행을 잠시 멈춰 관측",
+        "detail": "정지 버튼으로 비행을 멈춰보세요. 연료·엔진 출력·속력 눈금을 읽습니다. 정지 중에도 계획은 바꿀 수 없습니다. 오른쪽의 가속 눈금과 중력계는 힘의 비교 기준이며 연료 시간은 현재 출력으로 분사할 수 있는 시간입니다.",
+        "target": "#pause"
+      },
+      {
+        "id": "separate",
+        "label": "단 분리를 실제로 관측",
+        "detail": "아래 단이 떨어지는 순간을 보세요. 위 로켓은 가벼워지지만 다음 엔진은 꺼진 채 시작합니다.",
+        "target": "#timeline-track"
+      },
+      {
+        "id": "upper-engine",
+        "label": "분리 후 다음 엔진이 켜지는지 확인",
+        "detail": "분리 뒤 다음 엔진이 켜지는지 확인하세요. 점화가 빠졌다면 계획으로 돌아가 분리 뒤의 점화를 예약합니다.",
+        "target": "#program-toggle"
+      },
+      {
+        "id": "turn",
+        "label": "회전에 시간이 걸리는 모습 관측",
+        "detail": "기체가 서서히 돌아가는 모습을 보세요. 엔진이 켜져 있을 때 현재 방향으로 밀며 이동 경로가 즉시 꺾이지는 않습니다.",
+        "target": "#world"
+      },
+      {
+        "id": "coast",
+        "label": "엔진을 끈 뒤에도 움직이는지 관측",
+        "detail": "엔진을 꺼도 기존 속도는 남습니다. 행성의 중력이 계속 안쪽으로 끌어 경로를 휘게 합니다. 기체 방향과 이동 방향은 다를 수 있습니다.",
+        "target": "#fuel"
+      },
+      {
+        "id": "vehicle",
+        "label": "분리체와 주 로켓을 번갈아 추적",
+        "detail": "기체 전환 아이콘으로 분리체도 추적해보세요. C는 추적, WASD·휠은 시야 조절입니다. 배속은 관측 속도만 바꿉니다.",
+        "target": "#vehicle"
+      },
+      {
+        "id": "observe",
+        "label": "비행을 끝내고 결과 수치 읽기",
+        "detail": "종료 아이콘으로 비행을 끝내세요. 성공·실패와 실제 경로가 기록에 남습니다.",
+        "target": "#abort"
+      },
+      {
+        "id": "preview",
+        "label": "실제 경로 선택",
+        "detail": "기록에서 경로 그림을 선택하세요. 현재 지도에 점선으로 실제 지나간 길만 나타납니다. 이 선택만으로 영상은 재생되지 않습니다.",
+        "target": "#notes"
+      },
+      {
+        "id": "replay",
+        "label": "끝난 비행 다시보기",
+        "detail": "기록 카드의 재생 버튼을 누르세요. 흐린 로켓과 모니터 노이즈는 과거 화면이며 발사 기회를 소비하지 않습니다.",
+        "target": "#notes"
+      },
+      {
+        "id": "seek",
+        "label": "재생 바에서 실행 순간 찾아보기",
+        "detail": "재생을 멈추고 시간 바를 옮겨보세요. 분리·점화 전후를 확인한 뒤 ‘비행 화면으로’ 돌아옵니다. 기록 끝 뒤의 상태는 만들지 않습니다.",
+        "target": "#flight-scrub"
+      },
+      {
+        "id": "records",
+        "label": "비행 기록 보관소 열기",
+        "detail": "기록 버튼을 다시 열어보세요. 각 발사의 실제 수치를 확인할 수 있습니다.",
+        "target": "#notes"
+      },
+      {
+        "id": "copy",
+        "label": "이전 기록을 다음 계획으로 복사",
+        "detail": "이전 카드의 복사 아이콘을 누르세요. 실행한 조작만 가져옵니다. 뒤의 예약이 실행되지 못해 빠졌다면 먼저 기준 비행을 다시 만드세요.",
+        "target": "#notes"
+      },
+      {
+        "id": "single-change",
+        "label": "한 변수만 바꿔 두 번째 실제 발사",
+        "detail": "계획 편집에서 출력·시각·각도 중 하나만 바꿔 발사하세요. 여러 값을 함께 바꾸면 결과의 원인을 구분하기 어렵습니다.",
+        "target": "#program-toggle"
+      },
+      {
+        "id": "two-trials",
+        "label": "두 번째 실제 결과 남기기",
+        "detail": "두 번째 비행을 끝내세요. 환경과 초기 연료는 같고 이전 기록은 남습니다.",
+        "target": "#abort"
+      },
+      {
+        "id": "compare",
+        "label": "관측 수치와 같은 시각의 경로 비교",
+        "detail": "기록의 시간별 비교를 열고 시각을 움직이세요. 같은 시각의 위치·속력·연료를 비교합니다. 최고값은 기록 길이가 다르면 직접 비교에 주의합니다. 낮았는지 지나쳤는지 관측한 뒤 분사나 끄기의 한 변수만 조정해 원인을 좁히세요.",
+        "target": "#notes"
+      },
+      {
+        "id": "solve",
+        "label": "관측 근거를 이용해 훈련 목표 달성",
+        "detail": "기록에서 실제 경로가 바깥으로 멀어지는지, 행성으로 떨어지는지 비교하세요. 계획의 한 변수만 바꿔 원인을 확인하세요. 엔진을 끄고 목표 띠에서 거의 원형인 궤도를 한 바퀴 유지해야 완료됩니다.",
+        "target": "#goal-details"
+      }
+    ]
+  },
+  "id": "34643eaf-0363-4898-b617-63e79ba47d97",
+  "title": "첫 비행 실험실",
+  "description": "두 단 로켓으로 엔진을 끄고 목표 띠에서 거의 원형인 궤도를 한 바퀴 유지하세요.",
+  "order": 101,
+  "theme": "training",
+  "bodies": [
+    {
+      "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101",
+      "name": "훈련 행성",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.6,
+      "mu": 0.08,
+      "color": "#65978b",
+      "hiddenGravity": false,
+      "estimateMu": 0.08
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1201",
+      "title": "분리 뒤 거의 원형인 궤도를 한 바퀴 유지",
+      "position": {
+        "x": 1.5,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 60,
+      "dependsOn": [],
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "event",
+            "event": "separation",
+            "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1301"
+          },
+          {
+            "kind": "sequence",
+            "children": [
+              {
+                "kind": "all",
+                "children": [
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "metric",
+                      "metric": "distance",
+                      "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                    },
+                    "operator": "gte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 0.85
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "metric",
+                      "metric": "distance",
+                      "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                    },
+                    "operator": "lte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 1.8
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "metric",
+                      "metric": "eccentricity",
+                      "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                    },
+                    "operator": "lte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 0.2
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "metric",
+                      "metric": "throttle",
+                      "targetId": ""
+                    },
+                    "operator": "eq",
+                    "right": {
+                      "kind": "constant",
+                      "value": 0
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "all",
+                "children": [
+                  {
+                    "kind": "hold",
+                    "duration": 4,
+                    "child": {
+                      "kind": "all",
+                      "children": [
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                          },
+                          "operator": "gte",
+                          "right": {
+                            "kind": "constant",
+                            "value": 0.85
+                          }
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                          },
+                          "operator": "lte",
+                          "right": {
+                            "kind": "constant",
+                            "value": 1.8
+                          }
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "metric",
+                            "metric": "eccentricity",
+                            "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                          },
+                          "operator": "lte",
+                          "right": {
+                            "kind": "constant",
+                            "value": 0.2
+                          }
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "metric",
+                            "metric": "throttle",
+                            "targetId": ""
+                          },
+                          "operator": "eq",
+                          "right": {
+                            "kind": "constant",
+                            "value": 0
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "window",
+                      "operation": "coverage",
+                      "value": {
+                        "kind": "calculate",
+                        "operation": "min",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                              },
+                              {
+                                "kind": "constant",
+                                "value": 0.85
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "constant",
+                                "value": 1.8
+                              },
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "constant",
+                                "value": 0.2
+                              },
+                              {
+                                "kind": "metric",
+                                "metric": "eccentricity",
+                                "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "constant",
+                                "value": 0
+                              },
+                              {
+                                "kind": "metric",
+                                "metric": "throttle",
+                                "targetId": ""
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "domain": {
+                        "kind": "metric",
+                        "metric": "orbitTurns",
+                        "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                      },
+                      "width": {
+                        "kind": "constant",
+                        "value": 1
+                      }
+                    },
+                    "operator": "gte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 0.999999999
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "window",
+                      "operation": "min",
+                      "value": {
+                        "kind": "calculate",
+                        "operation": "min",
+                        "args": [
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                              },
+                              {
+                                "kind": "constant",
+                                "value": 0.85
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "constant",
+                                "value": 1.8
+                              },
+                              {
+                                "kind": "metric",
+                                "metric": "distance",
+                                "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "constant",
+                                "value": 0.2
+                              },
+                              {
+                                "kind": "metric",
+                                "metric": "eccentricity",
+                                "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "calculate",
+                            "operation": "subtract",
+                            "args": [
+                              {
+                                "kind": "constant",
+                                "value": 0
+                              },
+                              {
+                                "kind": "metric",
+                                "metric": "throttle",
+                                "targetId": ""
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "domain": {
+                        "kind": "metric",
+                        "metric": "orbitTurns",
+                        "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+                      },
+                      "width": {
+                        "kind": "constant",
+                        "value": 1
+                      }
+                    },
+                    "operator": "gte",
+                    "right": {
+                      "kind": "constant",
+                      "value": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "display": {
+        "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101",
+        "min": 0.85,
+        "max": 1.8
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 0.605,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rocket": {
+    "payloadMass": 0.3,
+    "parts": [
+      {
+        "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1301",
+        "name": "1단 · 상승 부스터",
+        "dryMass": 0.3,
+        "fuelMass": 0.8,
+        "thrust": 0.95,
+        "exhaustSpeed": 1.5,
+        "area": 0.03,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "ignitionLimit": 6,
+        "turnRate": 1.8
+      },
+      {
+        "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1302",
+        "name": "2단 · 조정 엔진",
+        "dryMass": 0.1,
+        "fuelMass": 0.35,
+        "thrust": 0.24,
+        "exhaustSpeed": 1.6,
+        "area": 0.03,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "ignitionLimit": 6,
+        "turnRate": 1.8
+      }
+    ]
+  },
+  "rules": {
+    "launchLimit": 1,
+    "maneuverBudget": 0,
+    "maxTime": 60,
+    "timelineDuration": 12,
+    "commandLimits": {
+      "ignite": 4,
+      "stop": 4,
+      "turn": 4,
+      "separate": 1,
+      "push": 0
+    },
+    "worldRadius": 8,
+    "sensorSlots": 0,
+    "attempts": 10
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 150
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.6,
+        "y": 0
+      },
+      "impulses": [],
+      "engineCommands": [
+        {
+          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1401",
+          "time": 0.4,
+          "actorId": "craft",
+          "direction": {
+            "x": -0.1736481776669303,
+            "y": 0.984807753012208
+          }
+        },
+        {
+          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1402",
+          "time": 1.2,
+          "actorId": "craft",
+          "separate": true
+        },
+        {
+          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1403",
+          "time": 1.5,
+          "actorId": "craft",
+          "throttle": 0.45
+        },
+        {
+          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1404",
+          "time": 1.5,
+          "actorId": "craft",
+          "direction": {
+            "x": -0.9659258262890682,
+            "y": -0.258819045102521
+          }
+        },
+        {
+          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1405",
+          "time": 2.4,
+          "actorId": "craft",
+          "throttle": 0
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "samples": 32,
+    "maxPassRate": 0.2,
+    "seed": 101
+  },
+  "published": true,
+  "launchBodyId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101",
+  "launchAngle": 0,
+  "learning": {
+    "briefing": "목표 띠의 아래·안쪽·바깥과 실제 최고 높이를 비교하세요. 분리 뒤 다음 엔진을 예약해야 추진이 이어집니다.",
+    "instruments": [
+      {
+        "id": "peak",
+        "label": "실제 최고 높이",
+        "value": {
+          "kind": "metric",
+          "metric": "altitude",
+          "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 0.45,
+          "max": 1.5,
+          "below": "목표 띠보다 낮음",
+          "inside": "목표 띠 근처까지 도달",
+          "above": "목표 띠를 지나침"
+        }
+      },
+      {
+        "id": "fuel",
+        "label": "종료 때 조정 엔진 연료",
+        "value": {
+          "kind": "metric",
+          "metric": "fuel",
+          "targetId": ""
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "last",
+        "range": {
+          "min": 0.03,
+          "max": 0.35,
+          "below": "조정 연료 부족",
+          "inside": "연료 남음",
+          "above": "아직 상승 부스터"
+        }
+      },
+      {
+        "id": "speed",
+        "label": "실제 최대 속력",
+        "value": {
+          "kind": "metric",
+          "metric": "speed",
+          "targetId": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1101"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 0,
+          "max": 0.55,
+          "below": "관측 확인",
+          "inside": "느린 비행",
+          "above": "추진 중 속력 큼"
+        }
+      }
+    ],
+    "cues": []
+  }
+}

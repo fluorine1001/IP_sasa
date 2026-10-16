@@ -1,35 +1,74 @@
+import { goalReferences, objectiveGoals } from '../world/goals';
+import { compileMarker, upgradeOrbitCorridors } from './goal-marker';
+import { upgradeVisibleOrbitBands } from './orbit-band-migration';
 import { missionTimeLimit } from '../world/program';
 import { planConstraints } from '../world/program';
 import { instantiateVariation, variationIssues } from '../world/variation';
 import { surfaceLaunch } from '../world/launch.ts';
-import { conditionIssues } from '../world/conditions.ts';
+import { conditionIssues, conditionCost } from '../world/conditions.ts';
 import { length, sub } from '../physics/vector.ts';
 import { type Stage } from '../world/types.ts';
-export function issues(stage: Stage): string[] {
+export function issues(stage: Stage, allowIncomplete = false): string[] {
   const out: string[] = [];
   if (stage.version !== 2) out.push('지원하지 않는 스테이지 버전입니다.');
+  if (stage.track !== undefined && !['campaign', 'tutorial'].includes(stage.track))
+    out.push('스테이지 구분은 본편 또는 튜토리얼이어야 합니다.');
+  if (stage.track === 'tutorial') {
+    const t = stage.tutorial;
+    if (
+      !t ||
+      !Number.isInteger(t.lesson) ||
+      t.lesson < 1 ||
+      !t.objective?.trim() ||
+      !Array.isArray(t.steps) ||
+      !t.steps.length ||
+      t.steps.length > 24 ||
+      new Set(t.steps.map((step) => step.id)).size !== t.steps.length ||
+      t.steps.some(
+        (step) =>
+          !/^[a-z][a-z0-9-]{0,31}$/.test(step.id) ||
+          !step.label?.trim() ||
+          (step.detail !== undefined &&
+            (typeof step.detail !== 'string' || step.detail.length > 2000)) ||
+          (step.target !== undefined && !/^#[a-z][a-z0-9-]*$/.test(step.target)),
+      )
+    )
+      out.push('튜토리얼 단계와 조작 체크를 확인하세요.');
+  }
   if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(stage.id))
     out.push('스테이지 ID는 UUID여야 합니다.');
   if (!stage.title?.trim()) out.push('스테이지 이름이 필요합니다.');
-  if (!stage.bodies?.length || !stage.goals?.length)
-    out.push('천체와 목표를 하나 이상 배치하세요.');
+  if (!Array.isArray(stage.bodies) || !Array.isArray(stage.goals))
+    out.push('장면과 목표 목록을 확인하세요.');
+  if (!allowIncomplete && !stage.goals?.length) out.push('판정 오브젝트를 하나 이상 배치하세요.');
+  if (!allowIncomplete && stage.spawn?.placed === false) out.push('로켓과 출발 위치를 배치하세요.');
   const records = [
     ...(stage.bodies ?? []),
     ...(stage.objects ?? []),
     ...(stage.goals ?? []),
     ...(stage.rocket?.parts ?? []),
+    ...(stage.rocket?.payloads ?? []),
   ];
   const ids = new Set<string>();
   for (const r of records) {
-    if (!r.id || ids.has(r.id)) out.push('오브젝트 ID가 중복되었습니다.');
+    if (
+      typeof r.id !== 'string' ||
+      !/^[a-z0-9_:-]{1,128}$/i.test(r.id) ||
+      ['__proto__', 'constructor', 'prototype', 'origin'].includes(r.id) ||
+      ids.has(r.id)
+    )
+      out.push('오브젝트 ID는 안전한 영문·숫자 식별자로 서로 달라야 합니다.');
     ids.add(r.id);
   }
   if (stage.bodies?.length > 64 || stage.objects?.length > 1000 || stage.goals?.length > 100)
     out.push('이 버전의 제작 범위를 초과했습니다 (천체 64, 오브젝트 1000, 목표 100).');
+  ids.add('origin');
   for (const b of stage.bodies ?? []) {
     if (
       b.dynamic &&
-      (![b.dynamic.velocity?.x, b.dynamic.velocity?.y].every(Number.isFinite) || b.motion)
+      (![b.dynamic.velocity?.x, b.dynamic.velocity?.y].every(Number.isFinite) ||
+        (b.dynamic.epoch !== undefined && !Number.isFinite(b.dynamic.epoch)) ||
+        b.motion)
     )
       out.push('운동 천체의 초기 속도와 궤도 모드를 확인하세요.');
     if (
@@ -77,6 +116,27 @@ export function issues(stage: Stage): string[] {
   }
   for (const o of stage.objects ?? []) {
     if (
+      o.physicalRadius !== undefined &&
+      (!Number.isFinite(o.physicalRadius) || o.physicalRadius <= 0)
+    )
+      out.push('실제 물체의 충돌 크기를 확인하세요.');
+    if (
+      o.dynamic &&
+      (![o.dynamic.velocity?.x, o.dynamic.velocity?.y].every(Number.isFinite) ||
+        o.motion ||
+        o.surface)
+    )
+      out.push('비행 물체의 초기 속도와 운동 모드를 확인하세요.');
+    if (
+      o.surface &&
+      (!stage.bodies.some((b) => b.id === o.surface!.bodyId) ||
+        !Number.isFinite(o.surface.angle) ||
+        o.motion ||
+        o.dynamic)
+    )
+      out.push('착륙 지점의 기준 천체와 표면 위치를 확인하세요.');
+    if (o.kind === 'landing-site' && !o.surface) out.push('착륙 지점은 천체 표면에 배치하세요.');
+    if (
       o.kind === 'path' &&
       (!Array.isArray(o.points) ||
         o.points.length < 2 ||
@@ -93,7 +153,16 @@ export function issues(stage: Stage): string[] {
     )
       out.push('오브젝트의 공전 관계를 확인하세요.');
     if (
-      !['sensor', 'gate', 'hazard', 'station', 'path'].includes(o.kind) ||
+      ![
+        'sensor',
+        'gate',
+        'hazard',
+        'station',
+        'path',
+        'satellite',
+        'debris',
+        'landing-site',
+      ].includes(o.kind) ||
       !['speed', 'gravity', 'distance', 'direction', 'clock'].includes(o.sensor) ||
       ![o.radius, o.angle, o.position?.x, o.position?.y].every(Number.isFinite) ||
       o.radius <= 0
@@ -101,7 +170,23 @@ export function issues(stage: Stage): string[] {
       out.push(`${o.name}: 오브젝트 수치를 확인하세요.`);
   }
   for (const g of stage.goals ?? []) {
-    out.push(...conditionIssues(g.condition, new Set(records.map((r) => r.id))));
+    if (g.marker) {
+      try {
+        if (!['area', 'orbit', 'velocity', 'surface', 'state', 'passage'].includes(g.marker.kind))
+          throw Error('표식 종류');
+        const generated = compileMarker(stage, g);
+        if (
+          g.marker.managed !== false &&
+          JSON.stringify(generated.condition) !== JSON.stringify(g.condition)
+        )
+          out.push('표식 그림과 실제 조건이 일치하지 않습니다. 다시 계산하세요.');
+      } catch {
+        out.push('판정 오브젝트의 배치·대상·형태를 확인하세요.');
+      }
+    }
+    if (goalReferences(g.condition).some((id) => !stage.goals.some((goal) => goal.id === id)))
+      out.push('연결 판정의 대상이 이 장면에 없습니다.');
+    out.push(...conditionIssues(g.condition, ids));
     if (
       typeof g.title !== 'string' ||
       !g.title.trim() ||
@@ -120,20 +205,56 @@ export function issues(stage: Stage): string[] {
       g.display &&
       (!records.some((x) => x.id === g.display!.targetId) ||
         ![g.display.min, g.display.max].every(Number.isFinite) ||
-        g.display.min <= 0 ||
+        g.display.min < 0 ||
         g.display.max < g.display.min)
     )
       out.push('목표 표시 영역을 확인하세요.');
   }
-  const visitGoal = (id: string, path: Set<string>): boolean => {
-    if (path.has(id)) return true;
-    const g = stage.goals.find((x) => x.id === id);
-    return !!g && g.dependsOn.some((x) => visitGoal(x, new Set([...path, id])));
+  const states = new Map<string, number>();
+  const visitGoal = (id: string): boolean => {
+    if (states.get(id) === 1) return true;
+    if (states.get(id) === 2) return false;
+    states.set(id, 1);
+    const goal = stage.goals.find((g) => g.id === id);
+    if (goal && [...goal.dependsOn, ...goalReferences(goal.condition)].some(visitGoal)) return true;
+    states.set(id, 2);
+    return false;
   };
-  if (stage.goals?.some((g) => visitGoal(g.id, new Set())))
-    out.push('목표 선행 관계가 순환합니다.');
+  const cyclic = stage.goals?.some((g) => visitGoal(g.id));
+  if (cyclic) out.push('목표 선행 관계가 순환합니다.');
+  if (!cyclic && stage.goals) {
+    const costs = new Map<string, number>();
+    const cost = (id: string): number => {
+      if (costs.has(id)) return costs.get(id)!;
+      const g = stage.goals.find((g) => g.id === id);
+      const value = g ? conditionCost(g.condition, cost) : 0;
+      costs.set(id, value);
+      return value;
+    };
+    if (stage.goals.reduce((n, g) => n + cost(g.id), 0) > 32768)
+      out.push(
+        '판정 조합의 실시간 계산량이 너무 큽니다. 중복 연결 또는 집합의 교차 조합을 줄이세요 (확장 노드 32768 이내).',
+      );
+  }
+  if (stage.goals?.length && !objectiveGoals(stage).length)
+    out.push('완료 판정의 최상위 목표가 필요합니다.');
   if (stage.rocket) {
     const r = stage.rocket;
+    if (
+      r.payloads &&
+      (!Array.isArray(r.payloads) ||
+        r.payloads.length > 64 ||
+        r.payloads.some(
+          (p) =>
+            ![p.mass, p.area, p.releaseSpeed].every(Number.isFinite) ||
+            p.mass <= 0 ||
+            p.area < 0 ||
+            p.releaseSpeed < 0 ||
+            p.releaseSpeed > 1 ||
+            !p.name?.trim(),
+        ))
+    )
+      out.push('탑재체는 최대 64개이며 질량·항력·분리 스프링 속력을 확인하세요.');
     if (
       !Number.isFinite(r.payloadMass) ||
       r.payloadMass <= 0 ||
@@ -206,7 +327,7 @@ export function issues(stage: Stage): string[] {
     r.commandLimits &&
     Object.entries(r.commandLimits).some(
       ([key, value]) =>
-        !['ignite', 'stop', 'turn', 'separate', 'push'].includes(key) ||
+        !['ignite', 'stop', 'turn', 'separate', 'push', 'deploy'].includes(key) ||
         !Number.isInteger(value) ||
         value! < 0 ||
         value! > 64,
@@ -245,11 +366,15 @@ export function issues(stage: Stage): string[] {
   )
     out.push('시작 위치와 카메라를 확인하세요.');
   const launch = stage.bodies.find((b) => b.id === stage.launchBodyId);
-  if (!launch || !['planet', 'moon'].includes(launch.kind) || !Number.isFinite(stage.launchAngle))
+  if (
+    stage.launchBodyId &&
+    (!launch || !['planet', 'moon'].includes(launch.kind) || !Number.isFinite(stage.launchAngle))
+  )
     out.push('출발 천체와 표면 발사 위치를 지정하세요.');
   else if (
-    length(sub(stage.spawn.position, surfaceLaunch(stage)!.position)) > 0.00001 ||
-    length(sub(stage.spawn.velocity, surfaceLaunch(stage)!.velocity)) > 0.00001
+    launch &&
+    (length(sub(stage.spawn.position, surfaceLaunch(stage)!.position)) > 0.00001 ||
+      length(sub(stage.spawn.velocity, surfaceLaunch(stage)!.velocity)) > 0.00001)
   )
     out.push('출발점은 선택한 천체의 표면 발사대여야 합니다.');
   if (
@@ -286,7 +411,9 @@ export function issues(stage: Stage): string[] {
       let cost = 0;
       for (const burn of plan.impulses) {
         if (
-          !burn.id ||
+          typeof burn.id !== 'string' ||
+          !/^[a-z0-9_:-]{1,128}$/i.test(burn.id) ||
+          ['__proto__', 'constructor', 'prototype'].includes(burn.id) ||
           ids.has(burn.id) ||
           !burn.vector ||
           ![burn.time, burn.vector?.x, burn.vector?.y].every(Number.isFinite) ||
@@ -305,7 +432,15 @@ export function issues(stage: Stage): string[] {
         else
           for (const command of plan.engineCommands) {
             if (
-              !command.id ||
+              (command.releasePayload !== undefined &&
+                (!stage.rocket?.payloads?.some((p) => p.id === command.releasePayload) ||
+                  command.actorId !== 'craft' ||
+                  command.separate ||
+                  command.throttle !== undefined ||
+                  command.direction !== undefined)) ||
+              typeof command.id !== 'string' ||
+              !/^[a-z0-9_:-]{1,128}$/i.test(command.id) ||
+              ['__proto__', 'constructor', 'prototype'].includes(command.id) ||
               ids.has(command.id) ||
               !Number.isFinite(command.time) ||
               command.time < 0 ||
@@ -422,11 +557,11 @@ export function issues(stage: Stage): string[] {
   }
   return [...new Set(out)];
 }
-export function parseStage(value: unknown): Stage {
+export function parseStage(value: unknown, allowIncomplete = false): Stage {
   if (!value || typeof value !== 'object') throw new Error('스테이지 객체가 필요합니다.');
-  const stage = value as Stage;
   try {
-    const errors = issues(stage);
+    const stage = upgradeVisibleOrbitBands(upgradeOrbitCorridors(value as Stage));
+    const errors = issues(stage, allowIncomplete && stage.published === false);
     if (errors.length) throw new Error(errors.join('\n'));
     return stage;
   } catch (error) {

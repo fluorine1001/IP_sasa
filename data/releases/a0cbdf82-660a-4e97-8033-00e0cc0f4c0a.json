@@ -1,0 +1,434 @@
+{
+  "version": 2,
+  "id": "a0cbdf82-660a-4e97-8033-00e0cc0f4c0a",
+  "order": 4,
+  "title": "지구에서 화성의 위성으로",
+  "description": "표시된 넓은 궤도 띠 안에서 한 바퀴를 완성하세요.",
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "ff2ce58f-5fa7-48ed-8c42-3fac8bbc64a3",
+      "name": "태양",
+      "kind": "star",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.4,
+      "mu": 2,
+      "color": "#eaaa55",
+      "hiddenGravity": false,
+      "estimateMu": 1
+    },
+    {
+      "id": "7f8ebeda-2469-4885-bebc-97545bf7e0d8",
+      "name": "지구",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.09,
+      "mu": 0.005,
+      "color": "#699c90",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "ff2ce58f-5fa7-48ed-8c42-3fac8bbc64a3",
+        "radius": 3,
+        "phase": 0
+      }
+    },
+    {
+      "id": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1",
+      "name": "화성",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.1,
+      "mu": 0.007,
+      "color": "#b97056",
+      "hiddenGravity": false,
+      "estimateMu": 1,
+      "motion": {
+        "parentId": "ff2ce58f-5fa7-48ed-8c42-3fac8bbc64a3",
+        "radius": 5,
+        "phase": 0.35116983047201417
+      }
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "993ac92e-3fe6-419a-97c0-a80222d76aba",
+      "title": "표시된 궤도 띠에서 관성으로 한 바퀴",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 100,
+      "dependsOn": [],
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "distance",
+                  "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.12
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "distance",
+                  "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.32
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "throttle",
+                  "targetId": ""
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          },
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "hold",
+                "duration": 2,
+                "child": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                      },
+                      "operator": "gte",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0.12
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                      },
+                      "operator": "lte",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0.32
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "throttle",
+                        "targetId": ""
+                      },
+                      "operator": "eq",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "coverage",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "min",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                          },
+                          {
+                            "kind": "constant",
+                            "value": 0.12
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 0.32
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 0
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "throttle",
+                            "targetId": ""
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "orbitTurns",
+                    "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 1
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.999999999
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "min",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "min",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                          },
+                          {
+                            "kind": "constant",
+                            "value": 0.12
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 0.32
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 0
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "throttle",
+                            "targetId": ""
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "orbitTurns",
+                    "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 1
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "display": {
+        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1",
+        "min": 0.12,
+        "max": 0.32
+      },
+      "outcome": {
+        "kind": "circular",
+        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1",
+        "min": 0.12,
+        "max": 0.32,
+        "duration": 2,
+        "actorId": "craft"
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "position": {
+      "x": 3.095,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0.816496580927726
+    }
+  },
+  "rules": {
+    "launchLimit": 0.65,
+    "maneuverBudget": 0.65,
+    "maxTime": 100,
+    "worldRadius": 24,
+    "sensorSlots": 4,
+    "attempts": 5
+  },
+  "camera": {
+    "x": 3,
+    "y": 0,
+    "zoom": 170
+  },
+  "referencePlans": [],
+  "audit": {
+    "samples": 256,
+    "maxPassRate": 0.01,
+    "seed": 31415
+  },
+  "published": true,
+  "launchBodyId": "7f8ebeda-2469-4885-bebc-97545bf7e0d8",
+  "launchAngle": 0,
+  "learning": {
+    "briefing": "먼저 화성 곁을 지나가는 접근을 찾으세요. 도착만으로는 머무르지 못합니다. 같은 접근에서 밀거나 제동하는 시각을 바꿔, 가까워졌다 멀어지는 기록을 비교하세요.",
+    "instruments": [
+      {
+        "id": "approach",
+        "label": "화성에 가장 가까웠던 거리",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "time",
+            "targetId": ""
+          },
+          "operator": "gte",
+          "right": {
+            "kind": "constant",
+            "value": 0
+          }
+        },
+        "summary": "min",
+        "range": {
+          "min": 0.16,
+          "max": 0.22,
+          "below": "목표 띠보다 안쪽",
+          "inside": "화성 목표 띠 근처",
+          "above": "화성을 멀리 지나감"
+        }
+      },
+      {
+        "id": "depart",
+        "label": "화성 곁에 온 뒤 가장 멀어진 거리",
+        "value": {
+          "kind": "metric",
+          "metric": "distance",
+          "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+        },
+        "when": {
+          "kind": "compare",
+          "left": {
+            "kind": "metric",
+            "metric": "distance",
+            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
+          },
+          "operator": "lte",
+          "right": {
+            "kind": "constant",
+            "value": 0.5
+          }
+        },
+        "summary": "max",
+        "range": {
+          "min": 0.16,
+          "max": 0.26,
+          "below": "띠 안쪽",
+          "inside": "화성 곁에 머묾",
+          "above": "다시 멀어짐"
+        }
+      }
+    ],
+    "cues": []
+  }
+}

@@ -1,4 +1,5 @@
-import { missionTimeLimit } from './program';
+import { missionTimeLimit, launchFraction } from './program';
+import { craftCenter } from './craft-center';
 import { planConstraints } from './program';
 import { captureFrame } from './replay';
 import { craftHull, hullSize, sweepHull, settleHull } from './hull';
@@ -6,13 +7,36 @@ import { collectEvidence, emptyEvidence } from './evidence';
 import { beginImpact, advanceImpact } from './impact';
 import { surfaceLaunch, surfaceClearance } from './launch.ts';
 import { dynamicView, advanceBodies } from './dynamics.ts';
-import { poweredStep, separate, controlEngine, rocketMass, drag } from './rocket.ts';
+import {
+  atmosphericState,
+  poweredStep,
+  separate,
+  releasePayload,
+  controlEngine,
+  rocketMass,
+  drag,
+} from './rocket.ts';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
 import { segmentHitsCircle } from '../physics/orbit.ts';
-import { bodyPosition, bodyVelocity, gravity, objectPosition } from './celestial.ts';
-import { freshProgress, updateGoals } from './goals.ts';
+import {
+  bodyPosition,
+  bodyVelocity,
+  gravity,
+  objectPosition,
+  objectVelocity,
+} from './celestial.ts';
+import { freshProgress, updateGoals, objectiveGoals } from './goals.ts';
+import { dueEvents, nextEventTime } from './event-schedule';
+import { nativeRk4 } from '../physics/nonlinear-native';
+import { flightOutcome, hybridFloat } from '../physics/hybrid-kernel';
 import type { Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
 export const WORLD_STEP = 0.01;
+const solidRadius = (object: WorldObject) =>
+  object.kind === 'station'
+    ? (object.physicalRadius ?? 0)
+    : ['debris', 'satellite'].includes(object.kind)
+      ? object.radius
+      : 0;
 export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
   const start = surfaceLaunch(stage) ?? stage.spawn;
   const error =
@@ -44,19 +68,30 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
     observations: [],
     sampled: new Set(),
     goals: Object.fromEntries(stage.goals.map((g) => [g.id, freshProgress()])),
+    goalRoots: objectiveGoals(stage).map((g) => g.id),
     lastTrail: -1,
     plan: structuredClone(plan),
     initialPlan: structuredClone(plan),
     frames: [],
     buoys: [],
     detached: [],
+    objects: stage.objects.some((o) => o.dynamic)
+      ? Object.fromEntries(
+          stage.objects
+            .filter((o) => o.dynamic)
+            .map((o) => [
+              o.id,
+              { position: objectPosition(stage, o, 0), velocity: objectVelocity(stage, o, 0) },
+            ]),
+        )
+      : undefined,
     bodies: stage.bodies.some((b) => b.dynamic)
       ? Object.fromEntries(
           stage.bodies
             .filter((b) => b.dynamic)
             .map((b) => [
               b.id,
-              { position: { ...b.position }, velocity: { ...b.dynamic!.velocity } },
+              { position: bodyPosition(stage, b, 0), velocity: bodyVelocity(stage, b, 0) },
             ]),
         )
       : undefined,
@@ -65,14 +100,14 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
           partIndex: 0,
           fuel: stage.rocket.parts.map((p) => p.fuelMass),
           ignitions: stage.rocket.parts.map((_, i) => (i === 0 && length(plan.launch) > 0 ? 1 : 0)),
-          direction:
-            length(plan.launch) > 1e-8
-              ? scale(plan.launch, 1 / length(plan.launch))
-              : { x: Math.cos(stage.launchAngle ?? 0), y: Math.sin(stage.launchAngle ?? 0) },
-          throttle: Math.min(1, length(plan.launch) / stage.rules.launchLimit),
+          direction: surfaceLaunch(stage)?.normal ?? {
+            x: Math.cos(stage.launchAngle ?? 0),
+            y: Math.sin(stage.launchAngle ?? 0),
+          },
+          throttle: Math.min(1, launchFraction(stage, plan)),
           heat: 0,
           stress: 0,
-          airborne: false,
+          airborne: !surfaceLaunch(stage),
           separatedAt: {},
         }
       : undefined,
@@ -103,20 +138,7 @@ function integrate(
 ): [Vec, Vec] {
   const acceleration = (p: Vec, v: Vec, t: number) =>
     add(gravity(stage, p, t), drag(stage, p, v, t, mass, area));
-  const a = acceleration(p, v, t),
-    vb = add(v, scale(a, dt / 2)),
-    pb = add(p, scale(v, dt / 2)),
-    b = acceleration(pb, vb, t + dt / 2),
-    vc = add(v, scale(b, dt / 2)),
-    pc = add(p, scale(vb, dt / 2)),
-    c = acceleration(pc, vc, t + dt / 2),
-    vd = add(v, scale(c, dt)),
-    pd = add(p, scale(vc, dt)),
-    d = acceleration(pd, vd, t + dt);
-  return [
-    add(p, scale(add(add(v, scale(vb, 2)), add(scale(vc, 2), vd)), dt / 6)),
-    add(v, scale(add(add(a, scale(b, 2)), add(scale(c, 2), d)), dt / 6)),
-  ];
+  return nativeRk4(acceleration, p, v, t, dt);
 }
 export function impulse(run: Run, stage: Stage, vector: Vec, id: string): boolean {
   if (run.status !== 'running' || ![vector.x, vector.y].every(Number.isFinite)) return false;
@@ -177,11 +199,16 @@ export function tick(
   let remaining = dt;
   while (remaining > 1e-9 && run.status === 'running') {
     const appliedBefore = run.applied.size;
-    for (const command of run.plan.engineCommands ?? [])
-      if (command.time <= run.time + 1e-8 && !run.applied.has(command.id)) {
-        const accepted = command.separate
-          ? separate(run, stage)
-          : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
+    for (const event of dueEvents(run)) {
+      const command = event.value;
+      if (run.applied.has(command.id)) continue;
+      if (event.kind === 'engine') {
+        const command = event.value;
+        const accepted = command.releasePayload
+          ? releasePayload(run, stage, command.releasePayload)
+          : command.separate
+            ? separate(run, stage)
+            : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
         if (!accepted) {
           run.status = 'failed';
           run.reason =
@@ -191,20 +218,17 @@ export function tick(
           return;
         }
         run.applied.add(command.id);
-      }
-    for (const command of run.plan.impulses)
-      if (command.time <= run.time + 1e-8 && !run.applied.has(command.id)) {
-        if (!impulse(run, stage, command.vector, command.id)) {
+      } else {
+        if (!impulse(run, stage, event.value.vector, command.id)) {
           run.status = 'failed';
           run.reason =
             '수정 추진을 너무 많이 사용했습니다. 만남이나 착륙을 위한 여유를 남겨보세요.';
           return;
         }
       }
+    }
     if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
-    const nextCommand = [...run.plan.impulses, ...(run.plan.engineCommands ?? [])]
-      .filter((b) => !run.applied.has(b.id) && b.time > run.time + 1e-8)
-      .reduce((n, b) => Math.min(n, b.time), Infinity);
+    const nextCommand = nextEventTime(run);
     const slice = Math.min(
       remaining,
       WORLD_STEP,
@@ -285,8 +309,13 @@ export function tick(
       }
       if (actor.status === 'crashed') continue;
       const previous = { ...actor.position },
-        damage = poweredStep(run, stage, slice, actor),
-        part = stage.rocket!.parts.find((p) => p.id === actor.id)!;
+        damage = actor.payload ? '' : poweredStep(run, stage, slice, actor),
+        part = actor.payload
+          ? {
+              area: stage.rocket!.payloads!.find((p) => p.id === actor.id)!.area,
+              maxLandingSpeed: 0.05,
+            }
+          : stage.rocket!.parts.find((p) => p.id === actor.id)!;
       [actor.position, actor.velocity] = integrate(
         stage,
         actor.position,
@@ -296,6 +325,13 @@ export function tick(
         actor.dryMass + actor.fuel,
         part.area,
       );
+      if (actor.payload) {
+        const a = atmosphericState(stage, actor.position, actor.velocity, run.time);
+        actor.heat = Math.max(
+          0,
+          actor.heat + (Math.sqrt(a.density) * a.speed ** 3 * part.area * 0.4 - 0.03) * slice,
+        );
+      }
       for (const b of stage.bodies) {
         if (b.kind === 'barycenter') continue;
         const contact = sweepHull(
@@ -322,13 +358,37 @@ export function tick(
             actor.position.x - bodyPosition(stage, b, run.time).x,
           );
           actor.touchdownSpeed = length(sub(actor.velocity, bodyVelocity(stage, b, run.time)));
+          const normal = scale(
+            sub(actor.position, bodyPosition(stage, b, run.time)),
+            1 / Math.max(length(sub(actor.position, bodyPosition(stage, b, run.time))), 1e-9),
+          );
+          actor.touchdownTilt = Math.acos(Math.max(-1, Math.min(1, dot(actor.direction, normal))));
           actor.status =
-            actor.touchdownSpeed <= (part.maxLandingSpeed ?? 0.18) ? 'landed' : 'crashed';
+            ['planet', 'moon'].includes(b.kind) &&
+            actor.touchdownSpeed <= (part.maxLandingSpeed ?? 0.18)
+              ? 'landed'
+              : 'crashed';
           actor.throttle = 0;
           break;
         }
       }
       if (damage || length(actor.position) > stage.rules.worldRadius) actor.status = 'crashed';
+      if (
+        stage.objects.some(
+          (o) =>
+            solidRadius(o) > 0 &&
+            sweepHull(
+              previous,
+              actor.position,
+              actor.direction,
+              hullSize(1, true),
+              objectPosition(stage, o, previousTime),
+              objectPosition(stage, o, run.time),
+              solidRadius(o),
+            ) !== undefined,
+        )
+      )
+        actor.status = 'crashed';
     }
     let collisionBodyId: string | undefined;
     let contactTime = Infinity;
@@ -397,6 +457,11 @@ export function tick(
     if (collisionBodyId) {
       const b = stage.bodies.find((b) => b.id === collisionBodyId)!;
       run.touchdownSpeed = length(sub(run.velocity, bodyVelocity(stage, b, run.time)));
+      const normal = scale(
+        sub(run.position, bodyPosition(stage, b, run.time)),
+        1 / Math.max(length(sub(run.position, bodyPosition(stage, b, run.time))), 1e-9),
+      );
+      run.touchdownTilt = Math.acos(Math.max(-1, Math.min(1, dot(incomingPose, normal))));
     }
     const context = { stage, run, before, beforeActors, dt: slice, previousTime, collisionBodyId };
     updateGoals(context);
@@ -407,14 +472,14 @@ export function tick(
       observe(stage, run, objects, before);
       if (run.time - run.lastTrail >= 0.05) {
         run.trail.push({
-          position: { ...run.position },
+          position: craftCenter(stage, run),
           velocity: { ...run.velocity },
           targets: Object.fromEntries([
             ...stage.bodies
               .filter((b) => b.motion || b.dynamic)
               .map((b) => [b.id, bodyPosition(stage, b, run.time)]),
-            ...objects
-              .filter((o) => o.motion)
+            ...stage.objects
+              .filter((o) => o.motion || o.dynamic)
               .map((o) => [o.id, objectPosition(stage, o, run.time)]),
           ]),
           time: run.time,
@@ -450,24 +515,41 @@ export function tick(
         if (run.rocket) run.rocket.throttle = 0;
       }
     }
+    const roots = run.goalRoots ?? objectiveGoals(stage).map((g) => g.id);
     const won =
       stage.goalMode === 'all'
-        ? stage.goals.every((g) => run.goals[g.id].complete)
-        : stage.goals.some((g) => run.goals[g.id].complete);
-    const hazard = objects.some(
+        ? roots.length > 0 && roots.every((id) => run.goals[id]?.complete)
+        : roots.some((id) => run.goals[id]?.complete);
+    const hazard = stage.objects.some(
       (o) =>
-        o.kind === 'hazard' &&
-        segmentHitsCircle(
-          sub(before, objectPosition(stage, o, previousTime)),
-          sub(run.position, objectPosition(stage, o, run.time)),
-          o.radius,
-        ),
+        solidRadius(o) > 0 &&
+        sweepHull(
+          before,
+          run.position,
+          incomingPose,
+          craftHull(stage, run),
+          objectPosition(stage, o, previousTime),
+          objectPosition(stage, o, run.time),
+          solidRadius(o),
+        ) !== undefined,
     );
-    const safeCompletion = !hazard && (!collisionBodyId || !!run.landed);
-    if (won && safeCompletion && !run.probe) {
+    const outcome = flightOutcome(hybridFloat, {
+      goals: Number(won),
+      collision: Number(!!collisionBodyId),
+      landed: Number(!!run.landed),
+      hazard: Number(hazard),
+      probe: Number(run.probe),
+      expired: Number(
+        !Number.isFinite(run.position.x) ||
+          !Number.isFinite(run.position.y) ||
+          length(run.position) > stage.rules.worldRadius ||
+          run.time >= missionTimeLimit(stage) - 1e-8,
+      ),
+    });
+    if (outcome.won) {
       run.status = 'won';
       run.reason = '임무 완료! 계획한 경로가 목표를 달성했습니다.';
-    } else if (collisionBodyId && !run.landed) {
+    } else if (outcome.impact) {
       const body = stage.bodies.find((b) => b.id === collisionBodyId)!,
         center = bodyPosition(stage, body, run.time),
         normal = scale(
@@ -493,15 +575,10 @@ export function tick(
         ? '착륙 속도가 너무 컸습니다. 가까워질 때 반대 방향으로 추진해보세요.'
         : '천체와 충돌했습니다. 가까워질 때의 속력과 접근 방향을 확인해보세요.';
       run.impact = beginImpact(run, stage, body, incomingDirection);
-    } else if (hazard) {
+    } else if (outcome.hazard) {
       run.status = 'failed';
-      run.reason = '위험 구역에 진입했습니다. 다른 접근 방향을 찾아보세요.';
-    } else if (
-      !Number.isFinite(run.position.x) ||
-      !Number.isFinite(run.position.y) ||
-      length(run.position) > stage.rules.worldRadius ||
-      run.time >= missionTimeLimit(stage) - 1e-8
-    ) {
+      run.reason = '위성·정거장·파편에 충돌했습니다.';
+    } else if (outcome.failed || outcome.observed) {
       run.status = run.probe ? 'observed' : 'failed';
       run.reason = run.probe
         ? '시험 비행의 기록을 가져왔습니다.'

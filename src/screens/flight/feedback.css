@@ -1,0 +1,219 @@
+.engine-bench {
+  margin: 4px 0 12px;
+  padding: 4px 8px;
+  border: 1px solid #55776f;
+  border-radius: 8px;
+  background: #152b35;
+}
+.rate-options {
+  position: fixed;
+  z-index: 80;
+  width: 210px;
+  padding: 10px;
+}
+.rate-options header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.rate-options header button {
+  padding: 4px;
+}
+.rate-options svg {
+  width: 18px;
+  height: 18px;
+}
+.rate-options > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.rate-options [aria-pressed='true'] {
+  background: #e6b75f;
+  color: #142332;
+}
+.timeline-event {
+  overflow: visible;
+  flex-shrink: 0;
+}
+.timeline-direction {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 14px;
+  height: 14px;
+  padding: 1px;
+  border-radius: 4px;
+  background: #203b45;
+  border: 1px solid currentColor;
+}
+.flight-deck .timeline-direction svg {
+  width: 12px;
+  height: 12px;
+}
+.flight-deck .timeline-event > svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+#replay-monitor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 0 40%, #d6dfdf17 45% 53%, transparent 59%);
+  animation: monitor-roll 5s linear infinite;
+}
+#replay-monitor .monitor-noise {
+  opacity: 0.19;
+  animation: monitor-grain 0.22s steps(2) infinite;
+}
+@keyframes monitor-roll {
+  from {
+    transform: translateY(-70%);
+  }
+  to {
+    transform: translateY(70%);
+  }
+}
+@keyframes monitor-grain {
+  0% {
+    background-position: 0 0;
+  }
+  33% {
+    background-position: 43px -19px;
+  }
+  67% {
+    background-position: -29px 71px;
+  }
+}
+.reduced-motion #replay-monitor::before,
+.reduced-motion .monitor-noise {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #replay-monitor::before,
+  #replay-monitor .monitor-noise {
+    animation: none;
+  }
+}
+.engine-bench svg {
+  display: block;
+  width: 100%;
+  height: 100px;
+}
+.engine-bench text {
+  font: 10px sans-serif;
+}
+.engine-bench figcaption,
+.actor-diagram figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: #b5c9bf;
+}
+.bench-flow {
+  animation: bench-flow var(--flow-duration) linear infinite;
+}
+@keyframes bench-flow {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(9px);
+    opacity: 0;
+  }
+}
+.actor-diagram {
+  margin: 8px 0;
+}
+#vehicle-map .actor-diagram svg {
+  height: 28px;
+}
+#vehicle-map .actor-diagram figcaption {
+  font-size: 9px;
+}
+.actor-diagram svg {
+  width: 100%;
+  height: 45px;
+}
+.actor-diagram text {
+  font: 12px sans-serif;
+  font-weight: bold;
+}
+.direction-dial {
+  display: grid;
+  justify-items: center;
+  align-items: center;
+  gap: 8px;
+}
+.direction-dial svg {
+  width: 160px;
+  height: 160px;
+  cursor: crosshair;
+  touch-action: none;
+}
+#command-popover .direction-dial svg {
+  width: 160px;
+  height: 160px;
+}
+#command-popover .engine-bench svg,
+#program-editor .engine-bench svg {
+  width: 100%;
+  height: 100px;
+}
+#command-popover .actor-diagram svg {
+  width: 100%;
+  height: 45px;
+}
+.direction-dial text {
+  fill: #b6c9c0;
+  font: 9px sans-serif;
+  pointer-events: none;
+}
+#command-popover {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.flight-deck .timeline-event:hover,
+.flight-deck .timeline-event:active {
+  transform: translateX(-50%);
+}
+.flight-deck .console-button:hover,
+.flight-deck .console-button:active,
+#training-panel button:hover,
+#training-panel button:active {
+  transform: none;
+}
+[data-phase] *,
+dialog,
+.menu-sheet {
+  scrollbar-width: thin;
+  scrollbar-color: #b99b63 #17323c;
+}
+[data-phase] ::-webkit-scrollbar,
+dialog::-webkit-scrollbar,
+.menu-sheet::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+[data-phase] ::-webkit-scrollbar-track,
+dialog::-webkit-scrollbar-track,
+.menu-sheet::-webkit-scrollbar-track {
+  background: #17323c;
+  border-radius: 8px;
+}
+[data-phase] ::-webkit-scrollbar-thumb,
+dialog::-webkit-scrollbar-thumb,
+.menu-sheet::-webkit-scrollbar-thumb {
+  background: #b99b63;
+  border: 2px solid #17323c;
+  border-radius: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bench-flow {
+    animation: none;
+  }
+}

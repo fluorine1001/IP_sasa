@@ -57,7 +57,7 @@
   "goals": [
     {
       "id": "18a4e868-7909-4562-a4b2-b6c5b607d466",
-      "title": "달 근처에서 추진 없이 에너지 얻기",
+      "title": "달을 돌아 추진 없이 에너지 얻기",
       "position": {
         "x": 3,
         "y": 0
@@ -71,46 +71,6 @@
           {
             "kind": "all",
             "children": [
-              {
-                "kind": "capture",
-                "key": "entry_speed",
-                "value": {
-                  "kind": "metric",
-                  "metric": "speed",
-                  "targetId": ""
-                },
-                "when": {
-                  "kind": "all",
-                  "children": [
-                    {
-                      "kind": "compare",
-                      "left": {
-                        "kind": "metric",
-                        "metric": "distance",
-                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
-                      },
-                      "operator": "lt",
-                      "right": {
-                        "kind": "constant",
-                        "value": 0.7
-                      }
-                    },
-                    {
-                      "kind": "compare",
-                      "left": {
-                        "kind": "metric",
-                        "metric": "radialSpeed",
-                        "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
-                      },
-                      "operator": "lt",
-                      "right": {
-                        "kind": "constant",
-                        "value": 0
-                      }
-                    }
-                  ]
-                }
-              },
               {
                 "kind": "capture",
                 "key": "entry_energy",
@@ -225,81 +185,6 @@
               {
                 "kind": "compare",
                 "left": {
-                  "kind": "window",
-                  "operation": "min",
-                  "value": {
-                    "kind": "metric",
-                    "metric": "altitude",
-                    "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
-                  },
-                  "domain": {
-                    "kind": "metric",
-                    "metric": "time",
-                    "targetId": ""
-                  },
-                  "width": {
-                    "kind": "constant",
-                    "value": 65
-                  }
-                },
-                "operator": "gte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.2290031712880072
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "window",
-                  "operation": "min",
-                  "value": {
-                    "kind": "metric",
-                    "metric": "altitude",
-                    "targetId": "1ef1cdd6-ab67-4e61-addc-e26bf10ff7e7"
-                  },
-                  "domain": {
-                    "kind": "metric",
-                    "metric": "time",
-                    "targetId": ""
-                  },
-                  "width": {
-                    "kind": "constant",
-                    "value": 65
-                  }
-                },
-                "operator": "lte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.2790031712880072
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "calculate",
-                  "operation": "subtract",
-                  "args": [
-                    {
-                      "kind": "metric",
-                      "metric": "speed",
-                      "targetId": ""
-                    },
-                    {
-                      "kind": "recorded",
-                      "key": "entry_speed"
-                    }
-                  ]
-                },
-                "operator": "gte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.005
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
                   "kind": "calculate",
                   "operation": "subtract",
                   "args": [
@@ -340,7 +225,7 @@
                 "operator": "lte",
                 "right": {
                   "kind": "constant",
-                  "value": 1e-6
+                  "value": 0.000001
                 }
               }
             ]

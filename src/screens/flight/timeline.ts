@@ -1,14 +1,16 @@
 import {
   timelineDuration,
+  launchFraction,
   planningTimeLimit,
   missionTimeLimit,
   canAddCommand,
+  commandNames,
   type CommandKind,
 } from '../../world/program';
 import './planning.css';
 import { timelinePlanner } from './planner';
 import { propulsionReadout } from './propulsion';
-import { setControl } from './controls';
+import { setControlButton } from './controls';
 import { escape } from '../../app/core';
 import { length, scale } from '../../physics/vector';
 import {
@@ -27,22 +29,10 @@ export type TimelineState = {
   scheduled?: RoutePlan;
   recordedEnd?: number;
   playing?: boolean;
+  ended?: boolean;
 };
-const paths: Record<ProgramEvent['kind'], string> = {
-  ignite: '<path d="M8 3h8v10H8zM9 16l3 5 3-5M6 8H3m18 0h-3"/>',
-  stop: '<path d="M8 3h8v10H8zM9 16l3 5 3-5M3 21L21 3"/>',
-  turn: '<path d="M4 18V9a5 5 0 0 1 5-5h10m-4-3 4 3-4 4M9 18l3 4 3-4"/>',
-  separate: '<path d="M9 1h6v6H9zM8 16h8v7H8zM5 10l-3 2 3 2m14-4 3 2-3 2M12 9v5"/>',
-  push: '<path d="M3 12h17m-6-6 6 6-6 6M4 6H1m3 12H1"/>',
-  sensor: '<circle cx="12" cy="12" r="4"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5M5 5l3 3m8 8 3 3"/>',
-};
-export function eventIcon(kind: ProgramEvent['kind']) {
-  return (
-    '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    paths[kind] +
-    '</svg>'
-  );
-}
+import { eventIcon } from '../../render/program-icons';
+export { eventIcon } from '../../render/program-icons';
 export function flightTimeline(
   root: HTMLElement,
   stage: Stage,
@@ -52,11 +42,15 @@ export function flightTimeline(
   toggleReplay: () => void,
   leaveReplay: () => void,
   signal: AbortSignal,
+  action?: (id: string) => void,
 ) {
   let fingerprint = '',
     selectedTime = 2,
     editorOpen = false;
   let viewDuration = Math.min(timelineDuration(stage), planningTimeLimit(stage));
+  let phase: TimelineState['phase'] = 'plan';
+  const viewports = new Map<string, number>();
+  selectedTime = Math.min(selectedTime, viewDuration);
   root.innerHTML =
     '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
     timelineDuration(stage) +
@@ -72,18 +66,42 @@ export function flightTimeline(
   const el = (id: string) => nodes.get(id) ?? root.querySelector<HTMLElement>('#' + id)!;
   const editable = () => get().phase === 'plan';
   function open() {
+    planner.close();
     editorOpen = !editorOpen;
     el('program-editor').hidden = !editorOpen;
     refreshFields();
   }
   el('program-toggle').onclick = open;
   el('program-close').onclick = open;
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (!(event.target as HTMLElement).closest('#program-editor,#program-toggle')) {
+        editorOpen = false;
+        el('program-editor').hidden = true;
+      }
+    },
+    { signal },
+  );
   el('replay-toggle').onclick = toggleReplay;
   el('replay-exit').onclick = leaveReplay;
   const slider = el('flight-scrub') as HTMLInputElement;
   slider.oninput = () => {
-    if (get().phase === 'replay') seek(Number(slider.value));
+    if (editable()) selectTime(Number(slider.value));
+    else if (get().phase === 'replay') seek(Number(slider.value));
   };
+  function selectTime(time: number) {
+    if (!editable() || !Number.isFinite(time)) return;
+    // Formatting a clock must not silently change the requested control time.
+    // In particular an editor representative must remain the same plan in play.
+    selectedTime = Math.max(0, Math.min(planningTimeLimit(stage), time));
+    action?.('choose-time');
+    viewDuration = Math.max(viewDuration, selectedTime);
+    planner.deselect();
+    update();
+    const field = root.querySelector<HTMLInputElement>('[data-time="new"]');
+    if (field && field !== document.activeElement) field.value = String(selectedTime);
+  }
   function degrees(v: { x: number; y: number }) {
     let d = ((Math.atan2(v.y, v.x) - (stage.launchAngle ?? 0)) * 180) / Math.PI;
     while (d > 180) d -= 360;
@@ -101,8 +119,8 @@ export function flightTimeline(
     id +
     '" type="number" min="0" ' +
     (Number.isFinite(planningTimeLimit(stage)) ? 'max="' + planningTimeLimit(stage) + '" ' : '') +
-    'step="0.05" value="' +
-    t.toFixed(2) +
+    'step="0.01" value="' +
+    t +
     '" aria-label="예약 시각"> 초</label>';
   function refreshFields() {
     if (!editorOpen) return;
@@ -114,7 +132,7 @@ export function flightTimeline(
         const command = plan.engineCommands?.find((c) => c.id === e.id),
           push = plan.impulses.find((c) => c.id === e.id);
         const actorOptions =
-          '<option value="craft">주 로켓</option>' +
+          '<option value="craft">본체 · 남아 있는 로켓</option>' +
           (stage.rocket?.parts ?? [])
             .map(
               (p) =>
@@ -122,13 +140,13 @@ export function flightTimeline(
                 p.id +
                 '"' +
                 (command?.actorId === p.id ? ' selected' : '') +
-                '>분리된 ' +
+                '>분리체 · ' +
                 escape(p.name) +
                 '</option>',
             )
             .join('');
         const controls = command
-          ? (command.separate
+          ? (command.separate || command.releasePayload
               ? ''
               : '<label>비행체 <select data-actor="' +
                 e.id +
@@ -190,37 +208,39 @@ export function flightTimeline(
       '><legend>0초 · 발사</legend><label>첫 ' +
       (stage.rocket ? '엔진 출력' : '추진 세기') +
       '<input id="program-launch-power" type="range" min="0" max="100" step="0.01" value="' +
-      (length(plan.launch) / stage.rules.launchLimit) * 100 +
+      launchFraction(stage, plan) * 100 +
       '"><output id="program-launch-percent">' +
-      Math.round((length(plan.launch) / stage.rules.launchLimit) * 100) +
-      '%</output></label><label>발사 방향 <input id="program-launch-angle" type="range" min="-180" max="180" step="0.01" value="' +
-      degrees(plan.launch) +
-      '"> °</label><p class="direction-key">0° 발사대 바깥쪽 · +90° 왼쪽 · −90° 오른쪽 · ±180° 천체 쪽</p>' +
+      Math.round(launchFraction(stage, plan) * 100) +
+      '%</output></label>' +
+      (stage.rocket
+        ? '<p class="direction-key">초기 자세는 발사대가 고정합니다. 자세 변경은 회전 명령으로 예약합니다.</p>'
+        : '<label>발사 방향 <input id="program-launch-angle" type="range" min="-180" max="180" step="0.01" value="' +
+          degrees(plan.launch) +
+          '"> °</label>') +
       rows +
       '<div class="add-command">' +
       timeInput('new', selectedTime) +
       '<div class="add-actions">' +
-      (stage.rocket
-        ? ['ignite', 'stop', 'turn', 'separate']
-            .map(
-              (k) =>
-                '<button ' +
-                (canAddCommand(stage, plan, k as CommandKind) ? '' : 'disabled ') +
-                'data-add="' +
-                k +
-                '">' +
-                eventIcon(k as ProgramEvent['kind']) +
-                { ignite: '엔진 출력', stop: '엔진 끄기', turn: '방향 전환', separate: '단 분리' }[
-                  k
-                ] +
-                '</button>',
-            )
-            .join('')
-        : '<button ' +
-          (canAddCommand(stage, plan, 'push') ? '' : 'disabled ') +
-          'data-add="push">' +
-          eventIcon('push') +
-          '수정 추진</button>') +
+      [
+        'ignite',
+        'stop',
+        'turn',
+        'separate',
+        'push',
+        ...(stage.rocket?.payloads?.length ? ['deploy'] : []),
+      ]
+        .map(
+          (k) =>
+            '<button ' +
+            (canAddCommand(stage, plan, k as CommandKind) ? '' : 'disabled ') +
+            'data-add="' +
+            k +
+            '">' +
+            eventIcon(k as ProgramEvent['kind']) +
+            commandNames[k as CommandKind] +
+            '</button>',
+        )
+        .join('') +
       '</div></div></fieldset>';
     readout();
   }
@@ -239,16 +259,19 @@ export function flightTimeline(
       if (target.id === 'program-launch-power' || target.id === 'program-launch-angle') {
         const power = el('program-launch-power') as HTMLInputElement,
           angle = el('program-launch-angle') as HTMLInputElement;
-        p.launch = launchAt(stage, Number(angle.value), Number(power.value));
+        p.launch = launchAt(stage, Number(angle?.value ?? 0), Number(power.value));
         el('program-launch-percent').textContent = power.value + '%';
       } else if (target.dataset.time) {
         const time = Math.max(0, Math.min(planningTimeLimit(stage), value));
-        if (target.dataset.time === 'new') selectedTime = time;
-        else {
+        if (target.dataset.time === 'new') {
+          selectTime(time);
+          return;
+        } else {
           const c = [...p.impulses, ...(p.engineCommands ?? []), ...(p.deployments ?? [])].find(
             (c) => c.id === target.dataset.time,
           );
           if (c) c.time = time;
+          action?.('move');
         }
       } else if (target.dataset.output && command)
         command.throttle = Math.max(0.01, Math.min(1, value / 100));
@@ -260,6 +283,13 @@ export function flightTimeline(
           heading(stage, degrees(push.vector)),
           Math.max(0, Math.min(stage.rules.maneuverBudget, value)),
         );
+      if (
+        target.id === 'program-launch-power' ||
+        target.dataset.output ||
+        target.dataset.angle ||
+        target.dataset.push
+      )
+        action?.('edit');
       changed();
       readout();
       update();
@@ -291,6 +321,7 @@ export function flightTimeline(
         p.impulses = p.impulses.filter((c) => c.id !== b.dataset.delete);
         p.engineCommands = p.engineCommands?.filter((c) => c.id !== b.dataset.delete);
         p.deployments = p.deployments?.filter((c) => c.id !== b.dataset.delete);
+        action?.('remove');
       } else if (b.dataset.earlier && p.engineCommands) {
         const index = p.engineCommands.findIndex((c) => c.id === b.dataset.earlier);
         const earlier = p.engineCommands.findIndex((c) => c.time === p.engineCommands![index].time);
@@ -312,12 +343,20 @@ export function flightTimeline(
             id,
             time,
             actorId: 'craft',
-            ...(kind === 'separate'
-              ? { separate: true }
-              : kind === 'turn'
-                ? { direction: heading(stage, 90) }
-                : { throttle: kind === 'stop' ? 0 : 1 }),
+            ...(kind === 'deploy'
+              ? {
+                  releasePayload: stage.rocket!.payloads!.find(
+                    (payload) =>
+                      !(p.engineCommands ?? []).some((c) => c.releasePayload === payload.id),
+                  )!.id,
+                }
+              : kind === 'separate'
+                ? { separate: true }
+                : kind === 'turn'
+                  ? { direction: heading(stage, 90) }
+                  : { throttle: kind === 'stop' ? 0 : 1 }),
           });
+        action?.('reserve');
       }
       changed();
       refreshFields();
@@ -339,20 +378,30 @@ export function flightTimeline(
     eventIcon,
     signal,
     () => viewDuration,
+    () => selectedTime,
+    selectTime,
+    action,
   );
   function update() {
     const state = get(),
       plan = state.plan;
     const limit = state.phase === 'plan' ? planningTimeLimit(stage) : missionTimeLimit(stage);
     const lastTime = Math.max(0, ...programEvents(plan).map((e) => e.time));
-    if (state.phase === 'plan') viewDuration = Math.min(limit, Math.max(viewDuration, lastTime));
-    else if (state.phase === 'replay')
-      viewDuration = Number.isFinite(limit)
-        ? Math.max(limit, state.recordedEnd ?? 0)
-        : Math.max(timelineDuration(stage), state.recordedEnd ?? 0, lastTime);
-    else if (Number.isFinite(limit)) viewDuration = limit;
-    else if (state.time >= viewDuration * 0.95)
-      viewDuration = Math.max(viewDuration * 2, state.time + 1, lastTime);
+    const viewportKey = JSON.stringify(state.scheduled ?? plan);
+    if (state.phase !== phase) {
+      if (state.phase === 'replay')
+        viewDuration = viewports.get(viewportKey) ?? Math.max(timelineDuration(stage), lastTime);
+      phase = state.phase;
+    }
+    if (state.phase === 'plan') {
+      viewDuration = Math.min(limit, Math.max(viewDuration, lastTime));
+      viewports.set(viewportKey, viewDuration);
+    } else {
+      viewDuration = Math.max(viewDuration, lastTime);
+      if (state.time > viewDuration)
+        viewDuration = Math.min(limit, Math.max(viewDuration * 2, state.time + 1, lastTime));
+      viewports.set(viewportKey, viewDuration);
+    }
     const duration = viewDuration;
     const key = JSON.stringify([
       state.phase,
@@ -406,7 +455,9 @@ export function flightTimeline(
           const actor =
             e.actorId === 'craft'
               ? '주 로켓'
-              : (stage.rocket?.parts.find((p) => p.id === e.actorId)?.name ?? e.actorId);
+              : ([...(stage.rocket?.parts ?? []), ...(stage.rocket?.payloads ?? [])].find(
+                  (p) => p.id === e.actorId,
+                )?.name ?? e.actorId);
           const combinedDirection = plan.engineCommands?.find(
             (c) => c.id === id && c.throttle !== undefined,
           )?.direction;
@@ -447,7 +498,8 @@ export function flightTimeline(
         .join('');
       if (editorOpen && !el('program-editor').contains(document.activeElement)) refreshFields();
     }
-    const percent = Math.min(100, Math.max(0, (state.time / duration) * 100));
+    const cursorTime = editable() ? selectedTime : state.time;
+    const percent = Math.min(100, Math.max(0, (cursorTime / duration) * 100));
     el('timeline-fill').style.width = percent + '%';
     el('timeline-cursor').style.left = percent + '%';
     el('timeline-clock').textContent =
@@ -465,32 +517,37 @@ export function flightTimeline(
     el('timeline-mode').textContent =
       state.phase === 'replay'
         ? '기록 다시보기 · 당시의 계획'
-        : state.phase === 'flight'
-          ? '비행 중 · 계획 확정됨'
-          : '발사 전 · 예약 설계';
-    setControl(
-      root.ownerDocument.body,
-      'program-toggle',
-      state.phase === 'plan' ? 'sliders' : 'records',
+        : state.ended
+          ? '비행 종료 · 기록 보관'
+          : state.phase === 'flight'
+            ? '비행 중 · 계획 확정됨'
+            : '발사 전 · 예약 설계';
+    setControlButton(
+      el('program-toggle'),
+      'sliders',
       state.phase === 'plan' ? '비행 계획' : '당시 계획',
     );
     el('program-toggle').className = 'console-button with-label plan-command';
-    setControl(
-      root.ownerDocument.body,
-      'replay-toggle',
+    setControlButton(
+      el('replay-toggle'),
       state.playing ? 'pause' : 'play',
       state.playing ? '다시보기 일시정지' : '다시보기 재생',
     );
     el('replay-toggle').className = 'console-button';
-    setControl(root.ownerDocument.body, 'replay-exit', 'close', '다시보기 닫기');
-    el('replay-exit').className = 'console-button replay-close';
+    setControlButton(
+      el('replay-exit'),
+      'back',
+      state.ended ? '계획으로 돌아가기' : '현재 비행으로',
+    );
+    el('replay-exit').className = 'console-button with-label replay-close';
     el('program-contract').textContent = editable()
       ? '발사 전에 확정합니다. 비행 중에는 조작을 추가하거나 바꿀 수 없습니다.'
       : '읽기 전용입니다. 이 비행에서 확정했던 계획입니다.';
-    slider.disabled = state.phase !== 'replay';
+    slider.disabled = state.phase === 'flight';
     slider.max = String(duration);
-    slider.value = String(state.time);
-    slider.setAttribute('aria-valuetext', state.time.toFixed(2) + '초');
+    slider.value = String(cursorTime);
+    slider.setAttribute('aria-label', editable() ? '예약 시각 선택' : '다시보기 시간 이동');
+    slider.setAttribute('aria-valuetext', cursorTime.toFixed(2) + '초');
     el('replay-toggle').hidden = el('replay-exit').hidden = state.phase !== 'replay';
 
     el('timeline-explanation').textContent =

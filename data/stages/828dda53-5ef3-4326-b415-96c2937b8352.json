@@ -1,0 +1,504 @@
+{
+  "version": 2,
+  "rocket": {
+    "payloadMass": 0.3,
+    "parts": [
+      {
+        "id": "8cff698a-695b-5e27-879f-b19456e75b0e",
+        "name": "회수 부스터",
+        "dryMass": 0.3,
+        "fuelMass": 0.8,
+        "thrust": 0.95,
+        "exhaustSpeed": 1.5,
+        "area": 0.03,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "ignitionLimit": 6,
+        "turnRate": 1.8,
+        "maxLandingSpeed": 0.15
+      },
+      {
+        "id": "fd947ea4-0761-5f39-86d7-43fe8f1d189e",
+        "name": "궤도 엔진",
+        "dryMass": 0.1,
+        "fuelMass": 0.35,
+        "thrust": 0.24,
+        "exhaustSpeed": 1.6,
+        "area": 0.03,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "ignitionLimit": 6,
+        "turnRate": 1.8,
+        "maxLandingSpeed": 0.15
+      }
+    ]
+  },
+  "launchAngle": 0,
+  "id": "828dda53-5ef3-4326-b415-96c2937b8352",
+  "title": "부스터의 귀환",
+  "description": "본체는 궤도에 남고 분리된 부스터는 표면에 안전하게 돌아와야 합니다.",
+  "order": 12,
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "8cb8af5c-9821-5453-80c2-033354766618",
+      "name": "행성 아라",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.6,
+      "mu": 0.08,
+      "color": "#65978b",
+      "hiddenGravity": false,
+      "estimateMu": 0.08
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "e456a8f7-cb17-5771-8afe-ec5d19c20454",
+      "title": "본체가 목표 궤도 띠에서 한 바퀴",
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "distance",
+                  "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.85
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "distance",
+                  "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 1.8
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "throttle",
+                  "targetId": ""
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          },
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "hold",
+                "duration": 3,
+                "child": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                      },
+                      "operator": "gte",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0.85
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                      },
+                      "operator": "lte",
+                      "right": {
+                        "kind": "constant",
+                        "value": 1.8
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "throttle",
+                        "targetId": ""
+                      },
+                      "operator": "eq",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "coverage",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "min",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                          },
+                          {
+                            "kind": "constant",
+                            "value": 0.85
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 1.8
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 0
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "throttle",
+                            "targetId": ""
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "orbitTurns",
+                    "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 1
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.999999999
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "min",
+                  "value": {
+                    "kind": "calculate",
+                    "operation": "min",
+                    "args": [
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                          },
+                          {
+                            "kind": "constant",
+                            "value": 0.85
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 1.8
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "distance",
+                            "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "calculate",
+                        "operation": "subtract",
+                        "args": [
+                          {
+                            "kind": "constant",
+                            "value": 0
+                          },
+                          {
+                            "kind": "metric",
+                            "metric": "throttle",
+                            "targetId": ""
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "orbitTurns",
+                    "targetId": "8cb8af5c-9821-5453-80c2-033354766618"
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 1
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 60,
+      "dependsOn": [],
+      "display": {
+        "targetId": "8cb8af5c-9821-5453-80c2-033354766618",
+        "min": 0.85,
+        "max": 1.8
+      },
+      "outcome": {
+        "kind": "circular",
+        "targetId": "8cb8af5c-9821-5453-80c2-033354766618",
+        "min": 0.85,
+        "max": 1.8,
+        "duration": 3,
+        "actorId": "craft"
+      }
+    },
+    {
+      "id": "d1c4b33b-f7e5-53d0-806c-cf92e4720cd5",
+      "title": "분리 부스터의 안전한 표면 정착",
+      "condition": {
+        "kind": "hold",
+        "duration": 0.3,
+        "child": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "landed",
+                "targetId": "8cb8af5c-9821-5453-80c2-033354766618",
+                "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e"
+              },
+              "operator": "gte",
+              "right": {
+                "kind": "constant",
+                "value": 1
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "touchdownSpeed",
+                "targetId": "",
+                "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e"
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.12
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "touchdownTilt",
+                "targetId": "",
+                "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e"
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.2
+              }
+            }
+          ]
+        }
+      },
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 60,
+      "dependsOn": [],
+      "display": {
+        "targetId": "8cb8af5c-9821-5453-80c2-033354766618",
+        "min": 0.6,
+        "max": 0.6
+      },
+      "outcome": {
+        "kind": "recovery",
+        "targetId": "8cb8af5c-9821-5453-80c2-033354766618",
+        "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e",
+        "speed": 0.12,
+        "duration": 0.3,
+        "tilt": 0.2
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "placed": true,
+    "position": {
+      "x": 0.605,
+      "y": 0
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 1,
+    "maneuverBudget": 0,
+    "maxTime": 60,
+    "timelineDuration": 60,
+    "commandLimits": {
+      "ignite": 6,
+      "stop": 6,
+      "turn": 6,
+      "separate": 2,
+      "push": 3,
+      "deploy": 2
+    },
+    "worldRadius": 64,
+    "sensorSlots": 0,
+    "attempts": 3
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 60
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 1,
+        "y": 0
+      },
+      "impulses": [],
+      "engineCommands": [
+        {
+          "id": "cutoff",
+          "time": 0.7011213599296398,
+          "actorId": "craft",
+          "throttle": 0
+        },
+        {
+          "id": "separate",
+          "time": 0.7011213599296398,
+          "actorId": "craft",
+          "separate": true
+        },
+        {
+          "id": "pitch",
+          "time": 0.7011213599296398,
+          "actorId": "craft",
+          "direction": {
+            "x": 0.4600212085580246,
+            "y": 0.8879079274771763
+          }
+        },
+        {
+          "id": "relight",
+          "time": 9.185767858202645,
+          "actorId": "craft",
+          "throttle": 1
+        },
+        {
+          "id": "coast",
+          "time": 9.926970405964184,
+          "actorId": "craft",
+          "throttle": 0
+        },
+        {
+          "id": "booster-brake",
+          "time": 5.837343749999919,
+          "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e",
+          "throttle": 1
+        },
+        {
+          "id": "booster-cutoff",
+          "time": 5.979999999999917,
+          "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e",
+          "throttle": 0
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "samples": 16,
+    "maxPassRate": 0.01,
+    "seed": 31415,
+    "timeLimit": 60
+  },
+  "published": true,
+  "launchBodyId": "8cb8af5c-9821-5453-80c2-033354766618"
+}

@@ -3,11 +3,13 @@ export type Settings = { volume: number; grid: boolean; trails: boolean; reduced
 export type PlayArgs = {
   stage: Stage;
   plan?: RoutePlan;
+  /** Enable interactive teaching only when entering the dedicated training stage. */
+  tutorial?: boolean;
   onReturn?: () => void;
   onTelemetry?: (run: Run, stage: Stage) => void;
   onSolved?: (plan: RoutePlan) => void;
 };
-export type ScreenName = 'title' | 'help' | 'settings' | 'stages' | 'play' | 'editor';
+export type ScreenName = 'title' | 'help' | 'settings' | 'stages' | 'tutorials' | 'play' | 'editor';
 export interface Screen {
   frame?: (dt: number) => void;
   dispose?: () => void;
@@ -15,6 +17,8 @@ export interface Screen {
 export interface App {
   root: HTMLElement;
   settings: Settings;
+  tutorials: Stage[];
+  loadTutorials?: (signal: AbortSignal) => Promise<Stage[]>;
   go: (name: ScreenName, args?: PlayArgs) => void;
   saveSettings: () => void;
   complete: (id: string) => void;

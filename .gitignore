@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-workshop/
 coverage/
 .env
 .env.*
@@ -10,4 +11,5 @@ playwright-report/
 test-results/
 .DS_Store
 .clear/
+.stage-workshop/
 *.sqlite

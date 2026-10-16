@@ -3,11 +3,11 @@ import { bodyPosition, gravity } from './celestial.ts';
 import { add, scale, type Vec } from '../physics/vector.ts';
 export type BodyState = { position: Vec; velocity: Vec };
 export function dynamicView(stage: Stage, run: Run): Stage {
-  return run.bodies
+  return run.bodies || run.objects
     ? {
         ...stage,
         bodies: stage.bodies.map((b) =>
-          run.bodies![b.id]
+          run.bodies?.[b.id]
             ? {
                 ...b,
                 position: run.bodies![b.id].position,
@@ -16,10 +16,30 @@ export function dynamicView(stage: Stage, run: Run): Stage {
               }
             : b,
         ),
+        objects: stage.objects.map((o) =>
+          run.objects?.[o.id]
+            ? {
+                ...o,
+                position: run.objects[o.id].position,
+                dynamic: { velocity: run.objects[o.id].velocity, epoch: run.time },
+                motion: undefined,
+              }
+            : o,
+        ),
       }
     : stage;
 }
 export function advanceBodies(stage: Stage, run: Run, dt: number) {
+  if (!run.bodies && !run.objects) return;
+  // Massless spacecraft/debris follow gravity without perturbing astronomical bodies.
+  const objectWorld = run.objects ? dynamicView(stage, run) : stage;
+  for (const state of Object.values(run.objects ?? {})) {
+    const world = objectWorld,
+      a = gravity(world, state.position, run.time);
+    const half = add(state.velocity, scale(a, dt / 2));
+    state.position = add(state.position, scale(half, dt));
+    state.velocity = add(half, scale(gravity(world, state.position, run.time + dt), dt / 2));
+  }
   if (!run.bodies) return;
   const ids = Object.keys(run.bodies),
     initial = ids.map((id) => run.bodies![id]),

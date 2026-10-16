@@ -1,5 +1,6 @@
 import { metrics } from './metrics.ts';
-import { bodyPosition, bodyVelocity } from './celestial.ts';
+import { ellipseDistance } from '../physics/ellipse';
+import { bodyPosition, bodyVelocity, objectPosition, objectVelocity } from './celestial.ts';
 import type { GoalContext, GoalProgress } from './types.ts';
 export type Calculation =
   | 'add'
@@ -13,7 +14,8 @@ export type Calculation =
   | 'power'
   | 'sin'
   | 'cos'
-  | 'atan2';
+  | 'atan2'
+  | 'ellipseDistance';
 export const calculationLabels: Record<Calculation, string> = {
   add: '더하기',
   subtract: '빼기',
@@ -27,9 +29,10 @@ export const calculationLabels: Record<Calculation, string> = {
   sin: '사인 (rad)',
   cos: '코사인 (rad)',
   atan2: '방향각 atan2(y,x)',
+  ellipseDistance: '타원 곡선까지 최단거리 (x,y,긴 반경,짧은 반경)',
 };
 export const calculationArity = (op: Calculation) =>
-  ['abs', 'sqrt', 'sin', 'cos'].includes(op) ? 1 : 2;
+  op === 'ellipseDistance' ? 4 : ['abs', 'sqrt', 'sin', 'cos'].includes(op) ? 1 : 2;
 export type WindowOperation =
   'mean' | 'rms' | 'min' | 'max' | 'integral' | 'change' | 'coverage' | 'fractionPositive';
 export type Expression =
@@ -62,37 +65,146 @@ export type WindowMemory = {
   samples: WindowSample[];
   covered: number;
 };
+type Reader = (context: GoalContext) => number;
+const compiled = new WeakMap<GoalProgress, WeakMap<Expression, Map<string, Reader>>>();
+function pure(e: Expression): boolean {
+  return (
+    e.kind === 'constant' || e.kind === 'metric' || (e.kind === 'calculate' && e.args.every(pure))
+  );
+}
+/** Compile the exact arithmetic tree for one flight's goal memory. No generated
+ * code, quantisation or reassociation. Editable stage trees are never cached
+ * across freshProgress(), and history/window expressions keep their interpreter. */
+function reader(e: Expression, p: GoalProgress, path: string): Reader {
+  if (e.kind !== 'calculate') return (c) => interpret(e, c, p, path);
+  const children = e.args.map((child, i) => reader(child, p, `${path}.args.${i}`));
+  switch (e.operation) {
+    case 'add':
+      return (c) => {
+        let v = 0;
+        for (const read of children) v += read(c);
+        return v;
+      };
+    case 'multiply':
+      return (c) => {
+        let v = 1;
+        for (const read of children) v *= read(c);
+        return v;
+      };
+    case 'subtract':
+      return (c) => children[0](c) - children[1](c);
+    case 'divide':
+      return (c) => {
+        const a = children[0](c),
+          b = children[1](c);
+        return b === 0 ? NaN : a / b;
+      };
+    case 'sqrt':
+      return (c) => Math.sqrt(children[0](c));
+    case 'power':
+      return (c) => Math.pow(children[0](c), children[1](c));
+    case 'sin':
+      return (c) => Math.sin(children[0](c));
+    case 'cos':
+      return (c) => Math.cos(children[0](c));
+    case 'atan2':
+      return (c) => Math.atan2(children[0](c), children[1](c));
+    case 'ellipseDistance':
+      return (c) => ellipseDistance(children[0](c), children[1](c), children[2](c), children[3](c));
+    case 'abs':
+      return (c) => Math.abs(children[0](c));
+    case 'min':
+      return (c) => {
+        let v = Infinity;
+        for (const read of children) v = Math.min(v, read(c));
+        return v;
+      };
+    case 'max':
+      return (c) => {
+        let v = -Infinity;
+        for (const read of children) v = Math.max(v, read(c));
+        return v;
+      };
+  }
+}
 export function expressionValue(
   e: Expression,
   c: GoalContext,
   p: GoalProgress,
   path = 'expression',
 ): number {
+  if (e.kind !== 'calculate') return interpret(e, c, p, path);
+  let expressions = compiled.get(p);
+  if (!expressions) {
+    expressions = new WeakMap();
+    compiled.set(p, expressions);
+  }
+  let paths = expressions.get(e);
+  if (!paths) {
+    paths = new Map();
+    expressions.set(e, paths);
+  }
+  let read = paths.get(path);
+  if (!read) {
+    read = pure(e) ? reader(e, p, path) : (ctx) => interpret(e, ctx, p, path);
+    paths.set(path, read);
+  }
+  return read(c);
+}
+function interpret(e: Expression, c: GoalContext, p: GoalProgress, path = 'expression'): number {
   if (e.kind === 'constant') return e.value;
-  if (e.kind === 'recorded')
-    return p.checkpoints && Object.hasOwn(p.checkpoints, e.key) ? p.checkpoints[e.key].value : NaN;
+  if (e.kind === 'recorded') {
+    const key = c.bindings ? c.bindings.scope + ':' + e.key : e.key;
+    return p.checkpoints && Object.hasOwn(p.checkpoints, key) ? p.checkpoints[key].value : NaN;
+  }
   if (e.kind === 'metric') {
-    if (e.actorId && e.actorId !== 'craft') {
-      const actor = c.run.detached.find((a) => a.id === e.actorId),
-        body = c.stage.bodies.find((b) => b.id === e.actorId);
-      if (!body && (!actor || actor.status === 'crashed')) return NaN;
+    const definition = {
+      ...e,
+      actorId: e.actorId === '$actor' ? c.bindings?.actorId : e.actorId,
+      targetId: e.targetId === '$target' ? (c.bindings?.targetId ?? '') : e.targetId,
+    };
+    if (
+      (e.actorId === '$actor' && !c.bindings?.actorId) ||
+      (e.targetId === '$target' && !c.bindings?.targetId)
+    )
+      return NaN;
+
+    if (definition.actorId && definition.actorId !== 'craft') {
+      const actor = c.run.detached.find((a) => a.id === definition.actorId),
+        body = c.stage.bodies.find((b) => b.id === definition.actorId),
+        object = c.stage.objects.find((o) => o.id === definition.actorId);
+      if (!body && !object && (!actor || actor.status === 'crashed')) return NaN;
       c = {
         ...c,
-        actorId: e.actorId,
+        actorId: definition.actorId,
+        primary: c.primary ?? { position: c.run.position, velocity: c.run.velocity },
         run: {
           ...c.run,
-          position: body ? bodyPosition(c.stage, body, c.run.time) : actor!.position,
-          velocity: body ? bodyVelocity(c.stage, body, c.run.time) : actor!.velocity,
+          position: body
+            ? bodyPosition(c.stage, body, c.run.time)
+            : object
+              ? objectPosition(c.stage, object, c.run.time)
+              : actor!.position,
+          velocity: body
+            ? bodyVelocity(c.stage, body, c.run.time)
+            : object
+              ? objectVelocity(c.stage, object, c.run.time)
+              : actor!.velocity,
         },
       };
     }
     if (
-      e.targetId &&
-      !c.stage.bodies.some((b) => b.id === e.targetId) &&
-      !c.stage.objects.some((o) => o.id === e.targetId)
+      definition.targetId &&
+      definition.targetId !== 'craft' &&
+      definition.targetId !== 'origin' &&
+      !c.stage.bodies.some((b) => b.id === definition.targetId) &&
+      !c.stage.objects.some((o) => o.id === definition.targetId) &&
+      !c.run.detached.some((a) => a.id === definition.targetId && a.status !== 'crashed')
     )
       return NaN;
-    return Object.hasOwn(metrics, e.metric) ? metrics[e.metric].read(c, e.targetId, p) : NaN;
+    return Object.hasOwn(metrics, definition.metric)
+      ? metrics[definition.metric].read(c, definition.targetId, p)
+      : NaN;
   }
   if (e.kind === 'window') {
     const domain = expressionValue(e.domain, c, p, `${path}.domain`),
@@ -107,7 +219,21 @@ export function expressionValue(
         width,
         time: -Infinity,
         value: NaN,
-        samples: [],
+        samples:
+          e.operation === 'min' || e.operation === 'max' || e.operation === 'change'
+            ? [
+                {
+                  amount: 0,
+                  sum: 0,
+                  squares: 0,
+                  min: value,
+                  max: value,
+                  positive: 0,
+                  first: value,
+                  last: value,
+                },
+              ]
+            : [],
         covered: 0,
       };
     // Sample once per physics tick, independently of rendering and replay recording.
@@ -183,7 +309,32 @@ export function expressionValue(
     return m.value;
   }
   const a = e.args.map((x, i) => expressionValue(x, c, p, `${path}.args.${i}`));
-  switch (e.operation) {
+  return calculate(e.operation, a);
+}
+/** Observe the last actual window sample. Reading a search objective must not
+ * advance a queue, capture, angular travel or other live goal memory. Unvisited
+ * window expressions remain unknown, not synthetic zero-valued statistics. */
+export function observedExpression(
+  e: Expression,
+  c: GoalContext,
+  p: GoalProgress,
+  path = 'expression',
+): number {
+  let observer: GoalProgress | undefined;
+  const read = (e: Expression, path: string): number => {
+    if (e.kind === 'window') return p.windows?.[path]?.value ?? NaN;
+    if (e.kind === 'calculate')
+      return calculate(
+        e.operation,
+        e.args.map((v, i) => read(v, `${path}.args.${i}`)),
+      );
+    observer ??= { ...p, conditionMemory: structuredClone(p.conditionMemory) };
+    return expressionValue(e, c, observer, path);
+  };
+  return read(e, path);
+}
+function calculate(operation: Calculation, a: number[]): number {
+  switch (operation) {
     case 'add':
       return a.reduce((n, v) => n + v, 0);
     case 'subtract':
@@ -202,6 +353,8 @@ export function expressionValue(
       return Math.cos(a[0]);
     case 'atan2':
       return Math.atan2(a[0], a[1]);
+    case 'ellipseDistance':
+      return ellipseDistance(a[0], a[1], a[2], a[3]);
     case 'abs':
       return Math.abs(a[0]);
     case 'min':

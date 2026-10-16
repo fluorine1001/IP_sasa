@@ -1,0 +1,71 @@
+.mission-panel #goal-details {
+  pointer-events: auto;
+  margin: 8px 0 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #f0d79e;
+  background: #18303c;
+  border: 1px solid #728f87;
+}
+.mission-goals {
+  z-index: 30;
+  width: min(680px, calc(100vw - 24px));
+  max-height: 85dvh;
+  overflow: auto;
+  color: #deebe3;
+  background: #203945;
+  padding: 20px;
+}
+.mission-goals::backdrop {
+  background: #081725c9;
+}
+.mission-goals #goal-close {
+  float: right;
+}
+.goal-explanation {
+  border-top: 1px solid #74968c;
+  padding: 12px 0;
+}
+.goal-explanation h3 {
+  color: #f2d298;
+  font-size: 16px;
+}
+.goal-explanation p {
+  white-space: pre-line;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.guide-rule {
+  font-size: 12px;
+  color: #aac7bd;
+}
+.evidence-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.evidence-table td,
+.evidence-table th {
+  padding: 7px 5px;
+  border-bottom: 1px solid #658379;
+  text-align: left;
+}
+.evidence-table caption {
+  text-align: left;
+  margin: 8px 0;
+  font-weight: bold;
+}
+.reading-value {
+  font-variant-numeric: tabular-nums;
+  color: #f0c882;
+}
+.result .reading-value {
+  color: #526e63;
+}
+@media (max-width: 650px) {
+  .mission-panel #goal-details {
+    font-size: 10px;
+    margin-top: 4px;
+    padding: 4px 6px;
+  }
+}

@@ -1,7 +1,11 @@
 import { paintRocket } from './rocket-sprite';
+import { paintLaunchPad } from './launch-pad';
+import { paintCraftLocator } from './craft-locator';
+import { paintGoalRegion } from './goal-region';
+import { paintMarker } from './goal-marker';
+import { paintExhaust } from './exhaust';
 import { hullSize } from '../world/hull';
 import { impactDirection } from '../world/impact';
-import { aimEndpoint } from './aim.ts';
 import { surfaceLaunch } from '../world/launch.ts';
 import { bodyPosition, objectPosition } from '../world/celestial.ts';
 import { add, scale, length, type Vec } from '../physics/vector.ts';
@@ -16,12 +20,16 @@ export type DrawState = {
   history?: Run['trail'];
   histories?: Run['trail'][];
   historyLabel?: string;
+  selectedHistory?: boolean;
   historyLabels?: string[];
   replayTime?: number;
   plan?: RoutePlan;
   grid?: boolean;
   trails?: boolean;
   selected?: Set<string>;
+  /** Editor-only transparent paint pass; leaves saved layer order and physical references intact. */
+  layer?: { kind: 'only' | 'except'; ids: ReadonlySet<string> };
+  hideMarkerHandles?: boolean;
   tool?: string;
   time?: number;
   controlledId?: string;
@@ -61,8 +69,11 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     c = s.camera,
     t = s.run?.time ?? s.time ?? 0,
     screen = (p: Vec) => toScreen(p, c, w, h);
-  backdrop(ctx, w, h, c);
-  if (s.grid) {
+  const foreground = s.layer?.kind === 'only';
+  const visible = (id: string) =>
+    !s.layer || (s.layer.kind === 'only' ? s.layer.ids.has(id) : !s.layer.ids.has(id));
+  if (!foreground) backdrop(ctx, w, h, c);
+  if (s.grid && !foreground) {
     ctx.strokeStyle = '#42607355';
     ctx.lineWidth = 1;
     const step = c.zoom;
@@ -78,6 +89,22 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.stroke();
   }
   for (const g of s.stage.goals) {
+    if (!visible(g.id)) continue;
+    if (g.marker && g.marker.managed !== false) {
+      paintMarker(
+        ctx,
+        s.stage,
+        g,
+        c,
+        w,
+        h,
+        t,
+        !!s.selected?.has(g.id),
+        !!s.grid && !s.hideMarkerHandles,
+        s.run,
+      );
+      continue;
+    }
     if (!g.display) continue;
     const body = s.stage.bodies.find((b) => b.id === g.display!.targetId),
       object = s.stage.objects.find((o) => o.id === g.display!.targetId),
@@ -88,82 +115,103 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
             ? objectPosition(s.stage, object, t)
             : g.position,
       );
-    ctx.strokeStyle = '#d8cf7788';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([7, 7]);
-    for (const r of new Set([g.display.min, g.display.max])) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r * c.zoom, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
+    paintGoalRegion(
+      ctx,
+      p.x,
+      p.y,
+      g.display.min * c.zoom,
+      g.display.max * c.zoom,
+      !!s.run?.goals[g.id]?.complete,
+    );
   }
 
-  const path = (points: Vec[], color: string, dashed = false) => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = dashed ? 2 : 3;
-    ctx.setLineDash(dashed ? [5, 8] : []);
-    ctx.beginPath();
-    points.forEach((p, i) => {
-      const q = screen(p);
-      if (i) ctx.lineTo(q.x, q.y);
-      else ctx.moveTo(q.x, q.y);
-    });
-    ctx.stroke();
-    ctx.setLineDash([]);
-  };
-  for (const [i, trail] of (s.histories ?? []).entries()) {
-    if (s.trails !== false)
+  if (!foreground) {
+    const path = (points: Vec[], color: string, dashed = false) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = dashed ? 2 : 3;
+      ctx.setLineDash(dashed ? [5, 8] : []);
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const q = screen(p);
+        if (i) ctx.lineTo(q.x, q.y);
+        else ctx.moveTo(q.x, q.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    for (const [i, trail] of (s.histories ?? []).entries()) {
+      if (!trail.length) continue;
+      if (s.trails !== false)
+        path(
+          [
+            s.stage.rocket ? trail[0].position : s.stage.spawn.position,
+            ...trail.map((v) => v.position),
+          ],
+          ['#79c7d64d', '#b6a1de4d', '#d0cc764d'][i % 3],
+          true,
+        );
+    }
+    if (s.replayTime !== undefined)
+      for (const [i, trail] of [s.history ?? [], ...(s.histories ?? [])].entries()) {
+        if (!trail.length || s.replayTime > trail.at(-1)!.time) continue;
+        const sample = trail.reduce((a, b) =>
+          Math.abs(b.time - s.replayTime!) < Math.abs(a.time - s.replayTime!) ? b : a,
+        );
+        if (i === 0)
+          for (const [id, position] of Object.entries(sample.targets ?? {})) {
+            const target =
+              s.stage.bodies.find((b) => b.id === id) ?? s.stage.objects.find((o) => o.id === id);
+            if (!target) continue;
+            const p = screen(position);
+            ctx.strokeStyle = '#a4cab3aa';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([3, 5]);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, Math.max(6, target.radius * c.zoom), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#a4cab3';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(`${target.name} · 기록 ${sample.time.toFixed(1)}초`, p.x + 8, p.y - 8);
+          }
+        const q = screen(sample.position);
+        ctx.fillStyle = ['#ffe1a1', '#79c7d6', '#b6a1de', '#d0cc76'][i % 4];
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '12px sans-serif';
+        ctx.fillText(
+          `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
+          q.x + 10,
+          q.y - 10,
+        );
+      }
+    if (s.history?.length && (s.selectedHistory || s.trails !== false))
       path(
-        [s.stage.spawn.position, ...trail.map((v) => v.position)],
-        ['#79c7d64d', '#b6a1de4d', '#d0cc764d'][i % 3],
+        [
+          s.stage.rocket ? s.history[0].position : s.stage.spawn.position,
+          ...s.history.map((v) => v.position),
+        ],
+        s.selectedHistory ? '#83d8ff' : '#aab8ae55',
         true,
       );
+    if (
+      s.run &&
+      s.trails !== false &&
+      (!s.selectedHistory || s.run.status === 'running' || s.replay)
+    )
+      path(
+        [
+          s.stage.rocket
+            ? (s.run.trail[0]?.position ?? s.stage.spawn.position)
+            : s.stage.spawn.position,
+          ...s.run.trail.map((v) => v.position),
+        ],
+        s.run.probe ? '#80cbd5' : '#f9b671',
+      );
   }
-  if (s.replayTime !== undefined)
-    for (const [i, trail] of [s.history ?? [], ...(s.histories ?? [])].entries()) {
-      if (!trail.length || s.replayTime > trail.at(-1)!.time) continue;
-      const sample = trail.reduce((a, b) =>
-        Math.abs(b.time - s.replayTime!) < Math.abs(a.time - s.replayTime!) ? b : a,
-      );
-      if (i === 0)
-        for (const [id, position] of Object.entries(sample.targets ?? {})) {
-          const target =
-            s.stage.bodies.find((b) => b.id === id) ?? s.stage.objects.find((o) => o.id === id);
-          if (!target) continue;
-          const p = screen(position);
-          ctx.strokeStyle = '#a4cab3aa';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([3, 5]);
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, Math.max(6, target.radius * c.zoom), 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.fillStyle = '#a4cab3';
-          ctx.font = '11px sans-serif';
-          ctx.fillText(`${target.name} · 기록 ${sample.time.toFixed(1)}초`, p.x + 8, p.y - 8);
-        }
-      const q = screen(sample.position);
-      ctx.fillStyle = ['#ffe1a1', '#79c7d6', '#b6a1de', '#d0cc76'][i % 4];
-      ctx.beginPath();
-      ctx.arc(q.x, q.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.font = '12px sans-serif';
-      ctx.fillText(
-        `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
-        q.x + 10,
-        q.y - 10,
-      );
-    }
-  if (s.history?.length && s.trails !== false)
-    path([s.stage.spawn.position, ...s.history.map((v) => v.position)], '#aab8ae80', true);
-  if (s.run && s.trails !== false)
-    path(
-      [s.stage.spawn.position, ...s.run.trail.map((v) => v.position)],
-      s.run.probe ? '#80cbd5' : '#f9b671',
-    );
   for (const b of s.stage.bodies) {
-    if (b.kind === 'barycenter') continue;
+    if (b.kind === 'barycenter' || !visible(b.id)) continue;
     const p = screen(bodyPosition(s.stage, b, t)),
       r = b.radius * c.zoom;
     ctx.save();
@@ -218,9 +266,17 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.lineWidth = 3;
       ctx.strokeRect(-r - 8, -r - 8, 2 * r + 16, 2 * r + 16);
     }
-    ctx.fillStyle = '#f7eed9';
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
+    if (s.selected?.has(b.id)) {
+      // Cover the old layer's coincident label as well as its body.
+      const half = ctx.measureText(b.name).width / 2 + 6;
+      ctx.fillStyle = '#142b35';
+      ctx.beginPath();
+      ctx.roundRect(-half, r + 8, half * 2, 21, 4);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#f7eed9';
     ctx.fillText(b.name, 0, r + 23);
     if (b.kind === 'black-hole') {
       ctx.strokeStyle = '#e49cad';
@@ -245,6 +301,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     }
   }
   for (const o of s.stage.objects) {
+    if (!visible(o.id)) continue;
     if (o.kind === 'path') {
       ctx.strokeStyle = '#c3be8d20';
       ctx.lineWidth = Math.max(2, o.radius * c.zoom * 2);
@@ -281,29 +338,47 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.strokeStyle = s.selected?.has(o.id) ? '#ffcf73' : '#091823';
     ctx.lineWidth = 4;
     ctx.fillStyle = o.kind === 'hazard' ? '#c16b66' : o.kind === 'station' ? '#ddd8bf' : '#83c6bf';
-    if (o.kind === 'gate') {
-      ctx.rotate(-o.angle);
-      ctx.fillRect(-5, -r, 10, 10);
-      ctx.fillRect(-5, r - 10, 10, 10);
-      ctx.strokeStyle = '#e7cf85';
-      ctx.setLineDash([4, 4]);
+    if (['sensor', 'gate', 'hazard'].includes(o.kind)) {
+      // Measurement geometry is a diagram overlay, never a physical wall or gate.
+      ctx.strokeStyle = '#83c6bf66';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 7]);
       ctx.beginPath();
-      ctx.moveTo(0, -r);
-      ctx.lineTo(0, r);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.stroke();
-    } else {
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#83c6bf';
+      ctx.fillRect(-2, -2, 4, 4);
+    } else if (o.kind === 'landing-site') {
+      ctx.rotate(-Math.atan2(o.position.y, o.position.x));
+      ctx.strokeStyle = '#efc370';
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.rect(-r, -r, 2 * r, 2 * r);
+      ctx.moveTo(-4, -r);
+      ctx.lineTo(-4, r);
+      ctx.stroke();
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#efc370';
+      ctx.fillText('회수', 8, 0);
+    } else if (o.kind === 'debris') {
+      const size = o.radius * c.zoom;
+      ctx.fillStyle = '#898f8e';
+      ctx.beginPath();
+      ctx.arc(0, 0, size, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = '#263b47';
-      ctx.fillRect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
-      ctx.fillStyle = '#dfce85';
-      ctx.fillRect(-3, -3, 6, 6);
+    } else {
+      const size =
+        ((o.kind === 'station' ? (o.physicalRadius ?? 0.03) : o.radius) * c.zoom) / Math.sqrt(2);
+      ctx.fillStyle = '#ddd8bf';
+      ctx.fillRect(-size, -size, size * 2, size * 2);
+      ctx.fillStyle = '#6599c2';
+      ctx.fillRect(-size, -size * 0.8, size * 0.6, size * 1.6);
+      ctx.fillRect(size * 0.4, -size * 0.8, size * 0.6, size * 1.6);
     }
     ctx.restore();
   }
-  for (const note of (s.observations ?? [])
+  for (const note of (foreground ? [] : (s.observations ?? []))
     .filter((n) => n.kind === 'gravity')
     .filter((_, i) => i % 4 === 0)) {
     const a = screen(note.position),
@@ -318,22 +393,20 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fillStyle = '#9ccebd';
     ctx.fillRect(a.x - 2, a.y - 2, 4, 4);
   }
+  // Incomplete drafts must not paint an implicit spacecraft at the origin.
+  if (!visible('spawn') || (s.stage.spawn.placed === false && !s.run)) return { ctx, w, h };
   const surface = surfaceLaunch(s.stage, t);
   const pad = screen(surface?.position ?? s.stage.spawn.position);
-  ctx.fillStyle = '#8ab5ab';
-  ctx.strokeStyle = '#101e29';
-  ctx.lineWidth = 3;
   ctx.save();
   ctx.translate(pad.x, pad.y);
-  ctx.rotate(-(s.stage.launchAngle ?? 0));
-  ctx.fillRect(0, -17, 4, 34);
-  ctx.strokeRect(0, -17, 4, 34);
+  ctx.rotate(-(surface?.angle ?? s.stage.launchAngle ?? 0));
+  if (surface) paintLaunchPad(ctx, c.zoom);
   ctx.restore();
   const sprite = (
     position: Vec,
     direction: Vec,
     count: number,
-    flame: boolean,
+    flame: number,
     selected: boolean,
     booster = false,
     firstPart = 0,
@@ -346,7 +419,9 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     if (s.replay) ctx.globalAlpha = 0.72;
     ctx.translate(p.x, p.y);
     ctx.rotate(-Math.atan2(direction.y, direction.x));
-    paintRocket(ctx, count, firstPart, booster, c.zoom, flame);
+    paintCraftLocator(ctx, c.zoom, count, booster, selected);
+    paintExhaust(ctx, flame, c.zoom, t, !!s.reducedMotion);
+    paintRocket(ctx, count, firstPart, booster, c.zoom);
     if (selected && s.run && !s.run.impact && !s.run.landed && (s.run.rocket?.airborne ?? true)) {
       ctx.strokeStyle = '#9fd5b755';
       ctx.lineWidth = 1;
@@ -356,22 +431,48 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   };
   for (const actor of s.run?.detached ?? []) {
     if (actor.status === 'crashed') continue;
-    sprite(
-      actor.position,
-      actor.direction,
-      1,
-      actor.throttle > 0,
-      actor.id === s.controlledId,
-      true,
-      s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
-    );
+    if (actor.payload) {
+      const p = screen(actor.position),
+        hull = hullSize(1, true);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(-Math.atan2(actor.direction.y, actor.direction.x));
+      paintCraftLocator(ctx, c.zoom, 1, true, actor.id === s.controlledId);
+      ctx.fillStyle = '#78b5d1';
+      ctx.beginPath();
+      ctx.roundRect(
+        0,
+        -hull.radius * c.zoom,
+        hull.length * c.zoom,
+        2 * hull.radius * c.zoom,
+        hull.radius * c.zoom,
+      );
+      ctx.fill();
+      ctx.fillStyle = '#eee1b9';
+      ctx.fillRect(
+        hull.length * c.zoom * 0.4,
+        -hull.radius * c.zoom * 0.7,
+        hull.length * c.zoom * 0.2,
+        hull.radius * c.zoom * 1.4,
+      );
+      ctx.restore();
+    } else
+      sprite(
+        actor.position,
+        actor.direction,
+        1,
+        actor.status === 'flying' && actor.fuel > 0 ? actor.throttle : 0,
+        actor.id === s.controlledId,
+        true,
+        s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
+      );
     const p = screen(actor.position);
     ctx.fillStyle = '#baceb5';
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(actor.status === 'landed' ? '✓ 회수' : actor.name, p.x, p.y + 30);
   }
-  const ship = s.run?.position ?? s.stage.spawn.position,
+  const ship = s.run?.position ?? surface?.position ?? s.stage.spawn.position,
     onPad = !s.run || (s.run.rocket && !s.run.rocket.airborne),
     v = s.run?.impact
       ? impactDirection(s.run.impact)
@@ -381,7 +482,10 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
           s.thrust ??
           s.run?.attitude ??
           s.run?.velocity ??
-          s.plan?.launch ?? { x: 1, y: 0 }),
+          s.plan?.launch ?? {
+            x: Math.cos(s.stage.launchAngle ?? 0),
+            y: Math.sin(s.stage.launchAngle ?? 0),
+          }),
     count = s.stage.rocket
       ? Math.max(0, s.stage.rocket.parts.length - (s.run?.rocket?.partIndex ?? 0))
       : 1;
@@ -389,12 +493,32 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ship,
     v,
     count,
-    !!s.thrust || !!s.run?.rocket?.throttle,
+    s.run?.rocket &&
+      count > 0 &&
+      !s.run.impact &&
+      !s.run.landed &&
+      s.run.rocket.fuel[s.run.rocket.partIndex] > 0
+      ? s.run.rocket.throttle
+      : s.thrust
+        ? 1
+        : 0,
     s.controlledId === 'craft',
     false,
     s.run?.rocket?.partIndex ?? 0,
   );
   const p = screen(ship);
+  for (const actor of s.run?.detached ?? []) {
+    if (actor.age > 0.45) continue;
+    const split = screen(add(actor.position, scale(actor.direction, hullSize(1, true).length)));
+    ctx.save();
+    ctx.globalAlpha = (1 - actor.age / 0.45) * 0.8;
+    ctx.strokeStyle = '#f1d58c';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(split.x, split.y, 5 + actor.age * 20, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (s.run?.impact) {
     const age = s.run.impact.age;
     for (let i = 0; i < 12; i++) {
@@ -410,37 +534,6 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     }
   }
 
-  const arrow = (origin: Vec, vector: Vec, color: string) => {
-    const a = screen(origin),
-      b = screen(aimEndpoint(origin, vector));
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 7, 0, 7);
-    ctx.fill();
-  };
-  if (s.plan && !s.run) {
-    arrow(s.stage.spawn.position, s.plan.launch, '#efb868');
-    for (const burn of s.plan.impulses) {
-      const point = s.history?.length
-        ? s.history.reduce((a, b) =>
-            Math.abs(b.time - burn.time) < Math.abs(a.time - burn.time) ? b : a,
-          )
-        : undefined;
-      if (point) {
-        arrow(point.position, burn.vector, '#9ed8b9');
-        const n = screen(point.position);
-        ctx.fillStyle = '#efe8d5';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.fillText(`${burn.time.toFixed(1)}s`, n.x + 10, n.y - 10);
-      }
-    }
-  }
   if (s.selected?.has('spawn')) {
     ctx.strokeStyle = '#ffcf73';
     ctx.strokeRect(p.x - 22, p.y - 22, 44, 44);

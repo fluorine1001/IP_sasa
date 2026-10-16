@@ -1,3 +1,4 @@
+import { nearbySamples } from './nearby-plans';
 import { planningTimeLimit, planConstraints } from '../world/program';
 import { learningDesign, readingText } from '../world/evidence';
 import { bodyPosition } from '../world/celestial.ts';
@@ -6,7 +7,14 @@ import { execute } from '../world/engine.ts';
 import { issues } from '../stages/validation.ts';
 import { length, scale, unit, sub } from '../physics/vector.ts';
 export type AuditResult = {
-  feedback?: { nearbyWins: number; nearbyTotal: number; distinctReports: number };
+  feedback?: {
+    nearbyWins: number;
+    nearbyTotal: number;
+    distinctReports: number;
+    changedOrder?: number;
+    changedOrderWins?: number;
+    controls?: { label: string; won: boolean; reason: string; changedOrder: boolean }[];
+  };
   checked: number;
   total: number;
   randomWins: number;
@@ -15,6 +23,7 @@ export type AuditResult = {
   warnings: string[];
   errors: string[];
   counterexamples: { label: string; plan: RoutePlan }[];
+  successes: RoutePlan[];
   done: boolean;
 };
 export function seeded(seed: number) {
@@ -49,6 +58,7 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     warnings: [],
     errors: issues(stage),
     counterexamples: [],
+    successes: [],
     done: false,
   };
   if (result.errors.length) {
@@ -62,21 +72,34 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
         (stage.audit.timeLimit ?? stage.rules.maxTime) +
         '초까지의 표본만 확인합니다.',
     );
+  const remember = (plan: RoutePlan) => {
+    result.warnings = result.warnings.filter(
+      (w) => !w.startsWith('아직 확인된 성공 비행이 없습니다.'),
+    );
+    if (!result.successes.some((p) => JSON.stringify(p) === JSON.stringify(plan)))
+      result.successes.push(structuredClone(plan));
+  };
   for (const p of stage.referencePlans)
-    if (execute(stage, p).status === 'won') result.referenceWins++;
+    if (execute(stage, p).status === 'won') {
+      result.referenceWins++;
+      remember(p);
+    }
   if (!result.referenceWins)
-    result.warnings.push('클리어 가능한 기준 경로가 없습니다. 직접 시험해 성공 경로를 저장하세요.');
+    result.warnings.push(
+      '아직 확인된 성공 비행이 없습니다. 직접 시험하거나 유효해 탐색에서 성공 기록을 확보하세요.',
+    );
   if (stage.goalMode === 'any' && stage.goals.length > 1)
     result.warnings.push('목표 중 하나만 달성해도 성공합니다. 의도한 조건인지 확인하세요.');
   const limit = stage.rules.launchLimit,
     base = stage.spawn.velocity,
-    nearest = stage.bodies.reduce((a, b) =>
-      length(sub(bodyPosition(stage, a, 0), stage.spawn.position)) <
-      length(sub(bodyPosition(stage, b, 0), stage.spawn.position))
-        ? a
-        : b,
-    ),
-    toward = unit(sub(bodyPosition(stage, nearest, 0), stage.spawn.position));
+    nearest = stage.bodies.length
+      ? stage.bodies.reduce((a, b) =>
+          length(sub(bodyPosition(stage, a, 0), stage.spawn.position)) <
+          length(sub(bodyPosition(stage, b, 0), stage.spawn.position))
+            ? a
+            : b,
+        )
+      : undefined;
   const simple: [string, RoutePlan][] = [
     ['무추진', { launch: { x: 0, y: 0 }, impulses: [] }],
     [
@@ -87,12 +110,18 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
       '최대 역방향 추진',
       { launch: scale(length(base) ? unit(base) : { x: 0, y: 1 }, -limit), impulses: [] },
     ],
-    ['천체를 향해 직진', { launch: scale(toward, limit), impulses: [] }],
-    ['천체에서 멀어지기', { launch: scale(toward, -limit), impulses: [] }],
   ];
+  if (nearest) {
+    const toward = unit(sub(bodyPosition(stage, nearest, 0), stage.spawn.position));
+    simple.push(
+      ['천체를 향해 직진', { launch: scale(toward, limit), impulses: [] }],
+      ['천체에서 멀어지기', { launch: scale(toward, -limit), impulses: [] }],
+    );
+  }
   for (const [label, plan] of simple)
     if (execute(stage, plan).status === 'won') {
       result.simpleWins.push(label);
+      remember(plan);
       result.counterexamples.push({ label, plan });
     }
   if (result.simpleWins.length)
@@ -103,18 +132,29 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     const design = learningDesign(stage),
       reports = new Set<string>();
     let nearbyWins = 0,
-      nearbyTotal = 0;
+      nearbyTotal = 0,
+      changedOrder = 0,
+      changedOrderWins = 0;
+    const controls: NonNullable<NonNullable<AuditResult['feedback']>['controls']> = [];
     const reference = stage.referencePlans.find((p) => execute(stage, p).status === 'won');
     if (reference) {
-      for (const factor of [0.98, 1, 1.02])
-        for (const timeShift of [-0.15, 0, 0.15]) {
-          const p = structuredClone(reference);
-          p.launch = scale(p.launch, factor);
-          p.impulses.forEach((b) => (b.time = Math.max(0, b.time + timeShift)));
-          if (length(p.launch) > stage.rules.launchLimit) continue;
+      for (const sample of nearbySamples(stage, reference)) {
+        const run = execute(stage, sample.plan),
+          won = run.status === 'won';
+        if (sample.changedOrder) {
+          changedOrder++;
+          if (won) changedOrderWins++;
+        } else {
           nearbyTotal++;
-          if (execute(stage, p).status === 'won') nearbyWins++;
+          if (won) nearbyWins++;
         }
+        controls.push({
+          label: sample.label,
+          won,
+          reason: run.reason,
+          changedOrder: sample.changedOrder,
+        });
+      }
       for (const factor of [0.8, 0.9, 1, 1.1]) {
         const p = structuredClone(reference);
         p.launch = scale(
@@ -128,10 +168,17 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
         );
       }
     }
-    result.feedback = { nearbyWins, nearbyTotal, distinctReports: reports.size };
-    if (nearbyTotal && nearbyWins <= 1)
+    result.feedback = {
+      nearbyWins,
+      nearbyTotal,
+      distinctReports: reports.size,
+      changedOrder,
+      changedOrderWins,
+      controls,
+    };
+    if (nearbyTotal && nearbyWins / nearbyTotal < 0.5)
       result.warnings.push(
-        '기준 풀이 근처의 작은 세기·시각 차이도 대부분 실패합니다. 손으로 조작 가능한 허용 범위를 확인하세요.',
+        '같은 조작 순서에서 5% 출력·0.25초 시각·5° 방향 변경 표본의 성공이 절반 미만입니다. 배치·자원·허용 영역의 조작 여유를 확인하세요. 순서가 뒤집힌 표본은 별도로 집계합니다.',
       );
     if (reports.size < 2)
       result.warnings.push(
@@ -185,6 +232,7 @@ export function* auditStage(stage: Stage): Generator<AuditResult> {
     const legalPlan = constrainAuditPlan(stage, plan);
     if (execute(stage, legalPlan).status === 'won') {
       result.randomWins++;
+      remember(legalPlan);
       if (result.counterexamples.length < 8)
         result.counterexamples.push({ label: `임의 경로 ${i + 1}`, plan: legalPlan });
     }

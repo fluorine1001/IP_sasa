@@ -1,6 +1,20 @@
 import { evaluateCondition } from './conditions.ts';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
 import type { GoalContext, GoalProgress } from './types.ts';
+import type { Stage, Goal } from './types';
+import type { Condition } from './conditions';
+export function goalReferences(condition: Condition): string[] {
+  if (condition.kind === 'reference') return [condition.goalId];
+  if ('children' in condition) return condition.children.flatMap(goalReferences);
+  if ('child' in condition) return goalReferences(condition.child);
+  if (condition.kind === 'capture') return goalReferences(condition.when);
+  return [];
+}
+/** Referenced annotations remain editable components; only graph roots complete the mission. */
+export function objectiveGoals(stage: Stage): Goal[] {
+  const children = new Set(stage.goals.flatMap((goal) => goalReferences(goal.condition)));
+  return stage.goals.filter((goal) => !children.has(goal.id));
+}
 export function freshProgress(): GoalProgress {
   return { complete: false, ratio: 0 };
 }

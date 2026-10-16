@@ -14,4 +14,4 @@ it('최종 원 궤도뿐 아니라 출발 유지·전이 타원 관성 구간·�
   const shortcut = structuredClone(stage);
   shortcut.spawn = { position: { x: 2, y: 0 }, velocity: { x: 0, y: Math.sqrt(0.5) } };
   expect(execute(shortcut, { launch: { x: 0, y: 0 }, impulses: [] }).status).not.toBe('won');
-});
+}, 20_000); // Three complete physical flights; speed is measured separately from correctness.

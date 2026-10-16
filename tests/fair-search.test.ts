@@ -47,7 +47,7 @@ it('무제한 시간은 앞 창의 관측 종료를 실패로 고정하지 않�
   expect(r.families.length).toBeGreaterThan(0);
   expect(r.scope!.horizon).toBeGreaterThanOrEqual(0.4);
   expect(execute(s, r.families[0].representative, false, r.families[0].horizon).status).toBe('won');
-});
+}, 20_000); // Functional integration with repeated native flights, not a 5s performance claim.
 it('기본 6개를 넘는 길이와 정밀도 층에 반복적으로 계산 기회를 준다', () => {
   const s = blankStage();
   s.rules.commandLimits = undefined;

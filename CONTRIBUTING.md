@@ -16,7 +16,7 @@ check:boundaries는 튜토리얼/설정의 다른 화면·물리 직접 의존�
 
 ## GitHub Desktop 순서
 
-1. Fetch origin / Pull로 기준 브랜치를 받습니다. 현재 codex/game-workshop, main 병합 후에는 팀이 정한 main입니다.
+1. Fetch origin / Pull로 팀이 정한 기준 브랜치를 받습니다. 현재 공개 배포 기준은 codex/free-workshop-deployment이고, codex/game-workshop은 이전 게임 기준입니다. main 병합 후에는 팀이 정한 main을 사용합니다.
 2. Issue에 역할·파일·UUID·원하는 결과·완료 기준을 적습니다.
 3. 개인 브랜치를 만듭니다. stage/<이름>, ui/<기능>, guide/<기능>. Codex 작업은 codex/ 접두사입니다. 현재 공개 배포 브랜치는 codex/free-workshop-deployment이며 push가 자동 배포를 유발할 수 있습니다.
 4. 담당 파일을 수정하고 관련 화면을 직접 확인합니다.

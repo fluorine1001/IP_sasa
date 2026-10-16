@@ -8,6 +8,7 @@ import { controlEngine, separate } from '../world/rocket';
 import { bodyPosition } from '../world/celestial';
 import { expressionValue } from '../world/conditions';
 import { hullSize, ROCKET_SEGMENT_LENGTH } from '../world/hull';
+import { eccentricityVector } from '../physics/orbit';
 
 type Target = { id: string; radius: number; ex: number; ey: number; actors: string[] };
 type Quota = { remaining: number; total: number };
@@ -51,7 +52,7 @@ function targets(stage: Stage): Target[] {
           (id) => id === 'craft' || stage.rocket?.payloads?.some((p) => p.id === id),
         ),
       });
-    } else if (goal.display && names.has('eccentricity')) {
+    } else if (goal.display && names.has('orbitTurns')) {
       result.push({
         id: goal.display.targetId,
         radius: (goal.display.min + goal.display.max) / 2,
@@ -415,10 +416,14 @@ function orbitResidual(stage: Stage, run: Run, target: Target): number[] {
   return target.actors.flatMap((actorId) => {
     const read = (metric: string) =>
       expressionValue({ kind: 'metric', metric, targetId: target.id, actorId }, c, progress);
+    const e = eccentricityVector(
+      { position: { x: read('x'), y: read('y') }, velocity: { x: read('vx'), y: read('vy') } },
+      body.mu,
+    );
     return [
       (read('energy') + body.mu / (2 * target.radius)) / (body.mu / target.radius),
-      read('eccentricityX') - target.ex,
-      read('eccentricityY') - target.ey,
+      e.x - target.ex,
+      e.y - target.ey,
     ];
   });
 }

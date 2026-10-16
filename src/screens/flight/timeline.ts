@@ -10,7 +10,7 @@ import {
 import './planning.css';
 import { timelinePlanner } from './planner';
 import { propulsionReadout } from './propulsion';
-import { setControl } from './controls';
+import { setControlButton } from './controls';
 import { escape } from '../../app/core';
 import { length, scale } from '../../physics/vector';
 import {
@@ -522,23 +522,20 @@ export function flightTimeline(
           : state.phase === 'flight'
             ? '비행 중 · 계획 확정됨'
             : '발사 전 · 예약 설계';
-    setControl(
-      root.ownerDocument.body,
-      'program-toggle',
+    setControlButton(
+      el('program-toggle'),
       'sliders',
       state.phase === 'plan' ? '비행 계획' : '당시 계획',
     );
     el('program-toggle').className = 'console-button with-label plan-command';
-    setControl(
-      root.ownerDocument.body,
-      'replay-toggle',
+    setControlButton(
+      el('replay-toggle'),
       state.playing ? 'pause' : 'play',
       state.playing ? '다시보기 일시정지' : '다시보기 재생',
     );
     el('replay-toggle').className = 'console-button';
-    setControl(
-      root.ownerDocument.body,
-      'replay-exit',
+    setControlButton(
+      el('replay-exit'),
       'back',
       state.ended ? '계획으로 돌아가기' : '현재 비행으로',
     );

@@ -229,7 +229,9 @@ export function paintAuthoringFeedback(
     arrow(peri.x, peri.y, -Math.sin(a) * 32, -Math.cos(a) * 32);
     arrow(peri.x, peri.y, Math.sin(a) * 32, Math.cos(a) * 32);
     ctx.fillText(
-      m.span === 'revolution' ? '↻ 실제 한 바퀴 · 엔진 꺼짐' : '궤도 형태 · 엔진 꺼짐',
+      m.span === 'revolution'
+        ? `↻ 실제 ${m.turns ?? 1}바퀴${m.coast ? ' · 엔진 꺼짐' : ''}`
+        : '표시 궤도 띠',
       12,
       22,
     );

@@ -63,7 +63,7 @@
   "goals": [
     {
       "id": "993ac92e-3fe6-419a-97c0-a80222d76aba",
-      "title": "목표 띠에서 거의 원형인 궤도를 한 바퀴 유지",
+      "title": "표시된 궤도 띠에서 관성으로 한 바퀴",
       "position": {
         "x": 3,
         "y": 0
@@ -101,19 +101,6 @@
                 "right": {
                   "kind": "constant",
                   "value": 0.32
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "metric",
-                  "metric": "eccentricity",
-                  "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
-                },
-                "operator": "lte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.2
                 }
               },
               {
@@ -170,19 +157,6 @@
                       "kind": "compare",
                       "left": {
                         "kind": "metric",
-                        "metric": "eccentricity",
-                        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
-                      },
-                      "operator": "lte",
-                      "right": {
-                        "kind": "constant",
-                        "value": 0.2
-                      }
-                    },
-                    {
-                      "kind": "compare",
-                      "left": {
-                        "kind": "metric",
                         "metric": "throttle",
                         "targetId": ""
                       },
@@ -230,21 +204,6 @@
                           {
                             "kind": "metric",
                             "metric": "distance",
-                            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
-                          }
-                        ]
-                      },
-                      {
-                        "kind": "calculate",
-                        "operation": "subtract",
-                        "args": [
-                          {
-                            "kind": "constant",
-                            "value": 0.2
-                          },
-                          {
-                            "kind": "metric",
-                            "metric": "eccentricity",
                             "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
                           }
                         ]
@@ -327,21 +286,6 @@
                         "args": [
                           {
                             "kind": "constant",
-                            "value": 0.2
-                          },
-                          {
-                            "kind": "metric",
-                            "metric": "eccentricity",
-                            "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
-                          }
-                        ]
-                      },
-                      {
-                        "kind": "calculate",
-                        "operation": "subtract",
-                        "args": [
-                          {
-                            "kind": "constant",
                             "value": 0
                           },
                           {
@@ -377,6 +321,14 @@
         "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1",
         "min": 0.12,
         "max": 0.32
+      },
+      "outcome": {
+        "kind": "circular",
+        "targetId": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1",
+        "min": 0.12,
+        "max": 0.32,
+        "duration": 2,
+        "actorId": "craft"
       }
     }
   ],

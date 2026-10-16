@@ -47,21 +47,13 @@ export function intentInspector(stage: Stage, goal: Goal) {
     .filter(
       ([key, value]) =>
         typeof value === 'number' &&
-        [
-          'min',
-          'max',
-          'duration',
-          'speed',
-          'gain',
-          'tilt',
-          'eccentricity',
-          'spacing',
-          'insideFraction',
-        ].includes(key),
+        ['min', 'max', 'duration', 'speed', 'gain', 'tilt', 'spacing', 'insideFraction'].includes(
+          key,
+        ),
     )
     .map(
       ([key, value]) =>
-        `<label>${{ min: '안쪽 경계', max: '바깥 경계', duration: '유지 시간', speed: '상대·접촉 속력', gain: '에너지 변화', tilt: '수직에서 기울기 (rad)', eccentricity: '찌그러짐 여유', spacing: '기체 간격', insideFraction: '유지 비율' }[key]}<input data-intent-override="${key}" type="number" step="any" value="${intent?.overrides?.[key as keyof NonNullable<MissionIntent['overrides']>] ?? ''}" placeholder="자동 ${Number(value).toPrecision(3)}"></label>`,
+        `<label>${{ min: '안쪽 경계', max: '바깥 경계', duration: '유지 시간', speed: '상대·접촉 속력', gain: '에너지 변화', tilt: '수직에서 기울기 (rad)', spacing: '기체 간격', insideFraction: '유지 비율' }[key]}<input data-intent-override="${key}" type="number" step="any" value="${intent?.overrides?.[key as keyof NonNullable<MissionIntent['overrides']>] ?? ''}" placeholder="자동 ${Number(value).toPrecision(3)}"></label>`,
     )
     .join(
       '',

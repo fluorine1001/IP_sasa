@@ -36,6 +36,14 @@ if (process.env.DATABASE_URL) {
     );
     const examples = workshopExampleDrafts();
     await storage.seed(examples, workshopExamplesVersion);
+    const { workshopCampaignEntries, workshopCampaignVersion } = await runtime.ssrLoadModule(
+      '/scripts/workshop-campaign.ts',
+    );
+    const campaign = workshopCampaignEntries(await fileStageStorage(root).list());
+    await storage.seed(campaign, workshopCampaignVersion);
+    console.log(
+      `Authored campaign additions: ${campaign.length} candidates; existing edits/deletions preserved.`,
+    );
     let present = 0;
     for (const entry of examples) if (await storage.get(JSON.parse(entry.raw).id)) present++;
     console.log(

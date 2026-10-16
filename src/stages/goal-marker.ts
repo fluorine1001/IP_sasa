@@ -21,6 +21,7 @@ export type GoalMarker = {
   upper: number;
   span: 'instant' | 'settle' | 'revolution';
   duration?: number;
+  turns?: number;
   compiledKey?: string;
   managed?: boolean;
   offset?: Vec;
@@ -148,47 +149,7 @@ function markerDefinition(
           : []),
         compare(metric('distance'), 'gte', low),
         compare(metric('distance'), 'lte', high),
-        compare(metric('semiMajorAxis'), 'gte', marker.radius - marker.width),
-        compare(metric('semiMajorAxis'), 'lte', marker.radius + marker.width),
-        compare(
-          metric('eccentricity'),
-          'gte',
-          Math.max(0, eccentricity - marker.width / marker.radius),
-        ),
-        compare(
-          metric('eccentricity'),
-          'lte',
-          Math.min(1 - 1e-12, eccentricity + marker.width / marker.radius),
-        ),
-        compare(metric('throttle', ''), 'eq', 0),
-        ...(eccentricity > 1e-8
-          ? [
-              compare(
-                calculate(
-                  'abs',
-                  calculate(
-                    'subtract',
-                    metric('eccentricityX'),
-                    constant(eccentricity * Math.cos(marker.angle ?? 0)),
-                  ),
-                ),
-                'lte',
-                marker.width / marker.radius,
-              ),
-              compare(
-                calculate(
-                  'abs',
-                  calculate(
-                    'subtract',
-                    metric('eccentricityY'),
-                    constant(eccentricity * Math.sin(marker.angle ?? 0)),
-                  ),
-                ),
-                'lte',
-                marker.width / marker.radius,
-              ),
-            ]
-          : []),
+        ...(marker.coast ? [compare(metric('throttle', ''), 'eq', 0)] : []),
       ],
     };
     display = { targetId: target.id, min: low, max: high };
@@ -363,6 +324,7 @@ function markerDefinition(
       child,
     };
   const sketch: GoalSketch = {
+    turns: marker.turns,
     targetId: marker.targetId,
     placement: goal.position,
     span:

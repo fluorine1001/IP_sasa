@@ -5,7 +5,6 @@ import { metrics } from '../../world/metrics';
 import type { Stage } from '../../world/types';
 import { controlIcon } from './controls';
 import type { Goal } from '../../world/types';
-import { compileOutcome } from '../../stages/outcomes';
 
 const number = (n: number) => Number(n.toPrecision(8)).toString();
 const nouns: Record<string, string> = {
@@ -87,89 +86,6 @@ export function goalExplanation(stage: Stage, node: Condition): string {
             : `대상 ${c.count ?? 1}개 이상 충족`,
         ...walk(c.child),
       ];
-    if (c.kind === 'sequence' && c.children[0]?.kind === 'all' && c.children[1]?.kind === 'all') {
-      const entry = c.children[0].children;
-      const shape = entry.find(
-        (child) =>
-          child.kind === 'compare' &&
-          child.left.kind === 'metric' &&
-          child.left.metric === 'eccentricity',
-      );
-      const fullCircle =
-        c.children.length === 2 &&
-        c.children[1].children.some(
-          (child) =>
-            child.kind === 'compare' &&
-            child.left.kind === 'window' &&
-            child.left.operation === 'min' &&
-            child.left.domain.kind === 'metric' &&
-            child.left.domain.metric === 'orbitTurns',
-        );
-      if (
-        shape?.kind === 'compare' &&
-        shape.left.kind === 'metric' &&
-        shape.right.kind === 'constant' &&
-        fullCircle
-      ) {
-        const range = entry.filter(
-          (child) =>
-            child.kind === 'compare' &&
-            child.left.kind === 'metric' &&
-            child.left.metric === 'distance',
-        );
-        const minimum = range.find((child) => child.kind === 'compare' && child.operator === 'gte');
-        const maximum = range.find((child) => child.kind === 'compare' && child.operator === 'lte');
-        const held = c.children[1].children.find((child) => child.kind === 'hold');
-        let exact = false;
-        if (
-          minimum?.kind === 'compare' &&
-          minimum.right.kind === 'constant' &&
-          maximum?.kind === 'compare' &&
-          maximum.right.kind === 'constant' &&
-          held?.kind === 'hold'
-        ) {
-          try {
-            exact =
-              JSON.stringify(
-                compileOutcome(stage, {
-                  kind: 'circular',
-                  targetId: shape.left.targetId,
-                  actorId: shape.left.actorId,
-                  min: minimum.right.value,
-                  max: maximum.right.value,
-                  eccentricity: shape.right.value,
-                  duration: held.duration,
-                }).condition,
-              ) === JSON.stringify(c);
-          } catch {
-            /* Custom conditions remain fully described below. */
-          }
-        }
-        if (
-          exact &&
-          minimum?.kind === 'compare' &&
-          minimum.right.kind === 'constant' &&
-          maximum?.kind === 'compare' &&
-          maximum.right.kind === 'constant' &&
-          held?.kind === 'hold'
-        )
-          return [
-            (shape.left.actorId && shape.left.actorId !== 'craft'
-              ? name(shape.left.actorId) + ' · '
-              : '') +
-              name(shape.left.targetId) +
-              ' 주위에 거의 원형인 궤도',
-            '엔진을 끄고 띠 안에서 한 바퀴 내내 유지',
-            '최소 ' + number(held.duration) + '초 연속 유지',
-            '찌그러짐 여유 ' + Math.round(shape.right.value * 100) + '%',
-            '중심 거리 ' +
-              number(minimum.right.value) +
-              '~' +
-              number(maximum.right.value) +
-              ' 눈금',
-          ];
-      }
-    }
     if (c.kind === 'reference') {
       const source = stage.goals.find((g) => g.id === c.goalId);
       return source
@@ -185,12 +101,17 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         c.left.domain.kind === 'metric' &&
         c.left.domain.metric === 'orbitTurns' &&
         c.left.width.kind === 'constant' &&
-        c.left.width.value === 1 &&
         c.right.kind === 'constant'
       ) {
-        if (c.left.operation === 'coverage') return ['한 바퀴 전체를 실제로 비행'];
+        if (c.left.operation === 'coverage')
+          return [number(c.left.width.value) + '바퀴 전체를 실제로 비행'];
         if (c.left.operation === 'fractionPositive')
-          return ['한 바퀴 중 ' + Math.round(c.right.value * 100) + '% 이상 표시된 띠 안에서 비행'];
+          return [
+            number(c.left.width.value) +
+              '바퀴 중 ' +
+              Math.round(c.right.value * 100) +
+              '% 이상 표시된 띠 안에서 비행',
+          ];
       }
       if (
         c.left.kind === 'metric' &&
@@ -288,7 +209,7 @@ function markerExplanation(stage: Stage, goal: Goal): string | undefined {
   if (!marker || marker.managed === false) return;
   const region = {
     area: marker.outside ? '지도에 표시한 판정 원 바깥쪽' : '지도에 표시한 판정 원 내부',
-    orbit: '표시한 거리 띠·궤도 형태·긴 반경 범위에서 엔진을 끈 중력 궤도',
+    orbit: '표시한 허용 띠 안에서 기준 대상 주위를 진행 · 매 바퀴 경로는 달라도 됨',
     velocity: '속도 화살표 끝의 허용 원 안에 드는 상대 속도·방향',
     surface: '표시한 접촉 지점 안에 안전 속력·수직 자세로 착륙',
     state: '관측 표식의 표시 구간 안에 드는 물리 상태',
@@ -301,10 +222,11 @@ function markerExplanation(stage: Stage, goal: Goal): string | undefined {
       ? `선택한 기체 ${marker.actorIds.length}개 모두 충족`
       : '선택한 기체가 충족',
     marker.span === 'revolution'
-      ? '실제 한 바퀴 전체'
+      ? `실제 ${marker.turns ?? 1}바퀴 전체`
       : marker.span === 'instant' && marker.kind !== 'surface'
         ? '한 번 성립한 실제 순간'
         : `${time.toFixed(1)}초 연속 유지`,
+    ...(marker.kind === 'orbit' && marker.coast ? ['엔진을 끈 구간만 인정'] : []),
   ].join('\n');
 }
 export function missionGoalsHtml(stage: Stage) {

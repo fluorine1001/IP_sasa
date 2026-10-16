@@ -38,7 +38,7 @@ export function outcomeInspector(stage: Stage, goal?: Goal) {
     )
     .join(
       '',
-    )}</select></label><label data-outcome-kinds="region circular orbit escape environment flyby">안쪽 경계 / 환경 최솟값<input id="outcome-min" type="number" step="any" value="${defaults.min ?? 1}"/></label><label data-outcome-kinds="region circular orbit rendezvous environment flyby">바깥 경계 / 환경 최댓값<input id="outcome-max" type="number" step="any" value="${defaults.max ?? 2}"/></label><label data-outcome-kinds="region circular rendezvous recovery escape environment">최소 유지 시간 (초)<input id="outcome-duration" type="number" min="0.01" step="any" value="${defaults.duration ?? 4}"/></label><label data-outcome-kinds="circular">원형 궤도 찌그러짐 여유<input id="outcome-eccentricity" type="range" min="0.05" max="0.5" step="0.05" value="${defaults.eccentricity ?? 0.2}"/></label><label data-outcome-kinds="rendezvous recovery">상대 / 접촉 속력 여유<input id="outcome-speed" type="number" min="0.001" step="any" value="${defaults.speed ?? 0.1}"/></label><label data-outcome-kinds="orbit environment">구간 중 유지 비율 (%)<input id="outcome-fraction" type="number" min="1" max="100" value="${Number(defaults.insideFraction ?? 1) * 100}"/></label><label data-outcome-kinds="region">엔진을 끈 상태로 유지<input id="outcome-coast" type="checkbox" ${defaults.coast ? 'checked' : ''}/></label><button id="apply-outcome">이 목표로 조건 블록 교체</button><small>폼은 조건을 생성하는 도구이며 현재 블록의 모든 사용자 정의를 역변환하지 않습니다. 생성 후 지도 영역과 유효해 집합을 비교하고, 고급 블록에서 자유롭게 조합할 수 있습니다.</small></details>`;
+    )}</select></label><label data-outcome-kinds="region circular orbit escape environment flyby">안쪽 경계 / 환경 최솟값<input id="outcome-min" type="number" step="any" value="${defaults.min ?? 1}"/></label><label data-outcome-kinds="region circular orbit rendezvous environment flyby">바깥 경계 / 환경 최댓값<input id="outcome-max" type="number" step="any" value="${defaults.max ?? 2}"/></label><label data-outcome-kinds="region circular rendezvous recovery escape environment">최소 유지 시간 (초)<input id="outcome-duration" type="number" min="0.01" step="any" value="${defaults.duration ?? 4}"/></label><label data-outcome-kinds="circular orbit">필요한 바퀴 수<input id="outcome-turns" type="number" min="1" step="1" value="${defaults.turns ?? 1}"></label><label data-outcome-kinds="rendezvous recovery">상대 / 접촉 속력 여유<input id="outcome-speed" type="number" min="0.001" step="any" value="${defaults.speed ?? 0.1}"/></label><label data-outcome-kinds="orbit environment">구간 중 유지 비율 (%)<input id="outcome-fraction" type="number" min="1" max="100" value="${Number(defaults.insideFraction ?? 1) * 100}"/></label><label data-outcome-kinds="region circular">엔진을 끈 상태로 유지<input id="outcome-coast" type="checkbox" ${defaults.coast ? 'checked' : ''}/></label><button id="apply-outcome">이 목표로 조건 블록 교체</button><small>폼은 조건을 생성하는 도구이며 현재 블록의 모든 사용자 정의를 역변환하지 않습니다. 생성 후 지도 영역과 유효해 집합을 비교하고, 고급 블록에서 자유롭게 조합할 수 있습니다.</small></details>`;
 }
 export function syncOutcomeFields(root: HTMLElement) {
   const kind = root.querySelector<HTMLSelectElement>('#outcome-kind')?.value;
@@ -49,7 +49,7 @@ export function syncOutcomeFields(root: HTMLElement) {
   const descriptions: Record<string, string> = {
     region: '표면 높이 띠를 연속해서 유지합니다.',
     circular:
-      '엔진을 끄고 거의 원형인 궤도를 한 바퀴 내내 유지합니다. 거리는 천체 중심 기준입니다.',
+      '표시 띠 안에서 기준 대상을 지정한 횟수만큼 돕니다. 매 바퀴의 경로가 같을 필요는 없습니다.',
     orbit: '표시한 궤도 띠에서 한 바퀴를 비행합니다. 타원 궤도도 허용합니다.',
     rendezvous: '대상 곁에 머물며 대상과 비슷한 속도로 움직입니다.',
     recovery: '선택한 기체가 낮은 접촉 속력으로 착륙해 머물러야 합니다.',
@@ -59,12 +59,10 @@ export function syncOutcomeFields(root: HTMLElement) {
     environment:
       '100%는 끊김 없는 연속 유지입니다. 그보다 낮으면 지정한 실제 시간 구간 중 유지된 비율로 판정합니다.',
   };
-  const eccentricity = Number(
-    root.querySelector<HTMLInputElement>('#outcome-eccentricity')?.value ?? 0.2,
-  );
+
   const diagram =
     kind === 'circular' || kind === 'orbit'
-      ? `<svg viewBox="0 0 160 112" role="img" aria-label="허용하는 궤도 형태의 개념도"><ellipse cx="80" cy="56" rx="${kind === 'orbit' ? 60 : 44}" ry="${kind === 'orbit' ? 32 : 44 * Math.sqrt(1 - eccentricity ** 2)}" fill="none" stroke="#efc370" stroke-width="3"/><circle cx="${kind === 'orbit' ? 128 : 80 + 44 * eccentricity}" cy="56" r="8" fill="#86b4a5"/></svg>`
+      ? `<svg viewBox="0 0 160 112" role="img" aria-label="허용하는 궤도 형태의 개념도"><ellipse cx="80" cy="56" rx="${kind === 'orbit' ? 60 : 44}" ry="${kind === 'orbit' ? 32 : 44}" fill="none" stroke="#efc370" stroke-width="3"/><circle cx="${kind === 'orbit' ? 128 : 80}" cy="56" r="8" fill="#86b4a5"/></svg>`
       : '';
   root.querySelector('#outcome-preview')!.innerHTML =
     diagram + `<p>${descriptions[kind] ?? '목표로 삼을 결과를 선택하세요.'}</p>`;

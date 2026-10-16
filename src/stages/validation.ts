@@ -1,5 +1,6 @@
 import { goalReferences, objectiveGoals } from '../world/goals';
 import { compileMarker, upgradeOrbitCorridors } from './goal-marker';
+import { upgradeVisibleOrbitBands } from './orbit-band-migration';
 import { missionTimeLimit } from '../world/program';
 import { planConstraints } from '../world/program';
 import { instantiateVariation, variationIssues } from '../world/variation';
@@ -559,7 +560,7 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
 export function parseStage(value: unknown, allowIncomplete = false): Stage {
   if (!value || typeof value !== 'object') throw new Error('스테이지 객체가 필요합니다.');
   try {
-    const stage = upgradeOrbitCorridors(value as Stage);
+    const stage = upgradeVisibleOrbitBands(upgradeOrbitCorridors(value as Stage));
     const errors = issues(stage, allowIncomplete && stage.published === false);
     if (errors.length) throw new Error(errors.join('\n'));
     return stage;

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { blankStage } from '../../src/stages/factory';
+import { readdirSync } from 'node:fs';
 
 test('독립 제작소는 기록 없이 전체 구성 탐색과 기존 결과를 유지한 추가 조사를 제공한다', async ({
   page,
@@ -38,7 +39,9 @@ test('독립 제작소는 기록 없이 전체 구성 탐색과 기존 결과를
   await expect(page.locator('#search-status')).toContainText('64/64');
   await expect(page.locator('#search-status')).toContainText('이번 검사 완료');
   await page.locator('#open-library').click();
-  await expect(page.locator('.library-card')).toHaveCount(9);
+  await expect(page.locator('.library-card')).toHaveCount(
+    readdirSync('data/stages').filter((name) => name.endsWith('.json')).length,
+  );
   await page.locator('[data-library-close]').click();
   await page.screenshot({ path: 'test-results/screens/whole-solution-search.png' });
 });

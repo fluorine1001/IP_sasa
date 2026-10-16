@@ -64,6 +64,15 @@ export function setControl(
   pressed?: boolean,
 ) {
   const button = root.querySelector<HTMLButtonElement>('#' + id)!;
+  setControlButton(button, kind, label, pressed);
+}
+/** Controls can move between console hosts or belong to a detached workspace. */
+export function setControlButton(
+  button: HTMLElement,
+  kind: string,
+  label: string,
+  pressed?: boolean,
+) {
   if (button.dataset.label !== label || button.dataset.icon !== kind) {
     button.innerHTML =
       controlIcon(kind) + '<span class="control-label">' + escape(label) + '</span>';

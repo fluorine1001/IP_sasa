@@ -20,7 +20,7 @@ it('생성한 모든 결과 목표는 기체·범위·유지 시간을 그대로
     targetId = stage.bodies[0].id,
     actorId = stage.rocket!.parts[0].id;
   const outcomes: Outcome[] = [
-    { kind: 'circular', targetId, actorId, min: 1, max: 2, eccentricity: 0.15, duration: 6 },
+    { kind: 'circular', targetId, actorId, min: 1, max: 2, turns: 2, duration: 6 },
     { kind: 'orbit', targetId, actorId, min: 1, max: 2, insideFraction: 0.8 },
     { kind: 'rendezvous', targetId, actorId, max: 0.4, speed: 0.1, duration: 3 },
     { kind: 'recovery', targetId, actorId, speed: 0.12, duration: 2 },

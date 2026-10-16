@@ -35,11 +35,12 @@ import { drawWorld } from '../../render/world.ts';
 import { toWorld, toScreen, zoomAt } from '../../render/camera.ts';
 import type { Run, RoutePlan, Observation } from '../../world/types.ts';
 import { uid } from '../../stages/factory.ts';
-export function playScreen(app: App, args: PlayArgs): Screen {
+import type { FlightSession } from './session';
+export function playScreen(app: App, args: PlayArgs, session?: FlightSession): Screen {
   const stage = structuredClone(args.stage);
   app.root.dataset.training = String(!!args.tutorial && !!stage.tutorial);
   const design = learningDesign(stage);
-  const trials: Trial[] = [];
+  const trials: Trial[] = session?.trials ?? [];
   const seenCues = new Set<string>();
   let compareIndex = -1,
     replayTime = 0;
@@ -80,9 +81,9 @@ export function playScreen(app: App, args: PlayArgs): Screen {
       deployments: [],
     };
   }
-  let plan: RoutePlan = structuredClone(args.plan ?? defaultPlan()),
+  let plan: RoutePlan = structuredClone(args.plan ?? session?.plan ?? defaultPlan()),
     run: Run | undefined,
-    history: Run['trail'] = [],
+    history: Run['trail'] = trials.at(-1)?.trail ?? [],
     notes: Observation[] = [],
     paused = false,
     following = false,
@@ -166,6 +167,11 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     const next = JSON.stringify(plan);
     if (id === 'choose-time' || next !== lastPlan) lesson?.record(id);
     lastPlan = next;
+  }
+  function saveSession() {
+    if (!session) return;
+    session.plan = structuredClone(plan);
+    session.changed?.();
   }
   const goalDialog = el('mission-goals') as HTMLDialogElement;
   el('goal-details').onclick = () => {
@@ -785,6 +791,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     if (!run || ended) return;
     ended = true;
     trials.push(recordTrial(run, trials.length + 1));
+    saveSession();
     lesson?.record('observe');
     if (trials.length >= 2) lesson?.record('two-trials');
     history = trials.at(-1)!.trail;
@@ -936,6 +943,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   window.addEventListener(
     'keydown',
     (e) => {
+      if (!app.root.isConnected) return;
       if ((e.target as HTMLElement).matches('input,select,textarea')) return;
       if (goalDialog.open) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code))
@@ -973,6 +981,14 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     updateHud();
   };
   window.addEventListener('blur', blur, { signal });
+  app.root.addEventListener(
+    'workspace-suspend',
+    () => {
+      blur();
+      saveSession();
+    },
+    { signal },
+  );
   document.addEventListener(
     'visibilitychange',
     () => {
@@ -1098,6 +1114,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       }
     },
     dispose: () => {
+      saveSession();
       abort.abort();
       sizeObserver.disconnect();
       missionObserver.disconnect();

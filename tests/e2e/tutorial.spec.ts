@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { enterPlan } from './helpers';
-const training = readdirSync('data/stages')
+const authoredStages = readdirSync('data/stages')
   .filter((f) => f.endsWith('.json'))
-  .map((f) => JSON.parse(readFileSync('data/stages/' + f, 'utf8')))
-  .find((s) => s.track === 'tutorial');
+  .map((f) => JSON.parse(readFileSync('data/stages/' + f, 'utf8')));
+const training = authoredStages.find((s) => s.track === 'tutorial');
 
 test('메인 메뉴의 튜토리얼은 본편과 분리된 실제 훈련 스테이지를 연다', async ({ page }) => {
   await page.goto('/');
@@ -27,7 +27,7 @@ test('단일 훈련에서 실제 편집·분리·재점화·재생·한 변수 �
   await page.locator('#tutorials').click();
   await page.locator('.tutorial-card').click();
   await page.locator('#goal-details').click();
-  await expect(page.locator('#mission-goals')).toContainText('한 바퀴 내내');
+  await expect(page.locator('#mission-goals')).toContainText('1바퀴 전체');
   await page.locator('#goal-close').click();
   await expect(page.locator('#training-progress')).toHaveText('1 / 7');
   await page.locator('#training-next').click();
@@ -86,7 +86,10 @@ test('단일 훈련에서 실제 편집·분리·재점화·재생·한 변수 �
 test('본편에는 튜토리얼 실습 안내가 나오지 않는다', async ({ page }) => {
   await page.goto('/');
   await page.locator('#start').click();
-  await expect(page.locator('.stage-card')).toHaveCount(8);
+  await expect(page.locator('.stage-card')).toHaveCount(
+    authoredStages.filter((stage) => stage.track !== 'tutorial' && stage.published !== false)
+      .length,
+  );
   await page.locator('.stage-card').first().click();
   await expect(page.locator('#training-panel')).toHaveCount(0);
   await page.locator('#goal-details').click();

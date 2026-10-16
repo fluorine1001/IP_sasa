@@ -47,7 +47,9 @@ test('단일 HTML은 서버·네트워크 없이 플레이·예약·비행·다�
   await expect(page.locator('#stage-source')).toHaveCount(0);
   await expect(page.locator('script[src], link[rel="stylesheet"]')).toHaveCount(0);
   await page.locator('#start').click();
-  await expect(page.locator('.stage-card')).toHaveCount(8);
+  await expect(page.locator('.stage-card')).toHaveCount(
+    stages.filter((stage) => stage.track !== 'tutorial' && stage.published !== false).length,
+  );
   await page.locator('.stage-card').first().click();
   await page.getByRole('spinbutton', { name: '새 예약 시각' }).fill('4.23');
   await page.locator('[data-tool="turn"]').click();

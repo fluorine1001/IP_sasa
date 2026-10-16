@@ -13,8 +13,14 @@ const first = () => {
   return s;
 };
 describe('실제 비행의 물리 제약', () => {
-  it('모든 출발은 선택한 천체 표면이며 이동 천체의 속도를 이어받는다', () => {
-    for (const stage of stages) {
+  it('표면 출발은 선택한 천체에 붙고 자유 공간 출발은 원래 위치·속도를 유지한다', () => {
+    for (const source of stages) {
+      const stage = structuredClone(source);
+      syncLaunch(stage);
+      if (!stage.launchBodyId) {
+        expect(stage.spawn).toEqual(source.spawn);
+        continue;
+      }
       const body = stage.bodies.find((b) => b.id === stage.launchBodyId)!;
       expect(length(sub(stage.spawn.position, bodyPosition(stage, body, 0)))).toBeCloseTo(
         body.radius + PAD_CLEARANCE,

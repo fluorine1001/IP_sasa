@@ -4,6 +4,31 @@ import type { Stage } from '../../src/world/types';
 import { authoringHandles } from '../../src/editor/marker-feedback';
 import { toScreen } from '../../src/render/camera';
 
+test('허용 띠의 필요한 바퀴 수는 편집·저장·실제 게임 목표 설명에 동일하게 반영된다', async ({
+  page,
+}) => {
+  await page.addInitScript(
+    (s) => localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(s)),
+    draft,
+  );
+  await page.goto('/editor.html');
+  await page.locator('#search-auto').uncheck();
+  await page.getByText('목표 목록 · 클릭해서 편집', { exact: true }).click();
+  await page.locator(`[data-select-goal="${draft.goals[0].id}"]`).click();
+  await page.locator('[data-marker-turns]').fill('3');
+  await page.locator('[data-marker-turns]').press('Tab');
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!),
+  );
+  expect(saved.goals[0].marker.turns).toBe(3);
+  expect(JSON.stringify(saved.goals[0].condition)).not.toMatch(/eccentricity|semiMajorAxis/);
+  await page.locator('#test-stage').click();
+  await page.locator('#goal-details').click();
+  await expect(page.locator('#mission-goals')).toContainText('3바퀴 전체');
+  await expect(page.locator('#mission-goals')).not.toContainText('찌그러짐');
+  await page.screenshot({ path: 'test-results/screens/orbit-three-turns.png' });
+});
+
 for (const viewport of [
   { width: 989, height: 870 },
   { width: 1440, height: 1000 },

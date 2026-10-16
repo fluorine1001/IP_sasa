@@ -6,9 +6,10 @@ import source from '../data/stages/34643eaf-0363-4898-b617-63e79ba47d97.json';
 const stage = parseStage(source);
 it('목표 범위·유지 시간·분리 상태를 수식 대신 결과 상태로 설명한다', () => {
   const text = goalExplanation(stage, stage.goals[0].condition);
-  expect(text).toContain('거의 원형인 궤도');
-  expect(text).toContain('한 바퀴 내내');
-  expect(text).toContain('엔진을 끄고');
+  expect(text).toContain('중심 거리');
+  expect(text).toContain('1바퀴 전체');
+  expect(text).toContain('엔진 꺼짐');
+  expect(text).not.toContain('찌그러짐');
   expect(text).toContain('분리된 상태');
   expect(text).not.toMatch(/AND|OR|sqrt|≥|≤|(^|\n)\s*\d+\.\s/);
 });

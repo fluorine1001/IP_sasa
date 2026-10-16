@@ -11,7 +11,7 @@ export function orbitInitialState(
   clockwise = false,
 ) {
   if (!Number.isFinite(eccentricity) || eccentricity < 0 || eccentricity > 5)
-    throw Error('궤도 찌그러짐은 0~5입니다.');
+    throw Error('초기 궤도 모양의 이심률은 0~5입니다.');
   const radial = sub(position, bodyPosition(stage, body, 0)),
     radius = length(radial);
   if (radius <= body.radius) throw Error('출발점은 기준 천체의 표면 밖이어야 합니다.');

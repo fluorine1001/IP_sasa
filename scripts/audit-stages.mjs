@@ -9,10 +9,11 @@ try {
   const { auditStage } = await server.ssrLoadModule('/src/editor/audit.ts');
   const { instantiateVariation } = await server.ssrLoadModule('/src/world/variation.ts');
   const { execute } = await server.ssrLoadModule('/src/world/engine.ts');
+  const { parseStage } = await server.ssrLoadModule('/src/stages/validation.ts');
   let invalid = false;
   for (const file of await readdir('data/stages')) {
     if (!file.endsWith('.json')) continue;
-    const stage = JSON.parse(await readFile(`data/stages/${file}`, 'utf8'));
+    const stage = parseStage(JSON.parse(await readFile(`data/stages/${file}`, 'utf8')));
     const order = process.argv.find((a) => a.startsWith('--order='));
     if (order && !order.slice(8).split(',').map(Number).includes(stage.order)) continue;
     let result;
@@ -29,8 +30,8 @@ try {
     if (
       result.errors.length ||
       !result.referenceWins ||
-      result.randomWins / result.total > stage.audit.maxPassRate ||
-      result.simpleWins.length
+      (stage.published !== false &&
+        (result.randomWins / result.total > stage.audit.maxPassRate || result.simpleWins.length))
     )
       invalid = true;
   }

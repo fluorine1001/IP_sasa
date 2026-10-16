@@ -145,7 +145,6 @@ export function conditionDomain(stage: Stage, options: DomainOptions = {}) {
           'distance',
           'speed',
           'fuel',
-          'eccentricity',
           'dynamicPressure',
           'airDensity',
           'heat',

@@ -76,13 +76,29 @@ export function readOutcome(stage: Stage, goal: Goal): Outcome | undefined {
       n.width.kind === 'constant',
   );
   const candidates: Outcome[] = [];
+  const turnWindow = nodes.find(
+    (n): n is Extract<Expression, { kind: 'window' }> =>
+      n.kind === 'window' &&
+      n.domain.kind === 'metric' &&
+      n.domain.metric === 'orbitTurns' &&
+      n.width.kind === 'constant',
+  );
+  const turns = turnWindow?.width.kind === 'constant' ? turnWindow.width.value : undefined;
   const min = value('distance', 'gte'),
     max = value('distance', 'lte'),
-    eccentricity = value('eccentricity', 'lte'),
     speed = value('speed', 'lte');
   if (min !== undefined && max !== undefined) {
-    if (duration !== undefined && eccentricity !== undefined)
-      candidates.push({ kind: 'circular', targetId, actorId, min, max, eccentricity, duration });
+    if (duration !== undefined && turns !== undefined)
+      candidates.push({
+        kind: 'circular',
+        targetId,
+        actorId,
+        min,
+        max,
+        duration,
+        ...(value('throttle', 'eq') === 0 ? { coast: true } : {}),
+        ...(turns === 1 ? {} : { turns }),
+      });
     candidates.push({ kind: 'orbit', targetId, actorId, min, max, insideFraction });
   }
   if (max !== undefined && speed !== undefined && duration !== undefined)

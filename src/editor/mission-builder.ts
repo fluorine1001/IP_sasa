@@ -51,7 +51,6 @@ export function assembleMission(
                 kind: 'circular',
                 min: request.min,
                 max: request.max,
-                eccentricity: 0.2,
               };
     const generated = request.automatic
       ? compileIntent(stage, {

@@ -93,10 +93,9 @@ export function resolveIntent(
         kind: 'circular',
         min: Math.max(center.radius + hull * 0.5, radius - margin),
         max: radius + margin,
-        eccentricity: 0.25,
         duration,
       };
-      basis.push('엔진을 끈 실제 거의 원형 궤도 · 한 바퀴');
+      basis.push('표시 띠 안에서 엔진을 끈 실제 궤도 · 한 바퀴');
       break;
     case 'recovery':
       outcome = {

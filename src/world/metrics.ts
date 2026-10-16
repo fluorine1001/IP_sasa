@@ -1,5 +1,4 @@
 import { atmosphericState, rocketMass } from './rocket.ts';
-import { eccentricity } from '../physics/orbit';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
 import {
   bodyPosition,
@@ -44,32 +43,7 @@ function frame(c: GoalContext, id: string) {
     v: sub(c.run.velocity, velocity),
   };
 }
-function eccentricityVector(c: GoalContext, id: string) {
-  const f = frame(c, id),
-    mu = (f.body?.mu ?? 0) + (c.stage.bodies.find((b) => b.id === c.actorId)?.mu ?? 0);
-  return mu > 0
-    ? scale(
-        sub(
-          scale(f.d, dot(f.v, f.v) - mu / Math.max(length(f.d), 1e-9)),
-          scale(f.v, dot(f.d, f.v)),
-        ),
-        1 / mu,
-      )
-    : { x: NaN, y: NaN };
-}
 export const metrics: Record<string, Metric> = {
-  eccentricityX: {
-    label: '궤도 찌그러짐·최근접 방향 X',
-    unit: '비율',
-    target: true,
-    read: (c, id) => eccentricityVector(c, id).x,
-  },
-  eccentricityY: {
-    label: '궤도 찌그러짐·최근접 방향 Y',
-    unit: '비율',
-    target: true,
-    read: (c, id) => eccentricityVector(c, id).y,
-  },
   actorPropellantUsed: {
     label: '선택 기체가 사용한 추진 연료',
     unit: '질량',
@@ -183,18 +157,6 @@ export const metrics: Record<string, Metric> = {
             ),
           )
         : Number(c.run.landed?.bodyId === id),
-  },
-  eccentricity: {
-    label: '궤도의 찌그러짐 (0: 원형, 1 이상: 비결합)',
-    unit: '비율',
-    target: true,
-    read: (c, id) => {
-      const f = frame(c, id);
-      return eccentricity(
-        { position: f.d, velocity: f.v },
-        (f.body?.mu ?? 0) + (c.stage.bodies.find((b) => b.id === c.actorId)?.mu ?? 0),
-      );
-    },
   },
   targetGravityParameter: {
     label: '대상 천체의 중력 상수 GM',

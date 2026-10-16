@@ -1,0 +1,404 @@
+{
+  "version": 2,
+  "launchAngle": 0,
+  "id": "43695fa9-18cd-4fde-85f3-49db1db45b1b",
+  "title": "이동하는 달의 중력",
+  "description": "달과의 접근·최근접·이탈 과정에서 추가 추진 없이 중심별 기준 에너지를 얻으세요.",
+  "order": 11,
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "27fc639e-e799-5e05-81ee-2d3f840e1fcd",
+      "name": "중심별",
+      "kind": "star",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.3,
+      "mu": 0.5,
+      "color": "#65978b",
+      "hiddenGravity": false,
+      "estimateMu": 0.5
+    },
+    {
+      "id": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b",
+      "name": "달",
+      "kind": "moon",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.12,
+      "mu": 0.02,
+      "color": "#b6bcb2",
+      "hiddenGravity": false,
+      "estimateMu": 0.02,
+      "motion": {
+        "parentId": "27fc639e-e799-5e05-81ee-2d3f840e1fcd",
+        "radius": 3,
+        "phase": 0
+      }
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "289be69d-fc01-59e2-89d0-75a382dd7266",
+      "title": "안전한 최근접 구간과 무추진 에너지 증가",
+      "condition": {
+        "kind": "sequence",
+        "children": [
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "capture",
+                "key": "flyby_energy",
+                "value": {
+                  "kind": "metric",
+                  "metric": "energy",
+                  "targetId": "27fc639e-e799-5e05-81ee-2d3f840e1fcd"
+                },
+                "when": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                      },
+                      "operator": "lte",
+                      "right": {
+                        "kind": "constant",
+                        "value": 1.5
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "radialSpeed",
+                        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "capture",
+                "key": "flyby_fuel",
+                "value": {
+                  "kind": "metric",
+                  "metric": "propellantUsed",
+                  "targetId": ""
+                },
+                "when": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                      },
+                      "operator": "lte",
+                      "right": {
+                        "kind": "constant",
+                        "value": 1.5
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "radialSpeed",
+                        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "capture",
+                "key": "flyby_push",
+                "value": {
+                  "kind": "metric",
+                  "metric": "thrustUsed",
+                  "targetId": ""
+                },
+                "when": {
+                  "kind": "all",
+                  "children": [
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "distance",
+                        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                      },
+                      "operator": "lte",
+                      "right": {
+                        "kind": "constant",
+                        "value": 1.5
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "metric",
+                        "metric": "radialSpeed",
+                        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                      },
+                      "operator": "lt",
+                      "right": {
+                        "kind": "constant",
+                        "value": 0
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "kind": "all",
+            "children": [
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "min",
+                  "value": {
+                    "kind": "metric",
+                    "metric": "distance",
+                    "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "time",
+                    "targetId": ""
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 16
+                  }
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.16
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "window",
+                  "operation": "min",
+                  "value": {
+                    "kind": "metric",
+                    "metric": "distance",
+                    "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                  },
+                  "domain": {
+                    "kind": "metric",
+                    "metric": "time",
+                    "targetId": ""
+                  },
+                  "width": {
+                    "kind": "constant",
+                    "value": 16
+                  }
+                },
+                "operator": "lte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.5
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "distance",
+                  "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 1.5
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "metric",
+                  "metric": "radialSpeed",
+                  "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b"
+                },
+                "operator": "gt",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "subtract",
+                  "args": [
+                    {
+                      "kind": "metric",
+                      "metric": "energy",
+                      "targetId": "27fc639e-e799-5e05-81ee-2d3f840e1fcd"
+                    },
+                    {
+                      "kind": "recorded",
+                      "key": "flyby_energy"
+                    }
+                  ]
+                },
+                "operator": "gte",
+                "right": {
+                  "kind": "constant",
+                  "value": 0.01
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "subtract",
+                  "args": [
+                    {
+                      "kind": "metric",
+                      "metric": "propellantUsed",
+                      "targetId": ""
+                    },
+                    {
+                      "kind": "recorded",
+                      "key": "flyby_fuel"
+                    }
+                  ]
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "calculate",
+                  "operation": "subtract",
+                  "args": [
+                    {
+                      "kind": "metric",
+                      "metric": "thrustUsed",
+                      "targetId": ""
+                    },
+                    {
+                      "kind": "recorded",
+                      "key": "flyby_push"
+                    }
+                  ]
+                },
+                "operator": "eq",
+                "right": {
+                  "kind": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 16,
+      "dependsOn": [],
+      "display": {
+        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b",
+        "min": 0.16,
+        "max": 0.5
+      },
+      "outcome": {
+        "kind": "flyby",
+        "targetId": "6ebf92cd-fa4f-5fab-8fe5-691d8f3cf14b",
+        "referenceId": "27fc639e-e799-5e05-81ee-2d3f840e1fcd",
+        "min": 0.16,
+        "max": 0.5,
+        "gain": 0.01,
+        "actorId": "craft"
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "placed": true,
+    "position": {
+      "x": 2.4,
+      "y": -0.8
+    },
+    "velocity": {
+      "x": 0.25,
+      "y": 0.658248290463863
+    }
+  },
+  "rules": {
+    "launchLimit": 0.3,
+    "maneuverBudget": 0.1,
+    "maxTime": 16,
+    "timelineDuration": 16,
+    "commandLimits": {
+      "ignite": 6,
+      "stop": 6,
+      "turn": 6,
+      "separate": 2,
+      "push": 3,
+      "deploy": 2
+    },
+    "worldRadius": 64,
+    "sensorSlots": 0,
+    "attempts": 3
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 60
+  },
+  "referencePlans": [
+    {
+      "launch": {
+        "x": 0.15,
+        "y": 0
+      },
+      "impulses": []
+    }
+  ],
+  "audit": {
+    "samples": 16,
+    "maxPassRate": 0.01,
+    "seed": 31415,
+    "timeLimit": 16
+  },
+  "published": false
+}

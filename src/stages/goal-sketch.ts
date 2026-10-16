@@ -21,6 +21,7 @@ export type GoalSketch = {
   placement: { x: number; y: number };
   span: 'instant' | 'settle' | 'revolution';
   targetId: string;
+  turns?: number;
   managed?: boolean;
   compiledKey?: string;
 };
@@ -42,6 +43,8 @@ export function compileSketch(
   source: GoalSketch,
 ): Pick<Goal, 'condition' | 'display' | 'sketch'> {
   const sketch = structuredClone(source);
+  const turns = sketch.turns ?? 1;
+  if (!Number.isSafeInteger(turns) || turns < 1) throw Error('바퀴 수는 1 이상의 정수여야 합니다.');
   if (!referencePosition(stage, sketch.targetId)) throw Error('판정의 기준 대상을 선택하세요.');
   function compile(node: SketchNode): Condition {
     if (node.kind === 'raw') return structuredClone(node.condition);
@@ -75,7 +78,7 @@ export function compileSketch(
                       operation: 'coverage',
                       value: constant(1),
                       domain: metric('orbitTurns'),
-                      width: constant(1),
+                      width: constant(turns),
                     },
                     right: constant(0.999999999),
                   },
@@ -87,7 +90,7 @@ export function compileSketch(
                       operation: 'min',
                       value: conditionMargin(child),
                       domain: metric('orbitTurns'),
-                      width: constant(1),
+                      width: constant(turns),
                     },
                     right: constant(0),
                   },

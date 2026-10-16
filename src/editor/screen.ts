@@ -691,6 +691,7 @@ export function editorScreen(app: App): Screen {
               m.bounds === 'below' ? Number(input.value) : Math.max(m.lower, Number(input.value));
           if (input.hasAttribute('data-marker-span')) m.span = input.value as GoalMarker['span'];
           if (input.hasAttribute('data-marker-duration')) m.duration = Number(input.value);
+          if (input.hasAttribute('data-marker-turns')) m.turns = Number(input.value);
           if (input.hasAttribute('data-marker-outside')) m.outside = input.checked;
           if (input.hasAttribute('data-marker-bounds'))
             m.bounds = input.value as GoalMarker['bounds'];
@@ -1028,7 +1029,7 @@ export function editorScreen(app: App): Screen {
           duration: value('duration'),
           speed: value('speed'),
           insideFraction: value('fraction') / 100,
-          eccentricity: value('eccentricity'),
+          turns: value('turns'),
           metric: app.root.querySelector<HTMLSelectElement>('#outcome-metric')!.value,
           referenceId: app.root.querySelector<HTMLSelectElement>('#outcome-reference')!.value,
           gain: value('gain'),
@@ -1719,6 +1720,7 @@ export function editorScreen(app: App): Screen {
   window.addEventListener(
     'keydown',
     (e) => {
+      if (!app.root.isConnected) return;
       if ((e.target as HTMLElement).matches('input,select,textarea')) return;
       keys.add(e.code);
       if (e.code === 'Escape') {
@@ -1777,6 +1779,14 @@ export function editorScreen(app: App): Screen {
     { signal },
   );
   window.addEventListener('keyup', (e) => keys.delete(e.code), { signal });
+  app.root.addEventListener(
+    'workspace-suspend',
+    () => {
+      keys.clear();
+      drag = undefined;
+    },
+    { signal },
+  );
   window.addEventListener(
     'blur',
     () => {

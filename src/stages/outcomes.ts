@@ -11,13 +11,23 @@ export type Outcome = (
       duration: number;
       coast?: boolean;
     }
-  | { kind: 'orbit'; targetId: string; min: number; max: number; insideFraction: number }
+  | {
+      kind: 'orbit';
+      targetId: string;
+      min: number;
+      max: number;
+      insideFraction: number;
+      turns?: number;
+    }
   | {
       kind: 'circular';
       targetId: string;
       min: number;
       max: number;
-      eccentricity: number;
+      /** Legacy input only; ignored and removed on save. */
+      eccentricity?: number;
+      turns?: number;
+      coast?: boolean;
       duration: number;
     }
   | {
@@ -265,17 +275,22 @@ function compileOutcomeCondition(
   if (!('radius' in target)) throw Error('이 목표에는 천체를 선택하세요.');
   if (outcome.kind === 'circular') {
     if (!('mu' in target) || !(target.mu > 0)) throw Error('중력이 있는 천체를 선택하세요.');
-    if (
-      !Number.isFinite(outcome.eccentricity) ||
-      outcome.eccentricity <= 0 ||
-      outcome.eccentricity > 0.5
-    )
-      throw Error('원형 궤도 찌그러짐 허용치는 0 초과~0.5입니다.');
+    const turns = outcome.turns ?? 1;
+    if (!Number.isSafeInteger(turns) || turns < 1)
+      throw Error('바퀴 수는 1 이상의 정수여야 합니다.');
     const stable = all([
       compare(metric('distance', target.id), 'gte', outcome.min),
       compare(metric('distance', target.id), 'lte', outcome.max),
-      compare(metric('eccentricity', target.id), 'lte', outcome.eccentricity),
-      { kind: 'compare', left: metric('throttle', ''), operator: 'eq', right: constant(0) },
+      ...(outcome.coast
+        ? [
+            {
+              kind: 'compare' as const,
+              left: metric('throttle', ''),
+              operator: 'eq' as const,
+              right: constant(0),
+            },
+          ]
+        : []),
     ]);
     const margin: Expression = {
       kind: 'calculate',
@@ -291,12 +306,15 @@ function compileOutcomeCondition(
           operation: 'subtract',
           args: [constant(outcome.max), metric('distance', target.id)],
         },
-        {
-          kind: 'calculate',
-          operation: 'subtract',
-          args: [constant(outcome.eccentricity), metric('eccentricity', target.id)],
-        },
-        { kind: 'calculate', operation: 'subtract', args: [constant(0), metric('throttle', '')] },
+        ...(outcome.coast
+          ? [
+              {
+                kind: 'calculate' as const,
+                operation: 'subtract' as const,
+                args: [constant(0), metric('throttle', '')],
+              },
+            ]
+          : []),
       ],
     };
     const window = (operation: 'coverage' | 'min'): Expression => ({
@@ -304,7 +322,7 @@ function compileOutcomeCondition(
       operation,
       value: margin,
       domain: metric('orbitTurns', target.id),
-      width: constant(1),
+      width: constant(turns),
     });
     return {
       condition: {
@@ -360,6 +378,8 @@ function compileOutcomeCondition(
         max: target.radius + outcome.max,
       },
     };
+  if (!Number.isSafeInteger(outcome.turns ?? 1) || (outcome.turns ?? 1) < 1)
+    throw Error('바퀴 수는 1 이상의 정수여야 합니다.');
   if (
     !Number.isFinite(outcome.insideFraction) ||
     outcome.insideFraction < 0.5 ||
@@ -387,7 +407,7 @@ function compileOutcomeCondition(
     operation,
     value: margin,
     domain: metric('orbitTurns', target.id),
-    width: constant(1),
+    width: constant(outcome.turns ?? 1),
   });
   return {
     condition: {
@@ -407,6 +427,8 @@ export function compileOutcome(
   stage: Stage,
   outcome: Outcome,
 ): Pick<Goal, 'condition' | 'display' | 'outcome'> {
+  outcome = structuredClone(outcome);
+  if (outcome.kind === 'circular') delete outcome.eccentricity;
   return {
     ...compileOutcomeCondition(stage, outcome),
     outcome: structuredClone({ ...outcome, actorId: outcome.actorId ?? 'craft' }),

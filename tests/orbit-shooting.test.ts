@@ -8,6 +8,7 @@ import { createMarker, compileMarker } from '../src/stages/goal-marker';
 import ascent from '../data/stages/aefa2afd-1717-4954-9413-a63c077320e8.json';
 import training from '../data/stages/34643eaf-0363-4898-b617-63e79ba47d97.json';
 import type { Stage } from '../src/world/types';
+import { parseStage } from '../src/stages/validation';
 
 it('감쇠 최소제곱 보정은 연결된 제어 오차를 동시에 풀고 특이행렬은 안전하게 처리한다', () => {
   const j = [
@@ -23,7 +24,7 @@ it('감쇠 최소제곱 보정은 연결된 제어 오차를 동시에 풀고 �
 it.each([ascent, training])(
   '유한 분사 원궤도 $title를 정답 기록 없이 역산하고 실제 엔진으로 확인한다',
   (data) => {
-    const s = structuredClone(data) as Stage;
+    const s = parseStage(structuredClone(data));
     s.referencePlans = [];
     const quota = { remaining: 256, total: 256 },
       work = { trials: 0, ticks: 0, steps: 0 };
@@ -37,7 +38,7 @@ it.each([ascent, training])(
 it.each([ascent, training])(
   '실제 전역 탐색 연결에서 $title의 해를 찾고 모델 전파도 검사 예산에 포함한다',
   (data) => {
-    const s = structuredClone(data) as Stage;
+    const s = parseStage(structuredClone(data));
     s.referencePlans = [];
     const r = [...globalSearch(s, searchTemplates(s), 128)].at(-1)!;
     expect(r.evaluated).toBeLessThanOrEqual(128);

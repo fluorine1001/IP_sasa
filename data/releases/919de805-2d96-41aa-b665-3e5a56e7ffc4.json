@@ -1,0 +1,161 @@
+{
+  "version": 2,
+  "rocket": {
+    "payloadMass": 0.3,
+    "parts": [
+      {
+        "id": "9654ca54-3c91-5b10-8a35-0ae1dc09b0eb",
+        "name": "착륙 엔진",
+        "dryMass": 0.3,
+        "fuelMass": 0.5,
+        "thrust": 0.95,
+        "exhaustSpeed": 1.5,
+        "area": 0.02,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "ignitionLimit": 4,
+        "turnRate": 3.141592653589793,
+        "maxLandingSpeed": 0.12
+      }
+    ]
+  },
+  "launchAngle": 0,
+  "id": "919de805-2d96-41aa-b665-3e5a56e7ffc4",
+  "title": "연료를 남긴 착륙",
+  "description": "낙하 중인 기체를 행성 표면에 안전하게 정착시키세요.",
+  "order": 9,
+  "theme": "frontier",
+  "bodies": [
+    {
+      "id": "aa587a6b-93c2-5f46-8330-60b157fb59e2",
+      "name": "행성 아라",
+      "kind": "planet",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 0.6,
+      "mu": 0.08,
+      "color": "#65978b",
+      "hiddenGravity": false,
+      "estimateMu": 0.08
+    }
+  ],
+  "objects": [],
+  "goals": [
+    {
+      "id": "ae920d73-2de2-5ea7-8735-41bfdecef778",
+      "title": "접촉 속력과 자세를 지키며 표면에 정착",
+      "condition": {
+        "kind": "hold",
+        "duration": 0.2,
+        "child": {
+          "kind": "all",
+          "children": [
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "landed",
+                "targetId": "aa587a6b-93c2-5f46-8330-60b157fb59e2"
+              },
+              "operator": "gte",
+              "right": {
+                "kind": "constant",
+                "value": 1
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "touchdownSpeed",
+                "targetId": ""
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.1
+              }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "metric",
+                "metric": "touchdownTilt",
+                "targetId": ""
+              },
+              "operator": "lte",
+              "right": {
+                "kind": "constant",
+                "value": 0.15
+              }
+            }
+          ]
+        }
+      },
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "startTime": 0,
+      "endTime": 12,
+      "dependsOn": [],
+      "display": {
+        "targetId": "aa587a6b-93c2-5f46-8330-60b157fb59e2",
+        "min": 0.6,
+        "max": 0.6
+      },
+      "outcome": {
+        "kind": "recovery",
+        "targetId": "aa587a6b-93c2-5f46-8330-60b157fb59e2",
+        "speed": 0.1,
+        "duration": 0.2,
+        "tilt": 0.15,
+        "actorId": "craft"
+      }
+    }
+  ],
+  "goalMode": "all",
+  "spawn": {
+    "placed": true,
+    "position": {
+      "x": 1.4,
+      "y": 0
+    },
+    "velocity": {
+      "x": -0.05,
+      "y": 0
+    }
+  },
+  "rules": {
+    "launchLimit": 1.1,
+    "maneuverBudget": 0.1,
+    "maxTime": 12,
+    "timelineDuration": 12,
+    "commandLimits": {
+      "ignite": 6,
+      "stop": 6,
+      "turn": 6,
+      "separate": 2,
+      "push": 3,
+      "deploy": 2
+    },
+    "worldRadius": 64,
+    "sensorSlots": 0,
+    "attempts": 3
+  },
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 60
+  },
+  "referencePlans": [],
+  "audit": {
+    "samples": 16,
+    "maxPassRate": 0.01,
+    "seed": 31415,
+    "timeLimit": 12
+  },
+  "published": true
+}

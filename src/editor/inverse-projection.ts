@@ -468,6 +468,15 @@ export function* inverseProjection(
         { relation: r, success: won, residual },
       );
     }
+    const emitted = new Set<string>();
+    const representative = (point: Record<string, number>) => {
+      const coordinates = seed.slice();
+      for (const p of inverted) coordinates[p.index] = point['u' + p.index];
+      const key = JSON.stringify(coordinates);
+      if (emitted.has(key)) return;
+      emitted.add(key);
+      return coordinates;
+    };
     for (const step of successProjection(r, won, bounds, {
       cells: 48,
       work: Math.min(150_000, Math.max(8192, r.statistics.nodes * 16)),
@@ -478,15 +487,26 @@ export function* inverseProjection(
       statistics.cells = step.statistics.cells;
       statistics.visits = step.statistics.visits;
       statistics.regions = accepted.length;
+      // Deliver proven region interiors immediately. Do not withhold every
+      // native witness until all remaining projection cells have been visited.
+      // These are region witnesses, not a claim of final connected components.
+      for (const cell of step.accepted) {
+        const coordinates = representative(
+          Object.fromEntries(
+            Object.entries(cell.bounds).map(([key, d]) => [key, d.lo / 2 + d.hi / 2]),
+          ),
+        );
+        if (coordinates) yield { coordinates, statistics: { ...statistics } };
+      }
       yield { statistics: { ...statistics } };
     }
     const groups = projectionGroups(accepted);
     statistics.groups = groups.length;
     for (const group of groups) {
-      const coordinates = seed.slice();
-      for (const p of inverted) coordinates[p.index] = group.point['u' + p.index];
-      yield { coordinates, statistics: { ...statistics } };
+      const coordinates = representative(group.point);
+      if (coordinates) yield { coordinates, statistics: { ...statistics } };
     }
+    yield { statistics: { ...statistics } };
   } catch (error) {
     if (!(
       error instanceof UnsupportedTransition ||

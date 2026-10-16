@@ -648,7 +648,7 @@ export function* searchSolutions(
     };
   };
   let seed = seedCoordinates(template);
-  const projected: number[][] = [];
+  let initial: SearchSample | undefined;
   if (parameters.length && (!quota || quota.remaining > 0)) {
     for (const progress of inverseProjection(
       stage,
@@ -657,17 +657,21 @@ export function* searchSolutions(
       parameterPlan(template, seed),
     )) {
       projection = progress.statistics;
-      if (progress.coordinates) projected.push(progress.coordinates);
+      if (progress.coordinates) {
+        const sample = yield* evaluate(progress.coordinates);
+        if (!initial && sample) {
+          initial = sample;
+          seed = progress.coordinates;
+        }
+      }
       yield report(false, true);
     }
   }
-  if (projected.length) seed = projected.shift()!;
-  const initial = (yield* evaluate(seed))!;
+  initial ??= yield* evaluate(seed);
   yield report(false);
-  for (const point of projected) {
-    if (evaluated >= budget || (quota && quota.remaining <= 0)) break;
-    yield* evaluate(point);
-    yield report(false);
+  if (!initial) {
+    yield report(true);
+    return;
   }
   for (const plan of template.seeds ?? []) {
     const values = new Map(searchParameters(stage, plan).map((p) => [p.key, p.value]));

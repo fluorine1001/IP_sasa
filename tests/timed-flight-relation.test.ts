@@ -5,10 +5,29 @@ import { emptyStage } from '../src/stages/factory';
 import { createRun } from '../src/world/engine';
 import { dueEvents, nextEventTime } from '../src/world/event-schedule';
 import { inverseProjection } from '../src/editor/inverse-projection';
-import { parameterPlan, searchParameters } from '../src/editor/solution-search';
+import { parameterPlan, searchParameters, searchSolutions } from '../src/editor/solution-search';
 import { execute } from '../src/world/engine';
 import { regionalRelation } from '../src/editor/research/regional-relation';
 import { timedFlight } from './fixtures/timed-flight';
+
+it('역산된 성공 영역은 나머지 투영을 기다리지 않고 실제 검증한 대표 비행으로 전달된다', () => {
+  const { stage, template } = timedFlight();
+  for (const parameter of template.parameters) if (parameter.enabled) parameter.value = 0;
+  const search = searchSolutions(stage, template, 4, false);
+  try {
+    for (const report of search) {
+      if (!report.families.length) continue;
+      expect(report.projection?.regions).toBeGreaterThan(0);
+      expect(report.projection?.cells).toBeLessThan(48);
+      expect(execute(stage, report.families[0].representative).status).toBe('won');
+      expect(report.evaluated).toBeLessThanOrEqual(4);
+      return;
+    }
+    throw Error('역산 성공 영역의 실제 비행이 전달되지 않았습니다.');
+  } finally {
+    search.return(undefined);
+  }
+}, 30_000);
 
 it('시간 관계는 한 사건 순서 구간에서 가짜 실행 분기를 누적하지 않는다', () => {
   const r = regionalRelation({ a: [{ lo: 0.012, hi: 0.013 }], b: [{ lo: 0.026, hi: 0.027 }] }),

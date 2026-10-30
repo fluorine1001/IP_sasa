@@ -12,7 +12,6 @@ test('새 서버 파일의 생성·수정·삭제가 열린 제작 문서와 보
   let revision: string | undefined;
   try {
     await page.goto('/editor.html');
-    await page.locator('#search-auto').uncheck();
     await page.locator('#open-library').click();
     await page.evaluate(
       () => (document.documentElement.dataset.workshopInstance = 'keep-this-document'),
@@ -71,7 +70,6 @@ for (const width of [390, 1440])
       original,
     );
     await page.goto('/editor.html');
-    await page.locator('#search-auto').uncheck();
     await page.locator('#open-library').click();
     await page.locator('[data-library-source="local"]').click();
     await expect(page.locator(`[data-stage-row="${original.id}"]`)).toContainText(original.title);
@@ -122,7 +120,6 @@ test('서버 목록 왕복은 미저장 수정본을 보존하며 이름·삭제
         true,
       );
     await page.goto('/editor.html');
-    await page.locator('#search-auto').uncheck();
     await page.locator('#open-library').click();
     await page.locator(`[data-library-load="${a.id}"]`).click();
     await page.locator('[data-field="title"]').fill('A의 아직 저장하지 않은 수정');

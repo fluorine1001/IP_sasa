@@ -1,9 +1,10 @@
 import { goalReferences, objectiveGoals } from '../world/goals';
 import { compileMarker, upgradeOrbitCorridors } from './goal-marker';
 import { upgradeVisibleOrbitBands } from './orbit-band-migration';
+import { upgradeLandingRules } from './landing-migration';
 import { missionTimeLimit } from '../world/program';
 import { planConstraints } from '../world/program';
-import { instantiateVariation, variationIssues } from '../world/variation';
+import { fixedEnvironment } from './fixed-environment';
 import { surfaceLaunch } from '../world/launch.ts';
 import { conditionIssues, conditionCost } from '../world/conditions.ts';
 import { length, sub } from '../physics/vector.ts';
@@ -11,6 +12,25 @@ import { type Stage } from '../world/types.ts';
 export function issues(stage: Stage, allowIncomplete = false): string[] {
   const out: string[] = [];
   if (stage.version !== 2) out.push('지원하지 않는 스테이지 버전입니다.');
+  if (
+    stage.chapter &&
+    (!/^[a-z0-9_:-]{1,128}$/i.test(stage.chapter.id) ||
+      typeof stage.chapter.title !== 'string' ||
+      !stage.chapter.title.trim() ||
+      stage.chapter.title.length > 80 ||
+      !Number.isFinite(stage.chapter.order))
+  )
+    out.push('챕터 이름·식별자·순서를 확인하세요.');
+  if (
+    stage.rules?.gravitationalConstant !== undefined &&
+    (!Number.isFinite(stage.rules.gravitationalConstant) || stage.rules.gravitationalConstant <= 0)
+  )
+    out.push('G는 0보다 큰 유한한 값이어야 합니다.');
+  if (
+    stage.rules?.landingMode !== undefined &&
+    !['standard', 'precision'].includes(stage.rules.landingMode)
+  )
+    out.push('착륙 판정 모드를 확인하세요.');
   if (stage.track !== undefined && !['campaign', 'tutorial'].includes(stage.track))
     out.push('스테이지 구분은 본편 또는 튜토리얼이어야 합니다.');
   if (stage.track === 'tutorial') {
@@ -336,7 +356,7 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
     out.push('예약별 한도는 0~64 사이 정수로 지정하세요.');
   if (
     !r ||
-    ![r.launchLimit, r.maneuverBudget, r.maxTime, r.worldRadius, r.sensorSlots, r.attempts].every(
+    ![r.launchLimit, r.maneuverBudget, r.maxTime, r.worldRadius, r.sensorSlots].every(
       Number.isFinite,
     ) ||
     r.launchLimit < 0 ||
@@ -346,10 +366,7 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
     r.worldRadius <= 0 ||
     !Number.isInteger(r.sensorSlots) ||
     r.sensorSlots < 0 ||
-    r.sensorSlots > 64 ||
-    !Number.isInteger(r.attempts) ||
-    r.attempts < 1 ||
-    r.attempts > 100
+    r.sensorSlots > 64
   )
     out.push('발사·시간·장비 제한을 확인하세요.');
   if (
@@ -541,26 +558,14 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
       }
     }
   }
-  const variantErrors = variationIssues(stage);
-  out.push(...variantErrors);
-  if (stage.randomization && !variantErrors.length) {
-    for (const spec of stage.randomization.variants) {
-      try {
-        const variant = instantiateVariation(stage, spec);
-        variant.referencePlans = [spec.proof];
-        const errors = issues(variant);
-        if (errors.length) out.push('재시도 변형 ' + spec.id + ': ' + errors[0]);
-      } catch (error) {
-        out.push('재시도 변형의 목표식: ' + String(error));
-      }
-    }
-  }
   return [...new Set(out)];
 }
 export function parseStage(value: unknown, allowIncomplete = false): Stage {
   if (!value || typeof value !== 'object') throw new Error('스테이지 객체가 필요합니다.');
   try {
-    const stage = upgradeVisibleOrbitBands(upgradeOrbitCorridors(value as Stage));
+    const stage = upgradeLandingRules(
+      upgradeVisibleOrbitBands(upgradeOrbitCorridors(fixedEnvironment(value as Stage))),
+    );
     const errors = issues(stage, allowIncomplete && stage.published === false);
     if (errors.length) throw new Error(errors.join('\n'));
     return stage;

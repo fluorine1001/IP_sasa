@@ -10,10 +10,9 @@ const runtime = await createServer({
 });
 try {
   const { parseStage } = await runtime.ssrLoadModule('/src/stages/validation.ts');
-  const { auditStage } = await runtime.ssrLoadModule('/src/editor/audit.ts');
+  const { manualPublication } = await runtime.ssrLoadModule('/src/stages/manual-publication.ts');
   const { physicalDesignIssues } = await runtime.ssrLoadModule('/src/editor/physical-design.ts');
-  let final;
-  for (const result of auditStage(parseStage(workerData.stage))) final = result;
+  const final = manualPublication(parseStage(workerData.stage));
   final.errors.push(...physicalDesignIssues(workerData.stage));
   parentPort.postMessage({ result: final });
 } catch (error) {

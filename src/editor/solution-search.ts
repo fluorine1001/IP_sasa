@@ -52,6 +52,17 @@ export type SolutionFamily = {
   horizon?: number;
 };
 export type SearchReport = {
+  inverse?: {
+    method: 'success-relation';
+    phase: 'compiling' | 'projecting' | 'verifying' | 'finished';
+    layouts: number;
+    closed: number;
+    unsupported: number;
+    unresolved: number;
+    complete: boolean;
+    issues: string[];
+    work: number;
+  };
   evaluated: number;
   cached: number;
   successes: number;
@@ -665,6 +676,16 @@ export function* searchSolutions(
         }
       }
       yield report(false, true);
+      // Projection work cannot be consumed after its native witness budget is
+      // exhausted. A shared quota pauses (and can resume) the SAME generator;
+      // a fixed per-layout budget ends without pretending the domain is closed.
+      if (evaluated >= budget) {
+        yield report(true);
+        return;
+      }
+      // pending denotes an IN-FLIGHT native trial to drain, not a suspended
+      // symbolic proof. Marking this pause pending would deadlock globalSearch.
+      while (quota && quota.remaining <= 0) yield report(false);
     }
   }
   initial ??= yield* evaluate(seed);

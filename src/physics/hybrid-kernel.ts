@@ -166,6 +166,7 @@ export function capsuleSweep<T>(
   const relative = sub(c.before, c.centerBefore),
     delta = sub(sub(c.after, c.centerAfter), relative);
   const broad = a.lte(norm(relative), a.add(a.add(c.radius, c.length), norm(delta)));
+  if (a.constantValue?.(broad) === 0) return { hit: zero, time: one };
   const h = norm(c.heading),
     usable = a.lt(a.literal(1e-9), h),
     scale = a.divide(one, a.select(usable, h, one));

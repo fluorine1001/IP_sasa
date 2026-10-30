@@ -12,8 +12,6 @@ test('허용 띠의 필요한 바퀴 수는 편집·저장·실제 게임 목표
     draft,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
-  await page.getByText('목표 목록 · 클릭해서 편집', { exact: true }).click();
   await page.locator(`[data-select-goal="${draft.goals[0].id}"]`).click();
   await page.locator('[data-marker-turns]').fill('3');
   await page.locator('[data-marker-turns]').press('Tab');
@@ -43,8 +41,6 @@ for (const viewport of [
       s,
     );
     await page.goto('/editor.html');
-    await page.locator('#search-auto').uncheck();
-    await page.getByText('목표 목록 · 클릭해서 편집', { exact: true }).click();
     await page.locator(`[data-select-goal="${s.goals[0].id}"]`).click();
     const canvas = page.locator('#editor-world'),
       r = (await canvas.boundingBox())!;

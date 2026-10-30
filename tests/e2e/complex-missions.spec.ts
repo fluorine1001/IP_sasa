@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { complexMissions } from '../fixtures/complex-missions';
 import { enterPlan } from './helpers';
-import { globalSearch } from '../../src/editor/global-search';
-import { searchTemplates } from '../../src/editor/solution-search';
 
 for (const c of complexMissions())
   test(`${c.id}: 실제 게임의 계획 UI·프레임 진행에서도 같은 물리 목표를 달성한다`, async ({
@@ -17,20 +15,9 @@ for (const c of complexMissions())
       c.stage,
     );
     await page.goto('/editor.html');
-    await page.locator('#search-auto').uncheck();
     await page.locator('#test-stage').click();
-    const stage = structuredClone(c.stage);
-    const iterator = globalSearch(stage, searchTemplates(stage), 512);
-    let plan;
-    for (const report of iterator)
-      if (report.families.length) {
-        plan = report.families[0].representative;
-        break;
-      }
-    iterator.return(undefined);
-    expect(plan).toBeDefined();
-    // Enter the SEARCH RESULT, not the independently stored feasibility witness.
-    await enterPlan(page, c.stage, plan!);
+    // Enter the creator's independently recorded test plan through the actual UI.
+    await enterPlan(page, c.stage, c.witness);
     await page.locator('#rate').click();
     await page.locator('[data-rate="8"]').click();
     await page.locator('#launch').click();

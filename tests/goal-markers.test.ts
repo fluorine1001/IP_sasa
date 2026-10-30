@@ -107,6 +107,8 @@ it('접촉 판정은 단순 근접·잘못된 지점·옆으로 눕힌 착륙을
   expect(a.sample(c, 0.68, 0)).toBe(false);
   a.r.landed = { bodyId: s.bodies[0].id, angle: 0 };
   a.r.touchdownSpeed = 0.01;
+  a.r.touchdownNormalSpeed = 0.01;
+  a.r.touchdownTangentialSpeed = 0;
   a.r.touchdownTilt = 0;
   expect(a.sample(c, -0.68, 0)).toBe(false);
   a.r.touchdownTilt = Math.PI / 2;
@@ -333,6 +335,8 @@ it('회전하는 표면의 착륙 지점과 접촉 속도 기준을 같은 회�
     a = observer(s);
   a.r.landed = { bodyId: b.id, angle: 0 };
   a.r.touchdownSpeed = 0.01;
+  a.r.touchdownNormalSpeed = 0.01;
+  a.r.touchdownTangentialSpeed = 0;
   a.r.touchdownTilt = 0;
   a.r.time = 5 - 0.1;
   const angle = b.spin * 5;

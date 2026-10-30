@@ -131,6 +131,50 @@
 .result[hidden] {
   display: none;
 }
+.result:not([hidden]) {
+  display: block;
+  pointer-events: auto;
+  width: min(330px, calc(100vw - 32px));
+  max-height: min(45dvh, 420px);
+  overflow: auto;
+}
+.result #result-close {
+  float: right;
+  padding: 4px 10px;
+}
+.result .result-goals {
+  padding-left: 20px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.result .result-goals small {
+  display: block;
+  font-size: 12px;
+}
+.result p {
+  color: #e7e6d8;
+  line-height: 1.5;
+}
+.mission-panel [data-finish-missed] {
+  pointer-events: auto;
+}
+.timeline-event.invalid {
+  color: #ffd5c9;
+  border-color: #ee7469;
+  background-color: #79433d;
+}
+#preflight {
+  color: #d7e5db;
+  overflow-wrap: anywhere;
+}
+.result .result-measure meter {
+  display: block;
+  width: 100%;
+}
+.result #result-moment {
+  display: block;
+  margin-top: 10px;
+}
 .result .result-mark svg {
   width: 28px;
   height: 28px;

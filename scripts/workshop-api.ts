@@ -22,6 +22,7 @@ export function playerStage(stage: Stage): Stage {
   const copy = structuredClone(stage);
   copy.referencePlans = [];
   delete copy.randomization;
+  delete copy.rules.attempts;
   return copy;
 }
 export function workshopApi(
@@ -185,15 +186,10 @@ export function workshopApi(
             checked = result;
             await new Promise<void>((resolve) => setImmediate(resolve));
           }
-        if (
-          !checked?.done ||
-          checked.errors.length ||
-          !checked.referenceWins ||
-          checked.simpleWins.length ||
-          checked.randomWins / checked.total > data.audit.maxPassRate
-        )
+        if (!checked?.done || checked.errors.length || !checked.referenceWins)
           return send(422, {
-            error: '공개 검사에 통과하지 못했습니다. 기준 성공 계획과 반례 검사를 확인하세요.',
+            error:
+              '현재 스테이지의 직접 시험 성공 기록을 확인하지 못했습니다. 시험 비행 후 다시 공개하세요.',
           });
       }
       const targetId = id || data!.id;

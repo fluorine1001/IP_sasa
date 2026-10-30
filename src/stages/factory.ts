@@ -1,5 +1,6 @@
 import { PAD_CLEARANCE } from '../world/launch.ts';
 import { defaultRocket } from '../world/rocket.ts';
+import { DEFAULT_G } from '../world/gravity-units';
 import { comparison } from '../world/conditions.ts';
 import type { Body, Goal, Stage, WorldObject } from '../world/types.ts';
 export const uid = () => crypto.randomUUID();
@@ -98,6 +99,7 @@ export function blankStage(): Stage {
     goalMode: 'all',
     spawn: { position: { x: body.radius + PAD_CLEARANCE, y: 0 }, velocity: { x: 0, y: 0 } },
     rules: {
+      gravitationalConstant: DEFAULT_G,
       launchLimit: 1.1,
       maneuverBudget: 0.1,
       maxTime: 40,
@@ -105,7 +107,6 @@ export function blankStage(): Stage {
       commandLimits: { ignite: 6, stop: 6, turn: 8, separate: 3, push: 8 },
       worldRadius: 14,
       sensorSlots: 0,
-      attempts: 3,
     },
     camera: { x: 0, y: 0, zoom: 60 },
     referencePlans: [],

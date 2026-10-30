@@ -5,6 +5,7 @@ import { paintGoalRegion } from './goal-region';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
 import { hullSize } from '../world/hull';
+import { physicalRadius } from '../world/contact';
 import { impactDirection } from '../world/impact';
 import { surfaceLaunch } from '../world/launch.ts';
 import { bodyPosition, objectPosition } from '../world/celestial.ts';
@@ -23,6 +24,7 @@ export type DrawState = {
   selectedHistory?: boolean;
   historyLabels?: string[];
   replayTime?: number;
+  divergence?: { position: Vec; time: number };
   plan?: RoutePlan;
   grid?: boolean;
   trails?: boolean;
@@ -73,6 +75,20 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   const visible = (id: string) =>
     !s.layer || (s.layer.kind === 'only' ? s.layer.ids.has(id) : !s.layer.ids.has(id));
   if (!foreground) backdrop(ctx, w, h, c);
+  if (s.divergence && !foreground) {
+    const p = screen(s.divergence.position);
+    ctx.save();
+    ctx.fillStyle = '#f6d28b';
+    ctx.strokeStyle = '#10252d';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.font = '13px sans-serif';
+    ctx.fillText(`여기서 갈라짐 · ${s.divergence.time.toFixed(1)}초`, p.x + 10, p.y - 10);
+    ctx.restore();
+  }
   if (s.grid && !foreground) {
     ctx.strokeStyle = '#42607355';
     ctx.lineWidth = 1;
@@ -209,6 +225,21 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         ],
         s.run.probe ? '#80cbd5' : '#f9b671',
       );
+    const observedTrail = s.replay ? s.history : s.run?.trail;
+    if (s.trails !== false && observedTrail) {
+      ctx.lineWidth = 3;
+      for (let i = 1; i < observedTrail.length; i++) {
+        const load = observedTrail[i].load ?? 0;
+        if (load < 0.5) continue;
+        const a = screen(observedTrail[i - 1].position),
+          b = screen(observedTrail[i].position);
+        ctx.strokeStyle = load >= 1 ? '#ef6c5d' : '#f4c164';
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
   }
   for (const b of s.stage.bodies) {
     if (b.kind === 'barycenter' || !visible(b.id)) continue;
@@ -368,8 +399,20 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.fill();
       ctx.stroke();
     } else {
+      const physicalSize = physicalRadius(o) * c.zoom;
       const size =
         ((o.kind === 'station' ? (o.physicalRadius ?? 0.03) : o.radius) * c.zoom) / Math.sqrt(2);
+      // The exterior is the actual circular contact surface. Solar panels are
+      // detail inside it, not a smaller square suggesting invisible collisions.
+      if (physicalSize > 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, physicalSize, 0, Math.PI * 2);
+        ctx.fillStyle = '#758e9c';
+        ctx.fill();
+        ctx.strokeStyle = '#d9dfd0';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
       ctx.fillStyle = '#ddd8bf';
       ctx.fillRect(-size, -size, size * 2, size * 2);
       ctx.fillStyle = '#6599c2';
@@ -422,6 +465,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     paintCraftLocator(ctx, c.zoom, count, booster, selected);
     paintExhaust(ctx, flame, c.zoom, t, !!s.reducedMotion);
     paintRocket(ctx, count, firstPart, booster, c.zoom);
+    if (selected && s.run?.rocket && !booster) {
+      const part = s.stage.rocket?.parts[s.run.rocket.partIndex];
+      const load = part ? Math.max(s.run.rocket.heat / part.maxHeat, s.run.rocket.stress / 0.2) : 0;
+      if (load >= 0.5) {
+        ctx.fillStyle = load >= 1 ? '#e9655988' : '#efb65366';
+        ctx.beginPath();
+        ctx.roundRect(0, -r, size, 2 * r, r);
+        ctx.fill();
+      }
+    }
     if (selected && s.run && !s.run.impact && !s.run.landed && (s.run.rocket?.airborne ?? true)) {
       ctx.strokeStyle = '#9fd5b755';
       ctx.lineWidth = 1;

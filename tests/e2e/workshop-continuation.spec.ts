@@ -24,9 +24,8 @@ test('목표 폼은 표면 높이·유지 시간·고급 추가 조건을 왕복
     stage,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
-  await page.locator('summary').filter({ hasText: '목표 목록 · 클릭해서 편집' }).click();
   await page.locator(`[data-select-goal="${goal.id}"]`).click();
+  await page.locator('.inspector-advanced > summary').click();
   await page.getByText('개별 물리 기준으로 목표 작성', { exact: true }).click();
   await expect(page.locator('#outcome-kind')).toHaveValue('region');
   await expect(page.locator('#outcome-min')).toHaveValue('0.3');
@@ -73,9 +72,8 @@ test('고급 추가 조건은 결과 폼의 명시적 재확인 전까지 교체
     stage,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
-  await page.locator('summary').filter({ hasText: '목표 목록 · 클릭해서 편집' }).click();
   await page.locator(`[data-select-goal="${goal.id}"]`).click();
+  await page.locator('.inspector-advanced > summary').click();
   await page.getByText('개별 물리 기준으로 목표 작성', { exact: true }).click();
   await expect(page.locator('#outcome-kind')).toHaveValue('');
   await page.locator('#outcome-kind').selectOption('region');

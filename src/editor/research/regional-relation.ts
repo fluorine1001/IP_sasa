@@ -3,6 +3,8 @@ import * as I from '../interval';
 import { equal, intersect, normalize, type RealDomain } from './real-domains';
 import { logDomains } from './log-domain';
 import { AdditiveEnclosure } from './additive-enclosure';
+import { TaylorEnclosure } from './taylor-enclosure';
+import { trigRange } from './trig-domain';
 
 /** Region-specialised real relation. A single forward enclosure per DAG node
  * proves constant guards before they duplicate fuel/history modes. No control
@@ -10,10 +12,11 @@ import { AdditiveEnclosure } from './additive-enclosure';
  * program on a wider input region. Float representatives still need game replay. */
 export function regionalRelation(
   assumptions: Readonly<Record<string, RealDomain>>,
-  limits: { nodes?: number } = {},
+  limits: { nodes?: number; taylor?: boolean } = {},
 ) {
   const r = new NonlinearRelation(limits),
-    metadata = new Map<number, { range: I.Interval; defined: boolean }>();
+    metadata = new Map<number, { range: I.Interval; defined: boolean }>(),
+    enclosures = new Map<number, I.Interval>();
   const domains = Object.fromEntries(
     Object.entries(assumptions).map(([k, d]) => [k, normalize(d)]),
   );
@@ -22,21 +25,43 @@ export function regionalRelation(
     return metadata.get(t.id) ?? { range: I.whole(), defined: false };
   };
   const additive = new AdditiveEnclosure((t) => read(t).range);
+  const taylor =
+    limits.taylor === false ? undefined : new TaylorEnclosure(domains, (t) => read(t).range);
+  const intersectInterval = (a: I.Interval, b: I.Interval | undefined) => {
+    if (!b) return a;
+    const result = I.intersection(a, b);
+    // Invalid arithmetic loses tightening; it must not invent an empty input.
+    return I.valid(result) ? result : a;
+  };
+  const difference = (x: Term, y: Term) =>
+    intersectInterval(
+      additive.difference(x, y) ?? I.minus(read(x).range, read(y).range),
+      taylor?.difference(x, y),
+    );
   const record = (t: Term, range: I.Interval, defined: boolean) => {
     const value = r.constantValue(t);
     metadata.set(
       t.id,
       value === undefined ? { range, defined } : { range: I.point(value), defined: true },
     );
+    if (defined || value !== undefined)
+      enclosures.set(t.id, value === undefined ? range : I.point(value));
+    else enclosures.delete(t.id);
     return t;
   };
   const literal = r.literal.bind(r),
     input = r.input.bind(r);
-  r.literal = (v) => record(literal(v), I.point(v), true);
+  r.literal = (v) => {
+    const t = record(literal(v), I.point(v), true);
+    taylor?.literal(t, v);
+    return t;
+  };
   r.input = (name) => {
     const d = domains[name];
     if (!d?.length) throw Error('Missing regional input.');
-    return record(input(name), { lo: d[0].lo, hi: d.at(-1)!.hi }, true);
+    const t = record(input(name), { lo: d[0].lo, hi: d.at(-1)!.hi }, true);
+    taylor?.input(t, name);
+    return t;
   };
   const binary = (
     op: 'add' | 'subtract' | 'multiply' | 'divide' | 'hypot' | 'min' | 'max',
@@ -63,7 +88,7 @@ export function regionalRelation(
       if ((op === 'min' || op === 'max') && x === y) return x;
       const defined = a.defined && b.defined;
       if (defined && (op === 'min' || op === 'max')) {
-        const d = additive.difference(x, y) ?? I.minus(a.range, b.range);
+        const d = difference(x, y);
         if (d.hi <= 0) return op === 'min' ? x : y;
         if (d.lo >= 0) return op === 'min' ? y : x;
       }
@@ -73,11 +98,10 @@ export function regionalRelation(
         const linear = additive.sum(term, x, y, op === 'add' ? 1 : -1);
         if (linear) enclosure = I.intersection(enclosure, linear);
       }
-      return record(
-        term,
-        enclosure,
-        defined && (op !== 'divide' || b.range.lo > 0 || b.range.hi < 0),
-      );
+      const valid = defined && (op !== 'divide' || b.range.lo > 0 || b.range.hi < 0);
+      record(term, enclosure, valid);
+      if (valid) taylor?.binary(term, op, x, y);
+      return record(term, intersectInterval(enclosure, taylor?.range(term)), valid);
     };
   };
   binary('add', I.plus);
@@ -94,20 +118,25 @@ export function regionalRelation(
     const a = read(x),
       lo = I.times(I.squared(I.point(a.range.lo)), I.point(a.range.lo)).lo,
       hi = I.times(I.squared(I.point(a.range.hi)), I.point(a.range.hi)).hi;
-    return record(cube(x), { lo, hi }, a.defined);
+    const t = record(cube(x), { lo, hi }, a.defined);
+    if (a.defined) taylor?.unary(t, 'cube', x);
+    return record(t, intersectInterval({ lo, hi }, taylor?.range(t)), a.defined);
   };
   r.sqrt = (x) => {
     const a = read(x);
-    return record(
-      sqrt(x),
-      a.range.lo < 0 ? I.whole() : I.root(a.range),
-      a.defined && a.range.lo >= 0,
-    );
+    const range = a.range.lo < 0 ? I.whole() : I.root(a.range),
+      valid = a.defined && a.range.lo >= 0,
+      t = record(sqrt(x), range, valid);
+    if (valid) taylor?.unary(t, 'sqrt', x);
+    return record(t, intersectInterval(range, taylor?.range(t)), valid);
   };
   r.log = (x) => {
     const a = read(x),
       d = a.range.lo > 0 ? logDomains([a.range])[0] : I.whole();
-    return record(log(x), d, a.defined && a.range.lo > 0);
+    const valid = a.defined && a.range.lo > 0,
+      t = record(log(x), d, valid);
+    if (valid) taylor?.unary(t, 'log', x);
+    return record(t, intersectInterval(d, taylor?.range(t)), valid);
   };
   for (const op of ['lt', 'lte'] as const) {
     const base = r[op].bind(r);
@@ -115,13 +144,17 @@ export function regionalRelation(
       const a = read(x),
         b = read(y);
       if (a.defined && b.defined) {
-        const d = additive.difference(x, y) ?? I.minus(a.range, b.range);
+        const d = difference(x, y);
         const yes = op === 'lt' ? d.hi < 0 : d.hi <= 0;
         const no = op === 'lt' ? d.lo >= 0 : d.lo > 0;
         if (yes || no) return r.literal(Number(yes));
       }
       return record(base(x, y), { lo: 0, hi: 1 }, a.defined && b.defined);
     };
+  }
+  for (const op of ['sin', 'cos'] as const) {
+    const base = r[op].bind(r);
+    r[op] = (x) => record(base(x), trigRange(read(x).range, op), read(x).defined);
   }
   const select = r.select.bind(r);
   r.select = (condition, yes, no) => {
@@ -141,7 +174,10 @@ export function regionalRelation(
     for (const [name, d] of Object.entries(bounds))
       if (domains[name] && !equal(normalize(d), intersect(normalize(d), domains[name])))
         throw Error('Regional assumption violation.');
-    return contract(bounds, targets, options);
+    // Reuse the proven forward pass. Starting every intermediate at (-∞,∞)
+    // throws away the regional/Taylor correlations and needlessly reconstructs
+    // them on each yes/no contraction. Bounds may only NARROW our assumptions.
+    return contract(bounds, targets, { ...options, enclosures });
   };
   r.evaluator = (roots) => {
     const evaluate = evaluator(roots);
@@ -156,6 +192,7 @@ export function regionalRelation(
     };
   };
   return Object.assign(r, {
+    taylorStatistics: () => taylor?.statistics ?? { terms: 0, operations: 0 },
     enclosure: (term: Term) => {
       const value = read(term);
       return { defined: value.defined, range: { ...value.range } };

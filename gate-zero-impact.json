@@ -1,0 +1,379 @@
+[
+  {
+    "folder": "stages",
+    "title": "지구에서 달에 내려놓기",
+    "id": "142e7c6e-0185-4a3a-90ec-9878691285d1",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 9.74,
+      "position": {
+        "x": -3.1170794291432693,
+        "y": -0.4378169334396365
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 9.74,
+      "position": {
+        "x": -3.1170794291432693,
+        "y": -0.4378169334396365
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "궤도 위의 동행",
+    "id": "1e0d4c42-347c-45b3-887b-4dee0562498b",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 96.24000000000001,
+      "position": {
+        "x": 1.997499832539313,
+        "y": 0.09125685909976702
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 96.24000000000001,
+      "position": {
+        "x": 1.997499832539313,
+        "y": 0.09125685909976702
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "첫 비행 실험실",
+    "id": "34643eaf-0363-4898-b617-63e79ba47d97",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 30.67,
+      "position": {
+        "x": 0.9658985944000589,
+        "y": 0.4552179798542469
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 30.67,
+      "position": {
+        "x": 0.9658985944000589,
+        "y": 0.4552179798542469
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "이동하는 달의 중력",
+    "id": "43695fa9-18cd-4fde-85f3-49db1db45b1b",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 4.9999999999999964,
+      "position": {
+        "x": 3.2119793355833544,
+        "y": 3.1046389329348054
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 4.9999999999999964,
+      "position": {
+        "x": 3.2119793355833544,
+        "y": 3.1046389329348054
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "검은 별의 중력 우물",
+    "id": "4b8dc121-43af-4bdc-8eb7-7d3351e8ca93",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 11.71,
+      "position": {
+        "x": 0.916526008792801,
+        "y": 10.27457939558236
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 11.71,
+      "position": {
+        "x": 0.916526008792801,
+        "y": 10.27457939558236
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "부스터의 귀환",
+    "id": "828dda53-5ef3-4326-b415-96c2937b8352",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 43.94,
+      "position": {
+        "x": 1.3267810192117455,
+        "y": 0.10859900479190404
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 43.94,
+      "position": {
+        "x": 1.3267810192117455,
+        "y": 0.10859900479190404
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "발사해서 우편 위성과 만나기",
+    "id": "87a30e7d-7ffe-4c70-8d9a-258882d5e7cc",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 12.42,
+      "position": {
+        "x": -3.967032791841399,
+        "y": -0.5124946499301578
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 12.42,
+      "position": {
+        "x": -3.967032791841399,
+        "y": -0.5124946499301578
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "대기권의 문을 지나",
+    "id": "8bd96b65-4665-436c-b0da-e691771ac9e0",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 6.34,
+      "position": {
+        "x": 3.0663940004374273,
+        "y": 0.0005706128882850682
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 6.34,
+      "position": {
+        "x": 3.0663940004374273,
+        "y": 0.0005706128882850682
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "연료를 남긴 착륙",
+    "id": "919de805-2d96-41aa-b665-3e5a56e7ffc4",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 4.89,
+      "position": {
+        "x": 0.605,
+        "y": 0
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 4.89,
+      "position": {
+        "x": 0.605,
+        "y": 0
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "지구에서 화성의 위성으로",
+    "id": "a0cbdf82-660a-4e97-8033-00e0cc0f4c0a",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 80.17,
+      "position": {
+        "x": -2.603218126765418,
+        "y": -4.358930274639178
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 80.17,
+      "position": {
+        "x": -2.603218126765418,
+        "y": -4.358930274639178
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "달의 도움을 빌려",
+    "id": "ac6286eb-23b2-4638-841d-fca4c00dec3e",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 41.81,
+      "position": {
+        "x": -3.311545820544361,
+        "y": 0.19202156046577584
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 41.81,
+      "position": {
+        "x": -3.311545820544361,
+        "y": 0.19202156046577584
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "올라가기와 옆으로 밀기",
+    "id": "aefa2afd-1717-4954-9413-a63c077320e8",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 62.95,
+      "position": {
+        "x": 2.1161171086754225,
+        "y": 0.03648511638618445
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 62.95,
+      "position": {
+        "x": 2.1161171086754225,
+        "y": 0.03648511638618445
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "두 위성의 궤도",
+    "id": "c5480107-cd96-43ff-b3d9-092d5e59896e",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 37.44,
+      "position": {
+        "x": 1.3650102122559093,
+        "y": -0.6756261293932052
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 37.44,
+      "position": {
+        "x": 1.3650102122559093,
+        "y": -0.6756261293932052
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "두 궤도 사이",
+    "id": "e2f965c4-0b94-4581-8470-28c961032e41",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 23.5,
+      "position": {
+        "x": -1.6145906912495467,
+        "y": -1.1802952588880236
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 23.5,
+      "position": {
+        "x": -1.6145906912495467,
+        "y": -1.1802952588880236
+      }
+    }
+  },
+  {
+    "folder": "stages",
+    "title": "지구에서 태양 너머로",
+    "id": "efbf631d-ade7-4f04-8b76-5fd39a47a0d3",
+    "plan": 1,
+    "before": {
+      "status": "won",
+      "time": 11.71,
+      "position": {
+        "x": 0.916526008792801,
+        "y": 10.27457939558236
+      }
+    },
+    "after": {
+      "status": "won",
+      "time": 11.71,
+      "position": {
+        "x": 0.916526008792801,
+        "y": 10.27457939558236
+      }
+    }
+  },
+  {
+    "folder": "releases",
+    "title": "궤도 위의 동행",
+    "id": "1e0d4c42-347c-45b3-887b-4dee0562498b",
+    "noPlans": true
+  },
+  {
+    "folder": "releases",
+    "file": "43695fa9-18cd-4fde-85f3-49db1db45b1b.json",
+    "empty": true
+  },
+  {
+    "folder": "releases",
+    "title": "부스터의 귀환",
+    "id": "828dda53-5ef3-4326-b415-96c2937b8352",
+    "noPlans": true
+  },
+  {
+    "folder": "releases",
+    "title": "연료를 남긴 착륙",
+    "id": "919de805-2d96-41aa-b665-3e5a56e7ffc4",
+    "noPlans": true
+  },
+  {
+    "folder": "releases",
+    "title": "지구에서 화성의 위성으로",
+    "id": "a0cbdf82-660a-4e97-8033-00e0cc0f4c0a",
+    "noPlans": true
+  },
+  {
+    "folder": "releases",
+    "title": "올라가기와 옆으로 밀기",
+    "id": "aefa2afd-1717-4954-9413-a63c077320e8",
+    "noPlans": true
+  },
+  {
+    "folder": "releases",
+    "title": "두 위성의 궤도",
+    "id": "c5480107-cd96-43ff-b3d9-092d5e59896e",
+    "noPlans": true
+  },
+  {
+    "folder": "releases",
+    "title": "두 궤도 사이",
+    "id": "e2f965c4-0b94-4581-8470-28c961032e41",
+    "noPlans": true
+  }
+]

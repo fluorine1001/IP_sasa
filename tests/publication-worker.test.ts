@@ -14,7 +14,8 @@ it('공개 검사는 별도 작업자에서 실제 물리를 검사하고 결과
   try {
     const check = await audit(stage);
     expect(check.done).toBe(true);
-    expect(check.total).toBe(16);
+    expect(check.total).toBe(0);
+    expect(check.errors.join(' ')).toContain('직접 시험');
     expect(heartbeat).toBe(true);
   } finally {
     clearInterval(interval);

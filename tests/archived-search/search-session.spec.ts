@@ -1,3 +1,4 @@
+// Archived research UI regression: automatic editor search retired in favour of manual playtests.
 import { test, expect } from '@playwright/test';
 import { blankStage } from '../../src/stages/factory';
 
@@ -28,25 +29,23 @@ test('기본 탐색은 묶음 한도에서 끝나지 않으며 중지·재개가
   await page.locator('#search-budget').fill('16');
   await page.locator('#search-run').click();
   const count = async () =>
-    Number((await page.locator('#search-status').textContent())?.match(/· (\d+)회/)?.[1] ?? 0);
+    Number(await page.locator('#search-status').getAttribute('data-search-work'));
   await expect.poll(count).toBeGreaterThan(16);
   await page.locator('#search-stop').click();
-  await expect(page.locator('#search-status')).toContainText('탐색 중지');
+  await expect(page.locator('#search-status')).toContainText('역산 중지');
   await expect(page.locator('#search-continue')).toBeVisible();
   // Wait for the worker's pause acknowledgement, not arbitrary animation timing.
   await expect
     .poll(async () => await page.locator('#search-status').textContent())
-    .toContain('탐색 중지');
-  const stopped = Number(
-    (await page.locator('#search-status').textContent())?.match(/· (\d+)\//)?.[1],
-  );
+    .toContain('역산 중지');
+  const stopped = await count();
   await expect(page.locator('#search-continue')).toHaveText('재개');
   await expect(page.locator('[data-family-block]').first()).toBeEnabled();
   await page.locator('#search-continue').click();
   await expect.poll(count).toBeGreaterThan(stopped);
   await expect(page.locator('#search-progress')).not.toHaveAttribute('value');
   await page.locator('#search-stop').click();
-  await expect(page.locator('#search-status')).toContainText('탐색 중지');
+  await expect(page.locator('#search-status')).toContainText('역산 중지');
   await page.getByText('탐색 범위·예산', { exact: true }).click();
   await page.screenshot({ path: 'test-results/screens/search-continuous-session.png' });
 });

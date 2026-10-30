@@ -1,7 +1,6 @@
 import { installAuthoredGoals } from './authored-goals';
 import { objectMotion, objectOnOrbit, type FlightObjectKind } from './moving-objects';
 import { pickStack, SelectionCycle } from './selection';
-import AuditWorker from './audit.worker?worker&inline';
 import { placeSpawn, placementSnapshot, followSpawn } from './spawn-placement';
 import { markerGuide, markerGuides } from './marker-guide';
 import {
@@ -25,14 +24,15 @@ import { goalReferences } from '../world/goals';
 import { markerAxis } from './marker-inspector';
 import './style.css';
 import { markerGroups } from './marker-groups';
-import { organizeEditor } from './editor-layout';
+import { organizeEditor, organizeInspector } from './editor-layout';
+import { setBodyMassKg, setGravitationalConstant } from '../world/gravity-units';
+import { chapterChoices } from '../stages/chapters';
 import { compileMarker, refreshGoalMarkers, type GoalMarker } from '../stages/goal-marker';
 import { compileSketch, refreshGoalSketches } from '../stages/goal-sketch';
 import { compileIntent, refreshMissionIntents, type MissionIntent } from '../stages/mission-intent';
 import { missionBuilder } from './mission-builder';
 import { physicalDesignIssues, orbitInitialState, asteroidBelt } from './physical-design';
 import { stageLibrary } from './library';
-import { solutionSearchPanel } from './search-panel';
 import { compileOutcome, type Outcome } from '../stages/outcomes';
 import { syncOutcomeFields } from './outcome-inspector';
 import { readOutcome } from './outcome-values';
@@ -60,7 +60,6 @@ import { toWorld, toScreen, zoomAt } from '../render/camera.ts';
 import { bodyPosition, bodyVelocity, objectPosition } from '../world/celestial.ts';
 import { length, sub, type Vec } from '../physics/vector.ts';
 import { type Stage } from '../world/types.ts';
-import type { AuditResult } from './audit.ts';
 let activeModel: EditorModel | undefined;
 let clipboard: Entity[] = [];
 function initialStage() {
@@ -92,10 +91,7 @@ export function editorScreen(app: App): Screen {
     candidate: MarkerCandidate | undefined,
     placement:
       { kind: GoalMarker['kind']; start: Vec; targetId?: string; moved: boolean } | undefined,
-    worker: Worker | undefined,
     revision = 0,
-    timer: ReturnType<typeof setTimeout> | undefined,
-    result: AuditResult | undefined,
     drag:
       | undefined
       | {
@@ -281,15 +277,6 @@ export function editorScreen(app: App): Screen {
     };
   }
   void library.track(model.stage);
-  const search = solutionSearchPanel(
-    app.root,
-    signal,
-    () => model.stage,
-    (next, preserveSearch) => {
-      if (next) model.change(() => Object.assign(model.stage, next));
-      changed(!preserveSearch);
-    },
-  );
   const mission = missionBuilder(
     app.root,
     () => model.stage,
@@ -355,7 +342,11 @@ export function editorScreen(app: App): Screen {
     );
     const advancedOpen =
       el('inspector').querySelector<HTMLDetailsElement>('#condition-advanced')?.open ?? false;
-    el('inspector').innerHTML = inspector(model);
+    el('inspector').innerHTML = inspector(
+      model,
+      chapterChoices([...stages, ...documents.list().map((d) => d.stage), model.stage]),
+    );
+    organizeInspector(app.root);
     if (key === inspectedSelection)
       el('inspector')
         .querySelectorAll<HTMLDetailsElement>('details')
@@ -373,59 +364,17 @@ export function editorScreen(app: App): Screen {
     inspectedSelection = key;
   }
   function showAudit() {
-    const r = result;
-    if (!r) {
-      el('audit').innerHTML =
-        '<div><b>설계 검사 대기 중…</b><p>수정 후 자동으로 같은 물리 엔진에서 경로를 시험합니다.</p></div>';
-      return;
-    }
+    const errors = issues(model.stage),
+      warnings = physicalDesignIssues(model.stage);
     el('audit').innerHTML =
-      `<div><b>${r.done ? '설계 검사 결과' : '설계 검사 중'}</b><small>${r.checked}/${r.total} 표본</small></div><div>${[...r.errors, ...physicalDesignIssues(model.stage), ...r.warnings].map((w) => `<p class="bad">△ ${escape(w)}</p>`).join('') || '<p class="good">형식·설계 검사에서 오류 없음</p>'}</div>${r.feedback ? `<div><b>조작 여유</b><p>근처 변경 성공 ${r.feedback.nearbyWins}/${r.feedback.nearbyTotal} · 관측 ${r.feedback.distinctReports}종</p></div>` : ''}`;
+      `<div class="manual-review-heading"><b>제작 점검</b><span class="review-state ${errors.length ? 'bad' : 'good'}">${errors.length ? '배치 확인 필요' : '시험 비행 가능'}</span></div>
+      <span>${model.stage.referencePlans.length ? '보관한 성공 기록 ' + model.stage.referencePlans.length + '개 · 공개할 때 현재 장면으로 재검증' : '직접 시험에서 목표를 완료한 뒤 공개하세요.'}</span>
+      ${errors.length || warnings.length ? `<details><summary>확인할 항목 ${errors.length + warnings.length}개</summary>${[...errors, ...warnings].map((w) => `<p class="bad">${escape(w)}</p>`).join('')}</details>` : ''}`;
   }
 
   function scheduleAudit() {
     revision++;
-    worker?.terminate();
-    worker = undefined;
-    clearTimeout(timer);
-    result = undefined;
     showAudit();
-    const current = revision;
-    timer = setTimeout(() => {
-      try {
-        worker = new AuditWorker({ name: 'stage-audit' });
-      } catch (error) {
-        message(`검사를 시작하지 못했습니다. ${error instanceof Error ? error.message : ''}`);
-        return;
-      }
-      const audit = worker;
-      worker.onmessage = (e) => {
-        if (e.data.revision !== revision) return;
-        if (e.data.error) {
-          message(`검사 오류: ${e.data.error}`);
-          return;
-        }
-        result = e.data.result;
-        showAudit();
-      };
-      worker.onerror = (event) => {
-        event.preventDefault();
-        audit.terminate();
-        if (current === revision)
-          message(`설계 검사 중단 · ${event.message || '다시 검사해 주세요.'}`);
-      };
-      worker.onmessageerror = () => {
-        audit.terminate();
-        if (current === revision) message('검사 결과를 전달하지 못했습니다. 다시 검사해 주세요.');
-      };
-      try {
-        worker.postMessage({ revision: current, stage: structuredClone(model.stage) });
-      } catch (error) {
-        audit.terminate();
-        if (current === revision)
-          message(`검사 전달 중단 · ${error instanceof Error ? error.message : ''}`);
-      }
-    }, 500);
   }
   const links = () =>
     model.stage.goals.flatMap((from) =>
@@ -435,7 +384,7 @@ export function editorScreen(app: App): Screen {
       }),
     );
   let graphLinks = links();
-  function changed(refreshSearch = true) {
+  function changed(_refreshReview = true) {
     selectionCycle.reset();
     graphLinks = links();
     syncLaunch(model.stage);
@@ -448,7 +397,6 @@ export function editorScreen(app: App): Screen {
     persist();
     drawInspector();
     scheduleAudit();
-    if (refreshSearch) search.refresh();
   }
   function test(plan?: Stage['referencePlans'][number]) {
     const errors = issues(model.stage);
@@ -468,22 +416,14 @@ export function editorScreen(app: App): Screen {
             s.referencePlans = [...s.referencePlans, p].slice(-30);
         });
         persist();
+        showAudit();
       },
     });
   }
   async function save(publish = false) {
     try {
-      if (
-        publish &&
-        (!result?.done ||
-          result.errors.length ||
-          !result.referenceWins ||
-          result.randomWins / result.total > model.stage.audit.maxPassRate ||
-          result.simpleWins.length)
-      ) {
-        message(
-          '공개에는 완료된 검사와 실제 성공 비행 기록이 필요합니다. 성공 집합·조작 여유·허용 조건을 확인하세요.',
-        );
+      if (publish && (issues(model.stage).length || !model.stage.referencePlans.length)) {
+        message('직접 시험 비행에서 목표를 완료한 기록이 필요합니다. F5로 시험하세요.');
         return;
       }
       if (publish && physicalDesignIssues(model.stage).length) {
@@ -652,6 +592,46 @@ export function editorScreen(app: App): Screen {
     (e) => {
       const input = e.target as HTMLInputElement,
         path = input.dataset.field;
+      if (
+        ['body-mass-kg', 'body-gravity-dial', 'gravity-constant', 'campaign-chapter'].includes(
+          input.id,
+        )
+      ) {
+        try {
+          model.change((s) => {
+            if (input.id === 'campaign-chapter') {
+              if (input.value === 'auto') delete s.chapter;
+              else {
+                const preset = chapterChoices([
+                  ...stages,
+                  ...documents.list().map((d) => d.stage),
+                  s,
+                ]).find((c) => c.id === input.value);
+                s.chapter = preset
+                  ? { id: preset.id, title: preset.title, order: preset.order }
+                  : { id: uid(), title: '새 챕터', order: 4 };
+              }
+            } else if (input.id === 'gravity-constant')
+              setGravitationalConstant(s, Number(input.value));
+            else {
+              const body = model.entity([...model.selection][0]);
+              if (body && 'mu' in body)
+                setBodyMassKg(
+                  s,
+                  body,
+                  input.id === 'body-gravity-dial'
+                    ? 2 ** Number(input.value) / (s.rules.gravitationalConstant ?? 6.674e-11)
+                    : Number(input.value),
+                );
+            }
+          });
+          changed();
+        } catch (error) {
+          message(error instanceof Error ? error.message : String(error));
+          drawInspector();
+        }
+        return;
+      }
       if (input.hasAttribute('data-authoring-guard')) {
         guard = input.checked;
         return;
@@ -1246,14 +1226,6 @@ export function editorScreen(app: App): Screen {
     },
     { signal },
   );
-  el('audit').addEventListener(
-    'click',
-    (e) => {
-      const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-replay]');
-      if (button && result) test(result.counterexamples[Number(button.dataset.replay)].plan);
-    },
-    { signal },
-  );
   const coords = (e: MouseEvent) => {
       const r = canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -1408,7 +1380,6 @@ export function editorScreen(app: App): Screen {
         showPlacement();
         changed();
       } else if (e.button === 0) {
-        search.leaveReplay();
         const hits = pickStack(model.stage, p, camera.zoom);
         const screenStart = coords(e);
         const tap = e.shiftKey
@@ -1796,6 +1767,18 @@ export function editorScreen(app: App): Screen {
     { signal },
   );
   organizeEditor(app.root, signal);
+  el('scene-list').addEventListener(
+    'click',
+    (e) => {
+      const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-select-goal]');
+      if (!button) return;
+      model.selection = new Set([button.dataset.selectGoal!]);
+      tool = 'select';
+      showPlacement();
+      drawInspector();
+    },
+    { signal },
+  );
   drawInspector();
   scheduleAudit();
   message(status);
@@ -1805,26 +1788,20 @@ export function editorScreen(app: App): Screen {
       if (keys.has('KeyD') && !keys.has('ControlLeft')) camera.x += (dt * 260) / camera.zoom;
       if (keys.has('KeyW')) camera.y += (dt * 260) / camera.zoom;
       if (keys.has('KeyS') && !keys.has('ControlLeft')) camera.y -= (dt * 260) / camera.zoom;
-      const playbackRun = search.frame(dt);
-      const foreground = new Set(playbackRun ? [] : model.selection);
+      const foreground = new Set(model.selection);
       // A supported rocket and its pad remain one visible attachment while its body moves.
       if (model.stage.launchBodyId && model.stage.bodies.some((b) => foreground.has(b.id)))
         foreground.add('spawn');
       const { w, h } = drawWorld(canvas, {
-        stage: search.stage,
+        stage: model.stage,
         camera,
-        run: playbackRun,
-        replay: !!playbackRun,
-        history: search.history,
-        histories: search.histories,
-        selectedHistory: true,
         grid: true,
         selected: model.selection,
         hideMarkerHandles: true,
         layer: foreground.size ? { kind: 'except', ids: foreground } : undefined,
       });
       const ctx = canvas.getContext('2d')!;
-      if (!playbackRun) {
+      {
         ctx.strokeStyle = '#89b4ab66';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([3, 5]);
@@ -1862,7 +1839,7 @@ export function editorScreen(app: App): Screen {
           hideMarkerHandles: true,
           layer: { kind: 'only', ids: foreground },
         });
-      if (!playbackRun) {
+      {
         for (const goal of model.stage.goals.filter((g) => model.selection.has(g.id))) {
           paintAuthoringFeedback(ctx, model.stage, goal, camera, w, h);
           diamond(goal);
@@ -1892,8 +1869,6 @@ export function editorScreen(app: App): Screen {
     dispose() {
       persist();
       abort.abort();
-      clearTimeout(timer);
-      worker?.terminate();
       keys.clear();
     },
   };

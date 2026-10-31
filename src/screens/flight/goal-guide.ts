@@ -110,8 +110,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         c.left.width.kind === 'constant' &&
         c.right.kind === 'constant'
       ) {
-        if (c.left.operation === 'coverage')
-          return [number(c.left.width.value) + '바퀴 비행'];
+        if (c.left.operation === 'coverage') return [number(c.left.width.value) + '바퀴 비행'];
         if (c.left.operation === 'fractionPositive')
           return [
             number(c.left.width.value) +
@@ -129,9 +128,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
       )
         return [
           name(c.left.targetId) +
-            (['lt', 'lte'].includes(c.operator)
-              ? '에 붙잡힌 궤도'
-              : '을 벗어나는 속도'),
+            (['lt', 'lte'].includes(c.operator) ? '에 붙잡힌 궤도' : '을 벗어나는 속도'),
         ];
       if (
         c.left.kind === 'metric' &&
@@ -161,8 +158,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
             deployment: '장치 작동',
           }[c.event],
       ];
-    if (c.kind === 'capture')
-      return ['통과할 때의 ' + label(c.value), ...walk(c.when)];
+    if (c.kind === 'capture') return ['통과할 때의 ' + label(c.value), ...walk(c.when)];
     if (c.kind === 'hold') return [number(c.duration) + '초 연속 유지', ...walk(c.child)];
     if (c.kind === 'once') return walk(c.child);
     if (c.kind === 'not') return walk(c.child).map((s) => '아님 · ' + s);
@@ -223,9 +219,7 @@ function markerExplanation(stage: Stage, goal: Goal): string | undefined {
   const time = marker.duration ?? Math.max(0.1, Math.min(3, stage.rules.maxTime * 0.04));
   return [
     region,
-    marker.actorIds.length > 1
-      ? `기체 ${marker.actorIds.length}개 모두`
-      : '',
+    marker.actorIds.length > 1 ? `기체 ${marker.actorIds.length}개 모두` : '',
     marker.span === 'revolution'
       ? `${marker.turns ?? 1}바퀴`
       : marker.span === 'instant' && marker.kind !== 'surface'

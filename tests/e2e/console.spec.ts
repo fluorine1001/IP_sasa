@@ -52,7 +52,9 @@ test('기록 선택은 점선만 표시하고 재생은 별도로 실행하며 �
   await page.locator('#launch').click();
   await page.locator('#pause').click();
   await page.locator('#abort').click();
-  await expect(page.locator('#result').getByRole('button', { name: /나가기|종료할까요|확인/ })).toHaveCount(0);
+  await expect(
+    page.locator('#result').getByRole('button', { name: /나가기|종료할까요|확인/ }),
+  ).toHaveCount(0);
   await expect(page.locator('#timeline-mode')).toContainText('다시보기');
   await expect(page.locator('#flight-scrub')).toBeEnabled();
   expect((await page.locator('#result').innerText()).length).toBeLessThan(80);

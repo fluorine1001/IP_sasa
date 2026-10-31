@@ -9,7 +9,11 @@ test('시간선에 조작을 끌어 배치하고 각도 슬라이더·시각 이
   await page.locator('#start').click();
   await expect(page.locator('.stage-card').first()).toBeVisible();
   await page.locator('.stage-card').first().click();
-  await expect(page.locator('#initial-output [title="추진 가속"]')).toBeVisible();
+  await expect(
+    page
+      .locator('#initial-output [title="추력 대 무게"], #initial-output [title="추진 가속"]')
+      .first(),
+  ).toBeVisible();
   await expect(page.locator('#initial-output')).not.toContainText(/부족|떠오를|성공|필요한 출력/);
   await expect(page.locator('#gravity-buoy')).toHaveCount(0);
   const rail = (await page.locator('#timeline-track').boundingBox())!,

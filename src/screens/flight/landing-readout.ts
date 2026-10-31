@@ -33,8 +33,7 @@ export function landingReadout(stage: Stage, run: Run) {
   if (!recorded) {
     const offset = sub(run.position, bodyPosition(stage, b, run.time));
     const relative = sub(run.velocity, bodyVelocity(stage, b, run.time));
-    const radial =
-      (relative.x * offset.x + relative.y * offset.y) / Math.max(length(offset), 1e-9);
+    const radial = (relative.x * offset.x + relative.y * offset.y) / Math.max(length(offset), 1e-9);
     if (radial >= 0) return '';
   }
   const normal =

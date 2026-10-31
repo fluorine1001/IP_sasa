@@ -136,7 +136,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     el = (id: string) => app.root.querySelector<HTMLElement>(`#${id}`)!;
   app.root
     .querySelector('.resources')!
-    .insertAdjacentHTML('beforeend', '<section id="preflight" class="preflight-list" aria-live="polite"></section>');
+    .insertAdjacentHTML(
+      'beforeend',
+      '<section id="preflight" class="preflight-list" aria-live="polite"></section>',
+    );
   app.root
     .querySelector('.resources')!
     .insertAdjacentHTML('beforeend', '<div id="landing-readout" hidden></div>');
@@ -930,7 +933,8 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       hasNext: !!args.next,
     });
     el('result').dataset.outcome = run.status === 'won' ? 'won' : 'failed';
-    if (run.status === 'won' && !args.onReturn && !training) saveMedals(stage.id, flightMedals(stage, run));
+    if (run.status === 'won' && !args.onReturn && !training)
+      saveMedals(stage.id, flightMedals(stage, run));
     beginReplay(trials.length - 1, true);
     el('result-close').onclick = () => {
       el('result').hidden = true;

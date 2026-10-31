@@ -34,7 +34,13 @@ export function stagesScreen(app: App): Screen {
     const missionCard = (s: Stage, i: number) => {
       const done = app.completed.has(s.id),
         m = medals[s.id];
-      const status = !done ? '미도전' : m?.clean ? '무손상 성공' : m?.budget ? '예산 안 성공' : '성공';
+      const status = !done
+        ? '미도전'
+        : m?.clean
+          ? '무손상 성공'
+          : m?.budget
+            ? '예산 안 성공'
+            : '성공';
       return `<button class="stage-card ${done ? 'completed' : ''}" data-stage="${s.id}"><span class="stage-number">${String(i + 1).padStart(2, '0')}</span><strong>${escape(s.title)}</strong><span class="stage-vehicle">${vehicleLabel(s)}</span><span class="stage-medals" aria-label="${status}"><i class="${done ? 'on' : ''}"></i><i class="${m?.budget ? 'on' : ''}"></i><i class="${m?.clean ? 'on' : ''}"></i></span><small class="stage-status">${status}</small></button>`;
     };
     app.root.innerHTML = `<main class="campaign menu-sheet wide"><header class="campaign-header"><div><span class="eyebrow">항해 지도</span><h1>탐사 임무</h1></div><div class="campaign-total"><b>${done}<span> / ${total}</span></b><small>완료한 임무</small></div><button id="back" class="quiet">← 기지</button></header>

@@ -13,7 +13,9 @@ export function tutorialsScreen(app: App): Screen {
       ),
     );
   function draw() {
-    const drills = practiceGroups.map((g, i) => `<li><span>${i + 1}</span>${escape(g.title)}</li>`).join('');
+    const drills = practiceGroups
+      .map((g, i) => `<li><span>${i + 1}</span>${escape(g.title)}</li>`)
+      .join('');
     app.root.innerHTML = `<main class="menu-sheet wide tutorial-hub"><span class="eyebrow">훈련</span><h1>튜토리얼</h1><div class="tutorial-grid">${app.tutorials
       .map(
         (stage) =>

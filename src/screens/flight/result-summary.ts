@@ -105,15 +105,20 @@ export function resultSummary(
     .filter((e) => e.time <= contactTime + 1e-9);
   const steps = [
     { word: '발사', time: 0 },
-    ...ran.filter((e) => e.id !== 'launch').map((e) => ({ word: EVENT_WORD[e.kind] ?? e.label, time: e.time })),
+    ...ran
+      .filter((e) => e.id !== 'launch')
+      .map((e) => ({ word: EVENT_WORD[e.kind] ?? e.label, time: e.time })),
   ];
-  const shown = steps.length > 5 ? [...steps.slice(0, 2), { word: '…', time: NaN }, ...steps.slice(-2)] : steps;
+  const shown =
+    steps.length > 5 ? [...steps.slice(0, 2), { word: '…', time: NaN }, ...steps.slice(-2)] : steps;
   const strip = `<ol class="result-strip">${shown
     .map(
       (s) =>
         `<li><span>${escape(s.word)}</span>${Number.isFinite(s.time) ? `<small>${s.time.toFixed(1)}초</small>` : ''}</li>`,
     )
-    .join('')}<li class="end ${seal.tone}"><span>${escape(seal.text)}</span><small>${contactTime.toFixed(1)}초</small></li></ol>`;
+    .join(
+      '',
+    )}<li class="end ${seal.tone}"><span>${escape(seal.text)}</span><small>${contactTime.toFixed(1)}초</small></li></ol>`;
 
   const medals = flightMedals(stage, run);
   const medalRow =

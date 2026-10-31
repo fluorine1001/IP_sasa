@@ -722,8 +722,7 @@ export function timelinePlanner(
     for (const marker of track.querySelectorAll<HTMLElement>('[data-event]'))
       marker.setAttribute('aria-pressed', String(marker.dataset.event === selected));
     const explanation = root.querySelector<HTMLElement>('#timeline-explanation')!;
-    if (editable())
-      explanation.textContent = '';
+    if (editable()) explanation.textContent = '';
     if (selected && !popup.hidden) {
       const field = popup.querySelector<HTMLFieldSetElement>('fieldset');
       if (field) field.disabled = !editable();

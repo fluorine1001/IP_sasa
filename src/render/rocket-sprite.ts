@@ -88,7 +88,13 @@ export function paintRocket(
   ctx.strokeStyle = INK;
   ctx.lineWidth = ink;
   ctx.beginPath();
-  ctx.roundRect(half, -r + half, Math.max(0, size - ink), Math.max(0, 2 * r - ink), Math.max(0, r - half));
+  ctx.roundRect(
+    half,
+    -r + half,
+    Math.max(0, size - ink),
+    Math.max(0, 2 * r - ink),
+    Math.max(0, r - half),
+  );
   ctx.stroke();
   ctx.restore();
 }

@@ -51,11 +51,19 @@ body.game-ui {
     linear-gradient(180deg, #ffffff14, transparent 38%),
     linear-gradient(0deg, #0000002a, transparent 22%);
   background-size:
-    10px 10px, 10px 10px, 10px 10px, 10px 10px,
-    100% 100%, 100% 100%;
+    10px 10px,
+    10px 10px,
+    10px 10px,
+    10px 10px,
+    100% 100%,
+    100% 100%;
   background-position:
-    5px 5px, calc(100% - 5px) 5px, 5px calc(100% - 5px), calc(100% - 5px) calc(100% - 5px),
-    0 0, 0 0;
+    5px 5px,
+    calc(100% - 5px) 5px,
+    5px calc(100% - 5px),
+    calc(100% - 5px) calc(100% - 5px),
+    0 0,
+    0 0;
   background-repeat: no-repeat;
   border: 3px solid var(--ink);
   border-radius: 10px;
@@ -128,7 +136,9 @@ body.game-ui {
   border-radius: 7px;
   box-shadow: 0 4px 0 var(--ink);
   font-weight: 700;
-  transition: transform 60ms, box-shadow 60ms;
+  transition:
+    transform 60ms,
+    box-shadow 60ms;
 }
 .game-ui button:not(:disabled):active {
   transform: translateY(3px);
@@ -255,13 +265,27 @@ body.game-ui {
   color: var(--ink);
   background: var(--slate-hi);
 }
-.game-ui .timeline-event.ignite { background: var(--f-ignite); }
-.game-ui .timeline-event.stop { background: var(--f-stop); }
-.game-ui .timeline-event.turn { background: var(--f-turn); }
-.game-ui .timeline-event.separate { background: var(--f-separate); }
-.game-ui .timeline-event.push { background: var(--f-push); }
-.game-ui .timeline-event.deploy { background: var(--f-deploy); }
-.game-ui .timeline-event.pending { opacity: 0.55; }
+.game-ui .timeline-event.ignite {
+  background: var(--f-ignite);
+}
+.game-ui .timeline-event.stop {
+  background: var(--f-stop);
+}
+.game-ui .timeline-event.turn {
+  background: var(--f-turn);
+}
+.game-ui .timeline-event.separate {
+  background: var(--f-separate);
+}
+.game-ui .timeline-event.push {
+  background: var(--f-push);
+}
+.game-ui .timeline-event.deploy {
+  background: var(--f-deploy);
+}
+.game-ui .timeline-event.pending {
+  opacity: 0.55;
+}
 .game-ui .timeline-event[aria-pressed='true'] {
   outline: 3px solid var(--text);
   outline-offset: 2px;
@@ -289,12 +313,24 @@ body.game-ui {
   border-radius: 3px;
   background: var(--chip, var(--slate-3));
 }
-.game-ui [data-tool='ignite'] { --chip: var(--f-ignite); }
-.game-ui [data-tool='stop'] { --chip: var(--f-stop); }
-.game-ui [data-tool='turn'] { --chip: var(--f-turn); }
-.game-ui [data-tool='separate'] { --chip: var(--f-separate); }
-.game-ui [data-tool='push'] { --chip: var(--f-push); }
-.game-ui [data-tool='deploy'] { --chip: var(--f-deploy); }
+.game-ui [data-tool='ignite'] {
+  --chip: var(--f-ignite);
+}
+.game-ui [data-tool='stop'] {
+  --chip: var(--f-stop);
+}
+.game-ui [data-tool='turn'] {
+  --chip: var(--f-turn);
+}
+.game-ui [data-tool='separate'] {
+  --chip: var(--f-separate);
+}
+.game-ui [data-tool='push'] {
+  --chip: var(--f-push);
+}
+.game-ui [data-tool='deploy'] {
+  --chip: var(--f-deploy);
+}
 .game-ui .tool-count:not(:empty) {
   margin-left: 4px;
   padding: 0 6px;
@@ -334,11 +370,21 @@ body.game-ui {
   text-shadow: none;
   animation: stamp-in 220ms ease-out both;
 }
-.game-ui .result-stamp.good { color: #2f8a4c; }
-.game-ui .result-stamp.neutral { color: #8b6d1e; }
+.game-ui .result-stamp.good {
+  color: #2f8a4c;
+}
+.game-ui .result-stamp.neutral {
+  color: #8b6d1e;
+}
 @keyframes stamp-in {
-  from { transform: rotate(-4deg) scale(1.7); opacity: 0; }
-  to { transform: rotate(-4deg) scale(1); opacity: 1; }
+  from {
+    transform: rotate(-4deg) scale(1.7);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-4deg) scale(1);
+    opacity: 1;
+  }
 }
 .game-ui .result-cause {
   margin: 0 0 8px;
@@ -429,9 +475,15 @@ body.game-ui {
   border: 3px solid var(--ink);
   box-shadow: 0 3px 0 var(--ink);
 }
-.game-ui .medal.on:nth-child(1) i { background: radial-gradient(circle at 35% 35%, #fff2b8, #e3a92d); }
-.game-ui .medal.on:nth-child(2) i { background: radial-gradient(circle at 35% 35%, #f2f6f7, #9fb0b6); }
-.game-ui .medal.on:nth-child(3) i { background: radial-gradient(circle at 35% 35%, #d8f5d3, #4fa35b); }
+.game-ui .medal.on:nth-child(1) i {
+  background: radial-gradient(circle at 35% 35%, #fff2b8, #e3a92d);
+}
+.game-ui .medal.on:nth-child(2) i {
+  background: radial-gradient(circle at 35% 35%, #f2f6f7, #9fb0b6);
+}
+.game-ui .medal.on:nth-child(3) i {
+  background: radial-gradient(circle at 35% 35%, #d8f5d3, #4fa35b);
+}
 .game-ui .medal.off i {
   background: transparent;
   border-style: dashed;
@@ -468,8 +520,12 @@ body.game-ui {
 .game-ui .result-strip li + li::before {
   content: '';
 }
-.game-ui .result-strip li.end.bad { background: #f6c6b8; }
-.game-ui .result-strip li.end.good { background: #c9ebc4; }
+.game-ui .result-strip li.end.bad {
+  background: #f6c6b8;
+}
+.game-ui .result-strip li.end.good {
+  background: #c9ebc4;
+}
 .game-ui .result-change {
   margin: 8px 0;
   font-size: 13px;
@@ -610,8 +666,13 @@ body.game-ui {
   font-size: 12px;
   font-weight: 800;
 }
-.game-ui .preflight-list header span.ok { background: var(--ok); }
-.game-ui .preflight-list header span.bad { background: var(--fail); color: var(--text); }
+.game-ui .preflight-list header span.ok {
+  background: var(--ok);
+}
+.game-ui .preflight-list header span.bad {
+  background: var(--fail);
+  color: var(--text);
+}
 .game-ui .preflight-list ul {
   list-style: none;
   margin: 0;
@@ -632,10 +693,16 @@ body.game-ui {
   font-weight: 900;
   text-align: center;
 }
-.game-ui .preflight-list li.ok i { color: #2f8a4c; }
-.game-ui .preflight-list li.warn i { color: #b07812; }
+.game-ui .preflight-list li.ok i {
+  color: #2f8a4c;
+}
+.game-ui .preflight-list li.warn i {
+  color: #b07812;
+}
 .game-ui .preflight-list li.bad,
-.game-ui .preflight-list li.bad i { color: var(--fail); }
+.game-ui .preflight-list li.bad i {
+  color: var(--fail);
+}
 .game-ui .preflight-list li b {
   grid-column: 2;
   font-size: 12px;
@@ -676,10 +743,20 @@ body.game-ui {
   animation: callout-in 1.6s ease-out both;
 }
 @keyframes callout-in {
-  0% { opacity: 0; transform: translate(-50%, -8px); }
-  10% { opacity: 1; transform: translate(-50%, 0); }
-  80% { opacity: 1; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 .reduced-motion .game-ui .callout.show,
 .game-ui.reduced-motion .callout.show {
@@ -709,7 +786,9 @@ body.game-ui {
 }
 .game-ui .chapter-planet {
   border: 3px solid var(--ink);
-  box-shadow: 0 4px 0 var(--ink), inset -8px -6px 0 #00000033;
+  box-shadow:
+    0 4px 0 var(--ink),
+    inset -8px -6px 0 #00000033;
   color: var(--ink);
   font-size: 30px;
   transform: none;
@@ -795,9 +874,15 @@ body.game-ui {
 .game-ui .stage-medals i.on {
   border: 2px solid var(--ink);
 }
-.game-ui .stage-medals i.on:nth-child(1) { background: #e3a92d; }
-.game-ui .stage-medals i.on:nth-child(2) { background: #b8c4c9; }
-.game-ui .stage-medals i.on:nth-child(3) { background: #4fa35b; }
+.game-ui .stage-medals i.on:nth-child(1) {
+  background: #e3a92d;
+}
+.game-ui .stage-medals i.on:nth-child(2) {
+  background: #b8c4c9;
+}
+.game-ui .stage-medals i.on:nth-child(3) {
+  background: #4fa35b;
+}
 .game-ui .stage-status {
   font-size: 12px;
   font-weight: 700;
@@ -1027,7 +1112,9 @@ body.game-ui {
   background-image:
     linear-gradient(90deg, transparent 22px, #dd4f3b55 22px 24px, transparent 24px),
     linear-gradient(var(--paper-line) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 22px;
+  background-size:
+    100% 100%,
+    100% 22px;
   color: var(--paper-ink);
   padding-left: 34px;
   /* Never over the launch button in the dock below. */
@@ -1181,5 +1268,42 @@ body.game-ui {
   .game-ui .callout {
     top: 64px;
     font-size: 15px;
+  }
+}
+
+/* ---------- Phones: keep the dock short ---------- */
+@media (max-width: 650px) {
+  .game-ui #timeline-palette {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .game-ui #timeline-palette [data-tool] > span {
+    display: none;
+  }
+  .game-ui #timeline-palette [data-tool] {
+    padding: 4px 6px 4px 11px;
+  }
+  .game-ui #timeline-placement {
+    font-size: 0;
+  }
+  .game-ui #timeline-placement input {
+    font-size: 14px;
+    width: 64px;
+  }
+  .game-ui .flight-deck .timeline-track {
+    height: 82px;
+  }
+  .game-ui .timeline-event {
+    top: calc(2px + var(--lane) * 18px);
+  }
+  .game-ui .timeline-rail,
+  .game-ui #timeline-fill {
+    top: 52px;
+  }
+  .game-ui .timeline-ticks i {
+    top: 66px;
+  }
+  .game-ui .flight-deck .timeline-event span {
+    display: none;
   }
 }

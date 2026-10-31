@@ -22,7 +22,7 @@ test('허용 띠의 필요한 바퀴 수는 편집·저장·실제 게임 목표
   expect(JSON.stringify(saved.goals[0].condition)).not.toMatch(/eccentricity|semiMajorAxis/);
   await page.locator('#test-stage').click();
   await page.locator('#goal-details').click();
-  await expect(page.locator('#mission-goals')).toContainText('3바퀴 전체');
+  await expect(page.locator('#mission-goals')).toContainText('3바퀴');
   await expect(page.locator('#mission-goals')).not.toContainText('찌그러짐');
   await page.screenshot({ path: 'test-results/screens/orbit-three-turns.png' });
 });

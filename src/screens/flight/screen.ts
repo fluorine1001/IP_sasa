@@ -400,10 +400,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     return !reading
       ? '미관측'
       : reading.value < i.range.min
-        ? '범위 아래'
+        ? '기준보다 낮음'
         : reading.value > i.range.max
-          ? '범위 위'
-          : '범위 안';
+          ? '기준보다 높음'
+          : '기준 안';
   }
   function readingHtml(id: string, text: string, evidence: Trial['evidence']) {
     const r = evidence.readings[id];
@@ -470,7 +470,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     );
   }
   function ledgerHtml() {
-    return `<div class="archive-heading"><h2>비행 기록</h2><button id="close-notes" data-close-ledger class="archive-close" aria-label="비행 기록 닫기" title="비행 기록 닫기">${controlIcon('close')}</button></div><div class="trial-grid">${
+    return `<div class="archive-heading"><h2>비행 일지</h2><button id="close-notes" data-close-ledger class="archive-close" aria-label="비행 기록 닫기" title="비행 기록 닫기">${controlIcon('close')}</button></div>${trials.length > 1 ? planComparison() : ''}<div class="trial-grid">${
       trials
         .map((t, index) => ({ t, index }))
         .reverse()
@@ -480,12 +480,12 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         )
         .join('') ||
       '<div class="archive-empty">' + controlIcon('records') + '<b>저장된 비행 없음</b></div>'
-    }</div>${trials.length > 1 ? `${training ? '<p id="trial-comparison">' + escape(compareTrials(trials.at(-2)!, trials.at(-1)!)) + '</p>' : ''}${comparisonTable()}${planComparison()}` : ''}${trials.length ? `<section class="archive-comparison"><b>시간별 비교</b><label><input id="replay-time" aria-label="기록 비교 시각" type="range" min="0" max="${Math.max(...trials.map((t) => t.duration))}" step="0.05" value="${replayTime}"><span id="replay-label">${replayTime.toFixed(1)}초</span></label><div id="comparison-readouts">${timeComparison()}</div></section>` : ''}`;
+    }</div>${trials.length > 1 ? `${training ? '<p id="trial-comparison">' + escape(compareTrials(trials.at(-2)!, trials.at(-1)!)) + '</p>' : ''}${comparisonTable()}` : ''}${trials.length ? `<section class="archive-comparison"><b>시간별 비교</b><label><input id="replay-time" aria-label="기록 비교 시각" type="range" min="0" max="${Math.max(...trials.map((t) => t.duration))}" step="0.05" value="${replayTime}"><span id="replay-label">${replayTime.toFixed(1)}초</span></label><div id="comparison-readouts">${timeComparison()}</div></section>` : ''}`;
   }
   function planComparison() {
     const [a, b] = comparedTrials();
     const changes = planChanges(a.scheduledPlan, b.scheduledPlan);
-    return `<section class="plan-comparison"><b>예약 차이</b>${changes.length ? changes.map((c) => (typeof c.after === 'number' && c.label.includes('시각') ? `<button data-comparison-time="${c.after}">${escape(c.label)} · ${c.before} → ${c.after}초</button>` : `<p>${escape(c.label)} · ${escape(String(c.before))} → ${escape(String(c.after))}</p>`)).join('') : '<p>같은 계획</p>'}</section>`;
+    return `<section class="plan-comparison"><b>${comparedTrials()[0].number}차 → ${comparedTrials()[1].number}차 바꾼 점</b>${changes.length ? changes.map((c) => (typeof c.after === 'number' && c.label.includes('시각') ? `<button data-comparison-time="${c.after}">${escape(c.label)} · ${c.before} → ${c.after}초</button>` : `<p>${escape(c.label)} · ${escape(String(c.before))} → ${escape(String(c.after))}</p>`)).join('') : '<p>같은 계획</p>'}</section>`;
   }
   function comparedTrials() {
     const latest = trials.at(-1)!;

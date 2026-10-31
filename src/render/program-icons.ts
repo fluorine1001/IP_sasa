@@ -11,7 +11,7 @@ const paths: Record<ProgramEvent['kind'], string> = {
 };
 export function eventIcon(kind: ProgramEvent['kind']) {
   return (
-    '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
     paths[kind] +
     '</svg>'
   );

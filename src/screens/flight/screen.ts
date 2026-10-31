@@ -827,7 +827,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     (el('abort') as HTMLButtonElement).hidden = ended || !run;
     el('replay-monitor').hidden = true;
     if (!stage.rocket || !run)
-      el('hint').textContent = '';
+      // Screen-reader status only (visually hidden).
+      el('hint').textContent = run
+        ? '실제 비행 관측을 기록합니다'
+        : `${plan.impulses.length + (plan.engineCommands?.length ?? 0)}개 비행 조작 예약 · ${history.length ? '지난 비행의 실제 궤적' : '미래 궤도는 표시되지 않습니다'}`;
   }
   function reset() {
     if (replayIndex >= 0) return;
@@ -852,7 +855,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     Object.assign(camera, stage.camera);
     keys.clear();
     el('result').hidden = true;
-
+    toast('계획 편집 · 같은 환경과 이전 기록 유지');
     updateHud();
   }
   function start(probe = false) {

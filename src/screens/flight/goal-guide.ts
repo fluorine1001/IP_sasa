@@ -204,7 +204,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
       return walk(child);
     });
     if (c.kind === 'any') return ['다음 중 하나', ...lines];
-    if (c.kind === 'sequence') return ['순서대로', ...lines.map((line, i) => i + 1 + '. ' + line)];
+    if (c.kind === 'sequence') return ['다음 순서대로', ...lines];
     return lines;
   }
   return [...new Set(walk(node))].join('\n');

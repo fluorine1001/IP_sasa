@@ -43,7 +43,7 @@ test('발사 전 예약 편집·실시간 진행·비행 중 편집 잠금', asy
   await expect(page.locator('[data-add="ignite"]')).toBeDisabled();
   await page.locator('#program-close').click();
   await expect(page.locator('.timeline-event.separate.executed')).toHaveCount(1, { timeout: 8000 });
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
+  await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 18000 });
   expect(errors).toEqual([]);
 });
 test('다시보기는 해당 시도 계획·단 분리·카메라를 복원하고 이후 계획과 격리된다', async ({
@@ -51,7 +51,7 @@ test('다시보기는 해당 시도 계획·단 분리·카메라를 복원하�
 }) => {
   await openReference(page);
   await page.locator('#launch').click();
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
+  await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 18000 });
   await page.locator('#replay-exit').click();
   await page.locator('#program-toggle').click();
   const first = page.locator('#program-fields input[data-time]').first();
@@ -61,7 +61,7 @@ test('다시보기는 해당 시도 계획·단 분리·카메라를 복원하�
   await page.locator('#notes').click();
   await page.locator('[data-trial-replay="0"]').click();
   await expect(page.locator('#world')).toHaveAttribute('data-phase', 'replay');
-  await expect(page.locator('#timeline-mode')).toContainText('당시의 계획');
+  await expect(page.locator('#timeline-mode')).toContainText('다시보기');
   await expect(page.locator('.timeline-event.separate[data-time="10"]')).toHaveCount(0);
   await expect(page.locator('.timeline-event.separate')).toHaveCount(2);
   await page.locator('#replay-toggle').click();
@@ -86,7 +86,7 @@ test('다시보기는 해당 시도 계획·단 분리·카메라를 복원하�
 test('다시보기의 카메라도 수동 이동과 로켓 추적 복귀를 지원한다', async ({ page }) => {
   await openReference(page);
   await page.locator('#launch').click();
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
+  await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 18000 });
   await expect(page.locator('#world')).toHaveAttribute('data-phase', 'replay');
   await page.locator('#flight-scrub').evaluate((e: HTMLInputElement) => {
     e.value = '3';
@@ -119,7 +119,7 @@ test('비행 종료 전 미실행 예약도 당시 진행 바에 남고 다시�
   await page.locator('#program-toggle').click();
   await expect(page.locator('#program-launch-power')).toBeDisabled();
   await page.locator('#replay-exit').click();
-  await expect(page.locator('#result')).toContainText('직접 종료');
+  await expect(page.locator('#result')).toContainText('비행 중단');
 });
 
 test('직접 제작한 모든 분리 단계의 이미지 외곽이 실제 충돌 몸체 안에 있다', async ({ page }) => {

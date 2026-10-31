@@ -46,8 +46,8 @@ test('탐사 시작은 스테이지 목록을 열고 도움말과 설정은 독�
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
   await page.getByRole('button', { name: '비행 안내서', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '조작 안내' })).toBeVisible();
-  await expect(page.locator('main')).toContainText('미래 궤도나 무료 예행 비행은 없습니다');
+  await expect(page.getByRole('heading', { name: '비행 안내서' })).toBeVisible();
+  await expect(page.locator('main')).toContainText('앞으로의 궤도는 보여주지 않습니다');
   await expect(page.locator('#practice')).toBeVisible();
   await expect(page.locator('#training-panel')).toHaveCount(0);
   await page.locator('#back').click();
@@ -97,7 +97,7 @@ test('표면에서 발사·정지·수동 비행 종료·기록 확인', async (
   await page.waitForTimeout(200);
   await expect(page.locator('#mode')).toHaveText(time!);
   await page.locator('#abort').click();
-  await expect(page.locator('#result')).toContainText('직접 종료');
+  await expect(page.locator('#result')).toContainText('비행 중단');
   await page.locator('#replay-exit').click();
   await expect(page.locator('#inventory')).toHaveCount(0);
   await expect(page.locator('#hint')).toContainText('지난 비행');
@@ -127,7 +127,7 @@ test('개발 기준 경로로 궤도 클리어와 제작 화면 복귀', async (
   await testAuthorPlan(page);
   await page.keyboard.press('Digit4');
   await page.locator('#launch').click();
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 20000 });
+  await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 20000 });
   await page.locator('#exit').click();
   await expect(page.locator('#editor-world')).toBeVisible();
   expect(errors).toEqual([]);
@@ -138,7 +138,7 @@ test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리�
   await testAuthorPlan(page);
   await page.locator('#launch').click();
   await expect(page.locator('#separate')).toBeDisabled();
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 18000 });
+  await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 18000 });
   await page.locator('#exit').click();
   await page.locator('#test-stage').click();
   await page.locator('#program-toggle').click();
@@ -153,7 +153,7 @@ test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리�
   await page.keyboard.press('KeyE');
   await expect(page.locator('#hint')).toContainText('남은 단 3');
   await page.locator('#abort').click();
-  await expect(page.locator('#result')).toContainText('직접 종료');
+  await expect(page.locator('#result')).toContainText('비행 중단');
 });
 
 test('물리량 비교를 유지·순서 블록으로 구성하고 쌍성·실제 소행성 띠를 배치한다', async ({
@@ -310,7 +310,7 @@ test('일반 블록으로 정의한 표면 착륙과 움직이는 위성 만남�
     await page.locator('#rate').click();
     await page.locator('[data-rate="2"]').click();
     await page.locator('#launch').click();
-    await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 12000 });
+    await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 12000 });
     await page.locator('#exit').click();
     await expect(page.locator('#editor-world')).toBeVisible();
   }
@@ -412,7 +412,7 @@ for (const interrupt of ['wheel', 'resize', 'pan'] as const)
       await page.mouse.move(900, 300);
       await page.mouse.up();
       await page.locator('#launch').click();
-      await expect(page.locator('#result')).toContainText('탐사 성공');
+      await expect(page.locator('#result')).toContainText('임무 완료');
       await page.locator('#exit').click();
       const saved = await page.evaluate(() =>
         JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!),
@@ -564,7 +564,7 @@ test('유한 연소의 실제 관측으로 낮음과 지나침을 구분하고 �
   await page.locator('#program-close').click();
   await enterPlan(page, baseline, baseline.referencePlans[0]);
   await page.locator('#launch').click();
-  await expect(page.locator('#result')).toContainText('탐사 성공', { timeout: 20000 });
+  await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 20000 });
   await page.locator('#replay-exit').click();
   await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(3);

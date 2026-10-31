@@ -142,5 +142,9 @@ export function resultSummary(
   // The reason line only adds information beyond the stamp.
   const cause = run.status === 'won' || run.reason === '비행 중단' ? '' : run.reason;
 
-  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${strip}<p class="result-change">${escape(change)}</p><div class="result-actions">${run.status === 'won' && options.hasNext ? '<button id="result-next" class="primary">다음 임무</button>' : ''}<button id="result-retry" class="${run.status === 'won' && options.hasNext ? '' : 'primary'}">다시 발사 <kbd>R</kbd></button><button id="result-edit">계획 고치기</button><button id="result-moment">이 순간 보기</button></div>`;
+  const actions = `<div class="result-actions">${run.status === 'won' && options.hasNext ? '<button id="result-next" class="primary">다음 임무</button>' : ''}<button id="result-retry" class="${run.status === 'won' && options.hasNext ? '' : 'primary'}">다시 발사 <kbd>R</kbd></button><button id="result-edit">계획 고치기</button><button id="result-moment">이 순간 보기</button></div>`;
+  // A flight stopped by hand has nothing to analyse: stamp and actions only.
+  if (run.status === 'aborted')
+    return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${actions}`;
+  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${strip}<p class="result-change">${escape(change)}</p>${actions}`;
 }

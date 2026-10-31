@@ -109,7 +109,7 @@ test('예약 삭제는 표식 위 팝업에 있고 출력·방향은 그림으�
   expect((await page.locator('.engine-bench svg').boundingBox())!.height).toBeGreaterThan(80);
   await page.locator('[data-edit="output"]').fill('25');
   await expect(page.locator('.engine-bench')).toHaveAttribute('data-throttle', '0.25');
-  await expect(page.locator('#command-popover .actor-diagram')).toContainText('남아 있는 로켓');
+  await expect(page.locator('#command-popover .actor-diagram')).toContainText('본체');
   await page.locator('[data-close]').click();
   await page.locator('[data-tool="turn"]').click();
   expect((await page.locator('.direction-dial svg').boundingBox())!.width).toBeGreaterThan(150);

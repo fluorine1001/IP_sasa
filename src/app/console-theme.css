@@ -695,3 +695,328 @@ body.game-ui {
 .game-ui .resources .actor-diagram figcaption {
   color: var(--text-dim);
 }
+
+/* ---------- Mission select: operations board ---------- */
+.game-ui .chapter-card {
+  min-height: 150px;
+}
+.game-ui .chapter-card.selected {
+  outline: none;
+  background-color: var(--slate-hi);
+  box-shadow:
+    0 5px 0 var(--ink),
+    inset 0 0 0 4px var(--chapter-accent);
+}
+.game-ui .chapter-planet {
+  border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 var(--ink), inset -8px -6px 0 #00000033;
+  color: var(--ink);
+  font-size: 30px;
+  transform: none;
+}
+.game-ui .chapter-caption small {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+.game-ui .chapter-progress {
+  height: 8px;
+  border: 2px solid var(--ink);
+  box-sizing: content-box;
+}
+.game-ui .chapter-missions > header {
+  display: grid;
+  gap: 4px;
+  border-top: 3px dashed #ffffff22;
+}
+.game-ui .chapter-missions > header h2 {
+  margin: 0;
+}
+.game-ui .chapter-question {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--chapter-accent);
+}
+.game-ui .chapter-question::before {
+  content: '? ';
+  font-weight: 900;
+}
+.game-ui .mission-route .stage-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 176px;
+  padding: 0 16px 14px;
+  color: var(--paper-ink);
+  overflow: visible;
+  box-shadow:
+    0 5px 0 var(--ink),
+    inset 0 8px 0 var(--chapter-accent);
+}
+.game-ui .mission-route .stage-card:hover {
+  transform: translateY(-2px) rotate(-0.5deg);
+}
+.game-ui .mission-route .stage-number {
+  justify-self: start;
+  margin: -2px 0 4px;
+  padding: 10px 8px 3px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 0 0 6px 6px;
+  font-size: 15px;
+  font-weight: 900;
+}
+.game-ui .mission-route .stage-card strong {
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--paper-ink);
+}
+.game-ui .stage-vehicle {
+  justify-self: start;
+  padding: 1px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fff8e6;
+}
+.game-ui .stage-medals {
+  display: flex;
+  gap: 5px;
+  margin-top: auto;
+}
+.game-ui .stage-medals i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px dashed #8b8569;
+}
+.game-ui .stage-medals i.on {
+  border: 2px solid var(--ink);
+}
+.game-ui .stage-medals i.on:nth-child(1) { background: #e3a92d; }
+.game-ui .stage-medals i.on:nth-child(2) { background: #b8c4c9; }
+.game-ui .stage-medals i.on:nth-child(3) { background: #4fa35b; }
+.game-ui .stage-status {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--paper-dim);
+}
+.game-ui .mission-route .completed {
+  border-color: var(--ink);
+}
+.game-ui .mission-route .completed .stage-status {
+  color: #2f8a4c;
+}
+
+@media (max-width: 680px) {
+  /* Chapters become a tab strip so the missions show on the first screen. */
+  .game-ui .chapter-map {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+  .game-ui .chapter-card {
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .game-ui .chapter-planet {
+    flex-basis: 30px;
+    height: 30px;
+    font-size: 15px;
+  }
+  .game-ui .chapter-caption > span,
+  .game-ui .chapter-caption > small:last-child {
+    display: none;
+  }
+  .game-ui .chapter-caption strong {
+    font-size: 15px;
+  }
+}
+
+/* ---------- Title: console plate and an orbiting rocket ---------- */
+.game-ui .title-console {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  width: 320px;
+  padding: 30px 22px 18px;
+}
+.game-ui .console-tape {
+  position: absolute;
+  top: -14px;
+  left: 18px;
+  padding: 2px 12px;
+  background: var(--amber);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  box-shadow: 0 2px 0 var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  transform: rotate(-2deg);
+}
+.game-ui .title-console button {
+  padding: 11px 14px;
+  font-size: 16px;
+  text-align: left;
+}
+.game-ui .title-console button:not(.primary) {
+  background-color: var(--paper);
+  color: var(--ink);
+}
+.game-ui .title-console #start {
+  font-size: 19px;
+  font-weight: 900;
+}
+.game-ui .title-console .quiet {
+  background-color: var(--slate-3) !important;
+  color: var(--text) !important;
+}
+.game-ui .console-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.game-ui .console-status i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
+.game-ui .planet-art {
+  border: 8px solid var(--ink);
+}
+.game-ui .ship-art {
+  display: none;
+}
+.game-ui .title-tower {
+  position: absolute;
+  width: 8%;
+  left: 47%;
+  top: -4.5%;
+  filter: drop-shadow(3px 4px 0 #0b172188);
+}
+.game-ui .title-orbit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(2px 3px 0 #0b1721aa);
+}
+.game-ui .title-planet::after {
+  display: none;
+}
+
+/* ---------- Menus: tutorial, guide, settings ---------- */
+.game-ui .menu-sheet h1 {
+  margin-top: 6px;
+}
+.game-ui .tutorial-card {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+  text-align: left;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--paper-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
+  background-size: 18px 18px;
+  color: var(--paper-ink);
+}
+.game-ui .tutorial-card strong {
+  font-size: 20px;
+}
+.game-ui .tutorial-drills {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.game-ui .tutorial-drills li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.game-ui .tutorial-drills li span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff8e6;
+  font-size: 12px;
+}
+.game-ui .tutorial-card small {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--amber-deep);
+}
+.game-ui .tutorial-stamp {
+  position: absolute;
+  right: 18px;
+  top: 14px;
+  padding: 0 10px;
+  border: 4px double #2f8a4c;
+  border-radius: 6px;
+  color: #2f8a4c;
+  font-size: 22px;
+  font-weight: 900;
+  transform: rotate(-8deg);
+}
+.game-ui .help-grid article b,
+.game-ui .control-card b {
+  color: var(--amber);
+}
+.game-ui .help-grid article p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.game-ui .control-card {
+  font-size: 15px;
+  line-height: 2;
+}
+.game-ui .setting {
+  background-color: var(--slate-1);
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 0 5px 0 var(--ink);
+}
+.game-ui .setting > span {
+  display: grid;
+  gap: 2px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.game-ui .setting small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.game-ui .tutorial-card {
+  grid-template-columns: 1fr;
+  max-width: 760px;
+}
+.game-ui .tutorial-drills li span {
+  color: var(--ink);
+}

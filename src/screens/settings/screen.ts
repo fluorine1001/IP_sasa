@@ -5,14 +5,14 @@ export function settingsScreen(app: App): Screen {
     s = app.settings;
   app.root.innerHTML = `<main class="menu-sheet narrow"><h1>설정</h1><label class="setting">효과음 <input id="volume" type="range" min="0" max="1" step=".05" value="${s.volume}"></label>${(
     [
-      ['grid', '좌표 격자'],
-      ['trails', '지나온 궤적'],
-      ['reducedMotion', '장식 움직임 줄이기'],
+      ['grid', '좌표 격자', '지도에 거리 눈금을 깝니다'],
+      ['trails', '지나온 궤적', '비행한 경로를 선으로 남깁니다'],
+      ['reducedMotion', '장식 움직임 줄이기', '도장·알림·궤도 애니메이션을 끕니다'],
     ] as const
   )
     .map(
-      ([id, text]) =>
-        `<label class="setting">${text}<input id="${id}" type="checkbox" ${s[id] ? 'checked' : ''}></label>`,
+      ([id, text, hint]) =>
+        `<label class="setting"><span>${text}<small>${hint}</small></span><input id="${id}" type="checkbox" ${s[id] ? 'checked' : ''}></label>`,
     )
     .join('')}<button id="back" class="primary">기지로 돌아가기</button></main>`;
   app.root.addEventListener(

@@ -3,6 +3,20 @@ import { campaignChapters } from '../stages/chapters';
 import './campaign.css';
 import { catalog } from '../stages/catalog.ts';
 import { liveCatalog } from '../stages/live-catalog';
+import { readMedals } from '../app/records';
+import type { Stage } from '../world/types';
+
+/** The question each chapter lets the player discover; never the answer. */
+const CHAPTER_QUESTION: Record<string, string> = {
+  departure: '옆으로 얼마나 빨라야 떨어지지 않을까?',
+  expedition: '움직이는 천체는 지나가는 로켓을 어떻게 바꿀까?',
+  operations: '앞선 물체를 따라잡으려면 더 빨리 가야 할까?',
+};
+
+function vehicleLabel(stage: Stage) {
+  const parts = stage.rocket?.parts.length ?? 0;
+  return parts === 0 ? '냉가스 기체' : parts === 1 ? '1단 로켓' : parts + '단 로켓';
+}
 export function stagesScreen(app: App): Screen {
   const abort = new AbortController();
   let available: import('../world/types').Stage[] = catalog;
@@ -16,9 +30,16 @@ export function stagesScreen(app: App): Screen {
       : (chapters[0]?.id ?? '');
     const total = chapters.reduce((n, c) => n + c.stages.length, 0),
       done = chapters.reduce((n, c) => n + c.completed, 0);
-    app.root.innerHTML = `<main class="campaign menu-sheet wide"><header class="campaign-header"><div><span class="eyebrow">FLIGHT ATLAS / 항해 지도</span><h1>탐사 임무</h1></div><div class="campaign-total"><b>${done}<span> / ${total}</span></b><small>완료한 임무</small></div><button id="back" class="quiet">← 기지</button></header>
-      <nav class="chapter-map" aria-label="챕터 선택">${chapters.map((c, i) => `<button data-chapter="${escape(c.id)}" class="chapter-card ${c.id === visibleChapter ? 'selected' : ''}" aria-pressed="${c.id === visibleChapter}" style="--chapter-accent:${c.color}"><span class="chapter-planet" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span><span class="chapter-caption"><small>CHAPTER ${String(i + 1).padStart(2, '0')}</small><strong>${escape(c.title)}</strong><span>${escape(c.subtitle)}</span><span class="chapter-progress"><i style="width:${(c.completed / Math.max(1, c.stages.length)) * 100}%"></i></span><small>${c.completed} / ${c.stages.length} 완료</small></span></button>`).join('')}</nav>
-      ${chapters.map((c) => `<section class="chapter-missions" ${c.id !== visibleChapter ? 'hidden' : ''}><header><h2>${escape(c.title)}</h2><span>${c.stages.length}개의 항로</span></header><div class="stage-grid mission-route">${c.stages.map((s, i) => `<button class="stage-card ${app.completed.has(s.id) ? 'completed' : ''}" data-stage="${s.id}" style="--mission-color:${escape(s.bodies[0]?.color ?? '#84bbd0')}"><span class="stage-number">${app.completed.has(s.id) ? '✓' : String(i + 1).padStart(2, '0')}</span><span class="stage-orb" aria-hidden="true"></span><strong>${escape(s.title)}</strong><small>${app.completed.has(s.id) ? '완료 · 다시 도전' : '항로 선택'}</small></button>`).join('')}</div></section>`).join('')}
+    const medals = readMedals();
+    const missionCard = (s: Stage, i: number) => {
+      const done = app.completed.has(s.id),
+        m = medals[s.id];
+      const status = !done ? '미도전' : m?.clean ? '무손상 성공' : m?.budget ? '예산 안 성공' : '성공';
+      return `<button class="stage-card ${done ? 'completed' : ''}" data-stage="${s.id}"><span class="stage-number">${String(i + 1).padStart(2, '0')}</span><strong>${escape(s.title)}</strong><span class="stage-vehicle">${vehicleLabel(s)}</span><span class="stage-medals" aria-label="${status}"><i class="${done ? 'on' : ''}"></i><i class="${m?.budget ? 'on' : ''}"></i><i class="${m?.clean ? 'on' : ''}"></i></span><small class="stage-status">${status}</small></button>`;
+    };
+    app.root.innerHTML = `<main class="campaign menu-sheet wide"><header class="campaign-header"><div><span class="eyebrow">항해 지도</span><h1>탐사 임무</h1></div><div class="campaign-total"><b>${done}<span> / ${total}</span></b><small>완료한 임무</small></div><button id="back" class="quiet">← 기지</button></header>
+      <nav class="chapter-map" aria-label="챕터 선택">${chapters.map((c, i) => `<button data-chapter="${escape(c.id)}" class="chapter-card ${c.id === visibleChapter ? 'selected' : ''}" aria-pressed="${c.id === visibleChapter}" style="--chapter-accent:${c.color}"><span class="chapter-planet" aria-hidden="true">${i + 1}</span><span class="chapter-caption"><small>${i + 1}장</small><strong>${escape(c.title)}</strong><span>${escape(c.subtitle)}</span><span class="chapter-progress"><i style="width:${(c.completed / Math.max(1, c.stages.length)) * 100}%"></i></span><small>${c.completed} / ${c.stages.length} 완료</small></span></button>`).join('')}</nav>
+      ${chapters.map((c) => `<section class="chapter-missions" ${c.id !== visibleChapter ? 'hidden' : ''} style="--chapter-accent:${c.color}"><header><h2>${escape(c.title)}</h2>${CHAPTER_QUESTION[c.id] ? `<p class="chapter-question">${escape(CHAPTER_QUESTION[c.id])}</p>` : ''}</header><div class="stage-grid mission-route">${c.stages.map(missionCard).join('')}</div></section>`).join('')}
       ${!chapters.length ? '<p>공개된 임무가 아직 없습니다.</p>' : ''}</main>`;
     controls(app.root, { back: () => app.go('title') }, abort.signal);
     app.root.querySelectorAll<HTMLButtonElement>('[data-chapter]').forEach((b) =>

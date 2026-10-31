@@ -5,7 +5,7 @@ test('전체화면 진입과 해제에 따라 메뉴 이름도 갱신된다', as
   await expect(page.locator('#fullscreen')).toContainText('전체 화면 해제');
   await expect(page.locator('#fullscreen')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#fullscreen').click();
-  await expect(page.locator('#fullscreen')).toHaveText('전체 화면 ⛶');
+  await expect(page.locator('#fullscreen')).toHaveText('전체 화면');
 });
 async function tutorial(page: import('@playwright/test').Page) {
   await page.goto('/');

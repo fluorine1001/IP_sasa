@@ -1099,3 +1099,87 @@ body.game-ui {
   background: var(--paper-2);
   color: var(--ink);
 }
+
+/* ---------- Labels never break inside a word ---------- */
+.game-ui .console-button,
+.game-ui .control-label,
+.game-ui .rate-button,
+.game-ui .preflight-list header span,
+.game-ui .stage-vehicle {
+  white-space: nowrap;
+}
+
+/* ---------- Phones: keep the rocket and goal in view ---------- */
+@media (max-width: 650px) {
+  .game-ui .mission-panel {
+    width: 56%;
+  }
+  .game-ui .mission-panel .badge {
+    display: none;
+  }
+  .game-ui .resources {
+    width: 38%;
+    padding: 8px 9px;
+  }
+  /* Only the essentials float over the map; details live in the plan editor. */
+  .game-ui .resources .calibration-label,
+  .game-ui .resources .power-meter,
+  .game-ui .resources .resource-row,
+  .game-ui .resources #pad-reading,
+  .game-ui .resources #vehicle-map,
+  .game-ui .resources .landing-instrument > div,
+  .game-ui .resources .landing-instrument svg {
+    display: none;
+  }
+  .game-ui .resources #mode {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .game-ui .resources .calibration-stats {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  .game-ui .preflight-list {
+    margin-top: 6px;
+    padding: 6px;
+  }
+  .game-ui .preflight-list header {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+  }
+  .game-ui .preflight-list ul {
+    display: none;
+  }
+  .game-ui .preflight-list:has(li.bad) ul,
+  .game-ui .preflight-list:has(li.warn) ul {
+    display: grid;
+  }
+  .game-ui .preflight-list li.ok {
+    display: none;
+  }
+  .game-ui .flight-deck #program-toggle .control-label {
+    font-size: 12px;
+  }
+  .game-ui .flight-deck button {
+    min-height: 40px;
+  }
+  .game-ui #timeline-palette [data-tool] {
+    min-height: 40px;
+  }
+  .game-ui .result:not([hidden]) {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    top: auto;
+    bottom: calc(var(--deck-offset, 240px) - 6px);
+    max-height: 62dvh;
+  }
+  .game-ui .result-measure b {
+    font-size: 24px;
+  }
+  .game-ui .callout {
+    top: 64px;
+    font-size: 15px;
+  }
+}

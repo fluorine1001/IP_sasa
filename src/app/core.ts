@@ -8,6 +8,8 @@ export type PlayArgs = {
   onReturn?: () => void;
   onTelemetry?: (run: Run, stage: Stage) => void;
   onSolved?: (plan: RoutePlan) => void;
+  /** Campaign only: opens the following mission from the result card. */
+  next?: () => void;
 };
 export type ScreenName = 'title' | 'help' | 'settings' | 'stages' | 'tutorials' | 'play' | 'editor';
 export interface Screen {

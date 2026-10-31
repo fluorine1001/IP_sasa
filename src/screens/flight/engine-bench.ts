@@ -36,9 +36,9 @@ export function engineBench(stage: Stage, plan: RoutePlan, commandId = 'launch')
 
 export function actorDiagram(stage: Stage, actorId: string, firstPart = 0) {
   if (!stage.rocket)
-    return '<figure class="actor-diagram"><svg viewBox="0 0 130 52" role="img" aria-label="본체 하나"><rect x="25" y="13" width="64" height="24" rx="4" fill="#d8b879"/><path d="M89 13l22 12-22 12z" fill="#d8b879"/></svg><figcaption>본체 · 단일 기체</figcaption></figure>';
+    return '<figure class="actor-diagram"><svg viewBox="0 0 130 52" role="img" aria-label="본체 하나"><rect x="25" y="13" width="64" height="24" rx="4" fill="#d8b879"/><path d="M89 13l22 12-22 12z" fill="#d8b879"/></svg><figcaption>본체</figcaption></figure>';
   const parts = stage.rocket.parts;
-  return `<figure class="actor-diagram"><svg viewBox="0 0 ${55 + parts.length * 50} 52" role="img" aria-label="${actorId === 'craft' ? '아직 붙어 있는 로켓 전체' : '분리된 단 하나'}">${parts.map((p, i) => `<rect x="${25 + i * 50}" y="13" width="44" height="24" rx="4" fill="${(actorId === 'craft' && i >= firstPart) || actorId === p.id ? '#d8b879' : '#29424b'}" stroke="#a8bfb2"/><text x="${47 + i * 50}" y="30" text-anchor="middle" fill="#102530">${i + 1}</text>`).join('')}<path d="M${25 + parts.length * 50} 13l22 12-22 12z" fill="${actorId === 'craft' ? '#d8b879' : '#29424b'}"/></svg><figcaption>${actorId === 'craft' ? '본체 · 분리 뒤 남아 있는 로켓 전체' : '분리체 · 떨어져 나온 단 하나'}</figcaption></figure>`;
+  return `<figure class="actor-diagram"><svg viewBox="0 0 ${55 + parts.length * 50} 52" role="img" aria-label="${actorId === 'craft' ? '본체' : '분리된 단'}">${parts.map((p, i) => `<rect x="${25 + i * 50}" y="13" width="44" height="24" rx="4" fill="${(actorId === 'craft' && i >= firstPart) || actorId === p.id ? '#d8b879' : '#29424b'}" stroke="#a8bfb2"/><text x="${47 + i * 50}" y="30" text-anchor="middle" fill="#102530">${i + 1}</text>`).join('')}<path d="M${25 + parts.length * 50} 13l22 12-22 12z" fill="${actorId === 'craft' ? '#d8b879' : '#29424b'}"/></svg><figcaption>${actorId === 'craft' ? '본체' : escape(parts.find((p) => p.id === actorId)?.name ?? '분리된 단')}</figcaption></figure>`;
 }
 
 /** Same up/right axes as the world map, not a second rotated coordinate convention. */

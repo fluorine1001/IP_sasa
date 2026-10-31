@@ -132,7 +132,7 @@ export function flightTimeline(
         const command = plan.engineCommands?.find((c) => c.id === e.id),
           push = plan.impulses.find((c) => c.id === e.id);
         const actorOptions =
-          '<option value="craft">본체 · 남아 있는 로켓</option>' +
+          '<option value="craft">본체</option>' +
           (stage.rocket?.parts ?? [])
             .map(
               (p) =>
@@ -140,7 +140,7 @@ export function flightTimeline(
                 p.id +
                 '"' +
                 (command?.actorId === p.id ? ' selected' : '') +
-                '>분리체 · ' +
+                '>' +
                 escape(p.name) +
                 '</option>',
             )
@@ -168,7 +168,7 @@ export function flightTimeline(
                 '"> °</label>'
               : '')
           : push
-            ? '<label>추진 눈금 <input data-push="' +
+            ? '<label>추진 세기 (u/s) <input data-push="' +
               e.id +
               '" type="number" min="0" max="' +
               stage.rules.maneuverBudget +
@@ -417,7 +417,7 @@ export function flightTimeline(
       el('timeline-ticks').innerHTML = Array.from(
         { length: 7 },
         (_, i) =>
-          '<i style="left:' + (i / 6) * 100 + '%">' + ((duration * i) / 6).toFixed(1) + 's</i>',
+          '<i style="left:' + (i / 6) * 100 + '%">' + ((duration * i) / 6).toFixed(1) + '초</i>',
       ).join('');
 
       if (previousPhase !== state.phase && state.phase !== 'plan') {
@@ -429,12 +429,14 @@ export function flightTimeline(
         programEvents(state.scheduled ?? plan).map((e) => e.id.replace(':turn', '')),
       );
       const events = programEvents(plan).filter((e) => !e.id.endsWith(':turn')),
-        slots = new Map<number, number>();
+        // A marker is about 3% of the rail wide: nearer neighbours take the next free lane.
+        gap = duration * 0.03,
+        laneEnds: number[] = [];
       el('timeline-markers').innerHTML = events
         .map((e) => {
-          const bucket = Math.round((e.time / duration) * 40),
-            row = slots.get(bucket) ?? 0;
-          slots.set(bucket, row + 1);
+          let row = laneEnds.findIndex((end) => e.time - end >= gap);
+          if (row < 0) row = laneEnds.length;
+          laneEnds[row] = e.time;
           const id = e.id.replace(':turn', ''),
             performed = e.id === 'launch' || state.applied?.has(id),
             applied = performed && e.time <= state.time + 1e-8;
@@ -491,7 +493,7 @@ export function flightTimeline(
             (combinedDirection
               ? '<i class="timeline-direction">' + eventIcon('turn') + '</i>'
               : '') +
-            (row === 0 ? '<span>' + e.time.toFixed(1) + 's</span>' : '') +
+            (row === 0 ? '<span>' + e.time.toFixed(1) + '초</span>' : '') +
             '</button>'
           );
         })
@@ -516,12 +518,12 @@ export function flightTimeline(
       '초';
     el('timeline-mode').textContent =
       state.phase === 'replay'
-        ? '기록 다시보기 · 당시의 계획'
+        ? '다시보기'
         : state.ended
-          ? '비행 종료 · 기록 보관'
+          ? '비행 종료'
           : state.phase === 'flight'
-            ? '비행 중 · 계획 확정됨'
-            : '발사 전 · 예약 설계';
+            ? '비행 중'
+            : '계획';
     setControlButton(
       el('program-toggle'),
       'sliders',
@@ -540,9 +542,7 @@ export function flightTimeline(
       state.ended ? '계획으로 돌아가기' : '현재 비행으로',
     );
     el('replay-exit').className = 'console-button with-label replay-close';
-    el('program-contract').textContent = editable()
-      ? '발사 전에 확정합니다. 비행 중에는 조작을 추가하거나 바꿀 수 없습니다.'
-      : '읽기 전용입니다. 이 비행에서 확정했던 계획입니다.';
+    el('program-contract').textContent = editable() ? '' : '발사했던 계획 · 수정 불가';
     slider.disabled = state.phase === 'flight';
     slider.max = String(duration);
     slider.value = String(cursorTime);
@@ -550,16 +550,11 @@ export function flightTimeline(
     slider.setAttribute('aria-valuetext', cursorTime.toFixed(2) + '초');
     el('replay-toggle').hidden = el('replay-exit').hidden = state.phase !== 'replay';
 
-    el('timeline-explanation').textContent =
-      state.phase === 'plan'
-        ? '픽토그램을 끌어 시각 변경 · 클릭해 조작 편집'
-        : state.phase === 'replay'
-          ? '기록된 구간만 재생 · 흐린 표시는 미실행 예약'
-          : '조작 추가·수정 불가 · 밝은 표시는 실행 완료';
+    el('timeline-explanation').textContent = '';
     const end = el('timeline-recorded-end');
     end.hidden = state.phase !== 'replay';
     end.style.left = Math.min(100, ((state.recordedEnd ?? 0) / duration) * 100) + '%';
-    end.title = '실제 기록 끝 ' + (state.recordedEnd ?? 0).toFixed(2) + '초';
+    end.title = '기록 끝 ' + (state.recordedEnd ?? 0).toFixed(2) + '초';
     planner.sync();
   }
   update();

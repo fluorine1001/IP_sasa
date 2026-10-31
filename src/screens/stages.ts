@@ -32,12 +32,23 @@ export function stagesScreen(app: App): Screen {
         { signal: abort.signal },
       ),
     );
+    // Campaign order across chapters; the result card's "다음 임무" follows it.
+    const order = chapters.flatMap((c) => c.stages.map((s) => ({ stage: s, chapter: c.id })));
+    const open = (index: number) => {
+      const entry = order[index];
+      if (!entry) return;
+      if (entry.chapter !== selected) writeSaved('orbit-chapter-v1', entry.chapter);
+      app.go('play', {
+        stage: entry.stage,
+        next: index + 1 < order.length ? () => open(index + 1) : undefined,
+      });
+    };
     app.root
       .querySelectorAll<HTMLButtonElement>('[data-stage]')
       .forEach((b) =>
         b.addEventListener(
           'click',
-          () => app.go('play', { stage: available.find((s) => s.id === b.dataset.stage)! }),
+          () => open(order.findIndex((o) => o.stage.id === b.dataset.stage)),
           { signal: abort.signal },
         ),
       );

@@ -1,3 +1,4 @@
+import { withUnit } from '../../app/units';
 import { objectiveGoals } from '../../world/goals';
 import { escape } from '../../app/core';
 import type { Condition, Expression } from '../../world/conditions';
@@ -70,20 +71,17 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         ? number(n * 100) + '%'
         : e.kind === 'window' && ['coverage', 'fractionPositive'].includes(e.operation)
           ? number(n * 100) + '%'
-          : number(n) +
-            (e.kind === 'metric' && ['time', 'fuel'].includes(e.metric)
-              ? e.metric === 'time'
-                ? '초'
-                : ' 연료 눈금'
-              : ' 눈금');
+          : e.kind === 'metric' && e.metric === 'time'
+            ? number(n) + '초'
+            : withUnit(number(n), e.kind === 'metric' ? metrics[e.metric]?.unit : 'u');
   function walk(c: Condition): string[] {
     if (c.kind === 'quantify')
       return [
         c.mode === 'all'
-          ? '선택한 대상 집합 모두 충족'
+          ? '선택한 대상 모두'
           : c.mode === 'any'
-            ? '대상 하나 이상 충족'
-            : `대상 ${c.count ?? 1}개 이상 충족`,
+            ? '대상 중 하나 이상'
+            : `대상 ${c.count ?? 1}개 이상`,
         ...walk(c.child),
       ];
     if (c.kind === 'reference') {
@@ -93,7 +91,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
             source.title,
             ...(markerExplanation(stage, source)?.split('\n') ?? walk(source.condition)),
           ]
-        : ['참조 대상 없음'];
+        : [];
     }
     if (c.kind === 'compare') {
       if (
@@ -104,7 +102,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         JSON.stringify(c.left).includes('touchdownNormalSpeed') &&
         JSON.stringify(c.left).includes('touchdownTangentialSpeed')
       )
-        return ['지면 충격과 옆미끄러짐이 착륙 허용 영역 안에 있음'];
+        return ['착륙 속도가 기체 한계 안'];
       if (
         c.left.kind === 'window' &&
         c.left.domain.kind === 'metric' &&
@@ -113,13 +111,13 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         c.right.kind === 'constant'
       ) {
         if (c.left.operation === 'coverage')
-          return [number(c.left.width.value) + '바퀴 전체를 실제로 비행'];
+          return [number(c.left.width.value) + '바퀴 비행'];
         if (c.left.operation === 'fractionPositive')
           return [
             number(c.left.width.value) +
               '바퀴 중 ' +
               Math.round(c.right.value * 100) +
-              '% 이상 표시된 띠 안에서 비행',
+              '% 이상 띠 안에서',
           ];
       }
       if (
@@ -132,8 +130,8 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         return [
           name(c.left.targetId) +
             (['lt', 'lte'].includes(c.operator)
-              ? '에 붙잡힌 비행 상태'
-              : '에서 벗어날 에너지를 가진 상태'),
+              ? '에 붙잡힌 궤도'
+              : '을 벗어나는 속도'),
         ];
       if (
         c.left.kind === 'metric' &&
@@ -156,18 +154,18 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         name(c.targetId) +
           ' · ' +
           {
-            gate: '통과 기록',
-            collision: '접촉 기록',
-            separation: '분리된 상태',
-            burn: '점화 기록',
-            deployment: '장치 작동 기록',
+            gate: '통과',
+            collision: '접촉',
+            separation: '분리',
+            burn: '점화',
+            deployment: '장치 작동',
           }[c.event],
       ];
     if (c.kind === 'capture')
-      return ['통과 순간의 ' + label(c.value) + ' 기록 있음', ...walk(c.when)];
+      return ['통과할 때의 ' + label(c.value), ...walk(c.when)];
     if (c.kind === 'hold') return [number(c.duration) + '초 연속 유지', ...walk(c.child)];
-    if (c.kind === 'once') return walk(c.child).map((s) => s + ' (달성 기록 유지)');
-    if (c.kind === 'not') return walk(c.child).map((s) => '제외 · ' + s);
+    if (c.kind === 'once') return walk(c.child);
+    if (c.kind === 'not') return walk(c.child).map((s) => '아님 · ' + s);
     if (!('children' in c)) return [];
     const used = new Set<Condition>();
     const lines = c.children.flatMap((child) => {
@@ -199,16 +197,14 @@ export function goalExplanation(stage: Stage, node: Condition): string {
                 ' · ' +
                 value(child.left, lower.right.value) +
                 ' ~ ' +
-                value(child.left, upper.right.value) +
-                (lower.operator === 'gt' ? ' (하한 미포함)' : '') +
-                (upper.operator === 'lt' ? ' (상한 미포함)' : ''),
+                value(child.left, upper.right.value),
             ];
         }
       }
       return walk(child);
     });
-    if (c.kind === 'any') return ['다음 조건 중 하나', ...lines];
-    if (c.kind === 'sequence') return ['사건의 발생 순서도 판정에 포함', ...lines];
+    if (c.kind === 'any') return ['다음 중 하나', ...lines];
+    if (c.kind === 'sequence') return ['순서대로', ...lines.map((line, i) => i + 1 + '. ' + line)];
     return lines;
   }
   return [...new Set(walk(node))].join('\n');
@@ -217,35 +213,37 @@ function markerExplanation(stage: Stage, goal: Goal): string | undefined {
   const marker = goal.marker;
   if (!marker || marker.managed === false) return;
   const region = {
-    area: marker.outside ? '지도에 표시한 판정 원 바깥쪽' : '지도에 표시한 판정 원 내부',
-    orbit: '표시한 허용 띠 안에서 기준 대상 주위를 진행 · 매 바퀴 경로는 달라도 됨',
-    velocity: '속도 화살표 끝의 허용 원 안에 드는 상대 속도·방향',
-    surface: '표시한 접촉 지점 안에 착륙 · 지면 기준 충격과 기체 기울기 판정',
-    state: '관측 표식의 표시 구간 안에 드는 물리 상태',
-    passage: '접근→최근접 띠→이탈을 실제로 관측하고 지정된 전후 변화 충족',
+    area: marker.outside ? '표시한 원 바깥' : '표시한 원 안',
+    orbit: '표시한 띠 안에서 기준 천체 주위 돌기',
+    velocity: '속도 화살표 끝의 원 안',
+    surface: '표시한 착륙 지점 안에 착륙',
+    state: '표시한 구간 안',
+    passage: '가까이 지나가며 속도 바꾸기',
   }[marker.kind];
   const time = marker.duration ?? Math.max(0.1, Math.min(3, stage.rules.maxTime * 0.04));
   return [
     region,
     marker.actorIds.length > 1
-      ? `선택한 기체 ${marker.actorIds.length}개 모두 충족`
-      : '선택한 기체가 충족',
+      ? `기체 ${marker.actorIds.length}개 모두`
+      : '',
     marker.span === 'revolution'
-      ? `실제 ${marker.turns ?? 1}바퀴 전체`
+      ? `${marker.turns ?? 1}바퀴`
       : marker.span === 'instant' && marker.kind !== 'surface'
-        ? '한 번 성립한 실제 순간'
+        ? '한 순간이라도'
         : `${time.toFixed(1)}초 연속 유지`,
-    ...(marker.kind === 'orbit' && marker.coast ? ['엔진을 끈 구간만 인정'] : []),
+    ...(marker.kind === 'orbit' && marker.coast ? ['엔진을 끈 상태로'] : []),
     ...(marker.kind === 'surface'
       ? [
           `기울기: 지면 수직에서 ${Math.round(((stage.rules.landingMode === 'precision' ? (marker.tilt ?? Math.PI / 6) : Math.min(Math.PI / 2, (marker.tilt ?? Math.PI / 6) + Math.PI / 12)) * 180) / Math.PI)}° 이내`,
-          '착지 충격계의 수직·옆 방향 속도를 함께 판정',
+          '착륙 속도가 기체 한계 안',
         ]
       : []),
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 export function missionGoalsHtml(stage: Stage) {
-  return `<div class="goal-mode">${controlIcon('target')}<span>${stage.goalMode === 'all' ? '모든 목표 충족' : '목표 하나 충족'}</span></div>${objectiveGoals(
+  return `<div class="goal-mode">${controlIcon('target')}<span>${stage.goalMode === 'all' ? '목표를 모두 달성' : '목표 중 하나 달성'}</span></div>${objectiveGoals(
     stage,
   )
     .map(

@@ -1,5 +1,5 @@
 import type { Stage, Run } from '../../world/types';
-import { bodyPosition } from '../../world/celestial';
+import { bodyPosition, bodyVelocity } from '../../world/celestial';
 import { landingReading, LANDING_EPSILON } from '../../world/landing';
 import { escape } from '../../app/core';
 import { length, sub } from '../../physics/vector';
@@ -29,6 +29,14 @@ export function landingReadout(stage: Stage, run: Run) {
     stage.rocket?.parts[run.rocket?.partIndex ?? 0]?.maxLandingSpeed ?? 0.18,
   );
   const recorded = !!run.landed || !!run.impact;
+  // A climbing craft is not landing: no touchdown verdict until it descends toward the surface.
+  if (!recorded) {
+    const offset = sub(run.position, bodyPosition(stage, b, run.time));
+    const relative = sub(run.velocity, bodyVelocity(stage, b, run.time));
+    const radial =
+      (relative.x * offset.x + relative.y * offset.y) / Math.max(length(offset), 1e-9);
+    if (radial >= 0) return '';
+  }
   const normal =
       (recorded ? (run.touchdownNormalSpeed ?? r.normalSpeed) : r.normalSpeed) / r.bounds.normal,
     tangent =

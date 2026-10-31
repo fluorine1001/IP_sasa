@@ -33,6 +33,23 @@ export type TimelineState = {
 };
 import { eventIcon } from '../../render/program-icons';
 export { eventIcon } from '../../render/program-icons';
+/** Round-number ticks ("5초", "10초") at a spacing that fits about `slots` labels. */
+export function timeTicks(duration: number, slots: number) {
+  const target = duration / Math.max(2, Math.min(8, slots));
+  const step =
+    [0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600].find((s) => s >= target) ??
+    Math.ceil(target / 600) * 600;
+  const ticks: string[] = [];
+  for (let t = 0; t <= duration + 1e-9; t += step) {
+    const value = Math.round(t / step) * step;
+    const label = Number.isInteger(value)
+      ? String(value)
+      : value.toFixed(step < 0.25 ? 1 : 2).replace(/0$/, '');
+    ticks.push(`<i style="left:${(value / duration) * 100}%">${label}초</i>`);
+  }
+  return ticks.join('');
+}
+
 export function flightTimeline(
   root: HTMLElement,
   stage: Stage,
@@ -403,7 +420,10 @@ export function flightTimeline(
       viewports.set(viewportKey, viewDuration);
     }
     const duration = viewDuration;
+    // Tick density follows the drawn width, so phones get fewer, still legible labels.
+    const trackWidth = Math.round((el('timeline-track').clientWidth || 640) / 80);
     const key = JSON.stringify([
+      trackWidth,
       state.phase,
       plan,
       duration,
@@ -414,11 +434,7 @@ export function flightTimeline(
     if (key !== fingerprint) {
       const previousPhase = fingerprint ? JSON.parse(fingerprint)[0] : '';
       fingerprint = key;
-      el('timeline-ticks').innerHTML = Array.from(
-        { length: 7 },
-        (_, i) =>
-          '<i style="left:' + (i / 6) * 100 + '%">' + ((duration * i) / 6).toFixed(1) + '초</i>',
-      ).join('');
+      el('timeline-ticks').innerHTML = timeTicks(duration, trackWidth);
 
       if (previousPhase !== state.phase && state.phase !== 'plan') {
         editorOpen = false;

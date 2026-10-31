@@ -20,6 +20,7 @@ import { preflightChecklist } from './preflight';
 import { saveMedals } from '../../app/records';
 import { goalStatus } from './goal-status';
 import { loadReadout } from './load-readout';
+import { altitude, telemetryHtml } from './telemetry';
 import { tutorialLesson } from '../tutorial/lesson';
 import { missionGoalsHtml } from './goal-guide';
 import { planChanges, singleVariableChange } from '../../world/plan-diff';
@@ -119,8 +120,8 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
   app.root.innerHTML = `<canvas id="world" class="space" tabindex="0" aria-label="궤도 비행 지도"></canvas>
 <header class="mission-panel panel"><div class="badge">${training ? '비행 실습' : args.onReturn ? '제작 시험' : '임무'}</div><h2>${escape(stage.title)}</h2><div id="goals"></div><button id="goal-details" aria-label="목표 조건 확인">${controlIcon('target')}<span>성공 조건</span></button><div id="experiment-summary" hidden></div></header>
 ${training ? '<aside id="training-panel" aria-label="통합 훈련 안내"></aside>' : ''}
-${controlButton('exit', 'close', '임무 나가기', 'mission-exit')}
-<aside class="resources panel"><div id="mode"></div><div id="flight-readouts" class="flight-readouts"></div><div id="initial-output" class="initial-output"></div><label class="resource-row"><span id="fuel-label">연료</span><meter id="fuel" min="0" max="${stage.rules.maneuverBudget}" value="${stage.rules.maneuverBudget}"></meter></label><label id="pad-reading"><span>중력</span><meter id="pad-gravity" min="0" max="1" aria-label="발사대 중력계"></meter></label></aside>
+${controlButton('exit', 'back', '임무 나가기', 'mission-exit with-label')}
+<aside class="resources panel"><div id="mode"></div><div id="flight-readouts" class="flight-readouts"></div><div id="initial-output" class="initial-output"></div><label class="resource-row"><span id="fuel-label">연료</span><output id="fuel-value" class="meter-value"></output><meter id="fuel" min="0" max="${stage.rules.maneuverBudget}" value="${stage.rules.maneuverBudget}"></meter></label><label id="pad-reading" class="resource-row"><span>표면 중력</span><output id="pad-gravity-value" class="meter-value"></output><meter id="pad-gravity" min="0" max="1" aria-label="발사대 중력계"></meter></label></aside>
 <div id="flight-status" class="sr-only" role="status" aria-live="polite"></div>
 <div id="replay-monitor" hidden aria-hidden="true"><div class="monitor-noise"></div><div class="monitor-label">● REC <span id="monitor-time"></span></div></div>
 <footer class="flight-deck panel" aria-label="지상 관제석"><div class="dock-toolbar">
@@ -278,6 +279,13 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   el('dock-phase').append(el('timeline-mode'));
   el('dock-clock').append(el('timeline-clock'));
   app.root.querySelector('.timeline-heading')!.remove();
+  // One toolbar row reads left to right: plan · state | transport | records · launch.
+  // The tool palette sits on the status row under the track, beside the clock. The row
+  // moves into the timeline section so the planner's delegated pointer handlers still see it.
+  app.root.querySelector('.dock-plan-tools')!.append(el('dock-phase'));
+  const statusRow = app.root.querySelector<HTMLElement>('.dock-status')!;
+  el('timeline-palette').before(statusRow);
+  statusRow.prepend(el('timeline-palette'));
   app.root.querySelectorAll<HTMLDetailsElement>('.dock-popup').forEach((popup) => {
     popup.addEventListener(
       'toggle',
@@ -530,13 +538,13 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   function timeComparison() {
     if (!trials.length) return '';
     const pair = trials.length > 1 ? comparedTrials() : [trials[0]];
-    return `<table class="evidence-table"><caption>${replayTime.toFixed(2)}초의 실제 상태</caption><thead><tr><th>발사</th><th>위치 X / Y</th><th>속력</th><th>연료 / 엔진</th></tr></thead><tbody>${pair
+    return `<table class="evidence-table"><caption>${replayTime.toFixed(2)}초의 실제 상태</caption><thead><tr><th>시도</th><th>고도 (u)</th><th>속력 (u/s)</th><th>연료</th><th>엔진</th></tr></thead><tbody>${pair
       .map((t) => {
         if (replayTime > t.duration + 1e-6)
-          return `<tr><th>${t.number}차</th><td colspan="3">기록 종료 · 이 시각의 상태 없음</td></tr>`;
+          return `<tr><th>${t.number}차</th><td colspan="4">기록 종료 · 이 시각의 상태 없음</td></tr>`;
         const frame = replayAt(t.frames, replayTime, t.flightPlan);
         return frame
-          ? `<tr><th>${t.number}차</th><td>${frame.position.x.toFixed(2)} / ${frame.position.y.toFixed(2)}</td><td>${length(frame.velocity).toFixed(3)}</td><td>${frame.rocket ? (frame.rocket.fuel[frame.rocket.partIndex] ?? 0).toFixed(3) + ' / ' + (frame.rocket.throttle > 0 ? '분사' : '꺼짐') : '—'}</td></tr>`
+          ? `<tr><th>${t.number}차</th><td>${(altitude(stage, { position: frame.position, time: replayTime } as Run)?.height ?? 0).toFixed(2)}</td><td>${length(frame.velocity).toFixed(3)}</td><td>${frame.rocket ? Math.round(((frame.rocket.fuel[frame.rocket.partIndex] ?? 0) / Math.max(1e-9, stage.rocket?.parts[frame.rocket.partIndex]?.fuelMass ?? 1)) * 100) + '%' : '—'}</td><td>${frame.rocket ? (frame.rocket.throttle > 0 ? '분사' : '꺼짐') : '—'}</td></tr>`
           : '';
       })
       .join('')}</tbody></table>`;
@@ -639,15 +647,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     el('landing-readout').hidden = !landing;
     if (landing) el('landing-readout').innerHTML = landing;
     el('flight-readouts').innerHTML = displayed
-      ? '<span title="속력">' +
-        controlIcon('speed') +
-        // Slow goals (e.g. 0.006 u/s station keeping) need a third decimal to be readable.
-        length(displayed.velocity).toFixed(length(displayed.velocity) < 1 ? 3 : 2) +
-        ' u/s' +
-        '</span><span title="엔진 출력">' +
-        controlIcon('engine') +
-        Math.round((displayed.rocket?.throttle ?? 0) * 100) +
-        '%</span>'
+      ? telemetryHtml(dynamicView(stage, displayed), displayed)
       : '';
     el('trial-count').textContent = String(trials.length);
     el('launch').hidden = replayIndex >= 0 || (!!run && !ended);
@@ -685,9 +685,11 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       el('goals').innerHTML = objectiveGoals(stage)
         .map(
           (g) =>
-            '<div class="goal-row"><span>' +
-            (replayView?.goals[g.id]?.complete ? '✓' : '◇') +
-            ' ' +
+            '<div class="goal-row ' +
+            (replayView?.goals[g.id]?.complete ? 'done' : '') +
+            '"><span class="goal-name"><i aria-hidden="true">' +
+            (replayView?.goals[g.id]?.complete ? '✓' : '') +
+            '</i>' +
             escape(g.title) +
             '</span><progress max="1" value="' +
             (replayView?.goals[g.id]?.ratio ?? 0) +
@@ -697,7 +699,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       el('experiment-summary').textContent =
         '녹화된 비행 · ' + trials[replayIndex].number + '차 관측';
       el('mode').textContent =
-        trials[replayIndex].number + '차 다시보기 · ' + replayCursor.toFixed(2) + '초';
+        trials[replayIndex].number + '차 다시보기 · T+ ' + replayCursor.toFixed(1) + '초';
       setControl(
         app.root,
         'follow',
@@ -714,7 +716,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       el('pad-reading').hidden = true;
       el('replay-monitor').hidden = false;
       el('monitor-time').textContent =
-        trials[replayIndex].number + ' · ' + replayCursor.toFixed(2) + 's';
+        trials[replayIndex].number + '차 · ' + replayCursor.toFixed(2) + '초';
       (el('pause') as HTMLButtonElement).hidden = true;
       (el('abort') as HTMLButtonElement).hidden = true;
       (el('launch') as HTMLButtonElement).disabled = true;
@@ -725,6 +727,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         meter.max = stage.rocket.parts[state.partIndex]?.fuelMass ?? 1;
         meter.value = state.fuel[state.partIndex] ?? 0;
       }
+      syncMeters();
       el('hint').textContent = '';
       return;
     }
@@ -734,14 +737,15 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     el('note-count').textContent = String(notes.length + (run?.observations.length ?? 0));
     const g = length(gravity(stage, stage.spawn.position, 0));
     (el('pad-gravity') as HTMLMeterElement).value = g / (g + 1);
+    el('pad-gravity-value').textContent = g.toFixed(2) + ' u/s²';
     el('pad-reading').hidden = !!run;
     el('fuel').setAttribute('max', String(stage.rules.maneuverBudget));
     el('mode').textContent =
       ended && run
-        ? `종료 · ${run.time.toFixed(2)}초`
+        ? `비행 종료 · T+ ${run.time.toFixed(1)}초`
         : run
-          ? `${run.probe ? '시험' : '임무'} · ${run.time.toFixed(1)}s${paused ? ' · 정지' : run.time < fastUntil ? ' · 빠른 재비행' : ''}`
-          : '경로 계획 중';
+          ? `${run.probe ? '시험 ' : ''}T+ ${run.time.toFixed(1)}초${paused ? ' · 정지' : run.time < fastUntil ? ' · 빨리 감기' : ''}`
+          : '발사 전';
     (el('fuel') as HTMLMeterElement).value = Math.max(
       0,
       stage.rules.maneuverBudget -
@@ -780,7 +784,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       .map((g) => {
         const p = run?.goals[g.id];
         const status = goalStatus(g, run);
-        return `<div class="goal-row"><span>${p?.complete ? '✓' : '◇'} ${escape(g.title)} · ${escape(status)}</span><progress max="1" value="${p?.ratio ?? 0}"></progress>${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
+        return `<div class="goal-row ${p?.complete ? 'done' : ''}"><span class="goal-name"><i aria-hidden="true">${p?.complete ? '✓' : ''}</i>${escape(g.title)}</span><em class="goal-state" data-state="${escape(status)}">${escape(status)}</em><progress max="1" value="${p?.ratio ?? 0}" aria-label="${escape(g.title)} 진행"></progress>${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
       })
       .join('');
     el('goals')
@@ -811,6 +815,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       };
     setControl(app.root, 'pause', paused ? 'play' : 'pause', paused ? '비행 계속' : '시간 정지');
     setControl(app.root, 'launch', 'rocket', '발사');
+    syncMeters();
     const warnings = programWarnings(stage, plan);
     const errors = warnings.filter((w) => !w.includes('마지막 추진단까지 버립니다'));
     const check = preflightChecklist(stage, plan);
@@ -834,6 +839,12 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       el('hint').textContent = run
         ? '실제 비행 관측을 기록합니다'
         : `${plan.impulses.length + (plan.engineCommands?.length ?? 0)}개 비행 조작 예약 · ${history.length ? '지난 비행의 실제 궤적' : '미래 궤도는 표시되지 않습니다'}`;
+  }
+  /** Bars alone are unreadable: each meter also shows its share as a number. */
+  function syncMeters() {
+    const fuel = el('fuel') as HTMLMeterElement;
+    el('fuel-value').textContent =
+      fuel.max > 0 ? Math.round((Math.max(0, fuel.value) / fuel.max) * 100) + '%' : '—';
   }
   function reset() {
     if (replayIndex >= 0) return;

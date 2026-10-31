@@ -1,0 +1,890 @@
+/* Readability pass over the console theme.
+ * One type scale (13px floor), numbers before bars, labels before icons, and one
+ * place for each kind of information: mission and goals top left, the craft's
+ * numbers top right, time and commands in the dock. Game only. */
+body.game-ui {
+  --fs-xs: 13px;
+  --fs-sm: 14px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-num: 22px;
+  --text-dim: #c9d3cb;
+  --lcd: #c8f2b0;
+  --lcd-bg: #142026;
+  font-size: var(--fs-md);
+}
+
+/* ---------- 13px floor for everything the player reads ---------- */
+.game-ui .timeline-ticks i,
+.game-ui .flight-deck .timeline-event span,
+.game-ui .tool-count,
+.game-ui #preflight,
+.game-ui .dock-status,
+.game-ui .calibration-stats,
+.game-ui .resources label,
+.game-ui .actor-diagram figcaption,
+.game-ui .hardware-deck small,
+.game-ui .landing-instrument label,
+.game-ui .landing-instrument small,
+.game-ui .landing-instrument header small,
+.game-ui .trial-card small,
+.game-ui .goal-row small,
+.game-ui .mission-panel small,
+.game-ui .flight-deck .control-label,
+.game-ui .flight-deck #rate,
+.game-ui #timeline-palette button,
+.game-ui #timeline-placement,
+.game-ui .stage-status,
+.game-ui .chapter-caption small,
+.game-ui .chapter-caption span,
+.game-ui .setting small,
+.game-ui kbd {
+  font-size: var(--fs-xs);
+}
+.game-ui .count-badge {
+  font-size: 12px;
+  min-width: 20px;
+}
+
+/* ---------- Label tapes read as headings, not stickers ---------- */
+.game-ui .mission-panel .badge,
+.game-ui .resources #mode,
+.game-ui .eyebrow {
+  font-size: var(--fs-xs);
+  transform: none;
+}
+
+/* ---------- Mission panel: title, then one line per goal with its state ---------- */
+.game-ui .mission-panel {
+  top: 16px;
+  left: 16px;
+  width: 340px;
+  padding: 14px 16px 16px;
+}
+.game-ui .mission-panel h2 {
+  font-size: 21px;
+  line-height: 1.25;
+  margin: 8px 0 12px;
+}
+.game-ui .mission-panel #goals {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.game-ui .mission-panel .goal-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 10px;
+  margin: 0;
+}
+.game-ui .mission-panel .goal-row .goal-name {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--paper-ink);
+}
+.game-ui .goal-name i {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #fffaf0;
+  color: var(--ink);
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 900;
+}
+.game-ui .goal-row.done .goal-name i {
+  background: var(--ok);
+}
+.game-ui .goal-state {
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  line-height: 1.5;
+  padding: 0 8px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--paper-ink);
+  white-space: nowrap;
+}
+.game-ui .goal-state[data-state='진행 중'],
+.game-ui .goal-state[data-state^='유지'] {
+  background: var(--amber);
+}
+.game-ui .goal-state[data-state='완료'] {
+  background: var(--ok);
+}
+.game-ui .goal-state[data-state='놓침'] {
+  background: var(--fail);
+  color: #fff;
+}
+.game-ui .goal-state[data-state='잠김'] {
+  background: #c9c3ad;
+}
+.game-ui .mission-panel .goal-row progress {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 8px;
+  margin: 0;
+}
+.game-ui .mission-panel .goal-row [data-finish-missed] {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: var(--fs-xs);
+  padding: 4px 10px;
+}
+.game-ui #goal-details {
+  font-size: var(--fs-sm);
+}
+/* The result card takes this corner while it is open; it repeats the goals. */
+.game-ui:has(#result:not([hidden])) .mission-panel {
+  visibility: hidden;
+}
+
+/* ---------- Instruments: large numbers with their names ---------- */
+.game-ui .resources {
+  top: 68px;
+  right: 16px;
+  width: 272px;
+  padding: 14px 14px 12px;
+  font-size: var(--fs-sm);
+}
+.game-ui .resources #mode {
+  font-size: var(--fs-sm);
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.game-ui .flight-readouts:not(:empty),
+.game-ui .calibration-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.game-ui .telemetry-tile {
+  min-width: 0;
+  padding: 6px 9px 7px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: var(--lcd-bg);
+  box-shadow: inset 0 2px 0 #0008;
+}
+.game-ui .flight-readouts .telemetry-tile:nth-child(3):last-child {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.game-ui .telemetry-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.game-ui .telemetry-label small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--fs-xs);
+  color: var(--amber);
+}
+.game-ui .telemetry-value {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--fs-num);
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--lcd);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.game-ui .telemetry-value small {
+  display: inline;
+  margin-left: 3px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.game-ui .calibration-stats span {
+  display: inline;
+}
+.game-ui .calibration-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+.game-ui .calibration-label b {
+  font-size: var(--fs-lg);
+  font-weight: 900;
+}
+.game-ui .resources .power-meter {
+  margin: 4px 0 10px;
+}
+/* Paper copies of the same tiles (plan editor). */
+.game-ui .program-editor .telemetry-tile {
+  background: #fffaf0;
+  box-shadow: none;
+}
+.game-ui .program-editor .telemetry-value {
+  color: var(--paper-ink);
+}
+.game-ui .program-editor .telemetry-label,
+.game-ui .program-editor .telemetry-value small {
+  color: var(--paper-dim);
+}
+.game-ui .resources .resource-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 3px 8px;
+  margin: 0 0 9px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+.game-ui .resources .resource-row[hidden] {
+  display: none;
+}
+.game-ui .resource-row meter {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 12px;
+}
+.game-ui .meter-value {
+  font-size: var(--fs-md);
+  font-weight: 900;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stage stack: one labelled chip per stage, coloured like the rocket. */
+.game-ui .stage-stack {
+  margin: 4px 0 0;
+}
+.game-ui .stack-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.game-ui .stack-chip {
+  flex: 1;
+  padding: 2px 0;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  background: var(--c);
+  color: var(--ink);
+  font-size: var(--fs-xs);
+  font-weight: 900;
+  text-align: center;
+}
+.game-ui .stack-chip.off {
+  background: transparent;
+  border-style: dashed;
+  border-color: #8b9a9b;
+  color: #8b9a9b;
+}
+.game-ui .stack-nose {
+  width: 0;
+  height: 0;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 16px solid var(--paper);
+}
+.game-ui .stack-nose.off {
+  border-left-color: #8b9a9b;
+}
+.game-ui .resources .stage-stack figcaption,
+.game-ui #vehicle-map .stage-stack figcaption,
+.game-ui .stage-stack figcaption {
+  display: block;
+  margin-top: 5px;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  text-align: left;
+}
+.game-ui #command-popover .stage-stack figcaption {
+  color: var(--paper-dim);
+}
+
+/* Preflight list readable at a glance. */
+.game-ui .preflight-list header b,
+.game-ui .preflight-list li b {
+  font-size: var(--fs-sm);
+}
+.game-ui .preflight-list header span {
+  font-size: var(--fs-xs);
+  color: var(--ink);
+}
+.game-ui .preflight-list li span {
+  font-size: var(--fs-xs);
+}
+
+/* Leave the mission: a labelled console button, not an alarm. */
+.game-ui .mission-exit.console-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: auto;
+  height: 40px;
+  padding: 0 12px;
+  gap: 6px;
+  border: 3px solid var(--ink);
+  background-color: var(--slate-1);
+  box-shadow: 0 4px 0 var(--ink);
+  color: var(--text);
+}
+.game-ui .mission-exit.console-button:hover {
+  background-color: var(--slate-hi);
+  color: var(--text);
+}
+.game-ui .mission-exit .control-label {
+  font-size: var(--fs-sm);
+}
+.game-ui .mission-exit.console-button:hover::after {
+  display: none;
+}
+.game-ui .mission-exit svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Dock: state, transport and launch on one row ---------- */
+.game-ui .flight-deck {
+  padding: 10px 14px 8px;
+}
+.game-ui .dock-plan-tools {
+  gap: 10px;
+}
+.game-ui .dock-plan-tools #dock-phase #timeline-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  padding: 3px 11px;
+  color: var(--text);
+}
+.game-ui #timeline-mode::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+.game-ui .flight-deck[data-phase='flight'] #timeline-mode::before {
+  background: var(--ok);
+}
+.game-ui .flight-deck[data-phase='replay'] #timeline-mode::before {
+  background: var(--f-push);
+}
+.game-ui .flight-deck .console-button {
+  width: 40px;
+  height: 40px;
+}
+.game-ui .flight-deck .console-button.with-label,
+.game-ui .flight-deck #program-toggle {
+  width: auto;
+  padding: 0 12px;
+}
+.game-ui .flight-deck .launch-command {
+  height: 42px;
+  min-width: 112px;
+  font-size: 17px;
+}
+.game-ui .flight-deck #rate {
+  width: auto;
+  min-width: 46px;
+  font-size: var(--fs-sm);
+}
+.game-ui .flight-deck .control-label {
+  font-size: var(--fs-sm);
+}
+/* Wide screens have room to name the camera controls. */
+@media (min-width: 1180px) {
+  .game-ui .flight-deck #follow,
+  .game-ui .flight-deck #vehicle {
+    width: auto;
+    padding: 0 11px;
+  }
+  .game-ui .flight-deck #follow .control-label,
+  .game-ui .flight-deck #vehicle .control-label {
+    position: static;
+    overflow: visible;
+    clip: auto;
+    width: auto;
+    height: auto;
+    margin: 0;
+  }
+  .game-ui .flight-deck #follow::after,
+  .game-ui .flight-deck #vehicle::after {
+    display: none;
+  }
+}
+
+/* Track: marker lane, rail, then round-number ticks. */
+.game-ui .timeline-ticks i {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.game-ui .timeline-ticks i:first-child {
+  transform: none;
+}
+.game-ui .timeline-ticks i::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  width: 2px;
+  height: 6px;
+  background: #8b9a9b;
+}
+.game-ui .timeline-ticks i:first-child::before {
+  left: 0;
+}
+
+/* Status row: tools on the left, the clock on the right. */
+.game-ui .flight-deck .dock-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding-top: 7px;
+  min-height: 34px;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+.game-ui .flight-deck .dock-status #timeline-palette {
+  margin: 0;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.game-ui #timeline-palette [data-tool] {
+  height: 36px;
+  padding: 0 10px 0 15px;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+.game-ui #timeline-palette [data-tool] svg {
+  width: 18px;
+  height: 18px;
+}
+.game-ui #timeline-placement {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+  font-weight: 700;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.game-ui #timeline-placement input {
+  width: 72px;
+  height: 34px;
+  font-size: var(--fs-md);
+  font-weight: 800;
+}
+.game-ui #dock-clock,
+.game-ui #timeline-clock {
+  font-size: var(--fs-md);
+  font-weight: 900;
+  color: var(--text);
+}
+
+/* ---------- Result card sits where the mission panel was ---------- */
+body.game-ui #result.result:not([hidden]) {
+  top: 16px;
+  left: 16px;
+  bottom: auto;
+  right: auto;
+  transform: none;
+  width: 380px;
+  max-height: calc(100dvh - var(--deck-offset, 240px) - 24px);
+  padding: 16px 18px;
+}
+.game-ui .result-cause {
+  font-size: var(--fs-md);
+  line-height: 1.45;
+}
+.game-ui .result-goals li {
+  font-size: var(--fs-md);
+}
+.game-ui .result-goals small {
+  display: block;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+.game-ui .result-strip li small,
+.game-ui .result-change,
+.game-ui .medal {
+  font-size: var(--fs-xs);
+}
+.game-ui .result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+.game-ui .result-actions button {
+  margin: 0;
+  align-self: stretch;
+  transform: none;
+  min-height: 44px;
+  font-size: var(--fs-md);
+  white-space: nowrap;
+}
+.game-ui .result-actions button.primary:first-child {
+  grid-column: 1 / -1;
+}
+.game-ui .result-actions button.primary:first-child + button.primary,
+.game-ui .result-actions:has(#result-next) #result-retry {
+  grid-column: auto;
+}
+
+/* Closing a panel is not an alarm either. */
+.game-ui .archive-close {
+  background: var(--slate-hi);
+  color: var(--text);
+}
+.game-ui #command-popover [data-remove] {
+  min-height: 34px;
+  padding: 4px 12px;
+  font-size: var(--fs-sm);
+  background: #f3d8cf;
+  color: #8a2a1c;
+}
+
+/* ---------- Flight log ---------- */
+.game-ui #notebook {
+  font-size: var(--fs-sm);
+}
+.game-ui #notebook .trial-meta span,
+.game-ui #notebook summary,
+.game-ui #notebook caption,
+.game-ui #notebook label {
+  font-size: var(--fs-sm);
+}
+.game-ui .evidence-table {
+  font-size: var(--fs-sm);
+}
+.game-ui .evidence-table th,
+.game-ui .evidence-table td {
+  padding: 6px 8px;
+}
+.game-ui .evidence-table td {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Menus: centred columns and body-size text ---------- */
+.game-ui .help-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 900px;
+}
+.game-ui .help-grid article p,
+.game-ui .control-card {
+  font-size: var(--fs-md);
+  line-height: 1.6;
+}
+.game-ui .help-grid article b,
+.game-ui .help-grid article h2,
+.game-ui .help-grid article h3 {
+  font-size: var(--fs-lg);
+}
+.game-ui .control-card {
+  max-width: 900px;
+}
+.game-ui .setting {
+  font-size: var(--fs-md);
+  padding: 14px 16px;
+}
+.game-ui .setting small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.game-ui .tutorial-card {
+  max-width: 640px;
+  padding: 18px 20px;
+}
+.game-ui .tutorial-card strong {
+  font-size: var(--fs-lg);
+}
+.game-ui .tutorial-drills li {
+  font-size: var(--fs-sm);
+}
+
+/* Campaign board: the selected chapter keeps full contrast. */
+.game-ui .chapter-card.selected .chapter-caption small,
+.game-ui .chapter-card.selected .chapter-caption span {
+  color: var(--text);
+}
+.game-ui .chapter-card .chapter-caption small,
+.game-ui .chapter-card .chapter-caption span {
+  color: var(--text-dim);
+}
+.game-ui .chapter-question {
+  font-size: var(--fs-lg);
+}
+
+/* ---------- Title ---------- */
+.game-ui .title-menu .game-title {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 6px;
+  line-height: 1;
+}
+.game-ui .title-menu .title-count {
+  justify-self: start;
+  padding: 4px 14px 6px;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: var(--fail);
+  color: #fff6e2;
+  font-size: clamp(30px, 3.6vw, 48px);
+  letter-spacing: 0.04em;
+  text-shadow: 2px 3px 0 var(--ink);
+  box-shadow: 0 5px 0 var(--ink);
+  transform: rotate(-2deg);
+}
+.game-ui .title-menu .title-main {
+  color: var(--paper);
+  font-size: clamp(48px, 6vw, 84px);
+  letter-spacing: -0.05em;
+}
+.game-ui .title-menu .title-tagline {
+  margin: 14px 0 26px;
+  color: var(--amber);
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+/* ---------- Narrower screens ---------- */
+@media (max-width: 1000px) {
+  .game-ui .mission-panel {
+    width: 290px;
+  }
+  .game-ui .resources {
+    width: 236px;
+  }
+  .game-ui .flight-deck .dock-status #timeline-palette [data-tool] > span {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  body.game-ui {
+    --fs-num: 18px;
+  }
+  .game-ui .mission-panel {
+    top: 8px;
+    left: 8px;
+    width: 54%;
+    padding: 10px 11px 11px;
+  }
+  .game-ui .mission-panel h2 {
+    font-size: 16px;
+    margin: 0 0 8px;
+  }
+  .game-ui .mission-panel .goal-row .goal-name {
+    font-size: var(--fs-xs);
+  }
+  .game-ui .mission-panel .goal-row .goal-state {
+    display: none;
+  }
+  .game-ui .resources {
+    top: 56px;
+    right: 8px;
+    width: 40%;
+    padding: 8px;
+  }
+  .game-ui .flight-readouts:not(:empty),
+  .game-ui .calibration-stats {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+  .game-ui .telemetry-tile {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 7px;
+  }
+  .game-ui .telemetry-label small {
+    display: none;
+  }
+  /* The ticks already show the length; the plan row needs the width for tools. */
+  .game-ui .flight-deck[data-phase='plan'] #dock-clock {
+    display: none;
+  }
+  .game-ui .mission-exit.console-button {
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    padding: 0;
+  }
+  .game-ui .mission-exit .control-label {
+    display: none;
+  }
+  .game-ui .flight-deck .dock-status {
+    min-height: 0;
+    margin-top: 2px;
+    padding-top: 5px;
+  }
+  .game-ui .flight-deck .dock-status #timeline-palette {
+    gap: 4px;
+  }
+  .game-ui #timeline-palette [data-tool] {
+    padding: 0 6px 0 12px;
+  }
+  .game-ui #timeline-placement input {
+    width: 58px;
+  }
+  .game-ui .flight-deck .launch-command {
+    min-width: 84px;
+  }
+  .game-ui .flight-deck .console-button {
+    width: 36px;
+    height: 36px;
+  }
+  body.game-ui #result.result:not([hidden]) {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: calc(var(--deck-offset, 240px) - 6px);
+    max-height: 62dvh;
+  }
+  .game-ui:has(#result:not([hidden])) .mission-panel {
+    visibility: visible;
+  }
+  .game-ui .help-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Tutorial guide: a paper card with body-size text ---------- */
+.game-ui #training-panel {
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--paper-ink);
+  box-shadow: 0 6px 0 var(--ink);
+}
+.game-ui #training-handle {
+  padding: 9px 14px;
+  border-bottom: 2px solid var(--ink);
+  background: var(--slate-1);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+.game-ui #training-progress {
+  color: var(--amber);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+.game-ui #training-details > summary {
+  padding: 8px 14px 2px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--paper-dim);
+}
+.game-ui #training-current b {
+  font-size: var(--fs-lg);
+  font-weight: 900;
+  color: var(--paper-ink);
+}
+.game-ui #training-current p,
+.game-ui #training-panel .training-scroll p {
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  color: var(--paper-ink);
+}
+.game-ui #training-tasks {
+  font-size: var(--fs-xs);
+  color: var(--paper-dim);
+}
+.game-ui #training-tasks .complete {
+  color: #2f7a3a;
+  font-weight: 800;
+}
+.game-ui #training-panel button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 0 3px 0 var(--ink);
+  background: #fffaf0;
+  color: var(--paper-ink);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+.game-ui #training-panel #training-next {
+  background: var(--amber);
+}
+.game-ui #training-handle button {
+  min-height: 30px;
+  padding: 2px 8px;
+  background: var(--slate-hi);
+  color: var(--text);
+}
+.game-ui #training-panel .training-checklist summary,
+.game-ui #training-panel .training-more summary {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--paper-ink);
+}
+.game-ui #training-panel .training-scroll {
+  background: #fffaf0;
+  border: 2px solid var(--paper-2);
+}
+.game-ui #training-panel .training-scroll-cue {
+  background: linear-gradient(transparent, #fffaf0);
+  color: var(--amber-deep);
+}
+.game-ui #training-panel .training-checklist button.complete {
+  color: #2f7a3a !important;
+}
+.game-ui #training-panel .training-checklist button[aria-current='true'] {
+  border-color: var(--amber-deep) !important;
+  background: #fbe6b8;
+}
+.game-ui #training-finish {
+  color: #2f7a3a;
+  font-size: var(--fs-sm);
+}
+.game-ui .resources #vehicle-map {
+  margin-bottom: 4px;
+}
+.game-ui .flight-deck #program-toggle .control-label {
+  font-size: var(--fs-sm);
+}
+.game-ui .result-goals small b {
+  color: #a8301d;
+}
+.game-ui .result #result-moment {
+  margin-top: 0;
+}
+.game-ui #notebook [data-close-ledger] {
+  background: var(--slate-hi);
+  color: var(--text);
+}

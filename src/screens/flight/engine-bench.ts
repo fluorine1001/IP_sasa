@@ -1,3 +1,4 @@
+import { STAGE_COLORS } from '../../render/rocket-sprite';
 import type { Stage, RoutePlan } from '../../world/types';
 import { escape } from '../../app/core';
 import { launchFraction } from '../../world/program';
@@ -36,9 +37,18 @@ export function engineBench(stage: Stage, plan: RoutePlan, commandId = 'launch')
 
 export function actorDiagram(stage: Stage, actorId: string, firstPart = 0) {
   if (!stage.rocket)
-    return '<figure class="actor-diagram"><svg viewBox="0 0 130 52" role="img" aria-label="본체 하나"><rect x="25" y="13" width="64" height="24" rx="4" fill="#d8b879"/><path d="M89 13l22 12-22 12z" fill="#d8b879"/></svg><figcaption>본체</figcaption></figure>';
+    return '<figure class="actor-diagram stage-stack" role="img" aria-label="본체 하나"><div class="stack-row"><span class="stack-chip on" style="--c:#d8b879">본체</span><span class="stack-nose on"></span></div><figcaption>본체</figcaption></figure>';
   const parts = stage.rocket.parts;
-  return `<figure class="actor-diagram"><svg viewBox="0 0 ${55 + parts.length * 50} 52" role="img" aria-label="${actorId === 'craft' ? '본체' : '분리된 단'}">${parts.map((p, i) => `<rect x="${25 + i * 50}" y="13" width="44" height="24" rx="4" fill="${(actorId === 'craft' && i >= firstPart) || actorId === p.id ? '#d8b879' : '#29424b'}" stroke="#a8bfb2"/><text x="${47 + i * 50}" y="30" text-anchor="middle" fill="#102530">${i + 1}</text>`).join('')}<path d="M${25 + parts.length * 50} 13l22 12-22 12z" fill="${actorId === 'craft' ? '#d8b879' : '#29424b'}"/></svg><figcaption>${actorId === 'craft' ? '본체' : escape(parts.find((p) => p.id === actorId)?.name ?? '분리된 단')}</figcaption></figure>`;
+  const craft = actorId === 'craft';
+  // Stage chips in flight order, coloured like the rocket art; dropped stages fade out.
+  const chips = parts
+    .map((p, i) => {
+      const on = (craft && i >= firstPart) || actorId === p.id;
+      return `<span class="stack-chip ${on ? 'on' : 'off'}" style="--c:${STAGE_COLORS[i % 3]}" title="${escape(p.name)}">${i + 1}단</span>`;
+    })
+    .join('');
+  const name = craft ? '본체' : escape(parts.find((p) => p.id === actorId)?.name ?? '분리된 단');
+  return `<figure class="actor-diagram stage-stack" role="img" aria-label="${craft ? '본체' : '분리된 단'}"><div class="stack-row">${chips}<span class="stack-nose ${craft ? 'on' : 'off'}"></span></div><figcaption>${name}${craft && firstPart > 0 ? ` · ${firstPart}단 분리됨` : ''}</figcaption></figure>`;
 }
 
 /** Same up/right axes as the world map, not a second rotated coordinate convention. */

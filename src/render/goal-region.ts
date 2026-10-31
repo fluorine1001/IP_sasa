@@ -8,9 +8,10 @@ export function paintGoalRegion(
   complete: boolean,
 ) {
   ctx.save();
-  ctx.fillStyle = complete ? '#98d2aa16' : '#e5c8780d';
-  ctx.strokeStyle = '#d8cf7788';
-  ctx.lineWidth = 2;
+  // Goal yellow, clearly distinct from the blue atmosphere haze.
+  ctx.fillStyle = complete ? '#6fbf7322' : '#f2cf4a12';
+  ctx.strokeStyle = complete ? '#6fbf73dd' : '#f2cf4ae6';
+  ctx.lineWidth = 2.5;
   if (max > min) {
     ctx.beginPath();
     ctx.arc(x, y, max, 0, Math.PI * 2);

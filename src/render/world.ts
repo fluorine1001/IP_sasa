@@ -252,11 +252,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.arc(3, 6, r + 4, 0, 7);
     ctx.fill();
     if (b.atmosphere) {
-      ctx.strokeStyle = '#90b9bd33';
-      ctx.lineWidth = Math.min(40, b.atmosphere.height * c.zoom);
+      // Thinning haze: densest at the ground, gone at the top of the atmosphere.
+      const top = (b.radius + b.atmosphere.height) * c.zoom;
+      const haze = ctx.createRadialGradient(0, 0, r, 0, 0, top);
+      haze.addColorStop(0, '#7fb7d44d');
+      haze.addColorStop(0.55, '#7fb7d41f');
+      haze.addColorStop(1, '#7fb7d400');
+      ctx.fillStyle = haze;
       ctx.beginPath();
-      ctx.arc(0, 0, (b.radius + b.atmosphere.height * 0.5) * c.zoom, 0, 7);
-      ctx.stroke();
+      ctx.arc(0, 0, top, 0, 7);
+      ctx.fill();
     }
     ctx.fillStyle = b.kind === 'black-hole' ? '#060a13' : b.color;
     ctx.strokeStyle = '#091823';
@@ -476,9 +481,32 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       }
     }
     if (selected && s.run && !s.run.impact && !s.run.landed && (s.run.rocket?.airborne ?? true)) {
-      ctx.strokeStyle = '#9fd5b755';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(-4, -r - 6, size + 8, r * 2 + 12);
+      // Corner brackets mark the tracked craft without boxing in the art.
+      const x0 = -5,
+        x1 = size + 5,
+        y0 = -r - 5,
+        y1 = r + 5,
+        k = Math.min(6, (x1 - x0) / 3);
+      ctx.beginPath();
+      for (const [x, dx] of [
+        [x0, k],
+        [x1, -k],
+      ] as const)
+        for (const [y, dy] of [
+          [y0, 4],
+          [y1, -4],
+        ] as const) {
+          ctx.moveTo(x + dx, y);
+          ctx.lineTo(x, y);
+          ctx.lineTo(x, y + dy);
+        }
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#0d171c';
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#f2b54a';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
     }
     ctx.restore();
   };

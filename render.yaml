@@ -16,8 +16,5 @@ services:
         generateValue: true
       - key: STAGE_SEED_BUNDLED
         value: '1'
-      # The desktop app's Electron binary is not needed on the server build.
-      - key: ELECTRON_SKIP_BINARY_DOWNLOAD
-        value: '1'
       - key: STAGE_ALLOWED_ORIGINS
         value: 'http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5187,http://localhost:5187'

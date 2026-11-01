@@ -1,7 +1,6 @@
 import { landingBounds } from '../../world/landing';
 import { objectiveGoals } from '../../world/goals';
 import { planChanges } from '../../world/plan-diff';
-import { programEvents } from '../../world/program';
 import { escape } from '../../app/core';
 import { withUnit } from '../../app/units';
 import { metrics } from '../../world/metrics';
@@ -45,15 +44,6 @@ function stamp(run: Run): { text: string; tone: 'good' | 'bad' | 'neutral' } {
   return { text: '비행 종료', tone: 'neutral' };
 }
 
-const EVENT_WORD: Record<string, string> = {
-  ignite: '점화',
-  stop: '엔진 정지',
-  turn: '회전',
-  separate: '단 분리',
-  push: '추진',
-  deploy: '위성 분리',
-};
-
 /** Observations from an already finished flight, not a forecast. */
 export function resultSummary(
   stage: Stage,
@@ -62,7 +52,6 @@ export function resultSummary(
   options: { hasNext?: boolean } = {},
 ) {
   const seal = stamp(run);
-  const contactTime = run.impact ? run.time - run.impact.age : run.time;
 
   // Goals the flight did not reach lead with how close it came.
   const goalRows = objectiveGoals(stage).map((g) => {
@@ -99,27 +88,6 @@ export function resultSummary(
     measure = `<div class="result-measure"><span>${isHeat ? '기체 열' : '누적 공기힘'}</span><b>${value.toFixed(2)}<small> / 한계 ${limit.toFixed(2)}</small></b><meter min="0" max="1.5" low="0.99" high="1" optimum="0" value="${Math.min(1.5, value / limit)}"></meter></div>`;
   }
 
-  // Flight strip: launch, the commands that actually ran, then the ending.
-  const ran = programEvents(run.initialPlan ?? run.plan)
-    .filter((e) => e.id === 'launch' || run.applied.has(e.id.replace(':turn', '')))
-    .filter((e) => e.time <= contactTime + 1e-9);
-  const steps = [
-    { word: '발사', time: 0 },
-    ...ran
-      .filter((e) => e.id !== 'launch')
-      .map((e) => ({ word: EVENT_WORD[e.kind] ?? e.label, time: e.time })),
-  ];
-  const shown =
-    steps.length > 5 ? [...steps.slice(0, 2), { word: '…', time: NaN }, ...steps.slice(-2)] : steps;
-  const strip = `<ol class="result-strip">${shown
-    .map(
-      (s) =>
-        `<li><span>${escape(s.word)}</span>${Number.isFinite(s.time) ? `<small>${s.time.toFixed(1)}초</small>` : ''}</li>`,
-    )
-    .join(
-      '',
-    )}<li class="end ${seal.tone}"><span>${escape(seal.text)}</span><small>${contactTime.toFixed(1)}초</small></li></ol>`;
-
   const medals = flightMedals(stage, run);
   const medalRow =
     run.status === 'won'
@@ -136,8 +104,9 @@ export function resultSummary(
       : '';
 
   const changes = previous ? planChanges(previous, run.initialPlan ?? run.plan) : [];
+  // On a retry, what changed since the last flight; nothing to say on the first.
   const change = !previous
-    ? '첫 비행'
+    ? ''
     : changes.length === 0
       ? '직전과 같은 계획'
       : changes.length === 1
@@ -151,5 +120,5 @@ export function resultSummary(
   // A flight stopped by hand has nothing to analyse: stamp and actions only.
   if (run.status === 'aborted')
     return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${actions}`;
-  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${strip}<p class="result-change">${escape(change)}</p>${actions}`;
+  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${change ? `<p class="result-change">${escape(change)}</p>` : ''}${actions}`;
 }

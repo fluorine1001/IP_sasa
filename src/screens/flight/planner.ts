@@ -484,7 +484,9 @@ export function timelinePlanner(
     [
       ...(stage.rocket ? ['ignite', 'stop', 'turn'] : []),
       ...((stage.rocket?.parts.length ?? 0) > 1 ? ['separate'] : []),
-      ...(stage.rules.maneuverBudget > 0 && stage.rules.commandLimits?.push !== 0 ? ['push'] : []),
+      ...(!stage.rocket && stage.rules.maneuverBudget > 0 && stage.rules.commandLimits?.push !== 0
+        ? ['push']
+        : []),
       ...(stage.rocket?.payloads?.length ? ['deploy'] : []),
     ]
       .map(

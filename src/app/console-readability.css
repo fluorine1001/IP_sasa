@@ -652,23 +652,23 @@ body.game-ui #result.result:not([hidden]) {
   margin: 0;
   line-height: 1;
 }
-.game-ui .title-menu .title-kicker {
-  justify-self: start;
-  padding: 3px 10px 4px;
-  border: 2px solid var(--ink);
-  border-radius: 5px;
-  background: var(--amber);
-  color: var(--ink);
-  font-size: var(--fs-md);
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-shadow: none;
-  box-shadow: 0 3px 0 var(--ink);
-  transform: rotate(-2deg);
+.game-ui .title-menu .game-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 14px;
+}
+.game-ui .title-menu .title-hang {
+  color: #9aa8a8;
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 2px 3px 0 var(--ink);
+  white-space: nowrap;
 }
 .game-ui .title-menu .title-main {
   color: var(--paper);
-  font-size: clamp(64px, 8vw, 112px);
+  font-size: clamp(76px, 9vw, 128px);
   letter-spacing: -0.06em;
   text-shadow:
     -2px -2px 0 var(--ink),

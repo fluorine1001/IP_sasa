@@ -166,3 +166,61 @@ body.game-ui .stage-medals i {
 body.game-ui .stage-medals i.on {
   color: var(--ink);
 }
+
+/* ---------- Less on screen ----------
+ * Anything that repeats what another element already says, or says nothing
+ * until something happens, is hidden until it has news. */
+
+/* The mission title names the panel; the tape above it added nothing. */
+body.game-ui .mission-panel > .badge {
+  display: none;
+}
+/* Goal chips speak only when the state is news: missed, locked, or holding. */
+body.game-ui .goal-state[data-state='시작 전'],
+body.game-ui .goal-state[data-state='진행 중'],
+body.game-ui .goal-state[data-state='완료'] {
+  display: none;
+}
+/* Before launch every goal bar is empty. */
+body.game-ui [data-phase='plan'] .mission-panel .goal-row progress {
+  display: none;
+}
+/* Phase and clock already show in the dock and on the playhead. */
+body.game-ui .resources #mode {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* The percentage is the reading; a bar under it repeated it. Lift-off is in
+ * thrust-to-weight, so the separate surface-gravity gauge goes too. */
+body.game-ui .resources .power-meter,
+body.game-ui .resources #pad-reading {
+  display: none;
+}
+/* Mission board: the medals already say which results are earned, and the
+ * big chapter number already says which chapter. */
+body.game-ui .mission-route .stage-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+body.game-ui .chapter-card .chapter-caption > small:first-child {
+  display: none;
+}
+/* The page title says where you are; the tape above it repeated it. */
+body.game-ui .campaign-header .eyebrow {
+  display: none;
+}
+@media (max-width: 650px) {
+  /* Keep stage calls clear of the instrument panel. */
+  body.game-ui .callout {
+    top: 34%;
+  }
+}

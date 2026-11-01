@@ -1,19 +1,24 @@
-# Makes a downloadable game file: Actions tab → "Release game file" → Run workflow,
-# type a version such as 1.0. The release page then offers apollo.html, which
-# opens in any browser by double-click, without internet or installation.
-name: Release game file
+# Builds the 아폴로 desktop app for Windows, macOS and Linux and publishes them
+# on a release page: Actions tab → "Release app" → Run workflow → version (e.g. 1.0).
+# Players download one file; nothing else is installed and no internet is needed to play.
+name: Release app
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: '버전 (예: 1.0)'
+        description: '버전 (예: 1.0.0)'
         required: true
 permissions:
   contents: write
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,14 +26,56 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run build:offline
-      - run: cp dist/play.html apollo.html
+      - name: Set the app version
+        shell: bash
+        run: npm version "${{ inputs.version }}" --no-git-tag-version --allow-same-version
+      - name: Check the app opens and reaches a workshop server
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run check:app
+      - name: Check the app opens and reaches a workshop server
+        if: runner.os != 'Linux'
+        run: npm run check:app
+      - name: Build the app
+        run: npm run app:package
+        env:
+          # Unsigned build; signing needs paid certificates (see RUNNING.md).
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+          if-no-files-found: error
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: |
-          gh release create "v$VERSION" apollo.html \
+          gh release create "v$VERSION" files/* \
+            --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "아폴로 $VERSION" \
-            --notes "apollo.html을 내려받아 더블클릭하면 브라우저에서 바로 실행됩니다. 설치나 인터넷 연결이 필요 없습니다."
+            --notes-file - <<'NOTES'
+          ## 받을 파일
+
+          | 컴퓨터 | 파일 | 하는 일 |
+          | --- | --- | --- |
+          | Windows | `Apollo-Setup-…exe` | 더블클릭하면 설치되고 바로 열립니다. 바탕화면·시작 메뉴에 **아폴로** 아이콘이 생깁니다. 관리자 권한이 필요 없습니다. |
+          | Windows (설치 없이) | `Apollo-Portable-…exe` | USB나 다운로드 폴더에서 그대로 더블클릭해 실행합니다. |
+          | Mac | `Apollo-…-mac.dmg` | 열어서 Apollo를 응용 프로그램 폴더로 끌어 놓습니다. |
+          | Linux | `Apollo-…-linux.AppImage` | 실행 권한을 주고 더블클릭합니다. |
+
+          처음 실행할 때 서명되지 않은 앱이라는 경고가 나올 수 있습니다. Windows: **추가 정보 → 실행**. Mac: 앱을 **오른쪽 클릭 → 열기**.
+
+          게임은 인터넷 없이 실행됩니다. 스테이지 제작소(메뉴 → 스테이지 제작소, Ctrl+E)는 인터넷이 연결되면 공유 서버를 씁니다.
+          NOTES

@@ -7,7 +7,7 @@ if ! command -v node >/dev/null 2>&1; then
   read -r _
   exit 1
 fi
-node scripts/launch.mjs play "$@"
+node scripts/launch.mjs app "$@"
 status=$?
 if [ $status -ne 0 ]; then
   echo "실행하지 못했습니다. 위의 메시지를 확인하세요. (Enter를 누르면 닫습니다)"

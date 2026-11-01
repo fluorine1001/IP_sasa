@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { spawn, execFile } from 'node:child_process';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -133,10 +134,11 @@ function open(target) {
 }
 
 export const MIN_NODE = 24;
-const MODES = ['play', 'dev', 'editor', 'share', 'doctor'];
+const MODES = ['app', 'play', 'dev', 'editor', 'share', 'doctor'];
 const USAGE =
-  '사용법: node scripts/launch.mjs <play|dev|editor|share|doctor> [--no-open]\n' +
-  '  play    빌드한 게임 파일(dist/play.html)을 엽니다. 서버가 필요 없습니다.\n' +
+  '사용법: node scripts/launch.mjs <app|play|dev|editor|share|doctor> [--no-open]\n' +
+  '  app     아폴로 앱을 엽니다 (게임 + 메뉴의 스테이지 제작소).\n' +
+  '  play    한 파일짜리 게임(dist/play.html)을 브라우저로 엽니다.\n' +
   '  dev     코드를 고치면 바로 반영되는 개발 서버로 게임을 엽니다.\n' +
   '  editor  스테이지 제작소를 엽니다. 창을 닫지 마세요.\n' +
   '  share   편집 키가 있는 공유 제작소 서버를 시작합니다.\n' +
@@ -215,14 +217,14 @@ export const psQuote = (text) => "'" + String(text).replace(/'/g, "''") + "'";
  * Best effort: any failure leaves the launch itself untouched.
  */
 async function desktopShortcut(mode) {
-  if (process.platform !== 'win32' || process.env.CI || !['play', 'editor'].includes(mode)) return;
+  if (process.platform !== 'win32' || process.env.CI || !['app', 'editor'].includes(mode)) return;
   const name = mode === 'editor' ? '아폴로 제작소' : '아폴로';
   const script =
     "$d = [Environment]::GetFolderPath('Desktop'); " +
     `$p = Join-Path $d ${psQuote(name + '.lnk')}; ` +
     'if (-not (Test-Path -LiteralPath $p)) { ' +
     '$s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); ' +
-    `$s.TargetPath = ${psQuote(path.join(root, mode + '.cmd'))}; ` +
+    `$s.TargetPath = ${psQuote(path.join(root, (mode === 'app' ? 'play' : mode) + '.cmd'))}; ` +
     `$s.WorkingDirectory = ${psQuote(root)}; ` +
     '$s.Save(); Write-Output created }';
   await new Promise((resolve) =>
@@ -241,6 +243,47 @@ async function desktopShortcut(mode) {
   );
 }
 
+/** Builds the app's pages only when sources changed, then opens the app window. */
+async function desktopApp(noOpen) {
+  const stamp = path.join(root, 'dist-workshop/.app-cache.json');
+  const extra = await Promise.all(
+    ['editor.html', 'vite.workshop.config.ts'].map((name) => readFile(path.join(root, name))),
+  );
+  const inputs = sha(Buffer.concat([Buffer.from(await sourceFingerprint(root)), ...extra]));
+  if ((await json(stamp))?.inputs !== inputs) {
+    console.log('앱 화면을 준비합니다 (처음 또는 코드가 바뀐 경우)...');
+    process.env.VITE_CONFIG_NATIVE_IGNORE_WARNING ??= 'true';
+    const { build } = await import('vite');
+    await build({
+      root,
+      configFile: path.join(root, 'vite.workshop.config.ts'),
+      logLevel: 'warn',
+    });
+    await writeFile(stamp, JSON.stringify({ inputs }));
+  } else console.log('바뀐 파일이 없어 준비된 화면을 씁니다.');
+  if (noOpen) return;
+  const require = createRequire(import.meta.url);
+  let electron;
+  try {
+    electron = require('electron');
+  } catch {
+    // The Electron package installs its program in a second step that some npm setups skip.
+    console.log('앱 실행 파일을 내려받습니다 (한 번만, 인터넷 필요)...');
+    await run(process.execPath, [path.join(root, 'node_modules/electron/install.js')]);
+    delete require.cache[require.resolve('electron')];
+    electron = require('electron');
+  }
+  // The window outlives this console: closing the launcher window does not close the game.
+  const child = spawn(electron, [root], {
+    cwd: root,
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: false,
+  });
+  child.unref();
+  console.log('아폴로를 열었습니다.');
+}
+
 async function launch(mode, noOpen) {
   if (!MODES.includes(mode)) throw new Error(USAGE);
   if (mode === 'doctor') return doctor();
@@ -248,6 +291,7 @@ async function launch(mode, noOpen) {
   if (problem) throw new Error(problem);
   await dependencies();
   if (!noOpen) await desktopShortcut(mode);
+  if (mode === 'app') return desktopApp(noOpen);
   if (mode === 'play') {
     const { buildOffline } = await import('./build-offline.mjs');
     const file = await cachedOffline(root, buildOffline);

@@ -8,7 +8,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-node scripts/launch.mjs play
+node scripts/launch.mjs app
 if errorlevel 1 (
   echo Launch failed. See the message above.
   pause

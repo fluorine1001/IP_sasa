@@ -10,7 +10,7 @@
 
 공통 world/physics/stages·탐색/저장/빌드 코어는 위 세 사람의 개별 화면 작업과 구분해 계약 담당이 정비합니다. UI 담당이 core 결함을 화면 우회로 감추거나 스테이지 담당이 성공 조건을 느슨하게 해 해결하지 않습니다. title.ts처럼 겹치는 파일은 도움말 내용과 메뉴 배치 작업의 순서를 먼저 합의합니다.
 
-src/main.ts, app/core.ts, style.css, world/types.ts, world/hull.ts, package/lockfile, Vite/CI는 공용입니다. 계약 변경은 작은 선행 PR로 조율한 뒤 기능 PR을 진행합니다. 튜토리얼/설정 내용 수정과 새 스테이지 추가는 공용 파일을 바꿀 필요가 없습니다.
+src/main.ts, app/core.ts, style.css, world/types.ts, world/hull.ts, package/lockfile, Vite/CI, 데스크톱 앱(desktop/, package.json의 build 설정)은 공용입니다. 앱 연결 방식을 바꾸면 `npm run check:app`(Linux는 `xvfb-run -a npm run check:app`)으로 확인합니다. 계약 변경은 작은 선행 PR로 조율한 뒤 기능 PR을 진행합니다. 튜토리얼/설정 내용 수정과 새 스테이지 추가는 공용 파일을 바꿀 필요가 없습니다.
 
 check:boundaries는 튜토리얼/설정의 다른 화면·물리 직접 의존성과 모델의 UI 의존성을 검사합니다. 담당이 겹친 변경은 PR 순서를 조율해야 합니다.
 

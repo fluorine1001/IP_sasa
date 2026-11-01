@@ -1,0 +1,34 @@
+# Makes a downloadable game file: Actions tab → "Release game file" → Run workflow,
+# type a version such as 1.0. The release page then offers apollo.html, which
+# opens in any browser by double-click, without internet or installation.
+name: Release game file
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '버전 (예: 1.0)'
+        required: true
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build:offline
+      - run: cp dist/play.html apollo.html
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "v$VERSION" apollo.html \
+            --target "$GITHUB_SHA" \
+            --title "아폴로 $VERSION" \
+            --notes "apollo.html을 내려받아 더블클릭하면 브라우저에서 바로 실행됩니다. 설치나 인터넷 연결이 필요 없습니다."

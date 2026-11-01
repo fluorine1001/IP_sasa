@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sha = (data) => createHash('sha256').update(data).digest('hex');
@@ -206,12 +206,48 @@ async function devServer(mode, noOpen) {
   process.once('SIGTERM', stop);
 }
 
+/** PowerShell single-quoted string literal. */
+export const psQuote = (text) => "'" + String(text).replace(/'/g, "''") + "'";
+
+/**
+ * Windows only, first launch: put "아폴로" (or "아폴로 제작소") on the desktop so the
+ * next start is one double-click without opening the project folder again.
+ * Best effort: any failure leaves the launch itself untouched.
+ */
+async function desktopShortcut(mode) {
+  if (process.platform !== 'win32' || process.env.CI || !['play', 'editor'].includes(mode)) return;
+  const name = mode === 'editor' ? '아폴로 제작소' : '아폴로';
+  const script =
+    "$d = [Environment]::GetFolderPath('Desktop'); " +
+    `$p = Join-Path $d ${psQuote(name + '.lnk')}; ` +
+    'if (-not (Test-Path -LiteralPath $p)) { ' +
+    '$s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); ' +
+    `$s.TargetPath = ${psQuote(path.join(root, mode + '.cmd'))}; ` +
+    `$s.WorkingDirectory = ${psQuote(root)}; ` +
+    '$s.Save(); Write-Output created }';
+  await new Promise((resolve) =>
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      { timeout: 15000, windowsHide: true },
+      (error, stdout) => {
+        if (!error && String(stdout).includes('created'))
+          console.log(
+            `바탕화면에 '${name}' 바로가기를 만들었습니다. 다음부터는 그것을 더블클릭하세요.`,
+          );
+        resolve();
+      },
+    ),
+  );
+}
+
 async function launch(mode, noOpen) {
   if (!MODES.includes(mode)) throw new Error(USAGE);
   if (mode === 'doctor') return doctor();
   const problem = nodeProblem();
   if (problem) throw new Error(problem);
   await dependencies();
+  if (!noOpen) await desktopShortcut(mode);
   if (mode === 'play') {
     const { buildOffline } = await import('./build-offline.mjs');
     const file = await cachedOffline(root, buildOffline);

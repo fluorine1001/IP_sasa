@@ -6,10 +6,25 @@
 
 ## 1. 설치 없이 공개 버전 이용
 
-| 목적          | 주소                                                             | 필요한 권한                  |
-| ------------- | ---------------------------------------------------------------- | ---------------------------- |
-| 게임 플레이   | [공개 게임](https://ip-sasa-workshop.onrender.com/)              | 편집 키 불필요               |
-| 스테이지 제작 | [공개 제작소](https://ip-sasa-workshop.onrender.com/editor.html) | 서버 관리자가 전달한 편집 키 |
+| 목적                          | 주소                                                                                   | 필요한 것                    |
+| ----------------------------- | -------------------------------------------------------------------------------------- | ---------------------------- |
+| 게임 플레이 (최신 main)       | [아폴로 플레이](https://fluorine1001.github.io/IP_sasa/)                               | 없음                         |
+| 게임 파일 내려받기 (오프라인) | [최신 릴리스](https://github.com/fluorine1001/IP_sasa/releases/latest)의 `apollo.html` | 없음. 내려받아 더블클릭      |
+| 게임 플레이 (배포 서버)       | [공개 게임](https://ip-sasa-workshop.onrender.com/)                                    | 없음                         |
+| 스테이지 제작                 | [공개 제작소](https://ip-sasa-workshop.onrender.com/editor.html)                       | 서버 관리자가 전달한 편집 키 |
+| 코드 작업 (설치 없이)         | [Codespaces](https://codespaces.new/fluorine1001/IP_sasa)                              | GitHub 계정                  |
+
+플레이 페이지와 내려받은 파일도 연결되면 공개 서버의 최신 공개 스테이지를 불러오고, 연결이 안 되면 파일에 들어 있는 스테이지로 플레이합니다.
+
+### 관리자 한 번만 설정
+
+저장소 관리자가 한 번만 하면 됩니다.
+
+1. GitHub 저장소 **Settings → Pages → Build and deployment → Source**를 **GitHub Actions**로 바꿉니다. 이후 `main`에 push될 때마다 플레이 페이지가 자동으로 갱신됩니다. 다른 브랜치를 올리려면 **Actions → Publish game page → Run workflow**에서 브랜치를 고릅니다.
+2. 오프라인 게임 파일은 **Actions → Release game file → Run workflow**에서 버전(예: 1.0)을 넣어 만듭니다. 릴리스 페이지에 `apollo.html`이 붙습니다.
+3. Codespaces는 설정이 필요 없습니다. 개인 계정은 매달 무료 사용 시간이 있습니다.
+
+Codespaces 안의 제작소는 로컬 파일 저장 대신 **공개 서버 + 편집 키**로 저장하는 것을 권장합니다. 로컬 저장은 안전을 위해 `127.0.0.1`에서 직접 연 탭만 허용하므로 Codespaces 주소에서는 거절될 수 있습니다.
 
 공개 제작소에서 접속 화면이 나오면 편집 키를 입력합니다. 키는 비밀번호처럼 취급하고 Git·JSON·대화·스크린샷에 넣지 않습니다. 키는 탭 메모리에만 보관되므로 새 탭이나 새로고침 후 다시 입력할 수 있습니다.
 
@@ -31,7 +46,7 @@
 
 ### 게임만 플레이할 때
 
-**play.cmd를 더블클릭하세요.** macOS는 `play.command`, 터미널에서는 `npm start`가 같은 일을 합니다.
+**play.cmd를 더블클릭하세요.** 폴더는 GitHub Desktop의 **Repository → Show in Explorer**로 열 수 있습니다. 처음 한 번 실행하면 바탕화면에 `아폴로` 바로가기가 생기니 다음부터는 그것을 더블클릭합니다. macOS는 `play.command`, 터미널에서는 `npm start`가 같은 일을 합니다.
 
 - 필요한 의존성을 준비하고 오프라인 게임을 빌드한 후 브라우저로 엽니다.
 - 실행 후 개발 서버나 터미널을 계속 켜 둘 필요가 없습니다.
@@ -44,7 +59,7 @@
 
 ### 로컬 제작소에서 작업할 때
 
-**editor.cmd를 더블클릭하세요.** macOS는 `editor.command`, 터미널에서는 `npm run editor`가 같은 일을 합니다.
+**editor.cmd를 더블클릭하세요.** 처음 한 번 실행하면 바탕화면에 `아폴로 제작소` 바로가기가 생깁니다. macOS는 `editor.command`, 터미널에서는 `npm run editor`가 같은 일을 합니다.
 
 - 로컬 개발 서버를 시작하고 독립된 editor.html을 엽니다.
 - 기본 포트가 사용 중이면 다음 빈 포트를 선택합니다. **실행 창에 출력된 실제 주소**를 확인하세요.

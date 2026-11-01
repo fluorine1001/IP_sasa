@@ -4,9 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const { sourceFingerprint, cachedOffline, lockedTreeMatches, nodeProblem, MIN_NODE } = await import(
-  pathToFileURL(path.resolve('scripts/launch.mjs')).href
-);
+const { sourceFingerprint, cachedOffline, lockedTreeMatches, nodeProblem, MIN_NODE, psQuote } =
+  await import(pathToFileURL(path.resolve('scripts/launch.mjs')).href);
 
 async function fixture(run: (root: string) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), 'orbit-launcher-'));
@@ -105,4 +104,9 @@ test('실행기는 지원하지 않는 Node.js 버전에서 설치 방법을 알
   expect(message).toContain('Node.js ' + MIN_NODE + ' 이상');
   expect(message).toContain('22.11.0');
   expect(message).toContain('nodejs.org');
+});
+
+test('바로가기 경로는 작은따옴표·한글이 있어도 PowerShell 문자열 하나로 전달된다', () => {
+  expect(psQuote("C:\\Users\\O'Neil\\문서\\IP_sasa")).toBe("'C:\\Users\\O''Neil\\문서\\IP_sasa'");
+  expect(psQuote('아폴로.lnk')).toBe("'아폴로.lnk'");
 });

@@ -1,0 +1,24 @@
+{
+  // GitHub → Code → Codespaces → "Create codespace": the game and the stage
+  // workshop run in the browser with nothing installed on your computer.
+  "name": "아폴로",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-24",
+  "postCreateCommand": "npm ci",
+  "postAttachCommand": {
+    "game": "npm run dev -- --port 5173 --strictPort"
+  },
+  "containerEnv": {
+    // Vite only answers known host names; Codespaces serves it under app.github.dev.
+    "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS": ".app.github.dev"
+  },
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "아폴로 (게임 /, 제작소 /editor.html)", "onAutoForward": "openBrowser" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["esbenp.prettier-vscode", "editorconfig.editorconfig", "vitest.explorer"]
+    },
+    "codespaces": { "openFiles": ["README.md"] }
+  }
+}

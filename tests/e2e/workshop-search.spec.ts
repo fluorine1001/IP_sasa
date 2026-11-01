@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { blankStage } from '../../src/stages/factory';
 import { readdirSync } from 'node:fs';
 
-test('독립 제작소는 편집만으로 자동 비행을 시작하지 않고 직접 시험과 보관함을 제공한다', async ({
+test('독립 제작소는 편집만으로 자동 비행을 시작하지 않고 직접 시험·보관함·요청형 풀이 탐색을 제공한다', async ({
   page,
 }) => {
   const stage = blankStage();
@@ -20,7 +20,9 @@ test('독립 제작소는 편집만으로 자동 비행을 시작하지 않고 �
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/editor.html');
-  await expect(page.locator('#solution-search')).toHaveCount(0);
+  // The solution-search panel is back (in development) but only runs on request.
+  await expect(page.locator('#solution-search')).toHaveCount(1);
+  await expect(page.locator('#search-auto')).not.toBeChecked();
   await expect(page.locator('#test-stage')).toBeEnabled();
   await page.locator('#stage-properties').click();
   await page.locator('[data-field="title"]').fill('직접 제작');

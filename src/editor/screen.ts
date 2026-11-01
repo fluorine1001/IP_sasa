@@ -33,6 +33,7 @@ import { compileIntent, refreshMissionIntents, type MissionIntent } from '../sta
 import { missionBuilder } from './mission-builder';
 import { physicalDesignIssues, orbitInitialState, asteroidBelt } from './physical-design';
 import { stageLibrary } from './library';
+import { solutionSearchPanel } from './search-panel';
 import { compileOutcome, type Outcome } from '../stages/outcomes';
 import { syncOutcomeFields } from './outcome-inspector';
 import { readOutcome } from './outcome-values';
@@ -277,6 +278,16 @@ export function editorScreen(app: App): Screen {
     };
   }
   void library.track(model.stage);
+  // Solution-set search (in development): inverse search over the drafted stage.
+  const search = solutionSearchPanel(
+    app.root,
+    signal,
+    () => model.stage,
+    (next, preserveSearch) => {
+      if (next) model.change(() => Object.assign(model.stage, next));
+      changed(!preserveSearch);
+    },
+  );
   const mission = missionBuilder(
     app.root,
     () => model.stage,
@@ -384,7 +395,7 @@ export function editorScreen(app: App): Screen {
       }),
     );
   let graphLinks = links();
-  function changed(_refreshReview = true) {
+  function changed(refreshSearch = true) {
     selectionCycle.reset();
     graphLinks = links();
     syncLaunch(model.stage);
@@ -397,6 +408,7 @@ export function editorScreen(app: App): Screen {
     persist();
     drawInspector();
     scheduleAudit();
+    if (refreshSearch) search.refresh();
   }
   function test(plan?: Stage['referencePlans'][number]) {
     const errors = issues(model.stage);
@@ -1380,6 +1392,7 @@ export function editorScreen(app: App): Screen {
         showPlacement();
         changed();
       } else if (e.button === 0) {
+        search.leaveReplay();
         const hits = pickStack(model.stage, p, camera.zoom);
         const screenStart = coords(e);
         const tap = e.shiftKey
@@ -1788,20 +1801,26 @@ export function editorScreen(app: App): Screen {
       if (keys.has('KeyD') && !keys.has('ControlLeft')) camera.x += (dt * 260) / camera.zoom;
       if (keys.has('KeyW')) camera.y += (dt * 260) / camera.zoom;
       if (keys.has('KeyS') && !keys.has('ControlLeft')) camera.y -= (dt * 260) / camera.zoom;
-      const foreground = new Set(model.selection);
+      const playbackRun = search.frame(dt);
+      const foreground = new Set(playbackRun ? [] : model.selection);
       // A supported rocket and its pad remain one visible attachment while its body moves.
       if (model.stage.launchBodyId && model.stage.bodies.some((b) => foreground.has(b.id)))
         foreground.add('spawn');
       const { w, h } = drawWorld(canvas, {
-        stage: model.stage,
+        stage: search.stage,
         camera,
+        run: playbackRun,
+        replay: !!playbackRun,
+        history: search.history,
+        histories: search.histories,
+        selectedHistory: true,
         grid: true,
         selected: model.selection,
         hideMarkerHandles: true,
         layer: foreground.size ? { kind: 'except', ids: foreground } : undefined,
       });
       const ctx = canvas.getContext('2d')!;
-      {
+      if (!playbackRun) {
         ctx.strokeStyle = '#89b4ab66';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([3, 5]);
@@ -1839,7 +1858,7 @@ export function editorScreen(app: App): Screen {
           hideMarkerHandles: true,
           layer: { kind: 'only', ids: foreground },
         });
-      {
+      if (!playbackRun) {
         for (const goal of model.stage.goals.filter((g) => model.selection.has(g.id))) {
           paintAuthoringFeedback(ctx, model.stage, goal, camera, w, h);
           diamond(goal);

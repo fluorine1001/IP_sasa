@@ -14,7 +14,8 @@ test('직접 플레이 기록은 제작소 왕복·새로고침에도 유지되�
       localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(stage));
   }, mission.stage);
   await page.goto('/editor.html');
-  await expect(page.locator('#solution-search')).toHaveCount(0);
+  // Solution search is present (in development) but never runs by itself.
+  await expect(page.locator('#search-auto')).not.toBeChecked();
   await page.locator('#audit').evaluate((node) => node.setAttribute('data-retained-test', 'yes'));
   await page.locator('#test-stage').click();
   await expect(page.locator('.mission-panel .badge')).toHaveText('직접 플레이');

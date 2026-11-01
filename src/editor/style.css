@@ -1488,3 +1488,13 @@
     grid-row: 5;
   }
 }
+
+/* Solution search (in development) keeps the old review strip's height until it
+ * has results, so the map does not shrink just because the panel exists. */
+.editor .editor-search {
+  max-height: 104px;
+}
+.editor .editor-search:has(#search-families:not(:empty)),
+.editor .editor-search:has(details[open]) {
+  max-height: 38dvh;
+}

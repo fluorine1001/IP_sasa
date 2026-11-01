@@ -32,7 +32,8 @@ export function solutionSearchPanel(
     result: SearchReport | undefined,
     history: Run['trail'] = [];
   const playback = representativeReplay(root, getStage, signal);
-  let enabled = true,
+  // Searches start from the 탐색 button; '변경 후 자동' is opt-in, so editing never launches flights.
+  let enabled = false,
     continuous = true,
     paused = false,
     budgetValue = 8192,

@@ -14,7 +14,7 @@ export function settingsScreen(app: App): Screen {
       ([id, text, hint]) =>
         `<label class="setting"><span>${text}<small>${hint}</small></span><input id="${id}" type="checkbox" ${s[id] ? 'checked' : ''}></label>`,
     )
-    .join('')}<button id="back" class="primary">기지로 돌아가기</button></main>`;
+    .join('')}<button id="back" class="primary">← 처음 화면</button></main>`;
   app.root.addEventListener(
     'input',
     () => {

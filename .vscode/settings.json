@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "search.exclude": {
+    "dist": true,
+    "dist-workshop": true,
+    "test-results": true,
+    "playwright-report": true
+  }
+}

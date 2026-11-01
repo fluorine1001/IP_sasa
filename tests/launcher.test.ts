@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const { sourceFingerprint, cachedOffline, lockedTreeMatches } = await import(
+const { sourceFingerprint, cachedOffline, lockedTreeMatches, nodeProblem, MIN_NODE } = await import(
   pathToFileURL(path.resolve('scripts/launch.mjs')).href
 );
 
@@ -96,4 +96,13 @@ test('현재 HTML은 재사용하고 Pull 후 변경·손상·누락은 다시 �
     expect(builds).toBe(4);
     expect(await readFile(file, 'utf8')).toBe('<html>4</html>');
   });
+});
+
+test('실행기는 지원하지 않는 Node.js 버전에서 설치 방법을 알려 주고 지원 버전은 통과시킨다', () => {
+  expect(nodeProblem(MIN_NODE + '.0.0')).toBeUndefined();
+  expect(nodeProblem(MIN_NODE + 3 + '.1.0')).toBeUndefined();
+  const message = nodeProblem('22.11.0');
+  expect(message).toContain('Node.js ' + MIN_NODE + ' 이상');
+  expect(message).toContain('22.11.0');
+  expect(message).toContain('nodejs.org');
 });

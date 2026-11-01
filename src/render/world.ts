@@ -162,7 +162,8 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
               x: p.x + Math.cos((d * Math.PI) / 180) * edge,
               y: p.y + Math.sin((d * Math.PI) / 180) * edge,
             }))
-            .find((q) => q.x > 60 && q.x < w - 60 && q.y > 40 && q.y < h * 0.62)
+            // Clear of the corner buttons along the top edge.
+            .find((q) => q.x > 60 && q.x < w - 60 && q.y > 90 && q.y < h * 0.62)
         : undefined;
     if (spot) {
       ctx.font = LABEL_FONT;

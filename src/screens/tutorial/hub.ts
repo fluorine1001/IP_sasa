@@ -21,7 +21,7 @@ export function tutorialsScreen(app: App): Screen {
         (stage) =>
           `<button class="tutorial-card ${completed.has(stage.id) ? 'done' : ''}" data-stage="${stage.id}"><strong>${escape(stage.title)}</strong><ol class="tutorial-drills">${drills}</ol><small>${completed.has(stage.id) ? '수료 · 다시 연습' : '훈련 시작 ▶'}</small>${completed.has(stage.id) ? '<span class="tutorial-stamp">수료</span>' : ''}</button>`,
       )
-      .join('')}</div><button id="back">기지로 돌아가기</button></main>`;
+      .join('')}</div><button id="back">← 처음 화면</button></main>`;
     controls(app.root, { back: () => app.go('title') }, abort.signal);
     app.root.querySelectorAll<HTMLButtonElement>('[data-stage]').forEach((button) =>
       button.addEventListener(

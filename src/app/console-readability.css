@@ -658,14 +658,6 @@ body.game-ui #result.result:not([hidden]) {
   align-items: baseline;
   column-gap: 14px;
 }
-.game-ui .title-menu .title-hang {
-  color: #9aa8a8;
-  font-size: clamp(26px, 3vw, 40px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  text-shadow: 2px 3px 0 var(--ink);
-  white-space: nowrap;
-}
 .game-ui .title-menu .title-main {
   color: var(--paper);
   font-size: clamp(76px, 9vw, 128px);

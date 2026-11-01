@@ -1,5 +1,5 @@
 {
-  "name": "orbit-evidence",
+  "name": "apollo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,10 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "start": "node scripts/launch.mjs play",
+    "start:dev": "node scripts/launch.mjs dev",
+    "editor": "node scripts/launch.mjs editor",
+    "doctor": "node scripts/launch.mjs doctor",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build && node scripts/build-offline.mjs",
     "build:offline": "tsc --noEmit && node scripts/build-offline.mjs",
@@ -17,11 +21,12 @@
     "check": "tsc --noEmit",
     "format": "prettier --write src tests data docs scripts .github *.json *.html *.md *.ts",
     "format:check": "prettier --check src tests data docs scripts .github *.json *.html *.md *.ts",
-    "verify": "npm run check && npm run check:boundaries && npm test && npm run audit:stages && npm run build && npm run format:check",
+    "verify": "npm run check && npm run check:boundaries && npm test && npm run audit:stages && npm run build && npm run format:check && npm run check:hosted",
     "audit:stages": "node scripts/audit-stages.mjs",
     "workshop": "node scripts/serve-workshop.mjs",
     "workshop:lan": "node scripts/serve-workshop.mjs --lan",
-    "check:boundaries": "node scripts/check-boundaries.mjs"
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:hosted": "node scripts/check-hosted.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.9",

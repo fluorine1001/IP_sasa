@@ -224,3 +224,27 @@ body.game-ui .campaign-header .eyebrow {
     top: 34%;
   }
 }
+
+/* ---------- Any device ---------- */
+/* One visible focus ring for keyboard users, everywhere in the game. */
+body.game-ui :focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+/* Fingers need bigger chips than a mouse pointer. */
+@media (pointer: coarse) and (min-width: 651px) {
+  body.game-ui .flight-deck #flight-timeline {
+    --lane-h: 34px;
+    --chip-h: 30px;
+  }
+}
+/* Narrow panels: checklist count goes under its item instead of squeezing it. */
+@media (max-width: 1000px) {
+  body.game-ui .resources .preflight-list li {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+  body.game-ui .resources .preflight-list li b {
+    grid-column: 2;
+    font-weight: 700;
+  }
+}

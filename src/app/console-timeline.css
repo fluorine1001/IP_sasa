@@ -348,8 +348,8 @@ body.game-ui .flight-deck #flight-timeline .compact-chips .timeline-event .chip-
 @media (max-width: 650px) {
   body.game-ui .flight-deck #flight-timeline {
     --ruler: 20px;
-    --lane-h: 27px;
-    --chip-h: 24px;
+    --lane-h: 30px;
+    --chip-h: 27px;
     --band-h: 18px;
   }
   body.game-ui .flight-deck #flight-timeline .timeline-track {

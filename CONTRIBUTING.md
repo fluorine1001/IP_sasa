@@ -20,7 +20,7 @@ check:boundaries는 튜토리얼/설정의 다른 화면·물리 직접 의존�
 2. Issue에 역할·파일·UUID·원하는 결과·완료 기준을 적습니다.
 3. 개인 브랜치를 만듭니다. stage/<이름>, ui/<기능>, guide/<기능>. Codex 작업은 codex/ 접두사입니다. 현재 공개 배포 브랜치는 codex/free-workshop-deployment이며 push가 자동 배포를 유발할 수 있습니다.
 4. 담당 파일을 수정하고 관련 화면을 직접 확인합니다.
-5. npm run format, npm run verify, npm run test:e2e를 실행합니다.
+5. npm run format, npm run verify, npm run test:e2e를 실행합니다. verify는 온라인 제작소 서버와 같은 방식의 빌드·실행 검사(check:hosted)까지 포함합니다. 무엇이 안 되는지 모르겠으면 npm run doctor를 먼저 실행합니다.
 6. Changes에서 생성물/불필요한 파일을 제외하고 commit, Publish branch 또는 Push origin으로 자기 브랜치에 올립니다.
 7. PR에 결과·공용 계약·검증·화면을 적고 담당자 리뷰 후 병합합니다.
 
@@ -32,7 +32,7 @@ check:boundaries는 튜토리얼/설정의 다른 화면·물리 직접 의존�
 - 초안은 published:false입니다. 테스트 파일을 불필요하게 공개하지 않습니다.
 - 초안과 마지막 공개본은 별개입니다. 로컬 파일 모드에서 공개한 data/releases/<UUID>.json도 편집본과 함께 commit합니다. 공개 해제는 JSON null입니다. .stage-workshop의 개인 이력만으로 공개 상태를 공유하지 않습니다.
 - 서버 DB 저장과 Git 공유는 별개입니다. 공개 서버 저장만 하고 로컬 JSON도 바뀌었다고 가정하지 않습니다. 파일 모드·서버 모드·브라우저 보관함을 구분합니다.
-- 화면 CSS는 자신의 폴더에 제한하고 이벤트/타이머는 dispose에서 정리합니다.
+- 게임 테마 CSS의 적용 순서와 위치는 [UI 스타일 구조](docs/ui-styles.md)를 따릅니다. 화면 CSS는 자신의 폴더에 제한하고 이벤트/타이머는 dispose에서 정리합니다.
 - 로켓 아트 변경은 hull 치수와 함께 리뷰합니다. 식별 괄호/방향 표시는 물리 몸체가 아니며 가독성을 이유로 충돌 치수를 몰래 바꾸지 않습니다.
 
 강제 push나 타인의 기록 재작성은 하지 않습니다. main 보호 규칙·실제 리뷰어는 GitHub 관리자가 설정해야 하며 CI만으로 활성화되지 않습니다. 가짜 CODEOWNERS 계정을 만들지 않습니다.

@@ -820,6 +820,13 @@
   color: #5a695b;
 }
 
+.hardware-deck svg {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  margin-right: 3px;
+}
+
 .timeline-legend {
   display: flex;
   gap: 12px;

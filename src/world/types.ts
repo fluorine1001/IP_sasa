@@ -66,6 +66,8 @@ export type RoutePlan = {
 };
 export type Stage = {
   version: 2;
+  /** Presentation metadata; never changes physical goals or completion UUIDs. */
+  chapter?: { id: string; title: string; order: number };
   track?: 'campaign' | 'tutorial';
   tutorial?: {
     lesson: number;
@@ -93,6 +95,9 @@ export type Stage = {
     /** Incomplete editor drafts only. Absent means placed. */ placed?: boolean;
   };
   rules: {
+    /** SI G. GM remains the stored acceleration parameter for legacy documents. */
+    gravitationalConstant?: number;
+    landingMode?: 'standard' | 'precision';
     surfaceClearance?: number;
     launchLimit: number;
     maneuverBudget: number;
@@ -106,7 +111,8 @@ export type Stage = {
     >;
     worldRadius: number;
     sensorSlots: number;
-    attempts: number;
+    /** Read-only legacy field, removed on import. Flights have no attempt limit. */
+    attempts?: number;
   };
   camera: { x: number; y: number; zoom: number };
   referencePlans: RoutePlan[];
@@ -115,6 +121,19 @@ export type Stage = {
 export type GoalProgress = {
   complete: boolean;
   ratio: number;
+  completedAt?: number;
+  closest?: Record<
+    string,
+    {
+      metric: string;
+      targetId: string;
+      operator: string;
+      target: number;
+      value: number;
+      time: number;
+      distance: number;
+    }
+  >;
   conditionMemory?: ConditionMemory;
   checkpoints?: Record<string, { value: number; time: number }>;
   windows?: Record<string, WindowMemory>;
@@ -130,6 +149,7 @@ export type Observation = {
   text: string;
 };
 export type Run = {
+  peakLoad?: number;
   evidence: import('./evidence').EvidenceState;
   time: number;
   position: Vec;
@@ -139,7 +159,13 @@ export type Run = {
   reason: string;
   probe: boolean;
   applied: Set<string>;
-  trail: { position: Vec; time: number; velocity: Vec; targets?: Record<string, Vec> }[];
+  trail: {
+    position: Vec;
+    time: number;
+    velocity: Vec;
+    targets?: Record<string, Vec>;
+    load?: number;
+  }[];
   observations: Observation[];
   sampled: Set<string>;
   goals: Record<string, GoalProgress>;
@@ -155,6 +181,8 @@ export type Run = {
   objects?: Record<string, import('./dynamics.ts').BodyState>;
   landed?: { bodyId: string; angle: number };
   touchdownSpeed?: number;
+  touchdownNormalSpeed?: number;
+  touchdownTangentialSpeed?: number;
   touchdownTilt?: number;
   impact?: import('./impact').Impact;
   buoys: { id: string; kind: DeviceKind; position: Vec; velocity: Vec; lastSample: number }[];

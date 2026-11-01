@@ -1,12 +1,21 @@
 {
-  "name": "orbit-evidence",
+  "name": "apollo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "아폴로: 계획대로만 나는 로켓으로 푸는 2D 우주 퍼즐",
+  "author": "IP_sasa",
+  "main": "desktop/main.mjs",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
+    "start": "node scripts/launch.mjs app",
+    "app": "node scripts/launch.mjs app",
+    "app:package": "vite build --config vite.workshop.config.ts --logLevel warn && electron-builder --publish never",
+    "start:dev": "node scripts/launch.mjs dev",
+    "editor": "node scripts/launch.mjs editor",
+    "doctor": "node scripts/launch.mjs doctor",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build && node scripts/build-offline.mjs",
     "build:offline": "tsc --noEmit && node scripts/build-offline.mjs",
@@ -17,17 +26,21 @@
     "check": "tsc --noEmit",
     "format": "prettier --write src tests data docs scripts .github *.json *.html *.md *.ts",
     "format:check": "prettier --check src tests data docs scripts .github *.json *.html *.md *.ts",
-    "verify": "npm run check && npm run check:boundaries && npm test && npm run audit:stages && npm run build && npm run format:check",
+    "verify": "npm run check && npm run check:boundaries && npm test && npm run audit:stages && npm run build && npm run format:check && npm run check:hosted",
     "audit:stages": "node scripts/audit-stages.mjs",
     "workshop": "node scripts/serve-workshop.mjs",
     "workshop:lan": "node scripts/serve-workshop.mjs --lan",
-    "check:boundaries": "node scripts/check-boundaries.mjs"
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:hosted": "node scripts/check-hosted.mjs",
+    "check:app": "vite build --config vite.workshop.config.ts --logLevel warn && node scripts/check-app.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.9",
     "@playwright/test": "1.64.0",
     "@types/node": "26.6.4",
     "@types/pg": "8.23.1",
+    "electron": "44.8.0",
+    "electron-builder": "26.17.0",
     "prettier": "3.9.9",
     "typescript": "7.0.2",
     "vite": "8.3.3",
@@ -35,5 +48,70 @@
   },
   "dependencies": {
     "pg": "8.23.1"
+  },
+  "build": {
+    "appId": "kr.hs.sasa.apollo",
+    "productName": "Apollo",
+    "copyright": "IP_sasa",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "dist-workshop/**/*",
+      "src/stages/server-config.json",
+      "package.json",
+      "!**/node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "desktop/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "아폴로",
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "artifactName": "Apollo-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Apollo-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "desktop/icon.png",
+      "category": "public.app-category.games",
+      "artifactName": "Apollo-${version}-mac.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "desktop/icon.png",
+      "category": "Game",
+      "artifactName": "Apollo-${version}-linux.${ext}"
+    }
   }
 }

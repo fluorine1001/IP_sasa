@@ -6,7 +6,6 @@ for (const width of [390, 1440]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/editor.html');
-    await page.locator('#search-auto').uncheck();
     await page.getByRole('button', { name: '스테이지 파일', exact: true }).scrollIntoViewIfNeeded();
     const toolbar = page.locator('.editor-top');
     const scene = await page.locator('#editor-world').boundingBox();

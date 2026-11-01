@@ -5,7 +5,7 @@ test('전체화면 진입과 해제에 따라 메뉴 이름도 갱신된다', as
   await expect(page.locator('#fullscreen')).toContainText('전체 화면 해제');
   await expect(page.locator('#fullscreen')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#fullscreen').click();
-  await expect(page.locator('#fullscreen')).toHaveText('전체 화면 ⛶');
+  await expect(page.locator('#fullscreen')).toHaveText('전체 화면');
 });
 async function tutorial(page: import('@playwright/test').Page) {
   await page.goto('/');
@@ -109,7 +109,7 @@ test('예약 삭제는 표식 위 팝업에 있고 출력·방향은 그림으�
   expect((await page.locator('.engine-bench svg').boundingBox())!.height).toBeGreaterThan(80);
   await page.locator('[data-edit="output"]').fill('25');
   await expect(page.locator('.engine-bench')).toHaveAttribute('data-throttle', '0.25');
-  await expect(page.locator('#command-popover .actor-diagram')).toContainText('남아 있는 로켓');
+  await expect(page.locator('#command-popover .actor-diagram')).toContainText('본체');
   await page.locator('[data-close]').click();
   await page.locator('[data-tool="turn"]').click();
   expect((await page.locator('.direction-dial svg').boundingBox())!.width).toBeGreaterThan(150);

@@ -6,6 +6,8 @@ import { conditionBuilder } from './condition-builder.ts';
 import { escape } from '../app/core.ts';
 import type { Stage } from '../world/types';
 import { isFlightObject } from './moving-objects';
+import { bodyMassKg, gravitationalConstant } from '../world/gravity-units';
+import { chapterOf, defaultChapters } from '../stages/chapters';
 function payloadFields(stage: Stage) {
   if (!stage.rocket) return '';
   return `<details><summary>추진 단·탑재 위성 · ${stage.rocket.payloads?.length ?? 0}개</summary><button id="add-rocket-part">추진 단 추가</button>${stage.rocket.parts.map((p, i) => `<button data-remove-rocket-part="${i}" ${stage.rocket!.parts.length === 1 ? 'disabled' : ''}>${escape(p.name)} 제거</button>`).join('')}<button id="add-payload">탑재 위성 추가</button>${(
@@ -67,7 +69,10 @@ export function setPath(object: unknown, path: string, value: unknown) {
   if (value === undefined) delete target[key];
   else target[key] = value;
 }
-export function inspector(model: EditorModel): string {
+export function inspector(
+  model: EditorModel,
+  chapters = defaultChapters.map((c) => ({ id: c.id, title: c.title, order: c.order })),
+): string {
   const stage = model.stage,
     id = [...model.selection][0],
     entity = model.entity(id),
@@ -113,11 +118,6 @@ export function inspector(model: EditorModel): string {
         ),
       ),
       number('rules.worldRadius', '탐사 범위 반지름'),
-      number('rules.attempts', '임무 발사 횟수'),
-      number('audit.timeLimit', '자동 검사 시간 (초 · 빈칸은 초기 임무 표시 길이)'),
-      number('audit.samples', '설계 검사 표본 수'),
-      number('audit.maxPassRate', '넓은 범위의 표본 성공 비율 경고 기준'),
-      number('audit.seed', '검사 난수 시드'),
     ];
   else if (id === 'spawn')
     fields = [
@@ -229,7 +229,7 @@ export function inspector(model: EditorModel): string {
   };
   const rocketHtml =
     !entity || id === 'spawn'
-      ? `<details><summary>로켓 추진·단 분리</summary><button id="toggle-rocket" ${stage.rocket ? 'disabled' : ''}>${stage.rocket ? '연료·추력 모델 사용 중' : '실제 연료를 쓰는 3단 로켓 구성'}</button>${stage.rocket ? fieldHtml(number('rocket.payloadMass', '본체·어댑터 질량 (독립 위성 제외)'), stage) + stage.rocket.parts.map((part, i) => `<details><summary>${escape(part.name)}</summary>${[{ path: `rocket.parts.${i}.name`, label: '이름', type: 'text' as const }, ...(['dryMass', 'fuelMass', 'thrust', 'exhaustSpeed', 'area', 'maxQ', 'maxHeat', 'ignitionLimit', 'maxLandingSpeed', 'turnRate'] as const).map((key, j) => number(`rocket.parts.${i}.${key}`, ['빈 단 질량', '연료 질량', '최대 추력', '배기 속력', '항력 면적 (CdA)', '대기 동압 한계', '가열 한계', '재점화 한도', '회수 최대 접촉 속력', '회전 속도 (rad/초)'][j]))].map((f) => fieldHtml(f, stage)).join('')}</details>`).join('') : ''}</details>`
+      ? `<details class="rocket-config" ${id === 'spawn' ? 'open' : ''}><summary>로켓 추진·단 분리</summary>${stage.rocket ? fieldHtml(number('rocket.payloadMass', '본체·어댑터 질량'), stage) + stage.rocket.parts.map((part, i) => `<details class="rocket-part" ${i === 0 ? 'open' : ''}><summary><span class="part-swatch" aria-hidden="true">${i + 1}</span>${escape(part.name)}<small>연료 ${part.fuelMass}</small></summary>${[{ path: `rocket.parts.${i}.name`, label: '이름', type: 'text' as const }, number(`rocket.parts.${i}.fuelMass`, '연료 총량'), number(`rocket.parts.${i}.thrust`, '최대 추력')].map((f) => fieldHtml(f, stage)).join('')}<details><summary>질량·엔진·회수 상세</summary>${(['dryMass', 'exhaustSpeed', 'area', 'maxQ', 'maxHeat', 'ignitionLimit', 'maxLandingSpeed', 'turnRate'] as const).map((key, j) => fieldHtml(number(`rocket.parts.${i}.${key}`, ['빈 단 질량', '배기 속력', '항력 면적 (CdA)', '대기 동압 한계', '가열 한계', '재점화 한도', '착지 충격 기준', '회전 속도 (rad/초)'][j]), stage)).join('')}</details></details>`).join('') : '<button id="toggle-rocket">연료를 쓰는 로켓 추가</button>'}</details>`
       : '';
   const motionHtml = isFlightObject(entity)
     ? `<section class="body-motion"><h3>비행 물체 운동</h3><select id="object-motion-mode" aria-label="물체 운동 방식"><option value="fixed" ${!entity.dynamic && !entity.motion ? 'selected' : ''}>고정 위치</option><option value="gravity" ${entity.dynamic ? 'selected' : ''}>중력 비행 · 천체 중력을 받음</option><option value="prescribed" ${entity.motion ? 'selected' : ''}>지정 원운동 · 그린 궤도 고정</option></select><small>위치·속도·궤도 표식의 판정 대상으로 이 물체를 선택할 수 있습니다.</small></section>`
@@ -249,9 +249,10 @@ export function inspector(model: EditorModel): string {
     `<details><summary>${title}</summary>${renderFields(list)}</details>`;
   let html = motionHtml;
   if (!entity && id !== 'spawn') {
+    const chapter = chapterOf(stage);
+    html += `<section class="inspector-section"><h3>캠페인 배치</h3><label>챕터<select id="campaign-chapter"><option value="auto" ${!stage.chapter ? 'selected' : ''}>기존 순서로 자동 분류</option>${chapters.map((c) => `<option value="${escape(c.id)}" ${stage.chapter?.id === c.id ? 'selected' : ''}>${escape(c.title)}</option>`).join('')}<option value="custom" >＋ 새 챕터</option></select></label>${stage.chapter ? `<label>챕터 이름<input data-field="chapter.title" value="${escape(chapter.title)}" maxlength="80"></label><label>챕터 순서<input type="number" data-field="chapter.order" value="${chapter.order}" step="1"></label>` : ''}<small>챕터 안에서는 임무를 자유롭게 선택합니다.</small></section>`;
     const basic = new Set([
       'title',
-      'rules.attempts',
       'rules.maxTime',
       'rules.maxTimeUnlimited',
       'rules.timelineDuration',
@@ -269,7 +270,6 @@ export function inspector(model: EditorModel): string {
           label:
             (
               {
-                'rules.attempts': '발사 횟수',
                 'rules.maxTime': '임무 시간 · 초',
                 'rules.maxTimeUnlimited': '임무 시간 무제한',
                 'rules.timelineDuration': '예약 시간 · 초',
@@ -278,6 +278,7 @@ export function inspector(model: EditorModel): string {
             )[f.path] ?? f.label,
         })),
     );
+    html += `<details><summary>착륙 판정</summary><label>접촉 허용<select data-field="rules.landingMode"><option value="standard" ${stage.rules.landingMode !== 'precision' ? 'selected' : ''}>표준 · 옆미끄러짐에 여유</option><option value="precision" ${stage.rules.landingMode === 'precision' ? 'selected' : ''}>정밀 · 전체 접촉 속력 제한</option></select></label><small>지면 충격과 옆미끄러짐을 따로 봅니다. 허용 범위는 기체의 착지 충격 기준으로 조정합니다.</small></details>`;
     html += section(
       '종류별 예약 한도',
       fields
@@ -297,7 +298,7 @@ export function inspector(model: EditorModel): string {
       ),
     );
     html += section(
-      '표시·목표 묶음·검사 설정',
+      '표시·목표 묶음',
       fields.filter(
         (f) =>
           !basic.has(f.path) &&
@@ -319,7 +320,16 @@ export function inspector(model: EditorModel): string {
         '위치·판정 시간',
         fields.filter((f) => f.path !== 'title'),
       );
+  } else if (entity && 'mu' in entity) {
+    html += renderFields(fields.filter((f) => ['name', 'radius', 'color'].includes(f.path)));
+    html += `<label>질량 (kg)<input id="body-mass-kg" type="number" min="0" step="any" value="${bodyMassKg(stage, entity)}"></label><label class="body-gravity-dial">중력 세기 <output>${entity.mu.toPrecision(3)}</output><input id="body-gravity-dial" type="range" min="-6" max="6" step="0.05" value="${Math.log2(Math.max(entity.mu, 1e-12))}" aria-label="천체 중력 세기"></label>`;
+    html += section(
+      '위치·중력 상세 수치',
+      fields.filter((f) => !['name', 'radius', 'color'].includes(f.path)),
+    );
   } else html += renderFields(fields);
+  if (!entity && id !== 'spawn')
+    html += `<details class="gravity-settings"><summary>물리 상수 · G</summary><label>만유인력 상수 (N·m²/kg²)<input id="gravity-constant" type="number" step="any" min="0" value="${gravitationalConstant(stage)}"></label><small>기본 6.674 × 10⁻¹¹. 내부 거리 u·시간 t를 m·s로 환산한 질량입니다. G 변경 시 천체 질량을 유지하고 GM을 함께 바꿉니다.</small></details>`;
   return `<div class="badge">${entity ? '선택 오브젝트' : id === 'spawn' ? '출발 장치' : '스테이지 규칙'}${model.selection.size > 1 ? ` · ${model.selection.size}개 선택` : ''}</div>${html}${entity && 'mu' in entity ? `<button id="toggle-atmosphere">${entity.atmosphere ? '대기 해제' : '대기 추가'}</button>` : ''}${rocketHtml}${!entity || id === 'spawn' ? payloadFields(stage) : ''}${orbitFields(stage, entity)}${entity && 'sensor' in entity && entity.kind === 'path' ? `<label>경로 점 좌표 (중심에 상대적)<textarea id="path-points">${escape(JSON.stringify(entity.points))}</textarea></label><p class="muted">지도에서 경로 점을 끌어 수정하세요. 임무 조건에서 ‘목표 경로에서 벗어난 거리’를 고르고 이 경로를 대상으로 지정할 수 있습니다.</p>` : ''}${entity && 'condition' in entity ? `${'children' in entity.condition && entity.condition.children.some((c) => c.kind === 'reference') ? '<button id="edit-marker-group">판정 연결 구성 편집</button>' : ''}<details><summary>시작 예시에서 자동 기준 만들기</summary>${intentInspector(stage, entity)}</details><details><summary>개별 물리 기준으로 목표 작성</summary>${outcomeInspector(stage, entity)}</details>${entity.marker?.managed !== false && entity.marker ? '' : '<button id="toggle-display">표시 영역 추가 / 해제</button>'}<details id="condition-advanced"><summary>고급 조건 블록</summary><p class="muted">비행체·기준 대상 → 물리량·계산·순간 기록·구간 통계 → 비교·유지·순서. 각 임무는 이 공통 블록으로 만듭니다. 수치는 축척 단위 u와 게임 시간 t를 사용합니다.</p>${conditionBuilder(entity.condition, 'condition', stage)}</details>` : ''}${entity && 'sensor' in entity && !isFlightObject(entity) ? `<button id="toggle-motion">${entity.motion ? '공전 해제' : '천체 주위에 공전시키기'}</button>` : ''}${
     entity && 'dependsOn' in entity
       ? `<details><summary>선행 목표</summary>${stage.goals
@@ -332,5 +342,5 @@ export function inspector(model: EditorModel): string {
             '',
           )}</details><p class="muted">${entity.marker?.managed !== false && entity.marker ? '판정 표식의 경계·방향·구간이 실제 조건입니다. 여러 표식은 왼쪽 연결 도구로 묶습니다.' : '표시 영역은 안내용입니다. 실제 성공 범위는 조건 블록으로 정합니다.'}</p>`
       : ''
-  }${!entity && id !== 'spawn' ? '<details><summary>관측·단서 설계</summary>' + learningInspector(stage) + '</details>' : ''}<details><summary>장면 목록 · 클릭 선택 / 이동</summary>${stage.spawn.placed !== false ? '<button data-select-goal="spawn">로켓·출발 위치</button>' : ''}${[...stage.bodies, ...stage.objects].map((e) => `<button data-select-goal="${e.id}">${escape(e.name)}</button>`).join('')}</details><details><summary>목표 목록 · 클릭해서 편집</summary>${stage.goals.map((g) => `<button data-select-goal="${g.id}">${escape(g.title)}</button>`).join('')}</details><details><summary>설계 순서</summary><p>1. 장면·목표·물리 제약을 만듭니다.<br>2. 실패에서 배울 관측·단서를 설계합니다.<br>3. F5로 여러 시도를 비교하며 성공 경로를 저장합니다.<br>4. 성공 집합과 단서 없는 막힘을 확인한 뒤 공개합니다.</p><p>검사는 유한한 표본입니다. 재미·유일해·모든 경로의 안전성을 증명하지 않습니다.</p></details>`;
+  }${!entity && id !== 'spawn' ? '<details><summary>관측·단서 설계</summary>' + learningInspector(stage) + '</details>' : ''}<details><summary>장면 목록 · 클릭 선택 / 이동</summary>${stage.spawn.placed !== false ? '<button data-select-goal="spawn">로켓·출발 위치</button>' : ''}${[...stage.bodies, ...stage.objects].map((e) => `<button data-select-goal="${e.id}">${escape(e.name)}</button>`).join('')}</details><details><summary>목표 목록 · 클릭해서 편집</summary>${stage.goals.map((g) => `<button data-select-goal="${g.id}">${escape(g.title)}</button>`).join('')}</details><details><summary>설계 순서</summary><p>1. 장면·목표·물리 제약을 만듭니다.<br>2. 실패에서 배울 관측·단서를 설계합니다.<br>3. F5로 여러 시도를 비교하며 성공 경로를 저장합니다.<br>4. 현재 장면에서 성공한 기록을 재검증하고 공개합니다.</p><p>제작 점검은 배치 오류를 확인합니다. 난이도와 다른 풀이의 존재는 직접 시험으로 확인하세요.</p></details>`;
 }

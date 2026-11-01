@@ -44,6 +44,8 @@ export type Detached = {
   status: 'flying' | 'landed' | 'crashed';
   bodyId?: string;
   touchdownSpeed?: number;
+  touchdownNormalSpeed?: number;
+  touchdownTangentialSpeed?: number;
   touchdownTilt?: number;
   angle?: number;
   age: number;
@@ -329,7 +331,7 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
   );
   state.stress = Math.max(0, state.stress + (a.q > part.maxQ ? a.q / part.maxQ - 1 : -1) * dt);
   return state.stress > 0.2
-    ? '대기에서 받는 힘이 너무 컸습니다. 상단을 보호하고 속력을 조절하세요.'
+    ? '공기힘이 누적되어 기체의 구조 한계를 넘었습니다.'
     : state.heat > part.maxHeat
       ? '공기와의 마찰로 로켓이 과열되었습니다.'
       : '';

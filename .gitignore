@@ -13,3 +13,4 @@ test-results/
 .clear/
 .stage-workshop/
 *.sqlite
+release/

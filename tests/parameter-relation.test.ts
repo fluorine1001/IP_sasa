@@ -50,12 +50,19 @@ it('미구현 DAG 재정렬·중복 ID·비정상 입력은 역산 완료나 작
   for (const mode of ['dag', 'duplicate', 'nan', 'missing', 'infinite-range']) {
     const { stage, template, plan, seed } = timedFlight();
     const input = { ...template, after: mode === 'dag' ? {} : undefined };
+    if (mode === 'dag')
+      plan.engineCommands = [
+        { id: 'main', actorId: 'craft', time: 0, throttle: 0 },
+        { id: 'detached', actorId: 'part', time: 0, throttle: 0 },
+      ];
     if (mode === 'duplicate') plan.impulses[1].id = plan.impulses[0].id;
     if (mode === 'nan') plan.impulses[0].time = NaN;
     if (mode === 'missing') seed.pop();
     if (mode === 'infinite-range') template.parameters[1].max = Infinity;
     let observed = false;
-    expect([...inverseProjection(stage, input, seed, plan, () => (observed = true))]).toEqual([]);
+    const progress = [...inverseProjection(stage, input, seed, plan, () => (observed = true))];
+    expect(progress.every((p) => !p.coordinates)).toBe(true);
+    expect(progress.at(-1)?.summary?.status).toBe('unsupported');
     expect(observed).toBe(false);
   }
 });

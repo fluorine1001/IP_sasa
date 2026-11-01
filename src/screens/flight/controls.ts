@@ -32,7 +32,7 @@ const glyphs: Record<string, string> = {
 };
 export function controlIcon(kind: string) {
   return (
-    '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
     glyphs[kind] +
     '</svg>'
   );

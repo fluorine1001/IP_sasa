@@ -32,13 +32,31 @@ export function crossGate(
   return length(sub(add(before, scale(sub(after, before), a / (a - b))), center)) <= radius;
 }
 export function updateGoals(c: GoalContext): void {
-  for (const g of c.stage.goals) {
+  // Dependencies are semantic, never array/layer order. Visit each goal at most once.
+  const visited = new Set<string>();
+  const byId = new Map(c.stage.goals.map((g) => [g.id, g]));
+  const visit = (g: Goal) => {
+    if (visited.has(g.id)) return;
+    visited.add(g.id);
+    for (const id of g.dependsOn) {
+      const prerequisite = byId.get(id);
+      if (prerequisite) visit(prerequisite);
+    }
     const p = c.run.goals[g.id];
-    if (p.complete || g.dependsOn.some((id) => !c.run.goals[id]?.complete)) continue;
-    if (c.run.time < g.startTime || (!g.endTimeUnlimited && c.run.time > g.endTime)) continue;
-    if (evaluateCondition(g.condition, c, p)) {
+    if (p.complete || g.dependsOn.some((id) => !c.run.goals[id]?.complete)) return;
+    if (c.run.time < g.startTime - 1e-9 || (!g.endTimeUnlimited && c.run.time > g.endTime + 1e-9))
+      return;
+    const previousTime = Math.max(
+      c.previousTime,
+      g.startTime,
+      ...g.dependsOn.map((id) => c.run.goals[id]?.completedAt ?? c.previousTime),
+    );
+    const active = { ...c, previousTime, dt: Math.max(0, c.run.time - previousTime) };
+    if (evaluateCondition(g.condition, active, p)) {
       p.complete = true;
       p.ratio = 1;
+      p.completedAt = c.run.time;
     }
-  }
+  };
+  c.stage.goals.forEach(visit);
 }

@@ -24,7 +24,7 @@ test('배치 전 범위·기준을 보여 주고 고정 대상은 드래그 중 
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
+  await page.locator('[data-palette-tab="goals"]').click();
   await page.locator('[data-tool="marker:orbit"]').click();
   await page.locator('[data-placement-target]').selectOption(s.bodies[0].id);
   const r = (await page.locator('#editor-world').boundingBox())!;
@@ -75,7 +75,7 @@ test('영역에서 상대속도를 연결하고 상태 게이지를 지도에서
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
+  await page.locator('[data-palette-tab="goals"]').click();
   await page.locator('[data-tool="marker:area"]').click();
   await page.locator('[data-placement-target]').selectOption('origin');
   const r = (await page.locator('#editor-world').boundingBox())!,
@@ -97,6 +97,7 @@ test('영역에서 상대속도를 연결하고 상태 게이지를 지도에서
   draft = await page.evaluate(() => JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!));
   expect(draft.goals[1].marker.width).toBeGreaterThan(0.4);
   expect(draft.goals[1].marker.vector).toEqual({ x: 0, y: 0 });
+  await page.locator('[data-palette-tab="goals"]').click();
   await page.locator('[data-tool="marker:state"]').click();
   await page.locator('[data-placement-target]').selectOption('origin');
   await page.mouse.click(cx + 60, cy + 60);
@@ -119,8 +120,6 @@ test('선택한 착륙 표식을 끌면 겹친 로켓·천체가 아니라 그 �
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
-  await page.getByText('목표 목록 · 클릭해서 편집', { exact: true }).click();
   await page.locator(`[data-select-goal="${marker.id}"]`).click();
   const r = (await page.locator('#editor-world').boundingBox())!,
     cx = r.x + r.width / 2,
@@ -145,7 +144,6 @@ test('로켓을 표면에서 끌어 떼고 다른 천체에 닿을 때만 발사
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
   const r = (await page.locator('#editor-world').boundingBox())!,
     cx = r.x + r.width / 2,
     cy = r.y + r.height / 2;

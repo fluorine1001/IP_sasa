@@ -1,4 +1,14 @@
 import { hullSize, ROCKET_SEGMENT_LENGTH } from '../world/hull';
+
+/** Stage colours, shared with the title art: first stage orange, then violet, then teal. */
+export const STAGE_COLORS = ['#ef8a3c', '#a084d8', '#3db6a6'];
+const INK = '#0d171c';
+const NOSE = '#f0e3c0';
+
+/**
+ * Every stroke is drawn inside the collision capsule: the visible silhouette is the
+ * capsule itself, so what touches on screen is what touches in the physics.
+ */
 export function paintRocket(
   ctx: CanvasRenderingContext2D,
   count: number,
@@ -7,73 +17,84 @@ export function paintRocket(
   zoom: number,
   flame = false,
 ) {
+  ctx.save();
   ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
   const hull = hullSize(count, booster),
     size = hull.length * zoom,
-    r = hull.radius * zoom;
+    r = hull.radius * zoom,
+    ink = Math.max(1, Math.min(r * 0.32, 3.2)),
+    half = ink / 2;
   if (flame) {
-    ctx.fillStyle = '#efae63';
+    ctx.fillStyle = '#f2b54a';
     ctx.beginPath();
-    ctx.moveTo(r * 0.5, -r * 0.4);
-    ctx.lineTo(-r * 3, 0);
-    ctx.lineTo(r * 0.5, r * 0.4);
+    ctx.moveTo(r * 0.5, -r * 0.45);
+    ctx.lineTo(-r * 3.2, 0);
+    ctx.lineTo(r * 0.5, r * 0.45);
+    ctx.fill();
+    ctx.fillStyle = '#fff1c9';
+    ctx.beginPath();
+    ctx.moveTo(r * 0.5, -r * 0.22);
+    ctx.lineTo(-r * 1.6, 0);
+    ctx.lineTo(r * 0.5, r * 0.22);
     ctx.fill();
   }
-  // Couplers keep the assembled stages visibly joined. The capsule contains all artwork.
-  ctx.fillStyle = '#a7b6b8';
-  ctx.fillRect(r * 0.8, -r * 0.66, Math.max(0, size - r * 1.7), r * 1.32);
-  // Each stage is an actual segment. The capsule contains every outline and fin.
-  ctx.lineWidth = r * 0.12;
-  const segment = ROCKET_SEGMENT_LENGTH * zoom;
-  for (let i = 0; i < (booster ? 1 : count); i++) {
-    const x = i * segment + r * 0.62,
-      end = (i + 1) * segment - r * 0.62;
-    ctx.fillStyle = ['#f7ebc9', '#d7e8e8', '#f3e4bc'][(firstPart + i) % 3];
-    ctx.strokeStyle = '#0b1723';
-    ctx.beginPath();
-    ctx.roundRect(x, -r * 0.8, Math.max(r * 0.3, end - x), r * 1.6, r * 0.18);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = ['#dc9874', '#6eabb5', '#a4bd85'][(firstPart + i) % 3];
-    ctx.fillRect(x + (end - x) * 0.35, -r * 0.77, (end - x) * 0.18, r * 1.54);
-    ctx.fillStyle = '#ffffff99';
-    ctx.fillRect(x + r * 0.2, -r * 0.62, Math.max(0, end - x - r * 0.4), r * 0.16);
-    ctx.fillStyle = '#152735';
-    ctx.fillRect(i * segment + r * 0.12, -r * 0.34, r * 0.48, r * 0.68);
-    ctx.strokeStyle = '#6e8386';
-    ctx.lineWidth = r * 0.12;
-    ctx.beginPath();
-    const collar = (i + 1) * segment - (booster ? r * 0.6 : 0);
-    ctx.moveTo(collar, -r * 0.42);
-    ctx.lineTo(collar, r * 0.42);
-    ctx.stroke();
+  // Capsule body, clipped so nothing paints outside the collision outline.
+  ctx.beginPath();
+  ctx.roundRect(0, -r, size, 2 * r, r);
+  ctx.save();
+  ctx.clip();
+  const segment = ROCKET_SEGMENT_LENGTH * zoom,
+    stages = booster ? 1 : count,
+    bodyEnd = stages * segment;
+  for (let i = 0; i < stages; i++) {
+    ctx.fillStyle = STAGE_COLORS[(firstPart + i) % 3];
+    ctx.fillRect(i * segment, -r, segment + 1, 2 * r);
+    // A light band reads as a painted stripe at large zoom and vanishes when small.
+    ctx.fillStyle = '#ffffff40';
+    ctx.fillRect(i * segment, -r * 0.62, segment, r * 0.28);
   }
   if (!booster) {
-    const x = count * segment + r * 0.45;
-    ctx.fillStyle = '#fff0cc';
-    ctx.strokeStyle = '#0b1723';
+    ctx.fillStyle = NOSE;
+    ctx.fillRect(bodyEnd, -r, size - bodyEnd, 2 * r);
+    ctx.fillStyle = '#5eb2e8';
     ctx.beginPath();
-    ctx.moveTo(x, -r * 0.74);
-    ctx.lineTo(size - r * 0.18, 0);
-    ctx.lineTo(x, r * 0.74);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#80c4cd';
-    ctx.beginPath();
-    ctx.arc(x + r * 0.5, 0, r * 0.3, 0, 7);
+    ctx.arc(bodyEnd + r * 0.75, 0, r * 0.32, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.fillStyle = '#b77860';
-  ctx.strokeStyle = '#0b1723';
-  ctx.lineWidth = r * 0.15;
+  // Seams between stages.
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = Math.max(1, ink * 0.8);
+  for (let i = 1; i <= stages; i++) {
+    if (i === stages && booster) break;
+    ctx.beginPath();
+    ctx.moveTo(i * segment, -r);
+    ctx.lineTo(i * segment, r);
+    ctx.stroke();
+  }
+  // Fins on the lowest stage, inside the capsule.
+  ctx.fillStyle = '#3c4b51';
   for (const sign of [-1, 1]) {
     ctx.beginPath();
-    ctx.moveTo(r * 2, sign * r * 0.42);
-    ctx.lineTo(r, sign * r * 0.85);
-    ctx.lineTo(r * 0.55, sign * r * 0.37);
+    ctx.moveTo(r * 2.1, sign * r * 0.55);
+    ctx.lineTo(r * 0.9, sign * r);
+    ctx.lineTo(r * 0.5, sign * r);
+    ctx.lineTo(r * 0.7, sign * r * 0.45);
     ctx.closePath();
     ctx.fill();
-    ctx.stroke();
   }
+  ctx.restore();
+  // Ink outline, inset by half its width so it stays on the capsule.
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = ink;
+  ctx.beginPath();
+  ctx.roundRect(
+    half,
+    -r + half,
+    Math.max(0, size - ink),
+    Math.max(0, 2 * r - ink),
+    Math.max(0, r - half),
+  );
+  ctx.stroke();
+  ctx.restore();
 }

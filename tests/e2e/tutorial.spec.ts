@@ -8,8 +8,8 @@ const training = authoredStages.find((s) => s.track === 'tutorial');
 
 test('메인 메뉴의 튜토리얼은 본편과 분리된 실제 훈련 스테이지를 연다', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: '튜토리얼 스테이지', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '튜토리얼 스테이지' })).toBeVisible();
+  await page.getByRole('button', { name: '튜토리얼', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '튜토리얼', exact: true })).toBeVisible();
   await expect(page.locator('.tutorial-card')).toHaveCount(1);
   await expect(page.locator('.tutorial-contract')).toHaveCount(0);
   await page.locator('.tutorial-card').first().click();

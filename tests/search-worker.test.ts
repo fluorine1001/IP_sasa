@@ -38,7 +38,11 @@ it('느린 화면에 결과를 쌓지 않고 ACK 전에는 전송 하나와 최�
       .filter((value) => value.result);
     expect(after).toHaveLength(2);
     expect(after.at(-1)!.result!.done).toBe(true);
-    expect(after.at(-1)!.result!.evaluated).toBe(16);
+    const result = after.at(-1)!.result!;
+    expect(result.inverse?.method).toBe('success-relation');
+    expect(result.evaluated).toBeGreaterThan(0);
+    expect(result.evaluated).toBeLessThan(16); // Work quanta are NOT trial counts.
+    expect(result.inverse!.work).toBeGreaterThan(0);
     expect(bus.postMessage.mock.calls.every(([value]) => !value.fault)).toBe(true);
     bus.onmessage!(
       new MessageEvent('message', {

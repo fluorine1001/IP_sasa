@@ -1,5 +1,6 @@
 import { controls, escape, readSaved, writeSaved, type App, type Screen } from '../../app/core.ts';
 import './hub.css';
+import { practiceGroups } from './progress';
 
 const PROGRESS_KEY = 'orbit-tutorial-completed-v1';
 
@@ -12,12 +13,15 @@ export function tutorialsScreen(app: App): Screen {
       ),
     );
   function draw() {
-    app.root.innerHTML = `<main class="menu-sheet wide tutorial-hub"><h1>튜토리얼 스테이지</h1><div class="tutorial-grid">${app.tutorials
+    const drills = practiceGroups
+      .map((g, i) => `<li><span>${i + 1}</span>${escape(g.title)}</li>`)
+      .join('');
+    app.root.innerHTML = `<main class="menu-sheet wide tutorial-hub"><span class="eyebrow">훈련</span><h1>튜토리얼</h1><div class="tutorial-grid">${app.tutorials
       .map(
         (stage) =>
-          `<button class="tutorial-card ${completed.has(stage.id) ? 'done' : ''}" data-stage="${stage.id}"><span class="tutorial-number">▶</span><strong>${escape(stage.title)}</strong><span class="tutorial-skills">◷ 예약　🚀 비행　▤ 기록 비교</span><small>${completed.has(stage.id) ? '✓ 완료 · 다시 연습' : '▶ 시작'}</small></button>`,
+          `<button class="tutorial-card ${completed.has(stage.id) ? 'done' : ''}" data-stage="${stage.id}"><strong>${escape(stage.title)}</strong><ol class="tutorial-drills">${drills}</ol><small>${completed.has(stage.id) ? '수료 · 다시 연습' : '훈련 시작 ▶'}</small>${completed.has(stage.id) ? '<span class="tutorial-stamp">수료</span>' : ''}</button>`,
       )
-      .join('')}</div><button id="back">기지로 돌아가기</button></main>`;
+      .join('')}</div><button id="back">← 처음 화면</button></main>`;
     controls(app.root, { back: () => app.go('title') }, abort.signal);
     app.root.querySelectorAll<HTMLButtonElement>('[data-stage]').forEach((button) =>
       button.addEventListener(

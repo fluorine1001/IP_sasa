@@ -249,15 +249,23 @@ export function timelinePlanner(
         );
       if (c && !c.separate && !c.releasePayload)
         fields +=
-          '<label>조작할 기체 <select data-edit="actor"><option value="craft">본체 · 남아 있는 로켓</option>' +
+          '<label>조작할 기체 <select data-edit="actor"><option value="craft">본체</option>' +
+          // Only stages already dropped by this command's time can be steered on their own.
           (stage.rocket?.parts ?? [])
+            .filter(
+              (part, i) =>
+                i <
+                  (get().plan.engineCommands ?? []).filter(
+                    (other) => other.separate && other.time <= c.time + 1e-9,
+                  ).length || c.actorId === part.id,
+            )
             .map(
               (part) =>
                 '<option value="' +
                 part.id +
                 '"' +
                 (c.actorId === part.id ? ' selected' : '') +
-                '>분리체 · ' +
+                '>' +
                 escape(part.name) +
                 '</option>',
             )
@@ -472,12 +480,13 @@ export function timelinePlanner(
   );
   palette.innerHTML =
     '<label id="timeline-placement">예약 시각 <input id="timeline-time" type="number" min="0" step="0.01" aria-label="새 예약 시각"> 초</label>' +
+    // Only tools this craft actually has: a cold-gas craft has no engine or stages.
     [
-      'ignite',
-      'stop',
-      'turn',
-      'separate',
-      'push',
+      ...(stage.rocket ? ['ignite', 'stop', 'turn'] : []),
+      ...((stage.rocket?.parts.length ?? 0) > 1 ? ['separate'] : []),
+      ...(!stage.rocket && stage.rules.maneuverBudget > 0 && stage.rules.commandLimits?.push !== 0
+        ? ['push']
+        : []),
       ...(stage.rocket?.payloads?.length ? ['deploy'] : []),
     ]
       .map(
@@ -705,23 +714,17 @@ export function timelinePlanner(
         used = commandUsage(get().plan)[kind];
       const disabled = !editable() || !canAddCommand(stage, get().plan, kind);
       if (b.disabled !== disabled) b.disabled = disabled;
-      const title =
-        names[kind] +
-        ' · ' +
-        selectedTime().toFixed(2) +
-        '초에 추가 · ' +
-        (limit === undefined ? '예약 횟수 제한 없음' : used + '/' + limit + '회 예약');
+      const left = limit === undefined ? undefined : Math.max(0, limit - used);
+      const title = names[kind] + (left === undefined ? '' : ' · 남은 ' + left + '회');
       if (b.title !== title) b.title = title;
       const count = b.querySelector('.tool-count');
-      const text = limit === undefined ? '' : used + '/' + limit;
+      const text = left === undefined ? '' : String(left);
       if (count && count.textContent !== text) count.textContent = text;
     }
     for (const marker of track.querySelectorAll<HTMLElement>('[data-event]'))
       marker.setAttribute('aria-pressed', String(marker.dataset.event === selected));
     const explanation = root.querySelector<HTMLElement>('#timeline-explanation')!;
-    if (editable())
-      explanation.textContent =
-        '바 클릭·드래그로 시각 선택 · 조작 버튼으로 추가 · 예약 그림을 끌어 이동';
+    if (editable()) explanation.textContent = '';
     if (selected && !popup.hidden) {
       const field = popup.querySelector<HTMLFieldSetElement>('fieldset');
       if (field) field.disabled = !editable();

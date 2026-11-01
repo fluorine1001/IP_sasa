@@ -3,7 +3,7 @@ import { FlightClock } from '../src/editor/research/flight-clock';
 import { NonlinearRelation } from '../src/editor/research/nonlinear-relation';
 import { hybridFloat } from '../src/physics/hybrid-kernel';
 import { emptyStage } from '../src/stages/factory';
-import { createRun } from '../src/world/engine';
+import { createRun, nextPhysicsBoundary } from '../src/world/engine';
 import { dueEvents, nextEventTime } from '../src/world/event-schedule';
 
 const permutations = (values: number[]): number[][] =>
@@ -66,9 +66,11 @@ it('단일 시간 DAG는 24개 순서·동시 실행·선택적 사건을 실제
               ids.push(e.value.id);
               native.applied.add(e.value.id);
             }
-          const dt = Math.min(remaining, 0.01, nextEventTime(native) - native.time);
+          const boundary = nextPhysicsBoundary(native.time),
+            gap = boundary - native.time;
+          const dt = Math.min(remaining, gap, nextEventTime(native) - native.time);
           expected.push({ time: native.time, dt, ids });
-          native.time += dt;
+          native.time = dt === gap ? boundary : native.time + dt;
           remaining -= dt;
         }
         const actual = frames.flatMap((_, i) =>

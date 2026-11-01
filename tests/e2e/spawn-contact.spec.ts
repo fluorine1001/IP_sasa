@@ -27,7 +27,6 @@ for (const width of [1440, 390])
       s,
     );
     await page.goto('/editor.html');
-    await page.locator('#search-auto').uncheck();
     await page.locator('#editor-world').scrollIntoViewIfNeeded();
     const r = (await page.locator('#editor-world').boundingBox())!,
       cx = r.x + r.width / 2,
@@ -66,7 +65,6 @@ test('천체를 로켓 쪽으로 드래그하면 접촉 직후부터 같은 표�
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
   const r = (await page.locator('#editor-world').boundingBox())!,
     cx = r.x + r.width / 2,
     cy = r.y + r.height / 2;
@@ -139,7 +137,6 @@ test('한 번에 천체가 로켓을 지나쳐도 붙으며 드래그 취소는 
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
   const r = (await page.locator('#editor-world').boundingBox())!,
     cx = r.x + r.width / 2,
     cy = r.y + r.height / 2;

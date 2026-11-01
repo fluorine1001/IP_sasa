@@ -14,8 +14,6 @@ test('그린 타원에 로켓 아닌 정거장을 배치하고 이 물체의 실
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
-  await page.getByText('목표 목록 · 클릭해서 편집', { exact: true }).click();
   await page.locator(`[data-select-goal="${goal.id}"]`).click();
   await page.getByText('이 궤도에 비행 물체 배치', { exact: true }).click();
   await page.locator('#orbit-object-kind').selectOption('station');
@@ -52,8 +50,6 @@ test('물체의 운동 모드와 초기 궤도는 한 곳에서 조정하고 중
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
-  await page.getByText('장면 목록 · 클릭 선택 / 이동', { exact: true }).click();
   await page.locator(`[data-select-goal="${object.id}"]`).click();
   await expect(page.locator('#object-motion-mode')).toHaveValue('gravity');
   await expect(page.locator('#toggle-motion')).toHaveCount(0);

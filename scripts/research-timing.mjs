@@ -36,19 +36,78 @@ try {
     }),
   );
   const bounds = { u0: [{ lo: 0, hi: 1 }], u1: [{ lo: 0, hi: 1 }] };
-  for (const interiorFirst of process.argv.includes('--compare') ? [false, true] : [true]) {
+  if (process.argv.includes('--boundary-profile')) {
+    const { polynomialBoundaries, polynomialRootClusters } = await runtime.ssrLoadModule(
+      '/src/editor/research/polynomial-boundary.ts',
+    );
+    const start = performance.now(),
+      boundaries = polynomialBoundaries(model.relation, [model.success], bounds);
+    console.log(
+      JSON.stringify({
+        problem: 'polynomial-compilation',
+        count: boundaries.length,
+        ms: performance.now() - start,
+      }),
+    );
+    for (const [index, boundary] of boundaries.entries()) {
+      console.log(
+        JSON.stringify({
+          problem: 'root-start',
+          index,
+          degree: boundary.coefficients.length - 1,
+          bits: Math.max(...boundary.coefficients.map((n) => n.toString(2).length)),
+        }),
+      );
+      const at = performance.now(),
+        result = polynomialRootClusters(
+          boundary.coefficients,
+          { lo: 0, hi: 1 },
+          { work: 256, resolution: 1e-9 },
+        );
+      console.log(
+        JSON.stringify({
+          problem: 'root-finish',
+          index,
+          ms: performance.now() - at,
+          roots: result?.clusters.length,
+        }),
+      );
+    }
+  }
+  const count = Number(process.argv.find((a) => a.startsWith('--cells='))?.slice(8) ?? 48);
+  const configurations = process.argv.includes('--kernel-compare')
+    ? [
+        { interiorFirst: true, taylor: false, polynomial: false },
+        { interiorFirst: true, taylor: true, polynomial: false },
+        { interiorFirst: true, taylor: false, polynomial: true },
+        { interiorFirst: true, taylor: true, polynomial: true },
+      ]
+    : (process.argv.includes('--compare') ? [false, true] : [true]).map((interiorFirst) => ({
+        interiorFirst,
+      }));
+  for (const configuration of configurations) {
     const start = performance.now(),
       cells = [];
     let last;
     for (const step of successProjection(model.relation, model.success, bounds, {
-      cells: 48,
+      cells: count,
       work: Math.min(150000, Math.max(8192, model.relation.statistics.nodes * 16)),
       resolution: 1e-5,
-      interiorFirst,
+      ...configuration,
     })) {
       cells.push(...step.accepted);
       last = step;
     }
+    const projectionMs = performance.now() - start;
+    console.log(
+      JSON.stringify({
+        problem: 'project-before-components',
+        ...configuration,
+        ms: +projectionMs.toFixed(2),
+        ...last.statistics,
+        regions: cells.length,
+      }),
+    );
     const groups = projectionGroups(cells);
     let replayed = 0;
     for (const group of groups) {
@@ -60,7 +119,7 @@ try {
     console.log(
       JSON.stringify({
         problem: 'time-region-projection',
-        interiorFirst,
+        ...configuration,
         ms: +(performance.now() - start).toFixed(2),
         ...last.statistics,
         regions: cells.length,

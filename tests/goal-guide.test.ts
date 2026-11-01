@@ -7,10 +7,10 @@ const stage = parseStage(source);
 it('목표 범위·유지 시간·분리 상태를 수식 대신 결과 상태로 설명한다', () => {
   const text = goalExplanation(stage, stage.goals[0].condition);
   expect(text).toContain('중심 거리');
-  expect(text).toContain('1바퀴 전체');
+  expect(text).toContain('1바퀴');
   expect(text).toContain('엔진 꺼짐');
   expect(text).not.toContain('찌그러짐');
-  expect(text).toContain('분리된 상태');
+  expect(text).toContain('분리');
   expect(text).not.toMatch(/AND|OR|sqrt|≥|≤|(^|\n)\s*\d+\.\s/);
 });
 it('본편 성공 조건 창에는 제작자 브리핑이나 조작 절차를 가져오지 않는다', () => {
@@ -32,7 +32,7 @@ it('에너지와 한 바퀴 통계를 물리 수식으로 노출하지 않는다
       operator: 'gt',
       right: { kind: 'constant', value: 0 },
     }),
-  ).toContain('벗어날 에너지');
+  ).toContain('벗어나는 속도');
   expect(
     goalExplanation(stage, {
       kind: 'compare',

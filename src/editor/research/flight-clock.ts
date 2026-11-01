@@ -23,6 +23,7 @@ export class FlightClock<T> {
   private time: T;
   private remaining: T;
   private alive: T;
+  private gridIndex: T;
   private spent = new Map<string, T>();
   constructor(
     algebra: HybridAlgebra<T>,
@@ -45,6 +46,7 @@ export class FlightClock<T> {
     this.time = this.a.literal(0);
     this.remaining = this.a.literal(0);
     this.alive = this.a.literal(1);
+    this.gridIndex = this.a.literal(1);
   }
   /** Symbolic residual guard; a caller must not silently discard it if its
    * own construction/resource limit stops before this becomes false. */
@@ -123,13 +125,28 @@ export class FlightClock<T> {
     const gap = root
       ? a.select(root.present, a.subtract(root.time, before), this.remaining)
       : this.remaining;
-    let raw = a.min(a.min(this.remaining, a.literal(0.01)), gap);
+    // Event times split a fixed physics grid; they must not shift every later
+    // integration boundary. Retain this same relation in symbolic execution.
+    this.gridIndex = a.select(
+      a.lte(a.multiply(this.gridIndex, a.literal(0.01)), a.add(before, a.literal(1e-9))),
+      a.add(this.gridIndex, one),
+      this.gridIndex,
+    );
+    const gridTime = a.multiply(this.gridIndex, a.literal(0.01));
+    const gridGap = a.subtract(gridTime, before);
+    let raw = a.min(a.min(this.remaining, gridGap), gap);
     if (Number.isFinite(this.missionLimit))
       raw = a.min(raw, a.subtract(a.literal(this.missionLimit), before));
     const advance = b.and(active, a.lte(a.literal(1e-9), raw));
     const failed = b.and(active, b.not(advance));
     const dt = a.select(advance, raw, zero);
-    this.time = a.select(advance, a.add(before, dt), before);
+    // Snap an exhausted grid interval to its exact boundary, matching tick.
+    // This also avoids spurious symbolic drift from x + (boundary - x).
+    this.time = a.select(
+      advance,
+      a.select(a.lte(gridGap, raw), gridTime, a.add(before, dt)),
+      before,
+    );
     this.remaining = a.select(advance, a.subtract(this.remaining, dt), this.remaining);
     this.alive = b.and(this.alive, b.not(failed));
     return { before, time: this.time, dt, enabled: advance, failed, due };

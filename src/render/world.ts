@@ -5,6 +5,7 @@ import { paintGoalRegion } from './goal-region';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
 import { hullSize } from '../world/hull';
+import { physicalRadius } from '../world/contact';
 import { impactDirection } from '../world/impact';
 import { surfaceLaunch } from '../world/launch.ts';
 import { bodyPosition, objectPosition } from '../world/celestial.ts';
@@ -23,6 +24,7 @@ export type DrawState = {
   selectedHistory?: boolean;
   historyLabels?: string[];
   replayTime?: number;
+  divergence?: { position: Vec; time: number };
   plan?: RoutePlan;
   grid?: boolean;
   trails?: boolean;
@@ -36,6 +38,25 @@ export type DrawState = {
   thrust?: Vec;
   observations?: import('../world/types').Observation[];
 };
+const LABEL_FONT = "bold 14px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif";
+/** A filled label plate centred on x, top edge at y: names stay legible over any terrain. */
+function nameTag(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  fill: string,
+  ink: string,
+) {
+  const half = ctx.measureText(text).width / 2 + 7;
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(x - half, y, half * 2, 22, 5);
+  ctx.fill();
+  ctx.fillStyle = ink;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y + 16);
+}
 export function prepare(canvas: HTMLCanvasElement) {
   const r = canvas.getBoundingClientRect(),
     d = Math.min(devicePixelRatio, 2),
@@ -73,6 +94,20 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   const visible = (id: string) =>
     !s.layer || (s.layer.kind === 'only' ? s.layer.ids.has(id) : !s.layer.ids.has(id));
   if (!foreground) backdrop(ctx, w, h, c);
+  if (s.divergence && !foreground) {
+    const p = screen(s.divergence.position);
+    ctx.save();
+    ctx.fillStyle = '#f6d28b';
+    ctx.strokeStyle = '#10252d';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.font = '13px sans-serif';
+    ctx.fillText(`여기서 갈라짐 · ${s.divergence.time.toFixed(1)}초`, p.x + 10, p.y - 10);
+    ctx.restore();
+  }
   if (s.grid && !foreground) {
     ctx.strokeStyle = '#42607355';
     ctx.lineWidth = 1;
@@ -115,14 +150,33 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
             ? objectPosition(s.stage, object, t)
             : g.position,
       );
-    paintGoalRegion(
-      ctx,
-      p.x,
-      p.y,
-      g.display.min * c.zoom,
-      g.display.max * c.zoom,
-      !!s.run?.goals[g.id]?.complete,
-    );
+    const complete = !!s.run?.goals[g.id]?.complete;
+    paintGoalRegion(ctx, p.x, p.y, g.display.min * c.zoom, g.display.max * c.zoom, complete);
+    // Name the zone on its outer edge so a dashed ring reads as "go here", not decoration.
+    // Top of the ring first; when that is off screen, the first visible point along it.
+    const edge = g.display.max * c.zoom;
+    const spot =
+      edge > 24
+        ? [-90, -60, -120, -30, -150, 0, 180, 30, 150]
+            .map((d) => ({
+              x: p.x + Math.cos((d * Math.PI) / 180) * edge,
+              y: p.y + Math.sin((d * Math.PI) / 180) * edge,
+            }))
+            // Clear of the corner buttons along the top edge.
+            .find((q) => q.x > 60 && q.x < w - 60 && q.y > 90 && q.y < h * 0.62)
+        : undefined;
+    if (spot) {
+      ctx.font = LABEL_FONT;
+      ctx.textAlign = 'center';
+      nameTag(
+        ctx,
+        complete ? '목표 ✓' : '목표',
+        spot.x,
+        spot.y - 11,
+        complete ? '#6fbf73' : '#f2cf4a',
+        '#0d171c',
+      );
+    }
   }
 
   if (!foreground) {
@@ -209,6 +263,21 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         ],
         s.run.probe ? '#80cbd5' : '#f9b671',
       );
+    const observedTrail = s.replay ? s.history : s.run?.trail;
+    if (s.trails !== false && observedTrail) {
+      ctx.lineWidth = 3;
+      for (let i = 1; i < observedTrail.length; i++) {
+        const load = observedTrail[i].load ?? 0;
+        if (load < 0.5) continue;
+        const a = screen(observedTrail[i - 1].position),
+          b = screen(observedTrail[i].position);
+        ctx.strokeStyle = load >= 1 ? '#ef6c5d' : '#f4c164';
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
   }
   for (const b of s.stage.bodies) {
     if (b.kind === 'barycenter' || !visible(b.id)) continue;
@@ -221,11 +290,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.arc(3, 6, r + 4, 0, 7);
     ctx.fill();
     if (b.atmosphere) {
-      ctx.strokeStyle = '#90b9bd33';
-      ctx.lineWidth = Math.min(40, b.atmosphere.height * c.zoom);
+      // Thinning haze: densest at the ground, gone at the top of the atmosphere.
+      const top = (b.radius + b.atmosphere.height) * c.zoom;
+      const haze = ctx.createRadialGradient(0, 0, r, 0, 0, top);
+      haze.addColorStop(0, '#7fb7d44d');
+      haze.addColorStop(0.55, '#7fb7d41f');
+      haze.addColorStop(1, '#7fb7d400');
+      ctx.fillStyle = haze;
       ctx.beginPath();
-      ctx.arc(0, 0, (b.radius + b.atmosphere.height * 0.5) * c.zoom, 0, 7);
-      ctx.stroke();
+      ctx.arc(0, 0, top, 0, 7);
+      ctx.fill();
     }
     ctx.fillStyle = b.kind === 'black-hole' ? '#060a13' : b.color;
     ctx.strokeStyle = '#091823';
@@ -266,7 +340,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.lineWidth = 3;
       ctx.strokeRect(-r - 8, -r - 8, 2 * r + 16, 2 * r + 16);
     }
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = LABEL_FONT;
     ctx.textAlign = 'center';
     if (s.selected?.has(b.id)) {
       // Cover the old layer's coincident label as well as its body.
@@ -276,8 +350,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.roundRect(-half, r + 8, half * 2, 21, 4);
       ctx.fill();
     }
-    ctx.fillStyle = '#f7eed9';
-    ctx.fillText(b.name, 0, r + 23);
+    nameTag(ctx, b.name, 0, r + 8, '#0d171cd9', '#f4ecd5');
     if (b.kind === 'black-hole') {
       ctx.strokeStyle = '#e49cad';
       ctx.lineWidth = 4;
@@ -368,8 +441,20 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.fill();
       ctx.stroke();
     } else {
+      const physicalSize = physicalRadius(o) * c.zoom;
       const size =
         ((o.kind === 'station' ? (o.physicalRadius ?? 0.03) : o.radius) * c.zoom) / Math.sqrt(2);
+      // The exterior is the actual circular contact surface. Solar panels are
+      // detail inside it, not a smaller square suggesting invisible collisions.
+      if (physicalSize > 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, physicalSize, 0, Math.PI * 2);
+        ctx.fillStyle = '#758e9c';
+        ctx.fill();
+        ctx.strokeStyle = '#d9dfd0';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
       ctx.fillStyle = '#ddd8bf';
       ctx.fillRect(-size, -size, size * 2, size * 2);
       ctx.fillStyle = '#6599c2';
@@ -422,10 +507,43 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     paintCraftLocator(ctx, c.zoom, count, booster, selected);
     paintExhaust(ctx, flame, c.zoom, t, !!s.reducedMotion);
     paintRocket(ctx, count, firstPart, booster, c.zoom);
+    if (selected && s.run?.rocket && !booster) {
+      const part = s.stage.rocket?.parts[s.run.rocket.partIndex];
+      const load = part ? Math.max(s.run.rocket.heat / part.maxHeat, s.run.rocket.stress / 0.2) : 0;
+      if (load >= 0.5) {
+        ctx.fillStyle = load >= 1 ? '#e9655988' : '#efb65366';
+        ctx.beginPath();
+        ctx.roundRect(0, -r, size, 2 * r, r);
+        ctx.fill();
+      }
+    }
     if (selected && s.run && !s.run.impact && !s.run.landed && (s.run.rocket?.airborne ?? true)) {
-      ctx.strokeStyle = '#9fd5b755';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(-4, -r - 6, size + 8, r * 2 + 12);
+      // Corner brackets mark the tracked craft without boxing in the art.
+      const x0 = -5,
+        x1 = size + 5,
+        y0 = -r - 5,
+        y1 = r + 5,
+        k = Math.min(6, (x1 - x0) / 3);
+      ctx.beginPath();
+      for (const [x, dx] of [
+        [x0, k],
+        [x1, -k],
+      ] as const)
+        for (const [y, dy] of [
+          [y0, 4],
+          [y1, -4],
+        ] as const) {
+          ctx.moveTo(x + dx, y);
+          ctx.lineTo(x, y);
+          ctx.lineTo(x, y + dy);
+        }
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#0d171c';
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#f2b54a';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
     }
     ctx.restore();
   };
@@ -467,10 +585,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
       );
     const p = screen(actor.position);
-    ctx.fillStyle = '#baceb5';
-    ctx.font = '11px sans-serif';
+    ctx.font = "bold 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText(actor.status === 'landed' ? '✓ 회수' : actor.name, p.x, p.y + 30);
+    nameTag(
+      ctx,
+      actor.status === 'landed' ? '✓ 회수' : actor.name.split('·')[0].trim() + ' 분리체',
+      p.x,
+      p.y + 16,
+      '#0d171cc0',
+      '#c9d3cb',
+    );
   }
   const ship = s.run?.position ?? surface?.position ?? s.stage.spawn.position,
     onPad = !s.run || (s.run.rocket && !s.run.rocket.airborne),

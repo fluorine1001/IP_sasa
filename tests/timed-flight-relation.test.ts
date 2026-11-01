@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { FlightClock } from '../src/editor/research/flight-clock';
 import { hybridFloat } from '../src/physics/hybrid-kernel';
 import { emptyStage } from '../src/stages/factory';
-import { createRun } from '../src/world/engine';
+import { createRun, nextPhysicsBoundary } from '../src/world/engine';
 import { dueEvents, nextEventTime } from '../src/world/event-schedule';
 import { inverseProjection } from '../src/editor/inverse-projection';
 import { parameterPlan, searchParameters, searchSolutions } from '../src/editor/solution-search';
@@ -114,9 +114,11 @@ it('가변 시각 전이는 원래 입력 순서·중복 ID·due 오차와 실�
           ids.push(e.value.id);
           reference.applied.add(e.value.id);
         }
-      const dt = Math.min(remaining, 0.01, nextEventTime(reference) - reference.time);
+      const boundary = nextPhysicsBoundary(reference.time),
+        gap = boundary - reference.time;
+      const dt = Math.min(remaining, gap, nextEventTime(reference) - reference.time);
       expected.push({ time: reference.time, dt, ids });
-      reference.time += dt;
+      reference.time = dt === gap ? boundary : reference.time + dt;
       remaining -= dt;
     }
   }

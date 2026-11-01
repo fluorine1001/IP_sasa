@@ -17,8 +17,27 @@ export function craftHull(stage: Stage, run?: Run) {
     stage.rocket ? Math.max(0, stage.rocket.parts.length - (run?.rocket?.partIndex ?? 0)) : 1,
   );
 }
-type Hull = ReturnType<typeof hullSize>;
+export type Hull = ReturnType<typeof hullSize>;
 const direction = (v: Vec) => (length(v) > 1e-9 ? unit(v) : { x: 1, y: 0 });
+export function hullPoseAt(
+  before: Vec,
+  after: Vec,
+  initial: Vec,
+  final: Vec,
+  hull: Hull,
+  t: number,
+) {
+  const a = Math.atan2(initial.y, initial.x),
+    b = Math.atan2(final.y, final.x);
+  const angle = a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
+  const heading = { x: Math.cos(angle), y: Math.sin(angle) };
+  const c0 = add(before, scale(direction(initial), hull.length / 2));
+  const c1 = add(after, scale(direction(final), hull.length / 2));
+  return {
+    heading,
+    position: sub(add(c0, scale(sub(c1, c0), t)), scale(heading, hull.length / 2)),
+  };
+}
 function closest(base: Vec, axis: Vec, hull: Hull): Vec {
   const a = add(base, scale(axis, hull.radius));
   const extent = Math.max(0, hull.length - 2 * hull.radius);
@@ -35,7 +54,50 @@ export function sweepHull(
   centerBefore: Vec,
   centerAfter: Vec,
   radius: number,
+  previousHeading?: Vec,
 ): number | undefined {
+  if (previousHeading) {
+    const angle = Math.atan2(previousHeading.y, previousHeading.x);
+    const turn = Math.atan2(
+      Math.sin(Math.atan2(heading.y, heading.x) - angle),
+      Math.cos(Math.atan2(heading.y, heading.x) - angle),
+    );
+    if (Math.abs(turn) > 1e-10) {
+      // Sweep the same centre pivot used by poweredStep and the renderer.
+      // Distance to a capsule is Lipschitz: translation + angular speed * radius
+      // bounds how quickly a positive gap can close (conservative advancement).
+      const midpoint0 = add(before, scale(direction(previousHeading), hull.length / 2));
+      const midpoint1 = add(after, scale(direction(heading), hull.length / 2));
+      const velocity = sub(sub(midpoint1, midpoint0), sub(centerAfter, centerBefore));
+      const bound = length(velocity) + (Math.abs(turn) * hull.length) / 2;
+      if (length(sub(midpoint0, centerBefore)) > radius + hull.length / 2 + length(velocity))
+        return;
+      const tolerance = 1e-9 * Math.max(1, radius, hull.length);
+      const search = (start: number, end: number, depth: number): number | undefined => {
+        let t = start;
+        for (let i = 0; i < 256 && t <= end; i++) {
+          const axis = { x: Math.cos(angle + turn * t), y: Math.sin(angle + turn * t) };
+          const base = sub(
+            add(midpoint0, scale(sub(midpoint1, midpoint0), t)),
+            scale(axis, hull.length / 2),
+          );
+          const center = add(centerBefore, scale(sub(centerAfter, centerBefore), t));
+          const gap = hullGap(base, axis, hull, center, radius);
+          if (gap <= tolerance) return t;
+          if (bound <= 1e-15 || gap > bound * (end - t) + tolerance) return;
+          t += Math.max(gap / bound, 1e-12);
+        }
+        if (t > end) return;
+        // Unresolved grazing contact: search the remaining interval in order.
+        // At the depth cap conservatively report contact, rather than tunnelling.
+        if (depth >= 12) return t;
+        const middle = (t + end) / 2;
+        if (middle <= t || middle >= end) return t;
+        return search(t, middle, depth + 1) ?? search(middle, end, depth + 1);
+      };
+      return search(0, 1, 0);
+    }
+  }
   const relativeBefore = sub(before, centerBefore),
     relativeAfter = sub(after, centerAfter);
   const delta = sub(relativeAfter, relativeBefore);

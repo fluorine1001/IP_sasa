@@ -4,6 +4,8 @@ import { parameterRelation } from './research/parameter-relation';
 import { missionTimeLimit, planningTimeLimit } from '../world/program';
 import { objectiveGoals } from '../world/goals';
 import type { Stage, RoutePlan } from '../world/types';
+import type { Expression } from '../world/expressions';
+import type { Condition } from '../world/conditions';
 import type { SearchTemplate } from './solution-search';
 import {
   NonlinearRelationLimit,
@@ -11,6 +13,7 @@ import {
   type Term,
 } from './research/nonlinear-relation';
 import { regionalRelation } from './research/regional-relation';
+import { ballisticTimeCertificate } from './research/ballistic-certificate';
 import { RocketResources } from './research/rocket-resources';
 import { GoalHistory, UnsupportedHistoryExpression, type Known } from './research/goal-history';
 import {
@@ -20,21 +23,107 @@ import {
 } from './research/success-projection';
 import { DecisionSetLimit } from './research/decision-set';
 import { DomainResourceLimit } from './research/real-domains';
-import { logic } from '../physics/hybrid-kernel';
-import { rk4, type VectorOf } from '../physics/nonlinear-kernel';
+import { capsuleSweep, logic } from '../physics/hybrid-kernel';
+import { attraction, rk4, type VectorOf } from '../physics/nonlinear-kernel';
+import { constantKernel } from '../physics/constant-kernel';
+import { advanceBodies, dynamicView } from '../world/dynamics';
+import { bodyPosition, bodyVelocity, objectPosition, objectVelocity } from '../world/celestial';
+import { surfaceLaunch, surfaceClearance } from '../world/launch';
+import {
+  ROCKET_SEGMENT_LENGTH,
+  ROCKET_PAYLOAD_LENGTH,
+  ROCKET_RADIUS,
+  hullSize,
+} from '../world/hull';
 
 class UnsupportedTransition extends Error {}
 export type ProjectionProgress = {
   coordinates?: number[];
+  bounds?: ProjectionCell['bounds'];
+  summary?: ProjectionSummary;
   statistics: { cells: number; visits: number; regions: number; groups: number };
+};
+export type ProjectionSummary = {
+  status: 'closed' | 'partial' | 'unsupported' | 'limited';
+  issues: string[];
+  pending: number;
 };
 export type ProjectionModel = { relation: NonlinearRelation; success: Term; residual: Term };
 
+/** Whole-stage gaps, independent of any control word. A caller can retain this
+ * entire grammar as one unresolved relation without enumerating its words. */
+export function inverseCapability(stage: Stage): string[] {
+  const issues: string[] = [];
+  if (stage.bodies.some((b) => b.atmosphere && b.atmosphere.density > 0 && b.atmosphere.height > 0))
+    issues.push('대기·항력·가열 전이의 역산 관계가 아직 없습니다.');
+  if (
+    stage.launchBodyId &&
+    stage.bodies.some((b) => b.id === stage.launchBodyId && (b.spin ?? 0) !== 0)
+  )
+    issues.push('자전하는 표면 발사의 역산 관계가 아직 없습니다.');
+  // Refuse one uncompiled goal relation once, rather than recompiling the same
+  // gap for every word of the action grammar. This is NOT an emptiness proof.
+  const supported = new Set([
+    'x',
+    'y',
+    'vx',
+    'vy',
+    'time',
+    'speed',
+    'distance',
+    'altitude',
+    'radialSpeed',
+    'angularMomentum',
+    'energy',
+    'fuel',
+    'mass',
+    'throttle',
+    'ignitions',
+    'thrustUsed',
+    'thrustLeft',
+    'separatedStages',
+    'releasedPayloads',
+    'heat',
+    'dynamicPressure',
+    'airDensity',
+    'buoys',
+    'gravity',
+    'circularSpeed',
+    'targetGravityParameter',
+    'targetRadius',
+  ]);
+  function expression(e: Expression) {
+    if (e.kind === 'metric' && !supported.has(e.metric))
+      issues.push(`판정 지표 ${e.metric}의 역산 관계가 아직 없습니다.`);
+    if (e.kind === 'calculate') {
+      if (['power', 'sin', 'cos', 'atan2', 'ellipseDistance'].includes(e.operation))
+        issues.push(`판정 연산 ${e.operation}의 역산 관계가 아직 없습니다.`);
+      e.args.forEach(expression);
+    }
+    if (e.kind === 'window') [e.value, e.domain, e.width].forEach(expression);
+  }
+  function condition(c: Condition) {
+    if (c.kind === 'compare') [c.left, c.right].forEach(expression);
+    else if ('children' in c) c.children.forEach(condition);
+    else if ('child' in c) condition(c.child);
+    else if (c.kind === 'capture') {
+      expression(c.value);
+      condition(c.when);
+    } else if (c.kind === 'event' && ['collision', 'gate'].includes(c.event))
+      issues.push(`접촉·통과 사건 ${c.event}의 후속 역산 관계가 아직 없습니다.`);
+  }
+  objectiveGoals(stage).forEach((g) => condition(g.condition));
+  return [...new Set(issues)];
+}
+
 /** A production adapter, NOT the missing universal engine compiler. It composes
- * a vacuum/free-space flight (including staging, satellites,
- * fuel/ignitions and goal/window histories). Powers and legacy total-order time
- * coordinates are continuous inputs. Causal-DAG payload reordering and angles
- * remain at the supplied seed; they are NOT silently treated as inverted. Unsupported physics
+ * vacuum gravity flight (including staging, satellites,
+ * fuel/ignitions and goal/window histories). Powers, launch/impulse directions
+ * and single-actor event times are continuous inputs. Strict production mode
+ * refuses every enabled coordinate not represented in this relation.
+ * Moving ephemerides are exact point precomputations only for a fixed clock;
+ * static multi-body gravity also admits free event times. Uncompiled contact
+ * continuations become a residual, NOT an impossible-plan proof. Unsupported physics
  * is explicitly declined, never simplified or removed from general search.
  * Region certificates concern real arithmetic; representatives ALWAYS go through
  * the actual engine. Neither its proof nor its completion prunes gameplay plans. */
@@ -44,28 +133,49 @@ export function* inverseProjection(
   seed: number[],
   nominal: RoutePlan,
   observe?: (evaluate: (coordinates: number[]) => boolean, model: ProjectionModel) => void,
+  options: { cells?: number; strict?: boolean; resolution?: number } = {},
 ): Generator<ProjectionProgress> {
   const statistics = { cells: 0, visits: 0, regions: 0, groups: 0 };
+  const declined = (
+    issues: string[],
+    status: ProjectionSummary['status'] = 'unsupported',
+  ): ProjectionProgress => ({
+    statistics: { ...statistics },
+    summary: { status, issues, pending: 1 },
+  });
+  const gaps = inverseCapability(stage);
+  if (nominal.engineCommands?.some((c) => c.direction))
+    gaps.push('회전 전이의 역산 관계가 아직 없습니다.');
+  if (nominal.deployments?.length) gaps.push('구버전 부표 방출은 역산하지 않습니다.');
   if (
-    stage.bodies.length ||
-    stage.launchBodyId ||
-    stage.objects.some(
-      (o) =>
-        o.motion ||
-        o.dynamic ||
-        o.surface ||
-        ['debris', 'satellite'].includes(o.kind) ||
-        (o.kind === 'station' && (o.physicalRadius ?? 0) > 0),
-    ) ||
-    nominal.engineCommands?.some((c) => c.direction) ||
-    nominal.deployments?.length
+    template.after &&
+    new Set(template.plan.engineCommands?.map((c) => c.actorId)).size > 1 &&
+    template.parameters.some((p) => p.enabled && p.key.endsWith('.time'))
   )
+    gaps.push('복수 기체의 예약 payload 재정렬 관계가 아직 없습니다.');
+  if (gaps.length) {
+    yield declined(gaps);
     return;
+  }
   const parameters = template.parameters.filter((p) => p.enabled),
     inverted = parameters
       .map((p, index) => ({ ...p, index }))
-      .filter((p) => p.key.endsWith('.power') || (!template.after && p.key.endsWith('.time')));
-  if (!inverted.length) return;
+      .filter((p) =>
+        options.strict
+          ? ['power', 'time', 'angle'].includes(p.key.split('.').at(-1)!)
+          : p.key.endsWith('.power') || (!template.after && p.key.endsWith('.time')),
+      );
+  if (options.strict && inverted.length !== parameters.length) {
+    yield declined([
+      '아직 관계화하지 못한 자유 변수: ' +
+        parameters
+          .filter((p) => !inverted.some((v) => v.key === p.key))
+          .map((p) => p.label)
+          .join(', '),
+    ]);
+    return;
+  }
+  if (!inverted.length && !options.strict) return;
   const ids = [...(nominal.engineCommands ?? []), ...nominal.impulses].map((v) => v.id);
   if (
     seed.length !== parameters.length ||
@@ -81,13 +191,19 @@ export function* inverseProjection(
       ]),
       ...nominal.impulses.flatMap((c) => [c.time, c.vector.x, c.vector.y]),
     ].every(Number.isFinite)
-  )
+  ) {
+    yield declined(['예약 ID·제어 범위가 유효한 관계 입력이 아닙니다.']);
     return;
+  }
   const horizon = Math.min(stage.audit.timeLimit ?? stage.rules.maxTime, missionTimeLimit(stage));
-  if (!Number.isFinite(horizon) || horizon <= 0) return;
+  if (!Number.isFinite(horizon) || horizon <= 0) {
+    yield declined(['유한한 역산 시간 창이 필요합니다.']);
+    return;
+  }
   try {
     const bounds = Object.fromEntries(inverted.map((p) => ['u' + p.index, [{ lo: 0, hi: 1 }]]));
     const r = regionalRelation(bounds, { nodes: 120_000 }),
+      algebra = constantKernel(r),
       c = (n: number) => r.literal(n),
       b = logic(r),
       zero = c(0),
@@ -106,14 +222,55 @@ export function* inverseProjection(
         y: r.add(a.y, r.multiply(d.y, c(-1))),
       });
     const launchPower = scalar('launch.power', Math.hypot(nominal.launch.x, nominal.launch.y));
-    const angle = Math.atan2(nominal.launch.y, nominal.launch.x),
-      launch = {
-        x: r.multiply(c(Math.cos(angle)), launchPower),
-        y: r.multiply(c(Math.sin(angle)), launchPower),
-      };
+    const direction = (key: string, vector: { x: number; y: number }, power: Term) => {
+      const variable = controls.get(key);
+      if (variable) {
+        const angle = r.divide(r.multiply(variable, c(Math.PI)), c(180));
+        return { x: r.multiply(r.cos(angle), power), y: r.multiply(r.sin(angle), power) };
+      }
+      const angle = Math.atan2(vector.y, vector.x);
+      return { x: r.multiply(c(Math.cos(angle)), power), y: r.multiply(c(Math.sin(angle)), power) };
+    };
+    const launch = direction('launch.angle', nominal.launch, launchPower);
     const initial = createRun(stage, { ...nominal, launch: { x: 0, y: 0 } });
-    if (initial.status !== 'running') return;
+    if (initial.status !== 'running') {
+      yield declined([initial.reason]);
+      return;
+    }
     const resources = stage.rocket ? new RocketResources(r, stage.rocket, initial) : undefined;
+    const ephemeris = createRun(stage, { ...nominal, launch: { x: 0, y: 0 } });
+    const moving =
+      stage.bodies.some((b) => b.motion || b.dynamic) ||
+      stage.objects.some((o) => o.motion || o.dynamic || o.surface);
+    let metricWorld = stage,
+      metricTime = c(0),
+      unresolved = zero;
+    const pad = surfaceLaunch(stage);
+    let airborne = c(Number(!pad));
+    const point = (v: { x: number; y: number }) => ({ x: c(v.x), y: c(v.y) });
+    const bodyAt = (world: Stage, id: string, time: Term) => {
+      const body = world.bodies.find((b) => b.id === id)!;
+      const t = r.constantValue(time);
+      if (body.motion || body.dynamic) {
+        if (t === undefined) throw new UnsupportedTransition('Variable-clock celestial ephemeris');
+        return point(bodyPosition(world, body, t));
+      }
+      return point(body.position);
+    };
+    const gravityAt = (world: Stage, p: VectorOf<Term>, time: Term) =>
+      world.bodies.reduce(
+        (sum, body) => {
+          const force = attraction(
+            algebra,
+            p,
+            bodyAt(world, body.id, time),
+            c(body.mu),
+            c(body.radius * 0.2),
+          );
+          return { x: algebra.add(sum.x, force.x), y: algebra.add(sum.y, force.y) };
+        },
+        { x: zero, y: zero },
+      );
     if (resources)
       resources.initializeLaunch(
         stage.rules.launchLimit > 0
@@ -171,10 +328,44 @@ export function* inverseProjection(
         };
       }
       const object = stage.objects.find((o) => o.id === id);
+      const body = stage.bodies.find((o) => o.id === id);
+      if (body) {
+        const time = r.constantValue(metricTime);
+        return {
+          position: bodyAt(metricWorld, body.id, metricTime),
+          velocity: point(
+            body.motion || body.dynamic
+              ? bodyVelocity(
+                  metricWorld,
+                  metricWorld.bodies.find((b) => b.id === id)!,
+                  time!,
+                )
+              : { x: 0, y: 0 },
+          ),
+          known: one,
+          radius: c(body.radius),
+          fuel: zero,
+          mass: one,
+          throttle: zero,
+          ignitions: zero,
+        };
+      }
       if (object)
         return {
-          position: { x: c(object.position.x), y: c(object.position.y) },
-          velocity: { x: zero, y: zero },
+          position: point(
+            objectPosition(
+              metricWorld,
+              metricWorld.objects.find((o) => o.id === id)!,
+              r.constantValue(metricTime) ?? 0,
+            ),
+          ),
+          velocity: point(
+            objectVelocity(
+              metricWorld,
+              metricWorld.objects.find((o) => o.id === id)!,
+              r.constantValue(metricTime) ?? 0,
+            ),
+          ),
           known: one,
           radius: c(object.radius),
           fuel: zero,
@@ -217,7 +408,10 @@ export function* inverseProjection(
         index: pushIndexes.get(value.id) ?? -1,
       })),
     ];
-    if (events.some((e) => e.index < 0)) return;
+    if (events.some((e) => e.index < 0)) {
+      yield declined(['예약 ID와 변수의 연결을 확인할 수 없습니다.']);
+      return;
+    }
     const timedEvents = events.map((event) => {
       return {
         id: event.value.id,
@@ -232,10 +426,45 @@ export function* inverseProjection(
       for (const event of timedEvents)
         running = b.and(running, b.and(r.lte(zero, event.time), r.lte(event.time, c(planLimit))));
     const clock = new FlightClock(r, timedEvents, horizon, missionTimeLimit(stage));
-    for (let step = 0; step < clock.bound; step++) {
+    const ballistic = ballisticTimeCertificate(stage, horizon) && !nominal.engineCommands?.length;
+    if (ballistic) {
+      let total = zero;
+      for (const event of events) {
+        if (event.kind !== 'impulse') throw new UnsupportedTransition();
+        const power = scalar(
+          `push.${event.index}.power`,
+          Math.hypot(event.value.vector.x, event.value.vector.y),
+        );
+        total = r.add(total, r.max(power, r.multiply(c(-1), power)));
+      }
+      if (Number.isFinite(missionTimeLimit(stage)))
+        for (const event of timedEvents)
+          running = b.and(
+            running,
+            b.and(r.lte(zero, event.time), r.lte(event.time, c(missionTimeLimit(stage)))),
+          );
+      won = b.and(running, r.lte(total, c(stage.rules.maneuverBudget + 1e-8)));
+      // This proves a sufficient whole-control tube. Suffixes that exceed the
+      // complete budget but might win earlier are retained as residuals.
+      unresolved = b.not(won);
+      running = zero;
+    }
+    for (let step = 0; !ballistic && step < clock.bound; step++) {
       if (r.constantValue(clock.pending()) === 0) break;
       const frame = clock.next(),
         { before: previousTime, time, dt } = frame;
+      const nativeTime = r.constantValue(previousTime),
+        nativeDt = r.constantValue(dt);
+      if (moving && (nativeTime === undefined || nativeDt === undefined))
+        throw new UnsupportedTransition('Variable-clock moving bodies');
+      const beforeWorld = moving ? dynamicView(stage, ephemeris) : stage;
+      if (moving) {
+        ephemeris.time = nativeTime!;
+        advanceBodies(stage, ephemeris, nativeDt!);
+        ephemeris.time += nativeDt!;
+        metricWorld = dynamicView(stage, ephemeris);
+      }
+      metricTime = time;
       const burns: { actorId: string; value: Term }[] = [];
       for (const [eventIndex, event] of events.entries()) {
         if (r.constantValue(frame.due[eventIndex]) === 0) continue;
@@ -262,11 +491,7 @@ export function* inverseProjection(
             `push.${event.index}.power`,
             Math.hypot(event.value.vector.x, event.value.vector.y),
           );
-          const angle = Math.atan2(event.value.vector.y, event.value.vector.x),
-            impulse = {
-              x: r.multiply(c(Math.cos(angle)), power),
-              y: r.multiply(c(Math.sin(angle)), power),
-            };
+          const impulse = direction(`push.${event.index}.angle`, event.value.vector, power);
           used = r.select(enabled, r.add(used, length(impulse)), used);
           running = b.and(running, r.lte(used, c(stage.rules.maneuverBudget + 1e-8)));
           velocity = {
@@ -277,17 +502,21 @@ export function* inverseProjection(
         }
       }
       running = b.and(running, b.not(frame.failed));
-      const active = b.and(running, frame.enabled);
+      let active = b.and(running, frame.enabled);
       resources?.stopWhen(b.not(running));
       if (resources) resources.power(dt, active);
-      const integrate = (p: VectorOf<Term>, v: VectorOf<Term>) =>
-        rk4(r, () => ({ x: zero, y: zero }), p, v, previousTime, dt);
+      const integrate = (p: VectorOf<Term>, v: VectorOf<Term>, world = beforeWorld) =>
+        rk4(algebra, (p, _v, t) => gravityAt(world, p, t), p, v, previousTime, dt);
+      const resourcesBefore = resources?.snapshot(),
+        mainBefore = resourcesBefore?.position ?? position;
       if (resources) {
         const s = resources.snapshot(),
           [p, v] = integrate(s.position, s.velocity);
         resources.kinematics('craft', p, v);
         for (const [id, actor] of s.actors) {
-          const [p, v] = integrate(actor.position, actor.velocity);
+          // Native tick advances detached actors after refreshing dynamicView.
+          // In particular, do not reuse the main craft's pre-step ephemeris.
+          const [p, v] = integrate(actor.position, actor.velocity, metricWorld);
           resources.kinematics(
             id,
             p,
@@ -302,6 +531,170 @@ export function* inverseProjection(
           y: r.select(active, p.y, position.y),
         };
         velocity = { x: r.select(active, v.x, velocity.x), y: r.select(active, v.y, velocity.y) };
+      }
+      // Preserve an unresolved contact continuation rather than treating the
+      // surface as absent or accepting a goal on the far side of a collision.
+      if (
+        stage.bodies.length ||
+        stage.objects.some(
+          (o) => ['satellite', 'debris'].includes(o.kind) || (o.physicalRadius ?? 0) > 0,
+        )
+      ) {
+        const s = resources?.snapshot(),
+          main = s?.position ?? position;
+        let heading = s?.direction ?? point(initial.attitude ?? { x: 1, y: 0 });
+        if (!resources) {
+          let nearest: Term | undefined;
+          for (const body of metricWorld.bodies) {
+            if (body.kind === 'barycenter') continue;
+            const delta = sub(main, bodyAt(metricWorld, body.id, time)),
+              radius = length(delta),
+              gap = r.subtract(radius, c(body.radius));
+            const direction = {
+              x: r.divide(delta.x, r.max(radius, c(1e-9))),
+              y: r.divide(delta.y, r.max(radius, c(1e-9))),
+            };
+            const nearer = nearest ? r.lt(gap, nearest) : one;
+            heading = {
+              x: r.select(nearer, direction.x, heading.x),
+              y: r.select(nearer, direction.y, heading.y),
+            };
+            nearest = nearest ? r.min(nearest, gap) : gap;
+          }
+        }
+        const extent = s
+          ? r.add(
+              c(ROCKET_PAYLOAD_LENGTH),
+              r.multiply(
+                r.max(zero, r.subtract(c(stage.rocket!.parts.length), s.partIndex)),
+                c(ROCKET_SEGMENT_LENGTH),
+              ),
+            )
+          : c(hullSize().length);
+        let contact = zero,
+          padContact = zero;
+        const hit = (
+          before: VectorOf<Term>,
+          after: VectorOf<Term>,
+          direction: VectorOf<Term>,
+          size: Term,
+          centerBefore: VectorOf<Term>,
+          centerAfter: VectorOf<Term>,
+          radius: number,
+        ) =>
+          capsuleSweep(algebra, {
+            before,
+            after,
+            heading: direction,
+            length: size,
+            hullRadius: c(ROCKET_RADIUS),
+            centerBefore,
+            centerAfter,
+            radius: c(radius),
+          }).hit;
+        for (const body of metricWorld.bodies) {
+          if (body.kind === 'barycenter') continue;
+          const touching = hit(
+            mainBefore,
+            main,
+            heading,
+            extent,
+            bodyAt(metricWorld, body.id, previousTime),
+            bodyAt(metricWorld, body.id, time),
+            body.radius,
+          );
+          if (resources && body.id === pad?.body.id) padContact = b.or(padContact, touching);
+          else contact = b.or(contact, touching);
+        }
+        if (resources && pad) {
+          // With fixed attitude the pad pins an inward step and releases on
+          // actual clearance, just as tick. A later recontact is unresolved.
+          const delta = sub(main, bodyAt(metricWorld, pad.body.id, time)),
+            lift = b.and(
+              b.not(padContact),
+              r.lt(
+                c(surfaceClearance(stage) + 1e-6),
+                r.subtract(length(delta), c(pad.body.radius)),
+              ),
+            ),
+            pinned = b.and(b.not(airborne), b.and(b.not(lift), b.not(contact)));
+          contact = b.or(contact, b.and(airborne, padContact));
+          airborne = b.or(airborne, b.and(active, lift));
+          const nowPad = surfaceLaunch(metricWorld, r.constantValue(time) ?? 0)!;
+          resources.kinematics(
+            'craft',
+            {
+              x: r.select(pinned, c(nowPad.position.x), main.x),
+              y: r.select(pinned, c(nowPad.position.y), main.y),
+            },
+            {
+              x: r.select(pinned, c(nowPad.velocity.x), s!.velocity.x),
+              y: r.select(pinned, c(nowPad.velocity.y), s!.velocity.y),
+            },
+          );
+        }
+        for (const object of metricWorld.objects) {
+          const radius =
+            object.kind === 'station'
+              ? (object.physicalRadius ?? 0)
+              : ['satellite', 'debris'].includes(object.kind)
+                ? object.radius
+                : 0;
+          if (radius > 0)
+            contact = b.or(
+              contact,
+              hit(
+                mainBefore,
+                resources?.snapshot().position ?? position,
+                heading,
+                extent,
+                point(objectPosition(metricWorld, object, nativeTime ?? 0)),
+                point(objectPosition(metricWorld, object, r.constantValue(time) ?? 0)),
+                radius,
+              ),
+            );
+        }
+        if (s)
+          for (const [id, actor] of resourcesBefore!.actors) {
+            const after = resources!.snapshot().actors.get(id)!;
+            for (const body of metricWorld.bodies)
+              if (body.kind !== 'barycenter') {
+                const touching = hit(
+                  actor.position,
+                  after.position,
+                  actor.direction,
+                  c(hullSize(1, true).length),
+                  bodyAt(metricWorld, body.id, previousTime),
+                  bodyAt(metricWorld, body.id, time),
+                  body.radius,
+                );
+                contact = b.or(contact, b.and(actor.present, touching));
+              }
+            for (const object of metricWorld.objects) {
+              const radius =
+                object.kind === 'station'
+                  ? (object.physicalRadius ?? 0)
+                  : ['satellite', 'debris'].includes(object.kind)
+                    ? object.radius
+                    : 0;
+              if (radius <= 0) continue;
+              const touching = hit(
+                actor.position,
+                after.position,
+                actor.direction,
+                c(hullSize(1, true).length),
+                point(objectPosition(metricWorld, object, nativeTime ?? 0)),
+                point(objectPosition(metricWorld, object, r.constantValue(time) ?? 0)),
+                radius,
+              );
+              contact = b.or(contact, b.and(actor.present, touching));
+            }
+          }
+        const frontier = b.and(active, contact);
+        unresolved = b.or(unresolved, frontier);
+        running = b.and(running, b.not(frontier));
+        active = b.and(active, b.not(frontier));
+        resources?.stopWhen(b.not(running));
       }
       const complete = goals.advance(
         time,
@@ -357,19 +750,32 @@ export function* inverseProjection(
               case 'energy':
                 value = r.subtract(
                   r.divide(r.add(r.multiply(v.x, v.x), r.multiply(v.y, v.y)), c(2)),
-                  r.divide(zero, r.max(length(d), c(1e-9))),
+                  r.divide(
+                    c(stage.bodies.find((body) => body.id === e.targetId)?.mu ?? 0),
+                    r.max(length(d), c(1e-9)),
+                  ),
                 );
                 break;
               case 'fuel':
                 value = actor.fuel;
                 break;
               case 'mass':
+                if (
+                  e.actorId &&
+                  [...stage.bodies, ...stage.objects].some((o) => o.id === e.actorId)
+                )
+                  return { known: zero, value: zero };
                 value = actor.mass;
                 break;
               case 'throttle':
                 value = actor.throttle;
                 break;
               case 'ignitions':
+                if (
+                  e.actorId &&
+                  [...stage.bodies, ...stage.objects].some((o) => o.id === e.actorId)
+                )
+                  return { known: zero, value: zero };
                 value = actor.ignitions;
                 break;
               case 'thrustUsed':
@@ -391,11 +797,25 @@ export function* inverseProjection(
               case 'heat':
               case 'dynamicPressure':
               case 'airDensity':
-              case 'gravity':
               case 'landed':
               case 'buoys':
                 value = zero;
                 break;
+              case 'gravity':
+                value = length(gravityAt(metricWorld, actor.position, time));
+                break;
+              case 'circularSpeed': {
+                const body = stage.bodies.find((body) => body.id === e.targetId);
+                if (!body?.mu) return { known: zero, value: zero };
+                value = r.sqrt(r.divide(c(body.mu), r.max(length(d), c(1e-9))));
+                break;
+              }
+              case 'targetGravityParameter': {
+                const body = stage.bodies.find((body) => body.id === e.targetId);
+                if (!body) return { known: zero, value: zero };
+                value = c(body.mu);
+                break;
+              }
               case 'touchdownSpeed':
               case 'touchdownTilt':
                 return { known: zero, value: zero };
@@ -456,7 +876,7 @@ export function* inverseProjection(
       if (++steps % 8 === 0) yield { statistics: { ...statistics } };
       if (steps > 5000) throw new UnsupportedTransition('Transition construction limit');
     }
-    const residual = clock.pending(b.and(running, b.not(won)));
+    const residual = b.or(unresolved, clock.pending(b.and(running, b.not(won))));
     const accepted: ProjectionCell[] = [];
     if (observe) {
       const evaluate = r.evaluator([won]);
@@ -477,12 +897,14 @@ export function* inverseProjection(
       emitted.add(key);
       return coordinates;
     };
+    let lastProjection: { complete: boolean; pending: number } | undefined;
     for (const step of successProjection(r, won, bounds, {
-      cells: 48,
+      cells: options.cells ?? 48,
       work: Math.min(150_000, Math.max(8192, r.statistics.nodes * 16)),
-      resolution: 1e-5,
+      resolution: options.resolution ?? 1e-5,
       interiorFirst: inverted.some((p) => p.key.endsWith('.time')),
     })) {
+      lastProjection = step;
       accepted.push(...step.accepted);
       statistics.cells = step.statistics.cells;
       statistics.visits = step.statistics.visits;
@@ -496,7 +918,7 @@ export function* inverseProjection(
             Object.entries(cell.bounds).map(([key, d]) => [key, d.lo / 2 + d.hi / 2]),
           ),
         );
-        if (coordinates) yield { coordinates, statistics: { ...statistics } };
+        if (coordinates) yield { coordinates, bounds: cell.bounds, statistics: { ...statistics } };
       }
       yield { statistics: { ...statistics } };
     }
@@ -506,7 +928,21 @@ export function* inverseProjection(
       const coordinates = representative(group.point);
       if (coordinates) yield { coordinates, statistics: { ...statistics } };
     }
-    yield { statistics: { ...statistics } };
+    const residualRange = r.enclosure(residual),
+      residualClosed =
+        residualRange.defined && residualRange.range.lo === 0 && residualRange.range.hi === 0;
+    const partial = !residualClosed || inverted.length !== parameters.length;
+    yield {
+      statistics: { ...statistics },
+      summary: {
+        status: lastProjection?.complete && !partial ? 'closed' : 'partial',
+        pending: (lastProjection?.pending ?? 1) + Number(partial),
+        issues: [
+          ...(!residualClosed ? ['접촉 후속 상태 또는 미완료 전이 관계가 남아 있습니다.'] : []),
+          ...(inverted.length !== parameters.length ? ['일부 자유 변수는 고정된 관계입니다.'] : []),
+        ],
+      },
+    };
   } catch (error) {
     if (!(
       error instanceof UnsupportedTransition ||
@@ -516,6 +952,17 @@ export function* inverseProjection(
       error instanceof DomainResourceLimit
     ))
       throw error;
-    // Unsupported/limited model: retain every program in the existing search.
+    yield declined(
+      [
+        error instanceof UnsupportedHistoryExpression
+          ? '판정식 역산 관계 미구현 · ' + error.message
+          : error instanceof UnsupportedTransition
+            ? '전이 관계 미구현 · ' + (error.message || '지원하지 않는 전이')
+            : '관계 계산 자원 한도 · ' + error.message,
+      ],
+      error instanceof UnsupportedTransition || error instanceof UnsupportedHistoryExpression
+        ? 'unsupported'
+        : 'limited',
+    );
   }
 }

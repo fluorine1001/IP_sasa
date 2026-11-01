@@ -66,14 +66,25 @@ function evaluateNode(
     if (
       !goal ||
       goal.dependsOn.some((id) => !c.run.goals[id]?.complete) ||
-      c.run.time < goal.startTime ||
-      (!goal.endTimeUnlimited && c.run.time > goal.endTime)
+      c.run.time < goal.startTime - 1e-9 ||
+      (!goal.endTimeUnlimited && c.run.time > goal.endTime + 1e-9)
     )
       return false;
     const scope = `${path}.ref:${goal.id}`;
+    const previousTime = Math.max(
+      c.previousTime,
+      goal.startTime,
+      ...goal.dependsOn.map((id) => c.run.goals[id]?.completedAt ?? c.previousTime),
+    );
     return evaluateNode(
       goal.condition,
-      { ...c, references: [...(c.references ?? []), goal.id], bindings: { ...c.bindings, scope } },
+      {
+        ...c,
+        previousTime,
+        dt: Math.max(0, c.run.time - previousTime),
+        references: [...(c.references ?? []), goal.id],
+        bindings: { ...c.bindings, scope },
+      },
       p,
       scope,
     );
@@ -103,6 +114,26 @@ function evaluateNode(
     const a = expressionValue(node.left, c, p, `${path}.left`),
       b = expressionValue(node.right, c, p, `${path}.right`);
     if (!Number.isFinite(a) || !Number.isFinite(b)) return undefined;
+    {
+      const missing =
+        node.operator === 'gte' || node.operator === 'gt'
+          ? Math.max(0, b - a)
+          : node.operator === 'lte' || node.operator === 'lt'
+            ? Math.max(0, a - b)
+            : Math.abs(a - b);
+      const distance = missing / Math.max(Math.abs(b), 1e-9);
+      p.closest ??= {};
+      if (!p.closest[path] || distance < p.closest[path].distance)
+        p.closest[path] = {
+          metric: node.left.kind === 'metric' ? node.left.metric : '관측값',
+          targetId: node.left.kind === 'metric' ? node.left.targetId : '',
+          operator: node.operator,
+          target: b,
+          value: a,
+          time: c.run.time,
+          distance,
+        };
+    }
     switch (node.operator) {
       case 'lt':
         return a < b;

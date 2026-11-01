@@ -1,11 +1,267 @@
 .editor {
   height: 100dvh;
   display: grid;
-  grid-template-columns: 190px minmax(300px, 1fr) 330px;
-  grid-template-rows: auto minmax(300px, 1fr) minmax(220px, 34dvh);
+  grid-template-columns: 230px minmax(300px, 1fr) 360px;
+  grid-template-rows: auto minmax(300px, 1fr) auto;
   background: #142332;
   gap: 8px;
   padding: 8px;
+}
+
+/* Workshop workbench: place on the left, edit on the right, test in the toolbar. */
+.palette-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  position: sticky;
+  top: -12px;
+  z-index: 2;
+  background: #263d44;
+  padding: 8px 0;
+}
+.editor-palette .palette-tabs button {
+  font-size: 13px;
+  padding: 9px 3px;
+  margin: 0;
+}
+.palette-tabs button[aria-pressed='true'] {
+  background: #8fc5ad;
+}
+[data-palette-pane][hidden] {
+  display: none;
+}
+.editor-palette .palette-group {
+  border: 0;
+  padding: 0;
+  margin: 14px 0;
+}
+.palette-group > summary {
+  font-size: 11px;
+  color: #c8b788;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px;
+}
+.editor-palette .scene-tool {
+  text-align: left;
+  font-weight: 650;
+  padding: 10px 12px;
+  color: #e5e8d7;
+  background: linear-gradient(#425860, #334851);
+  border-width: 1px;
+  border-color: #101e27;
+  box-shadow:
+    inset 0 1px #a8beb333,
+    0 2px #101e2788;
+}
+.editor-palette .scene-tool:hover {
+  color: #fff2c7;
+  border-color: #c8b788;
+}
+.palette-note {
+  font-size: 12px;
+  margin: 12px 0;
+  line-height: 1.65;
+}
+#scene-list {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #80958c55;
+}
+#scene-list details {
+  margin: 0 0 12px;
+}
+#scene-list summary {
+  font-size: 11px;
+  color: #c5bb9f;
+}
+#scene-list button {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 550;
+  background: #1b3038;
+  color: #c9d6cd;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 8px;
+  margin: 3px 0;
+}
+#scene-list button::before {
+  content: '◇';
+  color: #d9b774;
+  margin-right: 7px;
+}
+.editor-inspector > .badge {
+  font-size: 15px;
+  color: #f0d699;
+  letter-spacing: 0.02em;
+  padding-bottom: 9px;
+}
+.inspector-hint {
+  font-size: 11px;
+  color: #9eb5b0;
+  border-bottom: 1px solid #7b958255;
+  padding-bottom: 13px;
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+.inspector-section {
+  border-bottom: 1px solid #7c948244;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+}
+.inspector-section h3 {
+  font-size: 12px;
+  color: #d0be93;
+  margin: 0 0 8px;
+}
+.editor-inspector > details {
+  border-top: 1px solid #718b7d44;
+  padding-top: 10px;
+  margin: 14px 0;
+}
+.editor-inspector > details > summary {
+  color: #c2cfc4;
+  font-size: 13px;
+}
+.editor-inspector .inspector-advanced {
+  margin-top: 22px;
+}
+.editor-inspector .inspector-advanced details {
+  margin: 14px 0;
+  padding-left: 8px;
+  border-left: 2px solid #6a817655;
+}
+.editor-inspector .marker-contract {
+  background: #162e3555;
+  border-color: #74958355;
+  border-radius: 6px;
+  padding: 12px;
+}
+.marker-coverage {
+  display: flex;
+  flex-wrap: wrap;
+}
+.marker-coverage span.tested {
+  font-size: 10px;
+  padding: 4px 7px;
+}
+.manual-review-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.manual-review-heading b {
+  color: #e9d19b;
+  font-size: 13px;
+}
+.review-state {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #132d35;
+}
+.editor .editor-audit {
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-height: 100px;
+  padding: 10px 18px;
+  overflow: auto;
+  font-size: 12px;
+}
+.editor-audit > span {
+  color: #adc2b9;
+}
+.editor-audit > details {
+  margin-left: auto;
+  flex: 0 1 420px;
+}
+.editor-audit details[open] {
+  max-height: 75px;
+  overflow: auto;
+}
+.body-gravity-dial output {
+  color: #d5c594;
+  font-size: 12px;
+}
+.editor-top > #test-stage {
+  margin-left: auto;
+  background: #e0b365;
+  color: #14232b;
+  min-width: 150px;
+}
+.editor-top > #save-stage {
+  background: #82b69d;
+}
+.editor-top > #publish-stage {
+  background: #3c5359;
+  color: #e3d9b9;
+}
+.editor-top button {
+  font-size: 13px;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+@media (min-width: 1001px) {
+  .editor {
+    grid-template-columns: 230px minmax(300px, 1fr) 360px;
+    grid-template-rows: auto minmax(300px, 1fr) auto;
+  }
+}
+@media (min-width: 681px) and (max-width: 1000px) {
+  .editor {
+    grid-template-columns: 180px minmax(230px, 1fr) 300px;
+    grid-template-rows: auto minmax(300px, 1fr) auto;
+  }
+}
+@media (max-width: 680px) {
+  .editor,
+  .editor:has(.marker-placement-dock:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(330px, 48dvh) 240px minmax(360px, auto) auto;
+    width: 100%;
+    overflow-y: auto;
+  }
+  .editor .editor-viewport {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .editor .editor-palette {
+    grid-row: 3;
+    max-height: 240px;
+    display: block;
+  }
+  .editor .editor-inspector {
+    grid-row: 4;
+    grid-column: 1;
+    max-height: 65dvh;
+  }
+  .editor .editor-audit {
+    grid-row: 5;
+    grid-column: 1;
+    flex-wrap: wrap;
+    min-height: 80px;
+    max-height: 170px;
+    gap: 8px;
+  }
+  .editor-top {
+    gap: 6px;
+    padding: 8px;
+  }
+  .editor-top > #test-stage {
+    margin-left: 0;
+    min-width: 130px;
+  }
+  .editor-top button {
+    font-size: 11px;
+    padding: 7px 10px;
+  }
+  .palette-tabs {
+    top: -12px;
+  }
 }
 
 .editor-top {
@@ -1202,4 +1458,43 @@
     max-height: 210px;
     overflow-y: auto;
   }
+}
+
+/* Current manual workshop layout, after the archived search-dock breakpoints. */
+.editor {
+  grid-template-columns: 230px minmax(300px, 1fr) 360px;
+  grid-template-rows: auto minmax(300px, 1fr) auto;
+}
+@media (min-width: 681px) and (max-width: 1100px) {
+  .editor {
+    grid-template-columns: 175px minmax(230px, 1fr) 300px;
+  }
+}
+@media (max-width: 680px) {
+  .editor,
+  .editor:has(.marker-placement-dock:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(330px, 48dvh) 240px minmax(360px, auto) auto;
+  }
+  .editor .editor-palette {
+    grid-row: 3;
+    max-height: 240px;
+  }
+  .editor .editor-inspector {
+    grid-row: 4;
+    max-height: 65dvh;
+  }
+  .editor .editor-audit {
+    grid-row: 5;
+  }
+}
+
+/* Solution search (in development) keeps the old review strip's height until it
+ * has results, so the map does not shrink just because the panel exists. */
+.editor .editor-search {
+  max-height: 104px;
+}
+.editor .editor-search:has(#search-families:not(:empty)),
+.editor .editor-search:has(details[open]) {
+  max-height: 38dvh;
 }

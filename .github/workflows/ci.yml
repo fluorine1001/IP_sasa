@@ -2,23 +2,62 @@ name: Game checks
 on:
   pull_request:
   push:
-    branches: [main, master, 'codex/**']
+    branches: [main, master, 'codex/**', 'claude/**']
 permissions:
   contents: read
+# A newer push to the same branch or PR replaces the run still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
+    name: Format, types, unit tests, builds
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run verify
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: Formatting (fix locally with npm run format)
+        run: npm run format:check
+      - name: Type check
+        run: npm run check
+      - name: Module boundaries and stage IDs
+        run: npm run check:boundaries
+      - name: Unit tests
+        run: npm test
+      - name: Stage audit
+        run: npm run audit:stages
+      - name: Game build and offline file
+        run: npm run build
+      - name: Online editor server (same build and start as the hosted service)
+        run: npm run check:hosted
       - uses: actions/upload-artifact@v4
         with:
           name: playable-build
           path: dist/
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Keep screenshots and traces of failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

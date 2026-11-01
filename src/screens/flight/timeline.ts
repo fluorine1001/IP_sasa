@@ -32,7 +32,25 @@ export type TimelineState = {
   ended?: boolean;
 };
 import { eventIcon } from '../../render/program-icons';
+import { burnSpans, chipText, stageColor, textWidth } from './plan-strip';
 export { eventIcon } from '../../render/program-icons';
+/** Round-number ticks ("5초", "10초") at a spacing that fits about `slots` labels. */
+export function timeTicks(duration: number, slots: number) {
+  const target = duration / Math.max(2, Math.min(8, slots));
+  const step =
+    [0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600].find((s) => s >= target) ??
+    Math.ceil(target / 600) * 600;
+  const ticks: string[] = [];
+  for (let t = 0; t <= duration + 1e-9; t += step) {
+    const value = Math.round(t / step) * step;
+    const label = Number.isInteger(value)
+      ? String(value)
+      : value.toFixed(step < 0.25 ? 1 : 2).replace(/0$/, '');
+    ticks.push(`<i style="left:${(value / duration) * 100}%">${label}초</i>`);
+  }
+  return ticks.join('');
+}
+
 export function flightTimeline(
   root: HTMLElement,
   stage: Stage,
@@ -52,7 +70,7 @@ export function flightTimeline(
   const viewports = new Map<string, number>();
   selectedTime = Math.min(selectedTime, viewDuration);
   root.innerHTML =
-    '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
+    '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-burns" class="timeline-burns" aria-hidden="true"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
     timelineDuration(stage) +
     '" step="0.01" value="0"></div><div id="timeline-palette"></div><button id="timeline-extend" hidden>시간선 늘리기 +</button><div class="timeline-caption"><span class="timeline-legend">' +
     (['ignite', 'stop', 'turn', 'separate'] as const)
@@ -132,7 +150,7 @@ export function flightTimeline(
         const command = plan.engineCommands?.find((c) => c.id === e.id),
           push = plan.impulses.find((c) => c.id === e.id);
         const actorOptions =
-          '<option value="craft">본체 · 남아 있는 로켓</option>' +
+          '<option value="craft">본체</option>' +
           (stage.rocket?.parts ?? [])
             .map(
               (p) =>
@@ -140,7 +158,7 @@ export function flightTimeline(
                 p.id +
                 '"' +
                 (command?.actorId === p.id ? ' selected' : '') +
-                '>분리체 · ' +
+                '>' +
                 escape(p.name) +
                 '</option>',
             )
@@ -168,7 +186,7 @@ export function flightTimeline(
                 '"> °</label>'
               : '')
           : push
-            ? '<label>추진 눈금 <input data-push="' +
+            ? '<label>추진 세기 (u/s) <input data-push="' +
               e.id +
               '" type="number" min="0" max="' +
               stage.rules.maneuverBudget +
@@ -403,7 +421,10 @@ export function flightTimeline(
       viewports.set(viewportKey, viewDuration);
     }
     const duration = viewDuration;
+    // Tick density follows the drawn width, so phones get fewer, still legible labels.
+    const trackWidth = Math.round((el('timeline-track').clientWidth || 640) / 80);
     const key = JSON.stringify([
+      trackWidth,
       state.phase,
       plan,
       duration,
@@ -414,11 +435,7 @@ export function flightTimeline(
     if (key !== fingerprint) {
       const previousPhase = fingerprint ? JSON.parse(fingerprint)[0] : '';
       fingerprint = key;
-      el('timeline-ticks').innerHTML = Array.from(
-        { length: 7 },
-        (_, i) =>
-          '<i style="left:' + (i / 6) * 100 + '%">' + ((duration * i) / 6).toFixed(1) + 's</i>',
-      ).join('');
+      el('timeline-ticks').innerHTML = timeTicks(duration, trackWidth);
 
       if (previousPhase !== state.phase && state.phase !== 'plan') {
         editorOpen = false;
@@ -428,13 +445,30 @@ export function flightTimeline(
       const original = new Set(
         programEvents(state.scheduled ?? plan).map((e) => e.id.replace(':turn', '')),
       );
-      const events = programEvents(plan).filter((e) => !e.id.endsWith(':turn')),
-        slots = new Map<number, number>();
+      const events = programEvents(plan).filter((e) => !e.id.endsWith(':turn'));
+      // Chips carry words, so pack them by drawn width: an overlapping chip takes the next lane.
+      const width = el('timeline-track').clientWidth || 640,
+        compact = width < 560,
+        lanes: [number, number][][] = [],
+        maxLanes = 3;
+      let usedLanes = 1;
       el('timeline-markers').innerHTML = events
         .map((e) => {
-          const bucket = Math.round((e.time / duration) * 40),
-            row = slots.get(bucket) ?? 0;
-          slots.set(bucket, row + 1);
+          const text = chipText(stage, plan, e, degrees);
+          const chipWidth =
+            (compact ? 30 : 36) +
+            (compact ? 0 : textWidth(text.word)) +
+            (text.value ? textWidth(text.value) + (compact ? 0 : 5) : 0) +
+            // Room for the tick a performed command gets in flight and replay.
+            (state.phase === 'plan' ? 0 : 12);
+          const x = Math.min(1, e.time / duration) * width,
+            flip = x + chipWidth > width;
+          const a = flip ? x - chipWidth : x,
+            b = flip ? x : x + chipWidth;
+          let row = lanes.findIndex((lane) => lane.every(([l, r]) => b + 3 <= l || a >= r + 3));
+          if (row < 0) row = lanes.length < maxLanes ? lanes.length : maxLanes - 1;
+          (lanes[row] ??= []).push([a, b]);
+          usedLanes = Math.max(usedLanes, row + 1);
           const id = e.id.replace(':turn', ''),
             performed = e.id === 'launch' || state.applied?.has(id),
             applied = performed && e.time <= state.time + 1e-8;
@@ -477,22 +511,67 @@ export function flightTimeline(
             e.time +
             '" class="timeline-event ' +
             e.kind +
+            (flip ? ' flip' : '') +
+            (e.id === 'launch' ? ' fixed' : '') +
             (state.phase !== 'plan' ? (applied ? ' executed' : ' pending') : '') +
             '" style="left:' +
             Math.min(100, (e.time / duration) * 100) +
             '%;--lane:' +
-            Math.min(2, row) +
+            row +
             '" aria-label="' +
             escape(label) +
             '" title="' +
             escape(label) +
             '">' +
             eventIcon(e.kind) +
-            (combinedDirection
-              ? '<i class="timeline-direction">' + eventIcon('turn') + '</i>'
-              : '') +
-            (row === 0 ? '<span>' + e.time.toFixed(1) + 's</span>' : '') +
-            '</button>'
+            '<span class="chip-text' +
+            (text.valueFirst ? ' value-first' : '') +
+            '">' +
+            (text.word ? '<span class="chip-word">' + escape(text.word) + '</span>' : '') +
+            (text.value ? '<b class="chip-value">' + escape(text.value) + '</b>' : '') +
+            '</span></button>'
+          );
+        })
+        .join('');
+      el('timeline-track').style.setProperty('--lanes', String(usedLanes));
+      el('timeline-track').classList.toggle('compact-chips', compact);
+      // Engine-on stretches, coloured by the stage that burns. Bookkeeping, not a forecast.
+      const spans = burnSpans(stage, plan, duration);
+      el('timeline-burns').innerHTML = spans
+        .map((span, i) => {
+          const left = (span.start / duration) * 100,
+            size = ((span.end - span.start) / duration) * 100,
+            label = span.stage + 1 + '단 ' + Math.round(span.throttle * 100) + '%',
+            room = (size / 100) * width > textWidth(label) + 14;
+          return (
+            '<i class="burn-span' +
+            (span.open ? ' open' : '') +
+            '" style="left:' +
+            left +
+            '%;width:' +
+            size +
+            '%;--c:' +
+            stageColor(span.stage) +
+            '" title="' +
+            span.start.toFixed(1) +
+            '–' +
+            span.end.toFixed(1) +
+            '초 · ' +
+            label +
+            (span.fuelOut ? ' · 연료 끝' : '') +
+            '">' +
+            (room ? '<span>' + label + '</span>' : '') +
+            '</i>' +
+            (span.fuelOut
+              ? '<i class="burn-out" style="left:' +
+                (left + size) +
+                '%">' +
+                // The tag only where the next burn leaves room for it; the red line always.
+                ((spans[i + 1]?.start ?? Infinity) - span.end > (62 / width) * duration
+                  ? '<span>연료 끝</span>'
+                  : '') +
+                '</i>'
+              : '')
           );
         })
         .join('');
@@ -502,6 +581,10 @@ export function flightTimeline(
     const percent = Math.min(100, Math.max(0, (cursorTime / duration) * 100));
     el('timeline-fill').style.width = percent + '%';
     el('timeline-cursor').style.left = percent + '%';
+    el('timeline-cursor').dataset.label =
+      (editable() ? '' : 'T+ ') + cursorTime.toFixed(editable() ? 2 : 1) + '초';
+    el('timeline-cursor').classList.toggle('flip', percent > 88);
+    el('flight-timeline').dataset.phase = state.phase;
     el('timeline-clock').textContent =
       state.time.toFixed(2) +
       ' / ' +
@@ -516,12 +599,12 @@ export function flightTimeline(
       '초';
     el('timeline-mode').textContent =
       state.phase === 'replay'
-        ? '기록 다시보기 · 당시의 계획'
+        ? '다시보기'
         : state.ended
-          ? '비행 종료 · 기록 보관'
+          ? '비행 종료'
           : state.phase === 'flight'
-            ? '비행 중 · 계획 확정됨'
-            : '발사 전 · 예약 설계';
+            ? '비행 중'
+            : '계획';
     setControlButton(
       el('program-toggle'),
       'sliders',
@@ -540,9 +623,7 @@ export function flightTimeline(
       state.ended ? '계획으로 돌아가기' : '현재 비행으로',
     );
     el('replay-exit').className = 'console-button with-label replay-close';
-    el('program-contract').textContent = editable()
-      ? '발사 전에 확정합니다. 비행 중에는 조작을 추가하거나 바꿀 수 없습니다.'
-      : '읽기 전용입니다. 이 비행에서 확정했던 계획입니다.';
+    el('program-contract').textContent = editable() ? '' : '발사했던 계획 · 수정 불가';
     slider.disabled = state.phase === 'flight';
     slider.max = String(duration);
     slider.value = String(cursorTime);
@@ -550,16 +631,11 @@ export function flightTimeline(
     slider.setAttribute('aria-valuetext', cursorTime.toFixed(2) + '초');
     el('replay-toggle').hidden = el('replay-exit').hidden = state.phase !== 'replay';
 
-    el('timeline-explanation').textContent =
-      state.phase === 'plan'
-        ? '픽토그램을 끌어 시각 변경 · 클릭해 조작 편집'
-        : state.phase === 'replay'
-          ? '기록된 구간만 재생 · 흐린 표시는 미실행 예약'
-          : '조작 추가·수정 불가 · 밝은 표시는 실행 완료';
+    el('timeline-explanation').textContent = '';
     const end = el('timeline-recorded-end');
     end.hidden = state.phase !== 'replay';
     end.style.left = Math.min(100, ((state.recordedEnd ?? 0) / duration) * 100) + '%';
-    end.title = '실제 기록 끝 ' + (state.recordedEnd ?? 0).toFixed(2) + '초';
+    end.title = '기록 끝 ' + (state.recordedEnd ?? 0).toFixed(2) + '초';
     planner.sync();
   }
   update();

@@ -12,6 +12,7 @@ import type { Stage, RoutePlan, Run } from '../world/types';
 import SearchWorker from './search.worker?worker&inline';
 import BlockerWorker from './blockers.worker?worker&inline';
 import { SearchClient } from './search-client';
+import { inverseStatus } from './inverse-status';
 import { launchBalanceMarkup } from './launch-balance';
 export function solutionSearchPanel(
   root: HTMLElement,
@@ -31,20 +32,27 @@ export function solutionSearchPanel(
     result: SearchReport | undefined,
     history: Run['trail'] = [];
   const playback = representativeReplay(root, getStage, signal);
-  let enabled = true,
+  // Searches start from the 탐색 button; '변경 후 자동' is opt-in, so editing never launches flights.
+  let enabled = false,
     continuous = true,
     paused = false,
     budgetValue = 8192,
     maxCommands: number | undefined;
   let chosenFamily = -1;
   let rendered = '';
+  let renderedIssues = '';
   const auxiliary = new Set<Worker>();
   function template() {
     return templates.find((item) => item.id === selected) ?? templates[0];
   }
   function form() {
+    renderedIssues = '';
     const audit = root.querySelector<HTMLElement>('#audit');
-    panel.innerHTML = `<div class="search-config"><header><b>풀이 탐색</b><button id="search-run">탐색</button><button id="search-stop">중지</button></header><label><input id="search-auto" type="checkbox" ${enabled ? 'checked' : ''}> 변경 후 자동</label><details class="search-options"><summary>탐색 범위·예산</summary><label><input id="search-continuous" type="checkbox" ${continuous ? 'checked' : ''}> 중지할 때까지 계속 탐색</label><select id="search-layout" aria-label="조사할 예약 구성"><option value="all" ${selected === 'all' ? 'selected' : ''}>모든 허용 조작</option>${templates.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${escape(item.label)} · 범위 조사</option>`).join('')}</select><label>작업 묶음 크기<input id="search-budget" type="number" min="16" max="8192" value="${budgetValue}"></label><label>예약 개수 상한<input id="search-depth" type="number" min="0" max="256" value="${maxCommands ?? ''}" placeholder="스테이지 한도 사용"></label><details><summary>변수 범위·고정</summary><div id="search-parameters"></div></details></details><button id="search-continue" hidden>더 조사</button></div><div class="search-results"><div class="search-heading"><b id="search-status">준비 중</b><progress id="search-progress" max="512" value="0"></progress></div><details class="coverage-details"><summary>탐색 진행 정보</summary><small id="search-coverage"></small><p>비슷한 실제 비행을 하나의 풀이로 묶습니다. 시각 차이만으로 나누지 않습니다.</p></details><div id="search-families"></div><nav id="search-pages" hidden></nav></div>`;
+    panel.innerHTML = `<div class="search-config"><header><b>풀이 탐색</b><button id="search-run">탐색</button><button id="search-stop">중지</button></header><label><input id="search-auto" type="checkbox" ${enabled ? 'checked' : ''}> 변경 후 자동</label>
+      <details class="search-options"><summary>탐색 범위·예산</summary><label><input id="search-continuous" type="checkbox" ${continuous ? 'checked' : ''}> 중지할 때까지 계속 역산</label>
+      <select id="search-layout" aria-label="조사할 예약 구성"><option value="all" ${selected === 'all' ? 'selected' : ''}>모든 허용 조작</option>${templates.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${escape(item.label)} · 범위 조사</option>`).join('')}</select>
+      <label>묶음당 관계 연산량<input id="search-budget" type="number" min="16" max="8192" value="${budgetValue}"></label><label>예약 개수 상한<input id="search-depth" type="number" min="0" max="256" value="${maxCommands ?? ''}" placeholder="스테이지 한도 사용"></label><details><summary>변수 범위·고정</summary><div id="search-parameters"></div></details></details><button id="search-continue" hidden>더 조사</button></div>
+      <div class="search-results"><div class="search-heading"><b id="search-status">준비 중</b><progress id="search-progress" max="512" value="0"></progress></div><details class="coverage-details"><summary>탐색 진행 정보</summary><small id="search-coverage"></small><p>비슷한 실제 비행을 하나의 풀이로 묶습니다. 시각 차이만으로 나누지 않습니다.</p></details><div id="search-families"></div><nav id="search-pages" hidden></nav></div>`;
     playback.mount(panel.querySelector('.search-results')!);
     if (audit) {
       audit.className = 'integrated-audit';
@@ -62,7 +70,7 @@ export function solutionSearchPanel(
   function parameters() {
     panel.querySelector('#search-parameters')!.innerHTML =
       selected === 'all'
-        ? '<small>허용된 조작 횟수·순서·분리체 대상을 자동 생성하고 시간·출력·방향의 전체 범위를 조사합니다. 저장된 기록은 초기 표본일 뿐 탐색을 제한하지 않습니다. 특정 구성 선택은 별도의 범위 조사입니다.</small>'
+        ? '<small>허용된 예약 구성마다 시간·출력·방향을 연속 변수로 두고 성공 조건을 역산합니다. 저장된 기록은 구성만 제공하며 발사 표본으로 쓰지 않습니다. 아직 관계로 표현하지 못한 물리·조건은 미결로 남습니다.</small>'
         : (template()?.parameters ?? [])
             .map(
               (p, i) =>
@@ -75,34 +83,52 @@ export function solutionSearchPanel(
     if (!result) {
       status.textContent = paused
         ? '탐색 중지 · 조건 수정 후 다시 시작 가능'
-        : '물리 엔진에서 검사 중…';
+        : '성공 전이 관계 구성 중…';
       return;
     }
     status.textContent = result.proof
       ? result.proof.kind === 'control-envelope'
         ? '도달 한계 확인 · 허용된 추진 전체의 도달 범위와 목표가 겹치지 않습니다.'
         : '조건 충돌 확인 · ' + result.proof.reasons.join(' ')
-      : `${paused ? '탐색 중지' : result.done ? '이번 검사 완료' : '조사 중'} · ${continuous && selected === 'all' && !paused && !result.done ? `${result.evaluated}회` : `${result.evaluated}/${result.budget}`} · 성공 ${result.successes} · 풀이 그룹 ${result.families.length} · ${(result.evaluated / Math.max(0.001, result.elapsed / 1000)).toFixed(0)}회/초`;
+      : inverseStatus(result, paused);
     const progress = panel.querySelector<HTMLProgressElement>('#search-progress')!;
     progress.max = result.budget;
-    progress.value = result.evaluated;
+    progress.value = Math.min(result.budget, result.inverse?.work ?? result.evaluated);
     if (continuous && selected === 'all' && !paused && !result.done)
       progress.removeAttribute('value');
     const scope = result.scope;
+    status.setAttribute('data-search-method', result.inverse?.method ?? 'unknown');
+    status.setAttribute('data-search-work', String(result.inverse?.work ?? 0));
+    status.setAttribute('data-native-verifications', String(result.evaluated));
     panel.querySelector('#search-coverage')!.textContent = result.proof
       ? '실제 비행 표본이 아닌 전체 허용 범위의 필요조건 검사'
-      : scope
-        ? `예약 길이 ${scope.maxCommands}개까지 · 시간 창 ${scope.horizon}초 · 정밀도 ${result.coverage?.divisions ?? '-'} · 공통 구간 ${result.reuse?.prefixes ?? 0}회 재사용 · 기존 위치부터 진행`
-        : '선택한 구성·변수 범위만 조사 중';
+      : result.inverse
+        ? `예약 구성 ${result.inverse.layouts} · 인증 영역 ${result.projection?.regions ?? 0} · 미지원 ${result.inverse.unsupported} · 미결 ${result.inverse.unresolved} · 처리 관계 ${result.projection?.cells ?? 0}개 · 실제 검증 ${result.evaluated}회`
+        : scope
+          ? `예약 길이 ${scope.maxCommands}개까지 · 시간 창 ${scope.horizon}초 · 정밀도 ${result.coverage?.divisions ?? '-'} · 공통 구간 ${result.reuse?.prefixes ?? 0}회 재사용 · 기존 위치부터 진행`
+          : '선택한 구성·변수 범위만 조사 중';
     const more = panel.querySelector<HTMLButtonElement>('#search-continue')!;
     more.hidden = !(
-      selected === 'all' &&
       worker &&
       worker.active &&
       (paused || (result.done && result.continuable)) &&
       !result.proof
     );
     more.textContent = paused ? '재개' : '더 조사';
+    let issuePanel = panel.querySelector<HTMLDetailsElement>('#search-issues');
+    if (!issuePanel) {
+      issuePanel = document.createElement('details');
+      issuePanel.id = 'search-issues';
+      panel
+        .querySelector('.search-results')!
+        .insertBefore(issuePanel, panel.querySelector('#search-families'));
+    }
+    const issueKey = JSON.stringify(result.inverse?.issues ?? []);
+    issuePanel.hidden = !result.inverse?.issues.length;
+    if (renderedIssues !== issueKey) {
+      renderedIssues = issueKey;
+      issuePanel.innerHTML = `<summary>미결·지원 범위</summary><ul>${(result.inverse?.issues ?? []).map((issue) => `<li>${escape(issue)}</li>`).join('')}</ul>`;
+    }
     const signature =
       JSON.stringify(result.families.map((f) => [f.id, f.count])) + result.done + paused;
     if (signature === rendered) return;

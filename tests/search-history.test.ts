@@ -170,7 +170,8 @@ it('제작소 연결이 다단·부스터 독립 연소·위성 분리와 구간
   expect(execute(stage, result.families[0].representative).status).toBe('won');
 });
 
-it('아직 컴파일하지 않은 중력·표현식은 원본 물리의 기존 탐색으로 남고 작업자 오류가 되지 않는다', () => {
+it('아직 컴파일하지 않은 표현식은 발사로 대체하지 않고 명시적 미지원 관계로 남는다', async () => {
+  const { inverseSearch } = await import('../src/editor/inverse-search');
   for (const gravity of [false, true]) {
     const stage = windowSearchStage();
     if (gravity)
@@ -186,9 +187,11 @@ it('아직 컴파일하지 않은 중력·표현식은 원본 물리의 기존 �
       right: { kind: 'constant', value: 0 },
     };
     const template = searchTemplates(stage).find((t) => t.label === '첫 출력만')!;
-    const result = [...searchSolutions(stage, template, 1)].at(-1)!;
-    expect(result.successes).toBe(1);
-    expect(result.projection).toBeUndefined();
-    expect(execute(stage, result.families[0].representative).status).toBe('won');
+    const result = [...inverseSearch(stage, [template], { budget: 16 })].at(-1)!;
+    expect(result.evaluated).toBe(0);
+    expect(result.families).toEqual([]);
+    expect(result.inverse?.unsupported).toBeGreaterThan(0);
+    expect(result.inverse?.issues.join(' ')).toContain('sin');
+    expect(result.inverse?.complete).toBe(false);
   }
 });

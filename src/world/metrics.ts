@@ -294,6 +294,24 @@ export const metrics: Record<string, Metric> = {
         ? (c.run.detached.find((a) => a.id === c.actorId)?.touchdownSpeed ?? NaN)
         : (c.run.touchdownSpeed ?? NaN),
   },
+  touchdownNormalSpeed: {
+    label: '접촉 순간 지면 방향 속력',
+    unit: 'u/t',
+    target: false,
+    read: (c) =>
+      c.actorId && c.actorId !== 'craft'
+        ? (c.run.detached.find((a) => a.id === c.actorId)?.touchdownNormalSpeed ?? NaN)
+        : (c.run.touchdownNormalSpeed ?? NaN),
+  },
+  touchdownTangentialSpeed: {
+    label: '접촉 순간 옆미끄러짐 속력',
+    unit: 'u/t',
+    target: false,
+    read: (c) =>
+      c.actorId && c.actorId !== 'craft'
+        ? (c.run.detached.find((a) => a.id === c.actorId)?.touchdownTangentialSpeed ?? NaN)
+        : (c.run.touchdownTangentialSpeed ?? NaN),
+  },
   heat: {
     label: '누적 가열',
     unit: '게임 열 단위',

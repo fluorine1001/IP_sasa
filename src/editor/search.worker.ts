@@ -1,5 +1,5 @@
-import { searchSolutions, type SearchReport } from './solution-search';
-import { globalSearch } from './global-search';
+import type { SearchReport } from './solution-search';
+import { inverseSearch } from './inverse-search';
 import { issues } from '../stages/validation';
 import type { SearchRequest as Request, SearchResponse } from './search-client';
 
@@ -11,7 +11,6 @@ let session:
       paused: boolean;
       continuous: boolean;
       batch: number;
-      batchStarted: number;
       last?: SearchReport;
     }
   | undefined;
@@ -62,8 +61,6 @@ function pump() {
           return;
         }
         // Batches schedule work; they do not certify accuracy or coverage.
-        const elapsed = Math.max(1, performance.now() - session.batchStarted);
-        session.batch = Math.max(64, Math.min(8192, Math.round((session.batch * 1500) / elapsed)));
         const extra = Math.min(session.batch, Number.MAX_SAFE_INTEGER - session.quota.total);
         if (!extra) {
           publish(next.value);
@@ -72,7 +69,6 @@ function pump() {
         }
         session.quota.remaining += extra;
         session.quota.total += extra;
-        session.batchStarted = performance.now();
         publish({ ...next.value, done: false, budget: session.quota.total });
       } else if (performance.now() - sent > 100) publish(next.value);
     }
@@ -134,12 +130,14 @@ self.onmessage = (event: MessageEvent<Request>) => {
         revision: message.revision,
         quota,
         paused: false,
-        continuous: !!message.global && !!message.continuous,
+        continuous: !!message.continuous,
         batch,
-        batchStarted: performance.now(),
-        iterator: message.global
-          ? globalSearch(message.stage, message.templates, batch, message.maxCommands, quota)
-          : searchSolutions(message.stage, message.templates[0], batch),
+        iterator: inverseSearch(message.stage, message.templates, {
+          global: !!message.global,
+          budget: batch,
+          maxCommands: message.maxCommands,
+          quota,
+        }),
       };
       sent = 0;
       self.postMessage({ revision: message.revision, ready: true } satisfies SearchResponse);

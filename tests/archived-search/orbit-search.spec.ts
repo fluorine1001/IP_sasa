@@ -1,8 +1,9 @@
+// Archived research UI regression: automatic editor search retired in favour of manual playtests.
 import { test, expect } from '@playwright/test';
 import ascent from '../../data/stages/aefa2afd-1717-4954-9413-a63c077320e8.json' with { type: 'json' };
 import weak from '../fixtures/live-two-body-orbit-edited.json' with { type: 'json' };
 
-test('브라우저 실제 작업자는 정답 없는 유한분사 원궤도를 찾고 대표 예약·재생을 표시한다', async ({
+test('미완성 궤도 관계를 실제 작업자가 개별 발사로 대체하거나 해 없음으로 표시하지 않는다', async ({
   page,
 }) => {
   const s = structuredClone(ascent);
@@ -16,10 +17,14 @@ test('브라우저 실제 작업자는 정답 없는 유한분사 원궤도를 �
   await page.goto('/editor.html');
   await page.locator('#search-auto').uncheck();
   await page.locator('#search-run').click();
-  await expect(page.locator('[data-family-card]').first()).toBeVisible({ timeout: 20000 });
-  await page.locator('#search-stop').click();
-  await page.locator('[data-family-path]').first().click();
-  await expect(page.locator('.representative-replay')).toBeVisible();
+  await expect(page.locator('#search-status')).toContainText('역산 미지원');
+  await expect(page.locator('#search-status')).toHaveAttribute(
+    'data-search-method',
+    'success-relation',
+  );
+  await expect(page.locator('#search-status')).toHaveAttribute('data-native-verifications', '0');
+  await expect(page.locator('[data-family-card]')).toHaveCount(0);
+  await expect(page.locator('#search-issues')).toBeVisible();
   expect(errors).toEqual([]);
   await page.screenshot({ path: 'test-results/screens/orbit-search-actual-worker.png' });
 });

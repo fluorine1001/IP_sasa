@@ -1,0 +1,168 @@
+/* Instrument panel in sections.
+ * Plan: the rocket (stages, fuel), then the launch numbers, then the checklist.
+ * Flight: live numbers first, then the rocket. Each section is named, so the
+ * eye finds a group before it reads a value. Game only. */
+body.game-ui .resources {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  padding: 12px 14px 12px;
+}
+body.game-ui .resources > * {
+  order: 9;
+}
+body.game-ui .resources #mode {
+  order: 0;
+  align-self: flex-start;
+}
+body.game-ui .resources #flight-readouts {
+  order: 1;
+}
+body.game-ui .resources #vehicle-map {
+  order: 2;
+}
+body.game-ui .resources .resource-row:not(#pad-reading) {
+  order: 3;
+}
+body.game-ui .resources #initial-output {
+  order: 4;
+}
+body.game-ui .resources #pad-reading {
+  order: 5;
+}
+body.game-ui .resources #landing-readout {
+  order: 6;
+}
+body.game-ui .resources #preflight {
+  order: 7;
+}
+body.game-ui .resources #vehicle-map:not(:empty)::before,
+body.game-ui .resources #initial-output:not([hidden])::before,
+body.game-ui .resources #flight-readouts:not(:empty)::before {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 8px;
+  font-size: var(--fs-xs);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+  white-space: nowrap;
+}
+body.game-ui .resources #vehicle-map:not(:empty)::before {
+  content: '로켓';
+}
+body.game-ui .resources #initial-output:not([hidden])::before {
+  content: '발사 조건';
+  margin-top: 4px;
+}
+body.game-ui .resources #flight-readouts:not(:empty)::before {
+  content: '계기';
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+/* A hairline after each section name, like a printed form. */
+body.game-ui .resources #vehicle-map:not(:empty)::before,
+body.game-ui .resources #initial-output:not([hidden])::before,
+body.game-ui .resources #flight-readouts:not(:empty)::before {
+  background: linear-gradient(#f2b54a55, #f2b54a55) no-repeat right center / calc(100% - 5em) 1px;
+}
+body.game-ui .resources #vehicle-map {
+  margin: 0 0 8px;
+}
+body.game-ui .resources #initial-output[hidden] {
+  display: none;
+}
+body.game-ui .resources #preflight:not([hidden]) {
+  margin-top: 4px;
+}
+@media (max-width: 1000px) {
+  body.game-ui .resources {
+    width: 240px;
+  }
+}
+@media (max-width: 650px) {
+  body.game-ui .resources {
+    width: 42%;
+    padding: 8px;
+  }
+  body.game-ui .resources #vehicle-map:not(:empty)::before,
+  body.game-ui .resources #initial-output:not([hidden])::before,
+  body.game-ui .resources #flight-readouts:not(:empty)::before {
+    margin: 0 0 4px;
+    font-size: 12px;
+  }
+}
+
+/* Checklist rows on one line: mark, item, its count. */
+body.game-ui .resources .preflight-list li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+}
+body.game-ui .resources .preflight-list li b {
+  grid-column: auto;
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+body.game-ui .resources .preflight-list li:not(:has(b)) span {
+  grid-column: 2 / -1;
+}
+/* In planning the controlled vehicle is always the main craft. */
+body.game-ui [data-phase='plan'] .resources #vehicle-map .stage-stack figcaption {
+  display: none;
+}
+
+/* ---------- Mission cards: goal first, medals named ---------- */
+body.game-ui .mission-route .stage-card {
+  min-height: 200px;
+  gap: 8px;
+}
+body.game-ui .mission-route .stage-goal {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--paper-ink);
+  text-align: left;
+}
+body.game-ui .mission-route .stage-goal b {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 18px;
+  vertical-align: 1px;
+}
+body.game-ui .mission-route .stage-goal em {
+  font-style: normal;
+  color: var(--paper-dim);
+}
+body.game-ui .stage-medals {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+body.game-ui .stage-medals i {
+  width: auto;
+  height: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 2px dashed #9c9478;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 16px;
+  color: #8a8366;
+}
+body.game-ui .stage-medals i.on {
+  color: var(--ink);
+}

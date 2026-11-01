@@ -5,6 +5,7 @@ import { catalog } from '../stages/catalog.ts';
 import { liveCatalog } from '../stages/live-catalog';
 import { readMedals } from '../app/records';
 import type { Stage } from '../world/types';
+import { objectiveGoals } from '../world/goals';
 
 /** The question each chapter lets the player discover; never the answer. */
 const CHAPTER_QUESTION: Record<string, string> = {
@@ -41,7 +42,12 @@ export function stagesScreen(app: App): Screen {
           : m?.budget
             ? '예산 안 성공'
             : '성공';
-      return `<button class="stage-card ${done ? 'completed' : ''}" data-stage="${s.id}"><span class="stage-number">${String(i + 1).padStart(2, '0')}</span><strong>${escape(s.title)}</strong><span class="stage-vehicle">${vehicleLabel(s)}</span><span class="stage-medals" aria-label="${status}"><i class="${done ? 'on' : ''}"></i><i class="${m?.budget ? 'on' : ''}"></i><i class="${m?.clean ? 'on' : ''}"></i></span><small class="stage-status">${status}</small></button>`;
+      // The goal is worth reading before choosing; the medals say what is left to earn.
+      const goals = objectiveGoals(s).map((g) => g.title);
+      const goal = goals.length
+        ? `<span class="stage-goal"><b>목표</b>${escape(goals[0])}${goals.length > 1 ? ` <em>외 ${goals.length - 1}개</em>` : ''}</span>`
+        : '';
+      return `<button class="stage-card ${done ? 'completed' : ''}" data-stage="${s.id}"><span class="stage-number">${String(i + 1).padStart(2, '0')}</span><strong>${escape(s.title)}</strong>${goal}<span class="stage-vehicle">${vehicleLabel(s)}</span><span class="stage-medals" aria-label="${status}"><i class="${done ? 'on' : ''}">성공</i><i class="${m?.budget ? 'on' : ''}">예산 안</i><i class="${m?.clean ? 'on' : ''}">무손상</i></span><small class="stage-status">${status}</small></button>`;
     };
     app.root.innerHTML = `<main class="campaign menu-sheet wide"><header class="campaign-header"><div><span class="eyebrow">항해 지도</span><h1>탐사 임무</h1></div><div class="campaign-total"><b>${done}<span> / ${total}</span></b><small>완료한 임무</small></div><button id="back" class="quiet">← 기지</button></header>
       <nav class="chapter-map" aria-label="챕터 선택">${chapters.map((c, i) => `<button data-chapter="${escape(c.id)}" class="chapter-card ${c.id === visibleChapter ? 'selected' : ''}" aria-pressed="${c.id === visibleChapter}" style="--chapter-accent:${c.color}"><span class="chapter-planet" aria-hidden="true">${i + 1}</span><span class="chapter-caption"><small>${i + 1}장</small><strong>${escape(c.title)}</strong><span>${escape(c.subtitle)}</span><span class="chapter-progress"><i style="width:${(c.completed / Math.max(1, c.stages.length)) * 100}%"></i></span><small>${c.completed} / ${c.stages.length} 완료</small></span></button>`).join('')}</nav>

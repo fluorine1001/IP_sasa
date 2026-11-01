@@ -648,34 +648,90 @@ body.game-ui #result.result:not([hidden]) {
 /* ---------- Title ---------- */
 .game-ui .title-menu .game-title {
   display: grid;
-  gap: 6px;
-  margin: 0 0 6px;
+  gap: 10px;
+  margin: 0;
   line-height: 1;
 }
-.game-ui .title-menu .title-count {
+.game-ui .title-menu .title-kicker {
   justify-self: start;
-  padding: 4px 14px 6px;
-  border: 3px solid var(--ink);
-  border-radius: 8px;
-  background: var(--fail);
-  color: #fff6e2;
-  font-size: clamp(30px, 3.6vw, 48px);
-  letter-spacing: 0.04em;
-  text-shadow: 2px 3px 0 var(--ink);
-  box-shadow: 0 5px 0 var(--ink);
+  padding: 3px 10px 4px;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  background: var(--amber);
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-shadow: none;
+  box-shadow: 0 3px 0 var(--ink);
   transform: rotate(-2deg);
 }
 .game-ui .title-menu .title-main {
   color: var(--paper);
-  font-size: clamp(48px, 6vw, 84px);
-  letter-spacing: -0.05em;
+  font-size: clamp(64px, 8vw, 112px);
+  letter-spacing: -0.06em;
+  text-shadow:
+    -2px -2px 0 var(--ink),
+    2px -2px 0 var(--ink),
+    -2px 2px 0 var(--ink),
+    2px 2px 0 var(--ink),
+    5px 7px 0 var(--ink);
 }
 .game-ui .title-menu .title-tagline {
-  margin: 14px 0 26px;
-  color: var(--amber);
-  font-size: var(--fs-lg);
+  margin: 14px 0 12px;
+  color: var(--text);
+  font-size: clamp(17px, 1.6vw, 21px);
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
+}
+/* A four-command plan on a rail: the whole game in one glance. */
+.game-ui .title-plan {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin: 0 0 26px;
+  padding-bottom: 12px;
+}
+.game-ui .title-plan::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: -12px;
+  bottom: 0;
+  height: 6px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ef8a3c 0 38%, #24323a 38% 52%, #a084d8 52% 100%);
+}
+.game-ui .title-plan i {
+  position: relative;
+  padding: 3px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 0 7px 7px 7px;
+  box-shadow: 0 2px 0 var(--ink);
+  color: var(--ink);
+  font-size: var(--fs-xs);
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.game-ui .title-plan i.ignite {
+  background: var(--f-ignite);
+}
+.game-ui .title-plan i.turn {
+  background: var(--f-turn);
+}
+.game-ui .title-plan i.separate {
+  background: var(--f-separate);
+}
+@media (max-width: 650px) {
+  .game-ui .title-plan {
+    flex-wrap: wrap;
+    max-width: 300px;
+  }
+  .game-ui .title-plan i:last-child {
+    display: none;
+  }
 }
 
 /* ---------- Narrower screens ---------- */

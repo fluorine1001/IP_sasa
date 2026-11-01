@@ -358,3 +358,7 @@
 #timeline-extend[hidden] {
   display: none;
 }
+/* The engine band is drawn by the game theme; the workshop keeps the plain rail. */
+.timeline-burns {
+  display: none;
+}

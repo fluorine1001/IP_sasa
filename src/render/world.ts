@@ -38,6 +38,25 @@ export type DrawState = {
   thrust?: Vec;
   observations?: import('../world/types').Observation[];
 };
+const LABEL_FONT = "bold 14px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif";
+/** A filled label plate centred on x, top edge at y: names stay legible over any terrain. */
+function nameTag(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  fill: string,
+  ink: string,
+) {
+  const half = ctx.measureText(text).width / 2 + 7;
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(x - half, y, half * 2, 22, 5);
+  ctx.fill();
+  ctx.fillStyle = ink;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y + 16);
+}
 export function prepare(canvas: HTMLCanvasElement) {
   const r = canvas.getBoundingClientRect(),
     d = Math.min(devicePixelRatio, 2),
@@ -131,14 +150,32 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
             ? objectPosition(s.stage, object, t)
             : g.position,
       );
-    paintGoalRegion(
-      ctx,
-      p.x,
-      p.y,
-      g.display.min * c.zoom,
-      g.display.max * c.zoom,
-      !!s.run?.goals[g.id]?.complete,
-    );
+    const complete = !!s.run?.goals[g.id]?.complete;
+    paintGoalRegion(ctx, p.x, p.y, g.display.min * c.zoom, g.display.max * c.zoom, complete);
+    // Name the zone on its outer edge so a dashed ring reads as "go here", not decoration.
+    // Top of the ring first; when that is off screen, the first visible point along it.
+    const edge = g.display.max * c.zoom;
+    const spot =
+      edge > 24
+        ? [-90, -60, -120, -30, -150, 0, 180, 30, 150]
+            .map((d) => ({
+              x: p.x + Math.cos((d * Math.PI) / 180) * edge,
+              y: p.y + Math.sin((d * Math.PI) / 180) * edge,
+            }))
+            .find((q) => q.x > 60 && q.x < w - 60 && q.y > 40 && q.y < h * 0.62)
+        : undefined;
+    if (spot) {
+      ctx.font = LABEL_FONT;
+      ctx.textAlign = 'center';
+      nameTag(
+        ctx,
+        complete ? '목표 ✓' : '목표',
+        spot.x,
+        spot.y - 11,
+        complete ? '#6fbf73' : '#f2cf4a',
+        '#0d171c',
+      );
+    }
   }
 
   if (!foreground) {
@@ -302,7 +339,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.lineWidth = 3;
       ctx.strokeRect(-r - 8, -r - 8, 2 * r + 16, 2 * r + 16);
     }
-    ctx.font = 'bold 13px sans-serif';
+    ctx.font = LABEL_FONT;
     ctx.textAlign = 'center';
     if (s.selected?.has(b.id)) {
       // Cover the old layer's coincident label as well as its body.
@@ -312,8 +349,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.roundRect(-half, r + 8, half * 2, 21, 4);
       ctx.fill();
     }
-    ctx.fillStyle = '#f7eed9';
-    ctx.fillText(b.name, 0, r + 23);
+    nameTag(ctx, b.name, 0, r + 8, '#0d171cd9', '#f4ecd5');
     if (b.kind === 'black-hole') {
       ctx.strokeStyle = '#e49cad';
       ctx.lineWidth = 4;
@@ -548,10 +584,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
       );
     const p = screen(actor.position);
-    ctx.fillStyle = '#baceb5';
-    ctx.font = '11px sans-serif';
+    ctx.font = "bold 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText(actor.status === 'landed' ? '✓ 회수' : actor.name, p.x, p.y + 30);
+    nameTag(
+      ctx,
+      actor.status === 'landed' ? '✓ 회수' : actor.name.split('·')[0].trim() + ' 분리체',
+      p.x,
+      p.y + 16,
+      '#0d171cc0',
+      '#c9d3cb',
+    );
   }
   const ship = s.run?.position ?? surface?.position ?? s.stage.spawn.position,
     onPad = !s.run || (s.run.rocket && !s.run.rocket.airborne),

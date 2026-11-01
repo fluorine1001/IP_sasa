@@ -4,7 +4,7 @@ export function helpScreen(app: App): Screen {
   const abort = new AbortController();
   app.root.innerHTML =
     '<main class="menu-sheet"><h1>비행 안내서</h1><div class="help-grid">' +
-    '<article><b>계획</b><p>시간 바를 눌러 시각을 고르고, 아래 버튼으로 조작을 넣습니다.</p><p>표식을 누르면 값을 바꾸고, 끌면 시각을 옮깁니다.</p></article>' +
+    '<article><b>계획</b><p>시간선을 눌러 시각을 고르고(노란 깃발), 아래 버튼으로 조작을 넣습니다.</p><p>조작 칩을 누르면 값을 바꾸고, 끌면 시각을 옮깁니다.</p><p>아래 색 띠는 엔진이 켜진 구간, 빨간 선은 연료가 바닥나는 시각입니다.</p></article>' +
     '<article><b>발사</b><p>발사하면 계획이 잠깁니다.</p><p>단을 분리해도 다음 엔진은 켜지지 않습니다. 점화를 따로 넣으세요.</p></article>' +
     '<article><b>결과와 기록</b><p>결과 카드에서 원인을 보고 다시 발사합니다.</p><p>비행 기록에서 두 비행을 겹쳐 비교합니다.</p></article>' +
     '<article><b>규칙</b><p>환경은 매번 같고, 발사 횟수에는 제한이 없습니다.</p><p>앞으로의 궤도는 보여주지 않습니다. 직접 쏘아 확인하세요.</p></article>' +

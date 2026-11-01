@@ -282,7 +282,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   // One toolbar row reads left to right: plan · state | transport | records · launch.
   // The tool palette sits on the status row under the track, beside the clock. The row
   // moves into the timeline section so the planner's delegated pointer handlers still see it.
-  app.root.querySelector('.dock-plan-tools')!.append(el('dock-phase'));
+  app.root.querySelector('.dock-plan-tools')!.append(el('dock-phase'), el('dock-clock'));
   const statusRow = app.root.querySelector<HTMLElement>('.dock-status')!;
   el('timeline-palette').before(statusRow);
   statusRow.prepend(el('timeline-palette'));

@@ -32,6 +32,7 @@ export type TimelineState = {
   ended?: boolean;
 };
 import { eventIcon } from '../../render/program-icons';
+import { burnSpans, chipText, stageColor, textWidth } from './plan-strip';
 export { eventIcon } from '../../render/program-icons';
 /** Round-number ticks ("5초", "10초") at a spacing that fits about `slots` labels. */
 export function timeTicks(duration: number, slots: number) {
@@ -69,7 +70,7 @@ export function flightTimeline(
   const viewports = new Map<string, number>();
   selectedTime = Math.min(selectedTime, viewDuration);
   root.innerHTML =
-    '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
+    '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-burns" class="timeline-burns" aria-hidden="true"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
     timelineDuration(stage) +
     '" step="0.01" value="0"></div><div id="timeline-palette"></div><button id="timeline-extend" hidden>시간선 늘리기 +</button><div class="timeline-caption"><span class="timeline-legend">' +
     (['ignite', 'stop', 'turn', 'separate'] as const)
@@ -444,15 +445,30 @@ export function flightTimeline(
       const original = new Set(
         programEvents(state.scheduled ?? plan).map((e) => e.id.replace(':turn', '')),
       );
-      const events = programEvents(plan).filter((e) => !e.id.endsWith(':turn')),
-        // A marker is about 3% of the rail wide: nearer neighbours take the next free lane.
-        gap = duration * 0.03,
-        laneEnds: number[] = [];
+      const events = programEvents(plan).filter((e) => !e.id.endsWith(':turn'));
+      // Chips carry words, so pack them by drawn width: an overlapping chip takes the next lane.
+      const width = el('timeline-track').clientWidth || 640,
+        compact = width < 560,
+        lanes: [number, number][][] = [],
+        maxLanes = 3;
+      let usedLanes = 1;
       el('timeline-markers').innerHTML = events
         .map((e) => {
-          let row = laneEnds.findIndex((end) => e.time - end >= gap);
-          if (row < 0) row = laneEnds.length;
-          laneEnds[row] = e.time;
+          const text = chipText(stage, plan, e, degrees);
+          const chipWidth =
+            (compact ? 30 : 36) +
+            (compact ? 0 : textWidth(text.word)) +
+            (text.value ? textWidth(text.value) + (compact ? 0 : 5) : 0) +
+            // Room for the tick a performed command gets in flight and replay.
+            (state.phase === 'plan' ? 0 : 12);
+          const x = Math.min(1, e.time / duration) * width,
+            flip = x + chipWidth > width;
+          const a = flip ? x - chipWidth : x,
+            b = flip ? x : x + chipWidth;
+          let row = lanes.findIndex((lane) => lane.every(([l, r]) => b + 3 <= l || a >= r + 3));
+          if (row < 0) row = lanes.length < maxLanes ? lanes.length : maxLanes - 1;
+          (lanes[row] ??= []).push([a, b]);
+          usedLanes = Math.max(usedLanes, row + 1);
           const id = e.id.replace(':turn', ''),
             performed = e.id === 'launch' || state.applied?.has(id),
             applied = performed && e.time <= state.time + 1e-8;
@@ -495,22 +511,67 @@ export function flightTimeline(
             e.time +
             '" class="timeline-event ' +
             e.kind +
+            (flip ? ' flip' : '') +
+            (e.id === 'launch' ? ' fixed' : '') +
             (state.phase !== 'plan' ? (applied ? ' executed' : ' pending') : '') +
             '" style="left:' +
             Math.min(100, (e.time / duration) * 100) +
             '%;--lane:' +
-            Math.min(2, row) +
+            row +
             '" aria-label="' +
             escape(label) +
             '" title="' +
             escape(label) +
             '">' +
             eventIcon(e.kind) +
-            (combinedDirection
-              ? '<i class="timeline-direction">' + eventIcon('turn') + '</i>'
-              : '') +
-            (row === 0 ? '<span>' + e.time.toFixed(1) + '초</span>' : '') +
-            '</button>'
+            '<span class="chip-text' +
+            (text.valueFirst ? ' value-first' : '') +
+            '">' +
+            (text.word ? '<span class="chip-word">' + escape(text.word) + '</span>' : '') +
+            (text.value ? '<b class="chip-value">' + escape(text.value) + '</b>' : '') +
+            '</span></button>'
+          );
+        })
+        .join('');
+      el('timeline-track').style.setProperty('--lanes', String(usedLanes));
+      el('timeline-track').classList.toggle('compact-chips', compact);
+      // Engine-on stretches, coloured by the stage that burns. Bookkeeping, not a forecast.
+      const spans = burnSpans(stage, plan, duration);
+      el('timeline-burns').innerHTML = spans
+        .map((span, i) => {
+          const left = (span.start / duration) * 100,
+            size = ((span.end - span.start) / duration) * 100,
+            label = span.stage + 1 + '단 ' + Math.round(span.throttle * 100) + '%',
+            room = (size / 100) * width > textWidth(label) + 14;
+          return (
+            '<i class="burn-span' +
+            (span.open ? ' open' : '') +
+            '" style="left:' +
+            left +
+            '%;width:' +
+            size +
+            '%;--c:' +
+            stageColor(span.stage) +
+            '" title="' +
+            span.start.toFixed(1) +
+            '–' +
+            span.end.toFixed(1) +
+            '초 · ' +
+            label +
+            (span.fuelOut ? ' · 연료 끝' : '') +
+            '">' +
+            (room ? '<span>' + label + '</span>' : '') +
+            '</i>' +
+            (span.fuelOut
+              ? '<i class="burn-out" style="left:' +
+                (left + size) +
+                '%">' +
+                // The tag only where the next burn leaves room for it; the red line always.
+                ((spans[i + 1]?.start ?? Infinity) - span.end > (62 / width) * duration
+                  ? '<span>연료 끝</span>'
+                  : '') +
+                '</i>'
+              : '')
           );
         })
         .join('');
@@ -520,6 +581,10 @@ export function flightTimeline(
     const percent = Math.min(100, Math.max(0, (cursorTime / duration) * 100));
     el('timeline-fill').style.width = percent + '%';
     el('timeline-cursor').style.left = percent + '%';
+    el('timeline-cursor').dataset.label =
+      (editable() ? '' : 'T+ ') + cursorTime.toFixed(editable() ? 2 : 1) + '초';
+    el('timeline-cursor').classList.toggle('flip', percent > 88);
+    el('flight-timeline').dataset.phase = state.phase;
     el('timeline-clock').textContent =
       state.time.toFixed(2) +
       ' / ' +

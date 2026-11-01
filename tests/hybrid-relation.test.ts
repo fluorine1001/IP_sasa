@@ -524,7 +524,15 @@ it('연료·연소·적분·캡슐 충돌·유지 이력·안전 종료를 연�
   });
   const landed = r.select(
     contact.hit,
-    r.lte(r.hypot(velocity.x, velocity.y), c(stage.rocket.parts[0].maxLandingSpeed ?? 0.18)),
+    // Local x is surface-normal in this fixture. Match the shared standard
+    // landing ellipse rather than the retired scalar total-speed threshold.
+    r.lte(
+      r.hypot(
+        r.divide(velocity.x, c((stage.rocket.parts[0].maxLandingSpeed ?? 0.18) * 1.5)),
+        r.divide(velocity.y, c((stage.rocket.parts[0].maxLandingSpeed ?? 0.18) * 3)),
+      ),
+      c(1),
+    ),
     c(0),
   );
   const outcome = flightOutcome(r, {

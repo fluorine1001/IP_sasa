@@ -17,6 +17,7 @@ import { tutorialsScreen } from './screens/tutorial/hub.ts';
 import { playScreen } from './screens/flight/screen.ts';
 import { tutorialCatalog } from './stages/catalog.ts';
 import { liveCatalog } from './stages/live-catalog';
+import './app/expedition-theme.css';
 const saved = readSaved<Partial<Settings>>('orbit-settings-v1', {});
 const settings: Settings = {
   volume:

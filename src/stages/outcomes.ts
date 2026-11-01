@@ -2,6 +2,7 @@ import type { Condition, Expression } from '../world/conditions';
 import type { Stage, Goal } from '../world/types';
 import { missionTimeLimit } from '../world/program';
 import { metrics } from '../world/metrics';
+import { landingSpeedCondition } from '../world/landing';
 export type Outcome = (
   | {
       kind: 'region';
@@ -125,10 +126,18 @@ function compileOutcomeCondition(
       condition: hold(
         all([
           compare(metric('landed', body.id), 'gte', 1),
-          compare(metric('touchdownSpeed', ''), 'lte', outcome.speed),
+          landingSpeedCondition(stage, outcome.speed, actorId === 'craft' ? undefined : actorId),
           ...(site ? [compare(metric('distance', site.id), 'lte', site.radius)] : []),
           ...(outcome.tilt !== undefined
-            ? [compare(metric('touchdownTilt', ''), 'lte', outcome.tilt)]
+            ? [
+                compare(
+                  metric('touchdownTilt', ''),
+                  'lte',
+                  stage.rules.landingMode === 'precision'
+                    ? outcome.tilt
+                    : Math.min(Math.PI / 2, outcome.tilt + Math.PI / 12),
+                ),
+              ]
             : []),
         ]),
       ),

@@ -19,6 +19,12 @@ export function paintRocket(
     ctx.lineTo(r * 0.5, r * 0.4);
     ctx.fill();
   }
+  // Visible exterior matches the capsule used for collision, at every zoom.
+  // Internal panels/fins stay artwork; no invisible halo enlarges contact.
+  ctx.beginPath();
+  ctx.roundRect(0, -r, size, 2 * r, r);
+  ctx.fillStyle = '#b9c9cf';
+  ctx.fill();
   // Couplers keep the assembled stages visibly joined. The capsule contains all artwork.
   ctx.fillStyle = '#a7b6b8';
   ctx.fillRect(r * 0.8, -r * 0.66, Math.max(0, size - r * 1.7), r * 1.32);

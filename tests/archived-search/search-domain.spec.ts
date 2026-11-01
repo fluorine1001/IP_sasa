@@ -1,3 +1,4 @@
+// Archived research UI regression: automatic editor search retired in favour of manual playtests.
 import { test, expect } from '@playwright/test';
 import { blankStage } from '../../src/stages/factory';
 

@@ -1,0 +1,434 @@
+[
+  {
+    "mode": "fixed",
+    "parts": 1,
+    "ratio": 0.3,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "fixed",
+    "parts": 1,
+    "ratio": 0.7,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "fixed",
+    "parts": 1,
+    "ratio": 0.95,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "fixed",
+    "parts": 1,
+    "ratio": 0.99,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 9.01999999999985
+  },
+  {
+    "mode": "fixed",
+    "parts": 1,
+    "ratio": 1,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.329999999999865
+  },
+  {
+    "mode": "fixed",
+    "parts": 1,
+    "ratio": 1.01,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 7.959999999999873
+  },
+  {
+    "mode": "fixed",
+    "parts": 3,
+    "ratio": 0.3,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "fixed",
+    "parts": 3,
+    "ratio": 0.7,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "fixed",
+    "parts": 3,
+    "ratio": 0.95,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "fixed",
+    "parts": 3,
+    "ratio": 0.99,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 9.01999999999985
+  },
+  {
+    "mode": "fixed",
+    "parts": 3,
+    "ratio": 1,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.329999999999865
+  },
+  {
+    "mode": "fixed",
+    "parts": 3,
+    "ratio": 1.01,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 7.959999999999873
+  },
+  {
+    "mode": "spin",
+    "parts": 1,
+    "ratio": 0.3,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "spin",
+    "parts": 1,
+    "ratio": 0.7,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "spin",
+    "parts": 1,
+    "ratio": 0.95,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "spin",
+    "parts": 1,
+    "ratio": 0.99,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.629999999999859
+  },
+  {
+    "mode": "spin",
+    "parts": 1,
+    "ratio": 1,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.149999999999869
+  },
+  {
+    "mode": "spin",
+    "parts": 1,
+    "ratio": 1.01,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 7.8399999999998755
+  },
+  {
+    "mode": "spin",
+    "parts": 3,
+    "ratio": 0.3,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "spin",
+    "parts": 3,
+    "ratio": 0.7,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "spin",
+    "parts": 3,
+    "ratio": 0.95,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "spin",
+    "parts": 3,
+    "ratio": 0.99,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.629999999999859
+  },
+  {
+    "mode": "spin",
+    "parts": 3,
+    "ratio": 1,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.149999999999869
+  },
+  {
+    "mode": "spin",
+    "parts": 3,
+    "ratio": 1.01,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 7.8399999999998755
+  },
+  {
+    "mode": "moving",
+    "parts": 1,
+    "ratio": 0.3,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "moving",
+    "parts": 1,
+    "ratio": 0.7,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "moving",
+    "parts": 1,
+    "ratio": 0.95,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "moving",
+    "parts": 1,
+    "ratio": 0.99,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.929999999999852
+  },
+  {
+    "mode": "moving",
+    "parts": 1,
+    "ratio": 1,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.249999999999867
+  },
+  {
+    "mode": "moving",
+    "parts": 1,
+    "ratio": 1.01,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 7.879999999999875
+  },
+  {
+    "mode": "moving",
+    "parts": 3,
+    "ratio": 0.3,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "moving",
+    "parts": 3,
+    "ratio": 0.7,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "moving",
+    "parts": 3,
+    "ratio": 0.95,
+    "transitions": 2,
+    "contacts": 1,
+    "status": "running",
+    "time": 9.99999999999983
+  },
+  {
+    "mode": "moving",
+    "parts": 3,
+    "ratio": 0.99,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.929999999999852
+  },
+  {
+    "mode": "moving",
+    "parts": 3,
+    "ratio": 1,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 8.249999999999867
+  },
+  {
+    "mode": "moving",
+    "parts": 3,
+    "ratio": 1.01,
+    "transitions": 1,
+    "contacts": 0,
+    "status": "failed",
+    "time": 7.879999999999875
+  },
+  {
+    "mode": "fixed",
+    "craft": "cold-gas",
+    "ratio": 0.3,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "fixed",
+    "craft": "cold-gas",
+    "ratio": 0.7,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "fixed",
+    "craft": "cold-gas",
+    "ratio": 0.95,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "fixed",
+    "craft": "cold-gas",
+    "ratio": 0.99,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "fixed",
+    "craft": "cold-gas",
+    "ratio": 1,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "fixed",
+    "craft": "cold-gas",
+    "ratio": 1.01,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "spin",
+    "craft": "cold-gas",
+    "ratio": 0.3,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "spin",
+    "craft": "cold-gas",
+    "ratio": 0.7,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "spin",
+    "craft": "cold-gas",
+    "ratio": 0.95,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "spin",
+    "craft": "cold-gas",
+    "ratio": 0.99,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "spin",
+    "craft": "cold-gas",
+    "ratio": 1,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "spin",
+    "craft": "cold-gas",
+    "ratio": 1.01,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "moving",
+    "craft": "cold-gas",
+    "ratio": 0.3,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "moving",
+    "craft": "cold-gas",
+    "ratio": 0.7,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "moving",
+    "craft": "cold-gas",
+    "ratio": 0.95,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "moving",
+    "craft": "cold-gas",
+    "ratio": 0.99,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "moving",
+    "craft": "cold-gas",
+    "ratio": 1,
+    "reason": "no continuous throttle"
+  },
+  {
+    "mode": "moving",
+    "craft": "cold-gas",
+    "ratio": 1.01,
+    "reason": "no continuous throttle"
+  }
+]

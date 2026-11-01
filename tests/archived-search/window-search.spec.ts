@@ -1,3 +1,4 @@
+// Archived research UI regression: automatic editor search retired in favour of manual playtests.
 import { test, expect } from '@playwright/test';
 import { windowSearchStage } from '../fixtures/window-search';
 
@@ -27,7 +28,7 @@ test('실제 제작소 작업자가 통계 목표의 투영을 호출하고 검�
   await page.getByText('탐색 범위·예산', { exact: true }).click();
   await page.locator('#search-continuous').uncheck();
   await page.locator('#search-layout').selectOption({ label: '첫 출력만 · 범위 조사' });
-  await page.locator('#search-budget').fill('16');
+  await page.locator('#search-budget').fill('256'); // Relation work, not launch trials.
   await page.locator('#search-run').click();
   await expect(page.locator('[data-family-card]').first()).toBeVisible({ timeout: 20000 });
   await expect(page.locator('html')).toHaveAttribute('data-projected-regions', /[1-9]/);

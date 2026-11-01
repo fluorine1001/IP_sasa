@@ -7,6 +7,7 @@ import { readSaved, type App, type PlayArgs, type Screen, type Settings } from '
 import { editorCredentials } from './credentials';
 import { createGoalMonitor } from './goal-monitor';
 import type { FlightSession } from '../screens/flight/session';
+import '../app/expedition-theme.css';
 import {
   manualArchiveKey,
   manualStageIdentity,
@@ -100,9 +101,9 @@ async function openManual(args: PlayArgs, revision: number) {
   );
   host.querySelector('.mission-panel .badge')!.textContent = '직접 플레이';
   const exit = host.querySelector<HTMLButtonElement>('#exit')!;
-  exit.setAttribute('aria-label', '제작·탐색으로 돌아가기');
-  exit.title = '제작·탐색으로 돌아가기';
-  exit.textContent = '← 제작·탐색';
+  exit.setAttribute('aria-label', '제작소로 돌아가기');
+  exit.title = '제작소로 돌아가기';
+  exit.textContent = '← 제작소';
   exit.style.width = 'auto';
   host.querySelector('#notes .control-label')!.textContent = '수동 기록';
   const saved = document.createElement('small');
@@ -145,7 +146,7 @@ const app: App = {
       container.replaceChildren(host);
       workshop = { host, screen: editorScreen({ ...app, root: host }) };
       const button = host.querySelector('#test-stage')!;
-      button.textContent = '직접 플레이 · 기록';
+      button.textContent = '▶ 시험 비행 · F5';
       button.setAttribute('title', 'F5 · 현재 초안을 본게임 UI로 플레이');
     }
     activate(workshop.host, workshop.screen);

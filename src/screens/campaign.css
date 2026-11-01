@@ -1,0 +1,176 @@
+.campaign {
+  max-width: 1280px;
+  margin: auto;
+  padding: 42px 32px;
+  min-height: 100dvh;
+}
+.campaign-header {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-bottom: 28px;
+}
+.campaign-header h1 {
+  margin: 4px 0 0;
+  font-size: clamp(28px, 4vw, 46px);
+}
+.eyebrow {
+  color: #d2b97e;
+  letter-spacing: 0.16em;
+  font-size: 11px;
+  font-weight: 800;
+}
+.campaign-total {
+  margin-left: auto;
+  display: grid;
+  text-align: right;
+}
+.campaign-total b {
+  font-size: 30px;
+  color: #f7dfad;
+}
+.campaign-total b span {
+  color: #8fa6a8;
+  font-size: 18px;
+}
+.chapter-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 18px;
+  margin: 30px 0;
+}
+.chapter-card {
+  min-height: 192px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  text-align: left;
+  background: linear-gradient(140deg, #3b5058, #26383e);
+  color: #eee6ce;
+  border-color: #111f27;
+  padding: 24px;
+  position: relative;
+}
+.chapter-card.selected {
+  outline: 2px solid var(--chapter-accent);
+  outline-offset: -7px;
+  background: linear-gradient(140deg, #4a6063, #2c434b);
+}
+.chapter-planet {
+  flex: 0 0 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #23353b;
+  background: radial-gradient(circle at 30% 25%, #fff6, transparent 60%), var(--chapter-accent);
+  box-shadow:
+    inset -9px -7px 0 #14263055,
+    0 0 0 7px #101d264d,
+    0 0 0 8px #b8cfc122;
+  font-size: 26px;
+  font-weight: 900;
+  transform: rotate(-8deg);
+}
+.chapter-caption {
+  display: grid;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+.chapter-caption strong {
+  font-size: 20px;
+  color: #fff0c7;
+}
+.chapter-caption > span:not(.chapter-progress) {
+  color: #bacccc;
+  font-size: 12px;
+}
+.chapter-progress {
+  display: block;
+  height: 6px;
+  border-radius: 4px;
+  background: #142831;
+  overflow: hidden;
+}
+.chapter-progress i {
+  display: block;
+  height: 100%;
+  background: var(--chapter-accent);
+}
+.chapter-missions[hidden] {
+  display: none;
+}
+.chapter-missions > header {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  border-top: 1px solid #6f858366;
+  padding-top: 24px;
+}
+.chapter-missions > header span {
+  font-size: 13px;
+  color: #9cb3b0;
+}
+.mission-route {
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 18px;
+}
+.mission-route .stage-card {
+  min-height: 170px;
+  text-align: left;
+  padding: 22px;
+  background: linear-gradient(125deg, #344b55, #233640);
+  color: #f2e8ce;
+  position: relative;
+  overflow: hidden;
+}
+.mission-route .stage-card strong {
+  position: relative;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.mission-route .stage-orb {
+  background: var(--mission-color);
+  opacity: 0.23;
+  width: 100px;
+  height: 100px;
+  position: absolute;
+  right: -22px;
+  top: 20px;
+  box-shadow: inset -15px -10px 0 #13242a88;
+}
+.mission-route .stage-number {
+  color: #edc681;
+  font-size: 14px;
+  position: relative;
+}
+.mission-route .completed {
+  border-color: #88bca4;
+}
+@media (max-width: 680px) {
+  .campaign {
+    padding: 24px 18px;
+  }
+  .campaign-header {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .campaign-header h1 {
+    font-size: 30px;
+  }
+  .chapter-map {
+    grid-template-columns: 1fr;
+  }
+  .chapter-card {
+    min-height: 140px;
+    padding: 20px;
+  }
+  .mission-route {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mission-route .stage-card {
+    padding: 14px;
+    min-height: 160px;
+  }
+}

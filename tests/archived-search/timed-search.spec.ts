@@ -1,3 +1,4 @@
+// Archived research UI regression: automatic editor search retired in favour of manual playtests.
 import { test, expect } from '@playwright/test';
 import { timedFlight } from '../fixtures/timed-flight';
 import { execute } from '../../src/world/engine';
@@ -31,7 +32,7 @@ test('제작소의 실제 시간 변수 UI·작업자·성공 대표 재생이 �
   await page.locator('#search-auto').uncheck();
   await page.getByText('탐색 범위·예산', { exact: true }).click();
   await page.locator('#search-continuous').uncheck();
-  await page.locator('#search-budget').fill('16');
+  await page.locator('#search-budget').fill('256'); // Relation work, not launch trials.
   await page.locator('#search-layout').selectOption({ label: '기록의 예약 구성 1 · 범위 조사' });
   await page.locator('#search-stop').click();
   await page.getByText('변수 범위·고정', { exact: true }).click();

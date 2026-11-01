@@ -20,6 +20,8 @@ export type FlightFrame = Pick<
   | 'goals'
   | 'used'
   | 'touchdownSpeed'
+  | 'touchdownNormalSpeed'
+  | 'touchdownTangentialSpeed'
   | 'touchdownTilt'
 >;
 export function captureFrame(run: Run, force = false) {
@@ -42,6 +44,8 @@ export function captureFrame(run: Run, force = false) {
     buoys,
     used,
     touchdownSpeed,
+    touchdownNormalSpeed,
+    touchdownTangentialSpeed,
     touchdownTilt,
   } = run;
   const goals = Object.fromEntries(
@@ -64,6 +68,8 @@ export function captureFrame(run: Run, force = false) {
     goals,
     used,
     touchdownSpeed,
+    touchdownNormalSpeed,
+    touchdownTangentialSpeed,
     touchdownTilt,
   });
   if (last && Math.abs(last.time - time) < 1e-9) frames[frames.length - 1] = frame;

@@ -9,7 +9,6 @@ async function open(page: Page, stage: ReturnType<typeof blankStage>) {
     stage,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
   const r = (await page.locator('#editor-world').boundingBox())!;
   return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 }
@@ -109,9 +108,7 @@ test('긴 로켓의 코끝을 잡아도 바로 이동하고 표면에서 마우�
   await page.mouse.up();
 });
 
-test('대표 비행을 보던 중 천체를 움직여도 로켓은 드래그 중 매번 발사대를 따른다', async ({
-  page,
-}) => {
+test('천체를 움직이면 로켓은 드래그 중 매번 발사대를 따른다', async ({ page }) => {
   const s = blankStage();
   s.rules.commandLimits = { ignite: 0, stop: 0, turn: 0, separate: 0, push: 0, deploy: 0 };
   s.rules.maxTime = s.rules.timelineDuration = s.audit.timeLimit = 1.5;
@@ -125,13 +122,6 @@ test('대표 비행을 보던 중 천체를 움직여도 로켓은 드래그 중
     right: { kind: 'constant', value: 1 },
   };
   const center = await open(page, s);
-  await page.getByText('탐색 범위·예산', { exact: true }).click();
-  await page.locator('#search-continuous').uncheck();
-  await page.locator('#search-budget').fill('16');
-  await page.locator('#search-run').click();
-  await expect(page.locator('[data-family-path]').first()).toBeVisible({ timeout: 15000 });
-  await page.locator('[data-family-path]').first().click();
-  await expect(page.locator('[data-video-play]')).toBeEnabled({ timeout: 15000 });
   await page.mouse.move(center.x, center.y);
   await page.mouse.down();
   for (const dx of [90, 150]) {

@@ -2,48 +2,36 @@ import { test, expect } from '@playwright/test';
 import { blankStage } from '../../src/stages/factory';
 import { readdirSync } from 'node:fs';
 
-test('독립 제작소는 기록 없이 전체 구성 탐색과 기존 결과를 유지한 추가 조사를 제공한다', async ({
+test('독립 제작소는 편집만으로 자동 비행을 시작하지 않고 직접 시험과 보관함을 제공한다', async ({
   page,
 }) => {
   const stage = blankStage();
-  stage.rules.maxTime = 0.4;
-  stage.rules.timelineDuration = 0.4;
-  stage.audit.samples = 16;
-  stage.rules.commandLimits = { ignite: 1, stop: 1, turn: 1, separate: 1, push: 0 };
-  stage.goals[0].endTime = 0.4;
-  stage.goals[0].condition = {
-    kind: 'compare',
-    left: { kind: 'metric', metric: 'time', targetId: '' },
-    operator: 'gte',
-    right: { kind: 'constant', value: 0.05 },
-  };
-  stage.referencePlans = [];
-  await page.addInitScript(
-    (data) => localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(data)),
-    stage,
-  );
+  await page.addInitScript((data) => {
+    localStorage.setItem('orbit-editor-draft-v2', JSON.stringify(data));
+    const Native = window.Worker;
+    window.Worker = class extends Native {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        if (/search|audit/i.test(String(url)) || /search|audit/i.test(options?.name ?? ''))
+          throw Error('Unexpected automatic search worker');
+        super(url, options);
+      }
+    };
+  }, stage);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
-  await page.getByText('탐색 범위·예산', { exact: true }).click();
-  await page.locator('#search-continuous').uncheck();
-  await page.locator('#search-budget').fill('32');
-  await page.locator('#search-run').click();
-  await expect(page.locator('#search-status')).toContainText('이번 검사 완료');
-  await expect(page.locator('#search-status')).toContainText('32/32');
-  await expect(page.locator('#search-coverage')).toContainText('예약 길이 4개까지');
-  await expect(page.locator('#search-coverage')).toContainText('시간 창 0.4초');
-  await expect(page.locator('#search-coverage')).not.toContainText('범위 전체');
-  expect(await page.locator('.solution-family').count()).toBeGreaterThan(0);
-  await expect(page.locator('#search-layout')).toHaveValue('all');
-  await page.locator('#search-continue').click();
-  await expect(page.locator('#search-status')).toContainText('64/64');
-  await expect(page.locator('#search-status')).toContainText('이번 검사 완료');
+  await expect(page.locator('#solution-search')).toHaveCount(0);
+  await expect(page.locator('#test-stage')).toBeEnabled();
+  await page.locator('#stage-properties').click();
+  await page.locator('[data-field="title"]').fill('직접 제작');
+  await page.locator('[data-field="title"]').press('Tab');
+  await expect(page.locator('#audit')).toContainText('직접 시험');
   await page.locator('#open-library').click();
   await expect(page.locator('.library-card')).toHaveCount(
     readdirSync('data/stages').filter((name) => name.endsWith('.json')).length,
   );
   await page.locator('[data-library-close]').click();
-  await page.screenshot({ path: 'test-results/screens/whole-solution-search.png' });
+  expect(errors).toEqual([]);
 });
 
 test('배속 선택은 외부 클릭으로 닫히며 다른 임무·튜토리얼·재생에도 유지된다', async ({ page }) => {

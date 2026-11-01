@@ -97,6 +97,15 @@ export function goalExplanation(stage: Stage, node: Condition): string {
     }
     if (c.kind === 'compare') {
       if (
+        c.left.kind === 'calculate' &&
+        c.operator === 'lte' &&
+        c.right.kind === 'constant' &&
+        c.right.value === 1 &&
+        JSON.stringify(c.left).includes('touchdownNormalSpeed') &&
+        JSON.stringify(c.left).includes('touchdownTangentialSpeed')
+      )
+        return ['지면 충격과 옆미끄러짐이 착륙 허용 영역 안에 있음'];
+      if (
         c.left.kind === 'window' &&
         c.left.domain.kind === 'metric' &&
         c.left.domain.metric === 'orbitTurns' &&
@@ -211,7 +220,7 @@ function markerExplanation(stage: Stage, goal: Goal): string | undefined {
     area: marker.outside ? '지도에 표시한 판정 원 바깥쪽' : '지도에 표시한 판정 원 내부',
     orbit: '표시한 허용 띠 안에서 기준 대상 주위를 진행 · 매 바퀴 경로는 달라도 됨',
     velocity: '속도 화살표 끝의 허용 원 안에 드는 상대 속도·방향',
-    surface: '표시한 접촉 지점 안에 안전 속력·수직 자세로 착륙',
+    surface: '표시한 접촉 지점 안에 착륙 · 지면 기준 충격과 기체 기울기 판정',
     state: '관측 표식의 표시 구간 안에 드는 물리 상태',
     passage: '접근→최근접 띠→이탈을 실제로 관측하고 지정된 전후 변화 충족',
   }[marker.kind];
@@ -227,6 +236,12 @@ function markerExplanation(stage: Stage, goal: Goal): string | undefined {
         ? '한 번 성립한 실제 순간'
         : `${time.toFixed(1)}초 연속 유지`,
     ...(marker.kind === 'orbit' && marker.coast ? ['엔진을 끈 구간만 인정'] : []),
+    ...(marker.kind === 'surface'
+      ? [
+          `기울기: 지면 수직에서 ${Math.round(((stage.rules.landingMode === 'precision' ? (marker.tilt ?? Math.PI / 6) : Math.min(Math.PI / 2, (marker.tilt ?? Math.PI / 6) + Math.PI / 12)) * 180) / Math.PI)}° 이내`,
+          '착지 충격계의 수직·옆 방향 속도를 함께 판정',
+        ]
+      : []),
   ].join('\n');
 }
 export function missionGoalsHtml(stage: Stage) {

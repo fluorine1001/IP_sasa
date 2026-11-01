@@ -1,8 +1,10 @@
 import { missionTimeLimit, launchFraction } from './program';
 import { craftCenter } from './craft-center';
+import { landingBounds, landingReading, surfaceVelocity } from './landing';
 import { planConstraints } from './program';
 import { captureFrame } from './replay';
-import { craftHull, hullSize, sweepHull, settleHull } from './hull';
+import { craftHull, hullSize, hullPoseAt, settleHull } from './hull';
+import { firstContact } from './contact';
 import { collectEvidence, emptyEvidence } from './evidence';
 import { beginImpact, advanceImpact } from './impact';
 import { surfaceLaunch, surfaceClearance } from './launch.ts';
@@ -16,7 +18,7 @@ import {
   rocketMass,
   drag,
 } from './rocket.ts';
-import { add, dot, length, scale, sub, type Vec } from '../physics/vector.ts';
+import { add, dot, length, scale, sub, rotate, type Vec } from '../physics/vector.ts';
 import { segmentHitsCircle } from '../physics/orbit.ts';
 import {
   bodyPosition,
@@ -31,12 +33,9 @@ import { nativeRk4 } from '../physics/nonlinear-native';
 import { flightOutcome, hybridFloat } from '../physics/hybrid-kernel';
 import type { Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
 export const WORLD_STEP = 0.01;
-const solidRadius = (object: WorldObject) =>
-  object.kind === 'station'
-    ? (object.physicalRadius ?? 0)
-    : ['debris', 'satellite'].includes(object.kind)
-      ? object.radius
-      : 0;
+export function nextPhysicsBoundary(time: number) {
+  return (Math.floor((time + 1e-9) / WORLD_STEP) + 1) * WORLD_STEP;
+}
 export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
   const start = surfaceLaunch(stage) ?? stage.spawn;
   const error =
@@ -160,10 +159,19 @@ function observe(stage: Stage, run: Run, objects: WorldObject[], before: Vec): v
       continue;
     run.sampled.add(object.id);
     const force = gravity(stage, run.position, run.time);
+    const nearest = stage.bodies
+      .filter((b) => b.kind !== 'barycenter')
+      .map((b) => ({ body: b, delta: sub(run.position, bodyPosition(stage, b, run.time)) }))
+      .sort((a, b) => length(a.delta) - length(b.delta))[0];
+    const distanceVector = nearest?.delta ?? run.position;
     const values: Record<WorldObject['sensor'], [number, Vec, string]> = {
       speed: [length(run.velocity), run.velocity, '빠르기'],
       gravity: [length(force), force, '중력 방향과 세기'],
-      distance: [length(run.position), run.position, '위치'],
+      distance: [
+        length(distanceVector),
+        distanceVector,
+        nearest ? nearest.body.name + ' 중심까지 거리' : '원점까지 거리',
+      ],
       direction: [Math.atan2(run.velocity.y, run.velocity.x), run.velocity, '진행 방향'],
       clock: [run.time, { x: 0, y: 0 }, '통과 시각'],
     };
@@ -189,402 +197,503 @@ export function tick(
   record = true,
   stopAtCue = false,
 ): void {
-  let stage = dynamicView(source, run);
-  if (run.status === 'impact') {
-    advanceImpact(run, stage, dt);
-    if (record) captureFrame(run, run.status !== 'impact');
-    return;
-  }
-  if (run.status !== 'running') return;
-  let remaining = dt;
-  while (remaining > 1e-9 && run.status === 'running') {
-    const appliedBefore = run.applied.size;
-    for (const event of dueEvents(run)) {
-      const command = event.value;
-      if (run.applied.has(command.id)) continue;
-      if (event.kind === 'engine') {
-        const command = event.value;
-        const accepted = command.releasePayload
-          ? releasePayload(run, stage, command.releasePayload)
-          : command.separate
-            ? separate(run, stage)
-            : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
-        if (!accepted) {
-          run.status = 'failed';
-          run.reason =
-            command.time.toFixed(2) +
-            '초의 예약을 실행하지 못했습니다. 남은 단, 연료와 재점화 횟수를 계획에서 확인하세요.';
-          if (record) captureFrame(run, true);
-          return;
-        }
-        run.applied.add(command.id);
-      } else {
-        if (!impulse(run, stage, event.value.vector, command.id)) {
-          run.status = 'failed';
-          run.reason =
-            '수정 추진을 너무 많이 사용했습니다. 만남이나 착륙을 위한 여유를 남겨보세요.';
-          return;
-        }
-      }
-    }
-    if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
-    const nextCommand = nextEventTime(run);
-    const slice = Math.min(
-      remaining,
-      WORLD_STEP,
-      nextCommand - run.time,
-      missionTimeLimit(stage) - run.time,
-    );
-    if (slice < 1e-9) {
-      run.status = run.probe ? 'observed' : 'failed';
-      run.reason = '임무 시간을 모두 사용했습니다.';
-      break;
-    }
-    const before = { ...run.position },
-      beforeActors = Object.fromEntries([
-        ...run.detached.map((a) => [a.id, { ...a.position }]),
-        ...stage.bodies.map((b) => [b.id, bodyPosition(stage, b, run.time)]),
-      ]),
-      previousTime = run.time;
-    advanceBodies(source, run, slice);
-    const damage = poweredStep(run, stage, slice);
-    if (damage) {
-      run.status = 'failed';
-      run.reason = damage;
+  // Every terminal path, including early command and damage returns, records
+  // the final state. captureFrame replaces an existing same-time frame.
+  try {
+    let stage = dynamicView(source, run);
+    if (run.status === 'impact') {
+      advanceImpact(run, stage, dt);
+      if (record) captureFrame(run, run.status !== 'impact');
       return;
     }
-    const part = stage.rocket?.parts[run.rocket?.partIndex ?? 0];
-    if (run.landed) {
-      const body = stage.bodies.find((b) => b.id === run.landed!.bodyId)!,
-        d = sub(run.position, bodyPosition(stage, body, previousTime)),
-        v = sub(run.velocity, bodyVelocity(stage, body, previousTime));
-      if (dot(d, v) / Math.max(length(d), 1e-9) > 1e-8) delete run.landed;
-    }
-    if (run.landed) {
-      const body = stage.bodies.find((b) => b.id === run.landed!.bodyId)!;
-      run.position = add(bodyPosition(stage, body, run.time + slice), {
-        x: Math.cos(run.landed.angle) * (body.radius + surfaceClearance(stage)),
-        y: Math.sin(run.landed.angle) * (body.radius + surfaceClearance(stage)),
-      });
-      run.position = settleHull(
-        run.position,
-        run.rocket?.direction ?? run.attitude ?? run.velocity,
-        craftHull(stage, run),
-        bodyPosition(stage, body, run.time + slice),
-        body.radius,
-        surfaceClearance(stage),
-      );
-      run.velocity = bodyVelocity(stage, body, run.time + slice);
-    } else
-      [run.position, run.velocity] = integrate(
-        stage,
-        run.position,
-        run.velocity,
-        run.time,
-        slice,
-        stage.rocket ? rocketMass(stage, run) : 1,
-        part?.area ?? 0,
-      );
-    run.time += slice;
-    remaining -= slice;
-    stage = dynamicView(source, run);
-    for (const actor of run.detached) {
-      actor.age += slice;
-      if (actor.status === 'landed') {
-        const body = stage.bodies.find((b) => b.id === actor.bodyId)!;
-        actor.position = add(bodyPosition(stage, body, run.time), {
-          x: Math.cos(actor.angle!) * (body.radius + surfaceClearance(stage)),
-          y: Math.sin(actor.angle!) * (body.radius + surfaceClearance(stage)),
-        });
-        actor.position = settleHull(
-          actor.position,
-          actor.direction,
-          hullSize(1, true),
-          bodyPosition(stage, body, run.time),
-          body.radius,
-          surfaceClearance(stage),
-        );
-        actor.velocity = bodyVelocity(stage, body, run.time);
-        continue;
-      }
-      if (actor.status === 'crashed') continue;
-      const previous = { ...actor.position },
-        damage = actor.payload ? '' : poweredStep(run, stage, slice, actor),
-        part = actor.payload
-          ? {
-              area: stage.rocket!.payloads!.find((p) => p.id === actor.id)!.area,
-              maxLandingSpeed: 0.05,
-            }
-          : stage.rocket!.parts.find((p) => p.id === actor.id)!;
-      [actor.position, actor.velocity] = integrate(
-        stage,
-        actor.position,
-        actor.velocity,
-        previousTime,
-        slice,
-        actor.dryMass + actor.fuel,
-        part.area,
-      );
-      if (actor.payload) {
-        const a = atmosphericState(stage, actor.position, actor.velocity, run.time);
-        actor.heat = Math.max(
-          0,
-          actor.heat + (Math.sqrt(a.density) * a.speed ** 3 * part.area * 0.4 - 0.03) * slice,
-        );
-      }
-      for (const b of stage.bodies) {
-        if (b.kind === 'barycenter') continue;
-        const contact = sweepHull(
-          previous,
-          actor.position,
-          actor.direction,
-          hullSize(1, true),
-          bodyPosition(stage, b, previousTime),
-          bodyPosition(stage, b, run.time),
-          b.radius,
-        );
-        if (contact !== undefined) {
-          actor.position = settleHull(
-            add(previous, scale(sub(actor.position, previous), contact)),
-            actor.direction,
-            hullSize(1, true),
-            bodyPosition(stage, b, run.time),
-            b.radius,
-            surfaceClearance(stage),
-          );
-          actor.bodyId = b.id;
-          actor.angle = Math.atan2(
-            actor.position.y - bodyPosition(stage, b, run.time).y,
-            actor.position.x - bodyPosition(stage, b, run.time).x,
-          );
-          actor.touchdownSpeed = length(sub(actor.velocity, bodyVelocity(stage, b, run.time)));
-          const normal = scale(
-            sub(actor.position, bodyPosition(stage, b, run.time)),
-            1 / Math.max(length(sub(actor.position, bodyPosition(stage, b, run.time))), 1e-9),
-          );
-          actor.touchdownTilt = Math.acos(Math.max(-1, Math.min(1, dot(actor.direction, normal))));
-          actor.status =
-            ['planet', 'moon'].includes(b.kind) &&
-            actor.touchdownSpeed <= (part.maxLandingSpeed ?? 0.18)
-              ? 'landed'
-              : 'crashed';
-          actor.throttle = 0;
-          break;
+    if (run.status !== 'running') return;
+    let remaining = dt;
+    while (remaining > 1e-9 && run.status === 'running') {
+      const appliedBefore = run.applied.size;
+      for (const event of dueEvents(run)) {
+        const command = event.value;
+        if (run.applied.has(command.id)) continue;
+        if (event.kind === 'engine') {
+          const command = event.value;
+          const accepted = command.releasePayload
+            ? releasePayload(run, stage, command.releasePayload)
+            : command.separate
+              ? separate(run, stage)
+              : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
+          if (!accepted) {
+            run.status = 'failed';
+            run.reason =
+              command.time.toFixed(2) +
+              '초의 예약을 실행하지 못했습니다. 남은 단, 연료와 재점화 횟수를 계획에서 확인하세요.';
+            if (record) captureFrame(run, true);
+            return;
+          }
+          run.applied.add(command.id);
+        } else {
+          if (!impulse(run, stage, event.value.vector, command.id)) {
+            run.status = 'failed';
+            run.reason = '수정 추진의 총량 한도를 넘었습니다.';
+            return;
+          }
         }
       }
-      if (damage || length(actor.position) > stage.rules.worldRadius) actor.status = 'crashed';
-      if (
-        stage.objects.some(
-          (o) =>
-            solidRadius(o) > 0 &&
-            sweepHull(
-              previous,
-              actor.position,
-              actor.direction,
-              hullSize(1, true),
-              objectPosition(stage, o, previousTime),
-              objectPosition(stage, o, run.time),
-              solidRadius(o),
-            ) !== undefined,
-        )
-      )
-        actor.status = 'crashed';
-    }
-    let collisionBodyId: string | undefined;
-    let contactTime = Infinity;
-    // Compact cold-gas craft hold local vertical attitude; translational jets need not rotate the hull.
-    // Powered multi-stage vehicles use the player's planned engine attitude instead.
-    if (!run.rocket && !run.landed) {
-      const nearest = stage.bodies
-        .filter((b) => b.kind !== 'barycenter')
-        .sort(
-          (a, b) =>
-            length(sub(run.position, bodyPosition(stage, a, run.time))) -
-            a.radius -
-            length(sub(run.position, bodyPosition(stage, b, run.time))) +
-            b.radius,
-        )[0];
-      if (nearest) {
-        const d = sub(run.position, bodyPosition(stage, nearest, run.time));
-        run.attitude = scale(d, 1 / Math.max(length(d), 1e-9));
-      }
-    }
-    // The pad holds the same upright pose painted by the renderer until lift-off.
-    const incomingPose =
-      run.rocket && !run.rocket.airborne
-        ? (surfaceLaunch(stage, run.time)?.normal ?? run.rocket.direction)
-        : (run.rocket?.direction ?? run.attitude ?? run.velocity);
-    for (const body of stage.bodies) {
-      if (body.kind === 'barycenter' || run.landed) continue;
-      const contact = sweepHull(
-        before,
-        run.position,
-        incomingPose,
-        craftHull(stage, run),
-        bodyPosition(stage, body, previousTime),
-        bodyPosition(stage, body, run.time),
-        body.radius,
+      if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
+      const nextCommand = nextEventTime(run);
+      const gridTime = nextPhysicsBoundary(run.time),
+        gridGap = gridTime - run.time;
+      const slice = Math.min(
+        remaining,
+        gridGap,
+        nextCommand - run.time,
+        missionTimeLimit(stage) - run.time,
       );
-      if (contact !== undefined && contact < contactTime) {
-        contactTime = contact;
-        collisionBodyId = body.id;
+      if (slice < 1e-9) {
+        run.status = run.probe ? 'observed' : 'failed';
+        run.reason = '임무 시간을 모두 사용했습니다.';
+        break;
       }
-    }
-    if (collisionBodyId) {
-      const body = stage.bodies.find((b) => b.id === collisionBodyId)!;
-      run.position = settleHull(
-        add(before, scale(sub(run.position, before), contactTime)),
-        incomingPose,
-        craftHull(stage, run),
-        bodyPosition(stage, body, run.time),
-        body.radius,
-        surfaceClearance(stage),
-      );
-    }
-    if (run.rocket && !run.rocket.airborne) {
-      const pad = surfaceLaunch(stage, run.time);
-      if (pad) {
-        const altitude =
-          length(sub(run.position, bodyPosition(stage, pad.body, run.time))) - pad.body.radius;
-        if (altitude > surfaceClearance(stage) + 1e-6) run.rocket.airborne = true;
-        else if (!collisionBodyId || collisionBodyId === pad.body.id) {
-          collisionBodyId = undefined;
-          run.position = pad.position;
-          run.velocity = pad.velocity;
+      const stepWorld = stage;
+      const beforeVelocity = { ...run.velocity };
+      const beforeHeading = { ...(run.rocket?.direction ?? run.attitude ?? run.velocity) };
+      const before = { ...run.position },
+        beforeActors = Object.fromEntries([
+          ...run.detached.map((a) => [a.id, { ...a.position }]),
+          ...stage.bodies.map((b) => [b.id, bodyPosition(stage, b, run.time)]),
+          ...stage.objects.map((o) => [o.id, objectPosition(stage, o, run.time)]),
+        ]),
+        previousTime = run.time;
+      advanceBodies(source, run, slice);
+      const damage = poweredStep(run, stage, slice);
+      if (run.rocket && stage.rocket?.parts[run.rocket.partIndex]) {
+        const p = stage.rocket.parts[run.rocket.partIndex];
+        run.peakLoad = Math.max(
+          run.peakLoad ?? 0,
+          run.rocket.heat / p.maxHeat,
+          run.rocket.stress / 0.2,
+        );
+      }
+      if (damage) {
+        run.status = 'failed';
+        run.reason = damage;
+        return;
+      }
+      const part = stage.rocket?.parts[run.rocket?.partIndex ?? 0];
+      if (run.landed) {
+        const body = stage.bodies.find((b) => b.id === run.landed!.bodyId)!,
+          d = sub(run.position, bodyPosition(stage, body, previousTime)),
+          v = sub(run.velocity, bodyVelocity(stage, body, previousTime));
+        const normal = scale(d, 1 / Math.max(length(d), 1e-9));
+        const thrustAcceleration = dot(sub(run.velocity, beforeVelocity), normal) / slice;
+        const bodyAcceleration = scale(
+          sub(
+            bodyVelocity(stage, body, previousTime + slice),
+            bodyVelocity(stage, body, previousTime),
+          ),
+          1 / slice,
+        );
+        const effectiveGravity =
+          -dot(sub(gravity(stage, run.position, previousTime), bodyAcceleration), normal) -
+          (body.spin ?? 0) ** 2 * length(d);
+        // Support supplies the missing normal force while fuel is still burnt.
+        // Cold-gas impulses retain their existing immediate-liftoff behaviour.
+        const lifts = run.rocket
+          ? thrustAcceleration > effectiveGravity + 1e-8
+          : dot(d, v) / Math.max(length(d), 1e-9) > 1e-8;
+        if (lifts) {
+          delete run.landed;
+          delete run.touchdownSpeed;
+          delete run.touchdownNormalSpeed;
+          delete run.touchdownTangentialSpeed;
+          delete run.touchdownTilt;
         }
       }
-    }
-    if (collisionBodyId) {
-      const b = stage.bodies.find((b) => b.id === collisionBodyId)!;
-      run.touchdownSpeed = length(sub(run.velocity, bodyVelocity(stage, b, run.time)));
-      const normal = scale(
-        sub(run.position, bodyPosition(stage, b, run.time)),
-        1 / Math.max(length(sub(run.position, bodyPosition(stage, b, run.time))), 1e-9),
-      );
-      run.touchdownTilt = Math.acos(Math.max(-1, Math.min(1, dot(incomingPose, normal))));
-    }
-    const context = { stage, run, before, beforeActors, dt: slice, previousTime, collisionBodyId };
-    updateGoals(context);
-    const cueCount = run.evidence.cues.length;
-    if (record) collectEvidence(context);
-    if (stopAtCue && run.evidence.cues.slice(cueCount).some((c) => c.pause)) remaining = 0;
-    if (record) {
-      observe(stage, run, objects, before);
-      if (run.time - run.lastTrail >= 0.05) {
-        run.trail.push({
-          position: craftCenter(stage, run),
-          velocity: { ...run.velocity },
-          targets: Object.fromEntries([
-            ...stage.bodies
-              .filter((b) => b.motion || b.dynamic)
-              .map((b) => [b.id, bodyPosition(stage, b, run.time)]),
-            ...stage.objects
-              .filter((o) => o.motion || o.dynamic)
-              .map((o) => [o.id, objectPosition(stage, o, run.time)]),
-          ]),
-          time: run.time,
-        });
-        run.lastTrail = run.time;
-      }
-    }
-    if (collisionBodyId) {
-      const body = stage.bodies.find((b) => b.id === collisionBodyId)!;
-      run.touchdownSpeed = length(sub(run.velocity, bodyVelocity(stage, body, run.time)));
-      const accepted =
-        ['planet', 'moon'].includes(body.kind) &&
-        run.touchdownSpeed! <= (part?.maxLandingSpeed ?? 0.18);
-      if (accepted) {
-        const center = bodyPosition(stage, body, run.time);
-        run.landed = {
-          bodyId: body.id,
-          angle: Math.atan2(run.position.y - center.y, run.position.x - center.x),
-        };
-        run.position = add(center, {
+      if (run.landed) {
+        const body = stage.bodies.find((b) => b.id === run.landed!.bodyId)!;
+        run.landed.angle += (body.spin ?? 0) * slice;
+        if (run.rocket)
+          run.rocket.direction = rotate(run.rocket.direction, (body.spin ?? 0) * slice);
+        if (run.attitude) run.attitude = rotate(run.attitude, (body.spin ?? 0) * slice);
+        run.position = add(bodyPosition(stage, body, run.time + slice), {
           x: Math.cos(run.landed.angle) * (body.radius + surfaceClearance(stage)),
           y: Math.sin(run.landed.angle) * (body.radius + surfaceClearance(stage)),
         });
         run.position = settleHull(
           run.position,
+          run.rocket?.direction ?? run.attitude ?? run.velocity,
+          craftHull(stage, run),
+          bodyPosition(stage, body, run.time + slice),
+          body.radius,
+          surfaceClearance(stage),
+        );
+        run.velocity = surfaceVelocity(stage, body, run.position, run.time + slice);
+      } else
+        [run.position, run.velocity] = integrate(
+          stage,
+          run.position,
+          run.velocity,
+          run.time,
+          slice,
+          stage.rocket ? rocketMass(stage, run) : 1,
+          part?.area ?? 0,
+        );
+      run.time = slice === gridGap ? gridTime : run.time + slice;
+      remaining -= slice;
+      stage = dynamicView(source, run);
+      for (const actor of run.detached) {
+        actor.age += slice;
+        if (actor.status === 'landed') {
+          const body = stage.bodies.find((b) => b.id === actor.bodyId)!;
+          actor.angle! += (body.spin ?? 0) * slice;
+          actor.direction = rotate(actor.direction, (body.spin ?? 0) * slice);
+          actor.position = add(bodyPosition(stage, body, run.time), {
+            x: Math.cos(actor.angle!) * (body.radius + surfaceClearance(stage)),
+            y: Math.sin(actor.angle!) * (body.radius + surfaceClearance(stage)),
+          });
+          actor.position = settleHull(
+            actor.position,
+            actor.direction,
+            hullSize(1, true),
+            bodyPosition(stage, body, run.time),
+            body.radius,
+            surfaceClearance(stage),
+          );
+          actor.velocity = surfaceVelocity(stage, body, actor.position, run.time);
+          continue;
+        }
+        if (actor.status === 'crashed') continue;
+        const previous = { ...actor.position },
+          previousVelocity = { ...actor.velocity },
+          previousHeading = { ...actor.direction },
+          damage = actor.payload ? '' : poweredStep(run, stage, slice, actor),
+          part = actor.payload
+            ? {
+                area: stage.rocket!.payloads!.find((p) => p.id === actor.id)!.area,
+                maxLandingSpeed: 0.05,
+              }
+            : stage.rocket!.parts.find((p) => p.id === actor.id)!;
+        [actor.position, actor.velocity] = integrate(
+          stepWorld,
+          actor.position,
+          actor.velocity,
+          previousTime,
+          slice,
+          actor.dryMass + actor.fuel,
+          part.area,
+        );
+        if (actor.payload) {
+          const a = atmosphericState(stage, actor.position, actor.velocity, run.time);
+          actor.heat = Math.max(
+            0,
+            actor.heat + (Math.sqrt(a.density) * a.speed ** 3 * part.area * 0.4 - 0.03) * slice,
+          );
+        }
+        const hull = hullSize(1, true);
+        const hit = firstContact(
+          stepWorld,
+          stage,
+          previous,
+          actor.position,
+          previousHeading,
+          actor.direction,
+          hull,
+          previousTime,
+          run.time,
+        );
+        if (hit) {
+          const pose = hullPoseAt(
+            previous,
+            actor.position,
+            previousHeading,
+            actor.direction,
+            hull,
+            hit.fraction,
+          );
+          const at = previousTime + slice * hit.fraction;
+          actor.position = pose.position;
+          actor.direction = pose.heading;
+          actor.velocity = add(
+            previousVelocity,
+            scale(sub(actor.velocity, previousVelocity), hit.fraction),
+          );
+          actor.throttle = 0;
+          if (hit.body) {
+            const b = hit.body;
+            const touchdown = landingReading(
+              stage,
+              b,
+              actor.position,
+              actor.velocity,
+              actor.direction,
+              at,
+              part.maxLandingSpeed ?? 0.18,
+            );
+            actor.bodyId = b.id;
+            actor.touchdownSpeed = touchdown.speed;
+            actor.touchdownNormalSpeed = touchdown.normalSpeed;
+            actor.touchdownTangentialSpeed = touchdown.tangentSpeed;
+            actor.touchdownTilt = touchdown.tilt;
+            actor.status = touchdown.safe ? 'landed' : 'crashed';
+            actor.angle = Math.atan2(
+              actor.position.y - bodyPosition(stage, b, at).y,
+              actor.position.x - bodyPosition(stage, b, at).x,
+            );
+            actor.angle += (b.spin ?? 0) * (run.time - at);
+            actor.position = add(bodyPosition(stage, b, run.time), {
+              x: Math.cos(actor.angle) * (b.radius + surfaceClearance(stage)),
+              y: Math.sin(actor.angle) * (b.radius + surfaceClearance(stage)),
+            });
+            actor.position = settleHull(
+              actor.position,
+              actor.direction,
+              hull,
+              bodyPosition(stage, b, run.time),
+              b.radius,
+              surfaceClearance(stage),
+            );
+            if (actor.status === 'landed')
+              actor.velocity = surfaceVelocity(stage, b, actor.position, run.time);
+          } else actor.status = 'crashed';
+        }
+        if (damage || length(actor.position) > stage.rules.worldRadius) actor.status = 'crashed';
+        if (!actor.payload)
+          run.peakLoad = Math.max(
+            run.peakLoad ?? 0,
+            actor.heat / stage.rocket!.parts.find((p) => p.id === actor.id)!.maxHeat,
+            actor.stress / 0.2,
+          );
+      }
+      let collisionBodyId: string | undefined;
+      let landedSafely = false;
+      let contactTime = Infinity;
+      // Compact cold-gas craft hold local vertical attitude; translational jets need not rotate the hull.
+      // Powered multi-stage vehicles use the player's planned engine attitude instead.
+      if (!run.rocket && !run.landed) {
+        const nearest = stage.bodies
+          .filter((b) => b.kind !== 'barycenter')
+          .sort(
+            (a, b) =>
+              length(sub(run.position, bodyPosition(stage, a, run.time))) -
+              a.radius -
+              length(sub(run.position, bodyPosition(stage, b, run.time))) +
+              b.radius,
+          )[0];
+        if (nearest) {
+          const d = sub(run.position, bodyPosition(stage, nearest, run.time));
+          run.attitude = scale(d, 1 / Math.max(length(d), 1e-9));
+        }
+      }
+      // The pad holds the same upright pose painted by the renderer until lift-off.
+      const incomingPose =
+        run.rocket && !run.rocket.airborne
+          ? (surfaceLaunch(stage, run.time)?.normal ?? run.rocket.direction)
+          : (run.rocket?.direction ?? run.attitude ?? run.velocity);
+      const contact = firstContact(
+        stepWorld,
+        stage,
+        before,
+        run.position,
+        beforeHeading,
+        incomingPose,
+        craftHull(stage, run),
+        previousTime,
+        run.time,
+        run.landed?.bodyId,
+      );
+      let contactPose = incomingPose;
+      const hazard = !!contact?.object;
+      if (contact) {
+        contactTime = contact.fraction;
+        collisionBodyId = contact.body?.id;
+        const pose = hullPoseAt(
+          before,
+          run.position,
+          beforeHeading,
           incomingPose,
+          craftHull(stage, run),
+          contactTime,
+        );
+        contactPose = pose.heading;
+        run.position = pose.position;
+        run.velocity = add(beforeVelocity, scale(sub(run.velocity, beforeVelocity), contactTime));
+        if (run.rocket) run.rocket.direction = contactPose;
+        else run.attitude = contactPose;
+        if (contact.body)
+          run.position = settleHull(
+            run.position,
+            contactPose,
+            craftHull(stage, run),
+            bodyPosition(stage, contact.body, previousTime + slice * contactTime),
+            contact.body.radius,
+            surfaceClearance(stage),
+          );
+      }
+      if (run.rocket && !run.rocket.airborne) {
+        const pad = surfaceLaunch(stage, run.time);
+        if (pad) {
+          const altitude =
+            length(sub(run.position, bodyPosition(stage, pad.body, run.time))) - pad.body.radius;
+          if (altitude > surfaceClearance(stage) + 1e-6) run.rocket.airborne = true;
+          else if (!hazard && (!collisionBodyId || collisionBodyId === pad.body.id)) {
+            collisionBodyId = undefined;
+            run.position = pad.position;
+            run.velocity = pad.velocity;
+          }
+        }
+      }
+      if (collisionBodyId) {
+        const b = stage.bodies.find((b) => b.id === collisionBodyId)!;
+        const touchdown = landingReading(
+          stage,
+          b,
+          run.position,
+          run.velocity,
+          contactPose,
+          previousTime + slice * contactTime,
+          part?.maxLandingSpeed ?? 0.18,
+        );
+        run.touchdownSpeed = touchdown.speed;
+        run.touchdownNormalSpeed = touchdown.normalSpeed;
+        run.touchdownTangentialSpeed = touchdown.tangentSpeed;
+        landedSafely = touchdown.safe;
+        run.touchdownTilt = touchdown.tilt;
+      }
+      if (collisionBodyId) {
+        const body = stage.bodies.find((b) => b.id === collisionBodyId)!;
+        const accepted = landedSafely;
+        if (accepted) {
+          const center = bodyPosition(stage, body, run.time);
+          const at = previousTime + slice * contactTime;
+          const contactCenter = bodyPosition(stage, body, at);
+          const rotation = (body.spin ?? 0) * (run.time - at);
+          contactPose = rotate(contactPose, rotation);
+          if (run.rocket) run.rocket.direction = contactPose;
+          else run.attitude = contactPose;
+          run.landed = {
+            bodyId: body.id,
+            angle:
+              Math.atan2(run.position.y - contactCenter.y, run.position.x - contactCenter.x) +
+              rotation,
+          };
+          run.position = add(center, {
+            x: Math.cos(run.landed.angle) * (body.radius + surfaceClearance(stage)),
+            y: Math.sin(run.landed.angle) * (body.radius + surfaceClearance(stage)),
+          });
+          run.position = settleHull(
+            run.position,
+            contactPose,
+            craftHull(stage, run),
+            center,
+            body.radius,
+            surfaceClearance(stage),
+          );
+          run.velocity = surfaceVelocity(stage, body, run.position, run.time);
+          if (run.rocket) run.rocket.throttle = 0;
+        }
+      }
+      const context = {
+        stage,
+        run,
+        before,
+        beforeActors,
+        dt: slice,
+        previousTime,
+        collisionBodyId,
+      };
+      updateGoals(context);
+      const cueCount = run.evidence.cues.length;
+      if (record) collectEvidence(context);
+      if (stopAtCue && run.evidence.cues.slice(cueCount).some((c) => c.pause)) remaining = 0;
+      if (record) {
+        observe(stage, run, objects, before);
+        if (run.time - run.lastTrail >= 0.05) {
+          run.trail.push({
+            position: craftCenter(stage, run),
+            velocity: { ...run.velocity },
+            load:
+              run.rocket && part
+                ? Math.max(run.rocket.heat / part.maxHeat, run.rocket.stress / 0.2)
+                : undefined,
+            targets: Object.fromEntries([
+              ...stage.bodies
+                .filter((b) => b.motion || b.dynamic)
+                .map((b) => [b.id, bodyPosition(stage, b, run.time)]),
+              ...stage.objects
+                .filter((o) => o.motion || o.dynamic)
+                .map((o) => [o.id, objectPosition(stage, o, run.time)]),
+            ]),
+            time: run.time,
+          });
+          run.lastTrail = run.time;
+        }
+      }
+      const roots = run.goalRoots ?? objectiveGoals(stage).map((g) => g.id);
+      const won =
+        stage.goalMode === 'all'
+          ? roots.length > 0 && roots.every((id) => run.goals[id]?.complete)
+          : roots.some((id) => run.goals[id]?.complete);
+      const outcome = flightOutcome(hybridFloat, {
+        goals: Number(won),
+        collision: Number(!!collisionBodyId),
+        landed: Number(!!run.landed),
+        hazard: Number(hazard),
+        probe: Number(run.probe),
+        expired: Number(
+          !Number.isFinite(run.position.x) ||
+            !Number.isFinite(run.position.y) ||
+            length(run.position) > stage.rules.worldRadius ||
+            run.time >= missionTimeLimit(stage) - 1e-8,
+        ),
+      });
+      if (outcome.won) {
+        run.status = 'won';
+        run.reason = '임무 완료! 계획한 경로가 목표를 달성했습니다.';
+      } else if (outcome.impact) {
+        const body = stage.bodies.find((b) => b.id === collisionBodyId)!,
+          center = bodyPosition(stage, body, run.time),
+          normal = scale(
+            sub(run.position, center),
+            1 / Math.max(length(sub(run.position, center)), 1e-9),
+          ),
+          relative = sub(run.velocity, bodyVelocity(stage, body, run.time));
+        const incomingDirection = { ...contactPose };
+        run.position = settleHull(
+          run.position,
+          incomingDirection,
           craftHull(stage, run),
           center,
           body.radius,
           surfaceClearance(stage),
         );
-        run.velocity = bodyVelocity(stage, body, run.time);
-        if (run.rocket) run.rocket.throttle = 0;
+        run.velocity = add(
+          bodyVelocity(stage, body, run.time),
+          scale(sub(relative, scale(normal, 1.2 * Math.min(0, dot(relative, normal)))), 0.55),
+        );
+        run.status = 'impact';
+        const limits = landingBounds(stage, part?.maxLandingSpeed ?? 0.18);
+        run.reason = ['planet', 'moon'].includes(body.kind)
+          ? run.touchdownNormalSpeed! / limits.normal >=
+            run.touchdownTangentialSpeed! / limits.tangent
+            ? '지면 충격이 기체의 착륙 한계를 넘었습니다.'
+            : '옆미끄러짐이 기체의 착륙 한계를 넘었습니다.'
+          : body.name + '와 충돌했습니다.';
+        run.impact = beginImpact(run, stage, body, incomingDirection);
+      } else if (outcome.hazard) {
+        run.status = 'failed';
+        run.reason = (contact?.object?.name ?? '비행 물체') + '에 충돌했습니다.';
+      } else if (outcome.failed || outcome.observed) {
+        run.status = run.probe ? 'observed' : 'failed';
+        run.reason = run.probe
+          ? '시험 비행의 기록을 가져왔습니다.'
+          : length(run.position) > stage.rules.worldRadius
+            ? '탐사 범위를 벗어났습니다.'
+            : !Number.isFinite(run.position.x) || !Number.isFinite(run.position.y)
+              ? '물리 상태를 계산할 수 없어 비행을 중단했습니다.'
+              : '임무 시간이 끝났습니다.';
       }
+      if (record) captureFrame(run, run.status !== 'running');
     }
-    const roots = run.goalRoots ?? objectiveGoals(stage).map((g) => g.id);
-    const won =
-      stage.goalMode === 'all'
-        ? roots.length > 0 && roots.every((id) => run.goals[id]?.complete)
-        : roots.some((id) => run.goals[id]?.complete);
-    const hazard = stage.objects.some(
-      (o) =>
-        solidRadius(o) > 0 &&
-        sweepHull(
-          before,
-          run.position,
-          incomingPose,
-          craftHull(stage, run),
-          objectPosition(stage, o, previousTime),
-          objectPosition(stage, o, run.time),
-          solidRadius(o),
-        ) !== undefined,
-    );
-    const outcome = flightOutcome(hybridFloat, {
-      goals: Number(won),
-      collision: Number(!!collisionBodyId),
-      landed: Number(!!run.landed),
-      hazard: Number(hazard),
-      probe: Number(run.probe),
-      expired: Number(
-        !Number.isFinite(run.position.x) ||
-          !Number.isFinite(run.position.y) ||
-          length(run.position) > stage.rules.worldRadius ||
-          run.time >= missionTimeLimit(stage) - 1e-8,
-      ),
-    });
-    if (outcome.won) {
-      run.status = 'won';
-      run.reason = '임무 완료! 계획한 경로가 목표를 달성했습니다.';
-    } else if (outcome.impact) {
-      const body = stage.bodies.find((b) => b.id === collisionBodyId)!,
-        center = bodyPosition(stage, body, run.time),
-        normal = scale(
-          sub(run.position, center),
-          1 / Math.max(length(sub(run.position, center)), 1e-9),
-        ),
-        relative = sub(run.velocity, bodyVelocity(stage, body, run.time));
-      const incomingDirection = { ...incomingPose };
-      run.position = settleHull(
-        run.position,
-        incomingDirection,
-        craftHull(stage, run),
-        center,
-        body.radius,
-        surfaceClearance(stage),
-      );
-      run.velocity = add(
-        bodyVelocity(stage, body, run.time),
-        scale(sub(relative, scale(normal, 1.2 * Math.min(0, dot(relative, normal)))), 0.55),
-      );
-      run.status = 'impact';
-      run.reason = ['planet', 'moon'].includes(body.kind)
-        ? '착륙 속도가 너무 컸습니다. 가까워질 때 반대 방향으로 추진해보세요.'
-        : '천체와 충돌했습니다. 가까워질 때의 속력과 접근 방향을 확인해보세요.';
-      run.impact = beginImpact(run, stage, body, incomingDirection);
-    } else if (outcome.hazard) {
-      run.status = 'failed';
-      run.reason = '위성·정거장·파편에 충돌했습니다.';
-    } else if (outcome.failed || outcome.observed) {
-      run.status = run.probe ? 'observed' : 'failed';
-      run.reason = run.probe
-        ? '시험 비행의 기록을 가져왔습니다.'
-        : '시간 또는 탐사 범위를 벗어났습니다.';
-    }
-    if (record) captureFrame(run, run.status !== 'running');
+  } finally {
+    if (record && run.status !== 'running' && run.status !== 'impact') captureFrame(run, true);
   }
 }
 // Batch execution is bounded independently of unlimited real-time gameplay.

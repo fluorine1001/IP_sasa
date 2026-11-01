@@ -14,7 +14,17 @@ export type ManualArchive = {
 /** A different environment/goal never reuses a recording against the new world.
  * Author verification plans do not change the physical experiment. */
 export function manualStageIdentity(stage: Stage) {
-  return JSON.stringify({ ...stage, referencePlans: [] });
+  // Campaign placement and presentation do not change the physical experiment.
+  const {
+    chapter: _chapter,
+    title: _title,
+    order: _order,
+    published: _published,
+    referencePlans: _proofs,
+    camera: _camera,
+    ...experiment
+  } = stage;
+  return JSON.stringify(experiment);
 }
 export async function manualArchiveKey(stage: Stage) {
   const digest = await crypto.subtle.digest(

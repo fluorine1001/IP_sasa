@@ -23,7 +23,6 @@ test('기울어진 타원의 허용 띠는 곡선에서 같은 거리이며 폭 
     s,
   );
   await page.goto('/editor.html');
-  await page.locator('#search-auto').uncheck();
   const canvas = page.locator('#editor-world'),
     r = (await canvas.boundingBox())!;
   const screen = (x: number, y: number) => ({
@@ -55,7 +54,6 @@ test('기울어진 타원의 허용 띠는 곡선에서 같은 거리이며 폭 
     }, p);
   const distances = [-0.11, 0.11, -0.36, 0.36];
   const painted = await Promise.all(distances.map((d) => pixel(point(d))));
-  await page.getByText('목표 목록 · 클릭해서 편집', { exact: true }).click();
   await page.locator(`[data-select-goal="${g.id}"]`).click();
   await canvas.press('Delete');
   await expect(page.locator('.marker-inspector')).toHaveCount(0);

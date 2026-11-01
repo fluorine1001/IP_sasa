@@ -2,6 +2,7 @@ import type { Interval } from '../interval';
 import * as I from '../interval';
 import type { HybridAlgebra } from '../../physics/hybrid-kernel';
 import { logDomains, expDomains } from './log-domain';
+import { trigRange } from './trig-domain';
 import {
   entire,
   normalize,
@@ -24,7 +25,7 @@ import {
 } from './real-domains';
 
 export type Term = Readonly<{ id: number; arena: symbol }>;
-type Node = {
+export type RelationNode = Readonly<{
   term: Term;
   op:
     | 'input'
@@ -39,13 +40,16 @@ type Node = {
     | 'min'
     | 'sqrt'
     | 'log'
+    | 'sin'
+    | 'cos'
     | 'lt'
     | 'lte'
     | 'select';
   args: readonly Term[];
   value?: number;
   name?: string;
-};
+}>;
+type Node = RelationNode;
 export type TargetDomain = { term: Term; range: RealDomain };
 export class NonlinearRelationLimit extends Error {
   constructor() {
@@ -64,6 +68,7 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
   private arena = Symbol('nonlinear relation');
   private nodes: Node[] = [];
   private unique = new Map<string, Term>();
+  private orders = new Map<string, number[]>();
   constructor(private limits: { nodes?: number } = {}) {}
   private make(op: Node['op'], args: readonly Term[], value?: number, name?: string): Term {
     args.forEach((a) => this.check(a));
@@ -105,6 +110,39 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
     return this.make('cube', [a]);
   }
   hypot(a: Term, b: Term) {
+    this.check(a);
+    this.check(b);
+    const factors = (t: Term) => {
+      const n = this.nodes[t.id];
+      if (n.op === 'sin' || n.op === 'cos')
+        return { op: n.op, angle: n.args[0], scale: this.literal(1) };
+      if (n.op === 'multiply')
+        for (let i = 0; i < 2; i++) {
+          const trig = this.nodes[n.args[i].id];
+          if (trig.op === 'sin' || trig.op === 'cos')
+            return { op: trig.op, angle: trig.args[0], scale: n.args[1 - i] };
+        }
+    };
+    const x = factors(a),
+      y = factors(b);
+    const total = (t: Term, depth = 0): boolean => {
+      if (depth > 16) return false;
+      const n = this.nodes[t.id];
+      if (n.op === 'input' || n.op === 'literal') return true;
+      if (n.op === 'divide')
+        return (
+          this.constantValue(n.args[1]) !== undefined &&
+          this.constantValue(n.args[1]) !== 0 &&
+          total(n.args[0], depth + 1)
+        );
+      return (
+        ['add', 'subtract', 'multiply', 'cube', 'sin', 'cos', 'hypot', 'min', 'max'].includes(
+          n.op,
+        ) && n.args.every((v) => total(v, depth + 1))
+      );
+    };
+    if (x && y && x.op !== y.op && x.angle === y.angle && x.scale === y.scale && total(x.angle))
+      return this.max(x.scale, this.multiply(this.literal(-1), x.scale));
     return this.make('hypot', [a, b]);
   }
   max(a: Term, b: Term) {
@@ -121,6 +159,12 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
   }
   log(a: Term) {
     return this.make('log', [a]);
+  }
+  sin(a: Term) {
+    return this.make('sin', [a]);
+  }
+  cos(a: Term) {
+    return this.make('cos', [a]);
   }
   lt(a: Term, b: Term) {
     this.check(a);
@@ -155,14 +199,28 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
       .filter((id) => this.nodes[id].op === 'input')
       .map((id) => this.nodes[id].name!);
   }
+  /** Read-only topological slice for certified algebraic boundary compilation.
+   * Exposes the existing arithmetic, not independently assignable mode bits. */
+  program(roots: readonly Term[]): readonly RelationNode[] {
+    return this.ancestors(roots).map((id) => this.nodes[id]);
+  }
   /** Recompile a shared SSA slice into a region-specialised algebra. This copies
    * nodes once, not paths or control assignments, and retains native op order. */
-  rebase(roots: readonly Term[], target: NonlinearRelation): Term[] {
+  rebase(
+    roots: readonly Term[],
+    target: NonlinearRelation,
+    provenGuards?: ReadonlyMap<number, 0 | 1>,
+  ): Term[] {
     const terms = new Map<number, Term>();
     for (const id of this.ancestors(roots)) {
       const n = this.nodes[id],
         args = n.args.map((t) => terms.get(t.id)!);
       let term: Term;
+      const proven = provenGuards?.get(id);
+      if (proven !== undefined && (n.op === 'lt' || n.op === 'lte')) {
+        terms.set(id, target.literal(proven));
+        continue;
+      }
       switch (n.op) {
         case 'input':
           term = target.input(n.name!);
@@ -176,6 +234,8 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
         case 'cube':
         case 'sqrt':
         case 'log':
+        case 'sin':
+        case 'cos':
           term = target[n.op](args[0]);
           break;
         default:
@@ -186,6 +246,10 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
     return roots.map((t) => terms.get(t.id)!);
   }
   private ancestors(roots: readonly Term[]) {
+    roots.forEach((t) => this.check(t));
+    const key = roots.map((t) => t.id).join(','),
+      cached = this.orders.get(key);
+    if (cached) return cached;
     const active = new Set<number>(),
       order: number[] = [],
       stack = roots.map((t) => {
@@ -205,6 +269,8 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
         ...this.nodes[id].args.map((a) => ({ id: a.id, expanded: false })),
       );
     }
+    if (this.orders.size >= 4) this.orders.delete(this.orders.keys().next().value!);
+    this.orders.set(key, order);
     return order;
   }
   /** Point interpretation of the SAME graph, preserving native operation order.
@@ -253,6 +319,10 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
           case 'log':
             values[id] = Math.log(a);
             break;
+          case 'sin':
+          case 'cos':
+            values[id] = Math[n.op](a);
+            break;
           case 'lt':
             values[id] = Number(a < b);
             break;
@@ -295,6 +365,26 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
   ) {
     let visits = 0,
       passes = 0;
+    // A Boolean-valued target is either locally constant (zero derivative) or
+    // discontinuous. Differentiating every physics node before noticing this
+    // cannot contract a control. Arithmetic targets still use interval Newton.
+    const booleans = new Set<number>();
+    for (const id of active) {
+      const n = this.nodes[id];
+      if (
+        n.op === 'lt' ||
+        n.op === 'lte' ||
+        (n.op === 'literal' && (n.value === 0 || n.value === 1)) ||
+        (n.op === 'select' && booleans.has(n.args[1].id) && booleans.has(n.args[2].id)) ||
+        (['multiply', 'min', 'max'].includes(n.op) && n.args.every((a) => booleans.has(a.id)))
+      )
+        booleans.add(id);
+    }
+    if (targets.every((t) => booleans.has(t.term.id))) return { visits: active.length, passes };
+    // No mean-value derivative is substituted for a missing trig derivative
+    // contract. Ordinary interval propagation remains available below.
+    if (active.some((id) => this.nodes[id].op === 'sin' || this.nodes[id].op === 'cos'))
+      return { visits: active.length, passes };
     const hull = (d: RealDomain): Interval =>
       d.length ? { lo: d[0].lo, hi: d.at(-1)!.hi } : I.whole();
     const inputs = [...active].filter((id) => this.nodes[id].op === 'input');
@@ -503,7 +593,7 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
   contract(
     bounds: Readonly<Record<string, RealDomain>>,
     targets: readonly TargetDomain[],
-    options: { work?: number; newton?: boolean } = {},
+    options: { work?: number; newton?: boolean; enclosures?: ReadonlyMap<number, Interval> } = {},
   ) {
     const active = this.ancestors(targets.map((t) => t.term)),
       positions = new Map(active.map((id, i) => [id, i]));
@@ -514,7 +604,8 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
         if (!bounds[n.name!]) throw Error('Missing input domain: ' + n.name);
         return normalize(bounds[n.name!]);
       }
-      return entire();
+      const enclosure = options.enclosures?.get(id);
+      return enclosure && I.valid(enclosure) ? [{ ...enclosure }] : entire();
     });
     const domain = (id: number) => domains[positions.get(id)!];
     const consumers = active.map(() => [] as number[]);
@@ -575,6 +666,10 @@ export class NonlinearRelation implements HybridAlgebra<Term> {
           narrow(id, subtractDomains(domain(a), domain(b)));
           narrow(a, addDomains(domain(id), domain(b)));
           narrow(b, subtractDomains(domain(a), domain(id)));
+          break;
+        case 'sin':
+        case 'cos':
+          narrow(id, normalize(domain(a).map((d) => trigRange(d, n.op as 'sin' | 'cos'))));
           break;
         case 'min': {
           const negate = (d: RealDomain) => d.map((p) => ({ lo: -p.hi, hi: -p.lo })).reverse();

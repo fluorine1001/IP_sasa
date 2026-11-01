@@ -1,0 +1,429 @@
+/* Original ink-and-enamel workbench, inspired by illustrated exploration games.
+ * Static CSS grain: no licensed textures, network fonts or per-frame noise. */
+:root {
+  --ink: #101f27;
+  --paper: #e6d4aa;
+  --gold: #dfaf60;
+  --mint: #94c5a9;
+  color: #f0e4c7;
+  background: #18292f;
+}
+#app {
+  background: radial-gradient(ellipse at 70% 0, #46636655, transparent 70%), #192b33;
+}
+button {
+  border-width: 2px;
+  border-radius: 6px;
+  background-image:
+    linear-gradient(#fff3 0 2px, transparent 2px),
+    radial-gradient(#6a51310a 0.7px, transparent 0.8px);
+  background-size:
+    100% 100%,
+    4px 4px;
+  box-shadow:
+    0 3px 0 #0a1b23,
+    inset 0 0 0 1px #fff2;
+  letter-spacing: 0.01em;
+}
+button:active {
+  transform: translateY(2px);
+}
+.panel {
+  background-color: #31484fef;
+  background-image:
+    radial-gradient(#d4e5cd0a 0.8px, transparent 0.9px),
+    linear-gradient(110deg, #b6c4a90b, transparent 55%);
+  background-size:
+    5px 5px,
+    100% 100%;
+  border-width: 3px;
+  border-radius: 9px;
+  box-shadow:
+    0 5px 0 #0c1e27bb,
+    inset 0 1px 0 #a9c1b555,
+    inset 0 -2px 0 #071d2344;
+  backdrop-filter: none;
+}
+dialog {
+  border-color: #0f242d;
+}
+input:not([type='range']):not([type='checkbox']),
+select,
+textarea {
+  border: 1px solid #112730;
+  border-radius: 5px;
+  background-color: #e9dfbf;
+  color: #1f3138;
+  min-height: 34px;
+  padding: 7px 9px;
+  box-shadow: inset 0 2px 2px #12232a22;
+}
+input[type='checkbox'] {
+  accent-color: #a0caa5;
+  width: 17px;
+  height: 17px;
+}
+input[type='range'] {
+  accent-color: #dfb56f;
+}
+details > summary {
+  cursor: pointer;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #e6be70;
+  outline-offset: 3px;
+}
+.title-menu h1 {
+  font-weight: 900;
+  text-shadow: 3px 4px #101f27;
+  letter-spacing: -0.065em;
+}
+.title-menu h1 span {
+  color: #e4b769;
+}
+.title-menu nav {
+  gap: 13px;
+}
+.title-planet .planet-art {
+  box-shadow:
+    inset -35px -18px #10262e44,
+    0 0 0 3px #12232c,
+    0 0 0 15px #adc5a414;
+}
+.flight-deck {
+  background-color: #2c424b;
+  border-color: #101f27;
+}
+.mission-panel {
+  border-top: 4px solid #cca960;
+}
+.console-button {
+  border-radius: 7px;
+}
+.result {
+  background: #263d46f5;
+}
+.landing-instrument {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #9cb7a644;
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 3px 9px;
+}
+.landing-instrument header {
+  grid-column: 1/-1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+.landing-instrument header small {
+  font-size: 10px;
+}
+.landing-instrument svg {
+  width: 70px;
+  height: 53px;
+}
+.landing-instrument > div {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+}
+.landing-instrument label {
+  font-size: 10px;
+  color: #d3d9c8;
+}
+.landing-instrument i {
+  display: block;
+  height: 4px;
+  background: #132c35;
+  margin-top: 4px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.landing-instrument i span {
+  display: block;
+  height: 100%;
+  background: #a5c895;
+}
+.landing-instrument.outside i span {
+  background: #df9971;
+}
+.resources {
+  max-height: calc(100dvh - 330px);
+  overflow-y: auto;
+}
+/* Keep the current editor's workspace dimensions above older result-dock rules. */
+.editor {
+  grid-template-columns: 230px minmax(300px, 1fr) 360px;
+  grid-template-rows: auto minmax(300px, 1fr) auto;
+  background: #172b33;
+}
+.editor-top {
+  background-color: #344a50;
+}
+.editor-top > .badge {
+  color: #e5c785;
+  padding: 0 8px;
+}
+.editor .editor-audit {
+  grid-row: 3;
+}
+.editor-inspector {
+  background-color: #2a4149;
+}
+.editor button {
+  letter-spacing: 0;
+}
+.rocket-part > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f5d79a;
+}
+.rocket-part > summary small {
+  margin-left: auto;
+  font-size: 11px;
+  color: #b3c7b8;
+}
+.part-swatch {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 32px;
+  background: #d9d5ba;
+  border: 2px solid #10252d;
+  border-radius: 7px 7px 3px 3px;
+  color: #243a42;
+  font-weight: bold;
+}
+.rocket-part > details {
+  margin-top: 10px;
+}
+.editor .inspector-advanced > summary {
+  color: #a8bdb5;
+  font-size: 12px;
+}
+@media (min-width: 681px) and (max-width: 1100px) {
+  .editor {
+    grid-template-columns: 175px minmax(230px, 1fr) 300px;
+  }
+}
+@media (max-width: 680px) {
+  .editor,
+  .editor:has(.marker-placement-dock:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(330px, 48dvh) 240px minmax(360px, auto) auto;
+    width: 100%;
+    overflow-y: auto;
+  }
+  .editor .editor-audit {
+    grid-row: 5;
+  }
+  .editor .editor-palette {
+    grid-row: 3;
+    max-height: 240px;
+  }
+  .editor .editor-inspector {
+    grid-row: 4;
+    max-height: 65dvh;
+  }
+  .editor .editor-top button {
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+  .resources {
+    max-height: 35dvh;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}
+.reduced-motion button {
+  transition: none;
+}
+
+/* Reading hierarchy: values and constraints remain legible while decoration
+ * stays on panel edges. Replay grain belongs to the scene, below all controls. */
+.mission-panel,
+.resources {
+  z-index: 2;
+  background: #2b424afa;
+}
+.mission-panel {
+  width: 300px;
+}
+.mission-panel .badge,
+.mission-panel .goal-row {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.mission-panel h2 {
+  font-size: 21px;
+  line-height: 1.35;
+}
+.resources {
+  width: 240px;
+  padding: 15px;
+}
+.resources #mode {
+  font-size: 15px;
+}
+.resources .resource-row,
+#pad-reading,
+.calibration-label,
+.flight-readouts {
+  font-size: 13px;
+}
+.resources :is(small, .calibration-stats) {
+  font-size: 12px;
+}
+.resources :is(meter, .power-meter) {
+  min-height: 9px;
+}
+.flight-readouts {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.landing-instrument {
+  grid-template-columns: 95px minmax(0, 1fr);
+}
+.landing-instrument header {
+  font-size: 14px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.landing-instrument header small,
+.landing-instrument label {
+  font-size: 12px;
+}
+.landing-instrument svg {
+  width: 95px;
+  height: 74px;
+}
+.landing-instrument > div > small {
+  font-size: 11px;
+  color: #dae5dc;
+}
+.landing-instrument.outside > div > small {
+  color: #ffc0a0;
+}
+.resources .load-readout {
+  margin-top: 12px;
+  border-top: 1px solid #9cb7a644;
+  padding-top: 10px;
+}
+.resources .load-readout label {
+  grid-template-columns: 1fr auto;
+  font-size: 12px;
+  gap: 4px;
+}
+.load-readout meter {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.load-readout .caution {
+  color: #ffc0a0;
+}
+.goal-explanation {
+  line-height: 1.6;
+}
+.result .failure-cause {
+  color: #e7d9bf;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 5px 0;
+}
+.goal-explanation :is(.goal-window, .criterion-list) {
+  font-size: 14px;
+}
+.goal-explanation .criterion-list li {
+  padding: 10px 12px;
+}
+.editor {
+  font-size: 14px;
+}
+.editor :is(input, select, textarea) {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.editor :is(label, summary, .inspector-hint, .palette-note, .inspector-section h3) {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.editor :is(.palette-group > summary, #scene-list summary) {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.editor #scene-list button {
+  min-height: 36px;
+  font-size: 13px;
+}
+.editor .editor-inspector > .badge {
+  font-size: 16px;
+}
+.editor .inspector-advanced > summary {
+  font-size: 13px;
+}
+.editor :is(.editor-palette, .editor-inspector) {
+  background: #293f47;
+}
+.editor :is(.palette-tabs button[aria-pressed='true'], #save-stage) {
+  color: #102a30;
+}
+.editor .editor-inspector :is(label, p, summary, small) {
+  overflow-wrap: anywhere;
+}
+.editor :is(.inspector-hint, .palette-note) {
+  color: #c5d7cd;
+}
+.editor .editor-inspector :is(button, summary) {
+  min-height: 32px;
+}
+.editor-top button {
+  min-height: 38px;
+}
+@media (max-width: 650px) {
+  .mission-panel {
+    width: calc(54% - 12px);
+    left: 8px;
+    padding: 10px;
+  }
+  .mission-panel h2 {
+    font-size: 16px;
+  }
+  .mission-panel .badge,
+  .mission-panel .goal-row {
+    font-size: 12px;
+  }
+  .resources {
+    width: calc(46% - 12px);
+    right: 8px;
+    padding: 10px;
+  }
+  .resources #mode {
+    font-size: 13px;
+  }
+  .resources .resource-row,
+  #pad-reading,
+  .calibration-label {
+    font-size: 12px;
+  }
+  .landing-instrument {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .landing-instrument svg {
+    justify-self: center;
+  }
+  .editor .editor-top button {
+    font-size: 13px;
+    min-height: 38px;
+  }
+}

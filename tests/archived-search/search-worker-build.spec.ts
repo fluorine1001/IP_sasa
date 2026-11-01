@@ -1,3 +1,4 @@
+// Archived research UI regression: automatic editor search retired in favour of manual playtests.
 import { test, expect } from '@playwright/test';
 import { createServer, type Server } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -77,7 +78,9 @@ test('배포 파일이 사라진 상황에서도 내장 작업자로 탐색과 �
   // Model an old tab after deployment: no new asset file can be downloaded.
   await page.route('**/assets/*.js', (route) => route.abort());
   await page.locator('#search-run').click();
-  await expect(page.locator('#search-status')).toContainText('성공');
+  // The progress label also says '성공 0'. Wait for an actual representative
+  // before stopping the worker, otherwise this only tests a startup race.
+  await expect(page.locator('[data-family-test]').first()).toBeVisible({ timeout: 20000 });
   await page.locator('#search-stop').click();
   await page.locator('[data-family-test]').first().click();
   await expect(page.locator('[data-video-play]')).toBeEnabled();

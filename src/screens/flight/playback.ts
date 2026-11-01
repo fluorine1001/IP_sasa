@@ -1,7 +1,7 @@
 import { readSaved, writeSaved } from '../../app/core';
 export const playbackRates = [0.25, 0.5, 1, 2, 4, 8] as const;
 /** Presentation tempo only; the authoritative integrator still uses fixed small steps. */
-export const playbackTempo = 2;
+export const playbackTempo = 1;
 export function savedPlaybackRate(): number {
   const value = readSaved<number>('orbit-playback-rate-v1', 1);
   return playbackRates.some((rate) => rate === value) ? value : 1;

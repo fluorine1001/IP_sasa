@@ -6,7 +6,7 @@ import source from '../data/stages/34643eaf-0363-4898-b617-63e79ba47d97.json';
 const stage = parseStage(source);
 it('목표 범위·유지 시간·분리 상태를 수식 대신 결과 상태로 설명한다', () => {
   const text = goalExplanation(stage, stage.goals[0].condition);
-  expect(text).toContain('중심 거리');
+  expect(text).toContain('중심까지 거리');
   expect(text).toContain('1바퀴');
   expect(text).toContain('엔진 꺼짐');
   expect(text).not.toContain('찌그러짐');
@@ -32,7 +32,7 @@ it('에너지와 한 바퀴 통계를 물리 수식으로 노출하지 않는다
       operator: 'gt',
       right: { kind: 'constant', value: 0 },
     }),
-  ).toContain('벗어나는 속도');
+  ).toContain('벗어날 만큼 빠르게');
   expect(
     goalExplanation(stage, {
       kind: 'compare',
@@ -47,4 +47,31 @@ it('에너지와 한 바퀴 통계를 물리 수식으로 노출하지 않는다
       right: { kind: 'constant', value: 0.99999999 },
     }),
   ).toContain('1바퀴');
+});
+it('반복되는 조건은 "위 상태를 … 유지"로 묶고 착륙 한계는 두 속도를 숫자로 보여 준다', () => {
+  const text = goalExplanation(stage, stage.goals[0].condition);
+  expect(text).toMatch(/[위아]래? ?상태를 4초 동안 계속 유지/);
+  expect(text.split('\n').filter((line) => line.includes('중심까지 거리'))).toHaveLength(1);
+  const landing = goalExplanation(stage, {
+    kind: 'compare',
+    operator: 'lte',
+    left: {
+      kind: 'calculate',
+      operation: 'add',
+      args: (['touchdownNormalSpeed', 'touchdownTangentialSpeed'] as const).map((metric, i) => ({
+        kind: 'calculate' as const,
+        operation: 'multiply' as const,
+        args: [0, 1].map(() => ({
+          kind: 'calculate' as const,
+          operation: 'divide' as const,
+          args: [
+            { kind: 'metric' as const, metric, targetId: '' },
+            { kind: 'constant' as const, value: [0.27, 0.54][i] },
+          ],
+        })),
+      })),
+    },
+    right: { kind: 'constant', value: 1.00000002 },
+  });
+  expect(landing).toBe('착륙 속도: 수직 0.27 u/s, 옆 0.54 u/s 안쪽');
 });

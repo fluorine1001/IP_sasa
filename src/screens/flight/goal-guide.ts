@@ -7,7 +7,8 @@ import type { Stage } from '../../world/types';
 import { controlIcon } from './controls';
 import type { Goal } from '../../world/types';
 
-const number = (n: number) => Number(n.toPrecision(8)).toString();
+// Four significant digits read as a measurement; the judge still uses the exact value.
+const number = (n: number) => Number(n.toPrecision(4)).toString();
 const nouns: Record<string, string> = {
   altitude: '표면 높이',
   distance: '중심 거리',
@@ -29,17 +30,41 @@ export function goalExplanation(stage: Stage, node: Condition): string {
   function label(e: Expression): string {
     if (e.kind === 'constant') return number(e.value);
     if (e.kind === 'recorded') return '통과 순간에 기록한 값';
-    if (e.kind === 'metric')
-      return `${e.actorId && e.actorId !== 'craft' ? name(e.actorId) + ' · ' : ''}${metrics[e.metric]?.target ? name(e.targetId) + ' · ' : ''}${nouns[e.metric] ?? metrics[e.metric]?.label ?? '관측값'}`;
+    if (e.kind === 'metric') {
+      const actor = e.actorId && e.actorId !== 'craft' ? name(e.actorId) + ' · ' : '';
+      const t = metrics[e.metric]?.target ? name(e.targetId) : '';
+      // Name the reference first, so a line reads like a sentence: "지구 표면에서 높이".
+      const phrase: Record<string, string> = {
+        altitude: `${t} 표면에서 높이`,
+        distance: `${t} 중심까지 거리`,
+        speed: `${t}에 대한 상대 속력`,
+        relativeSpeed: `${t}에 대한 상대 속력`,
+        radialSpeed: `${t}에서 멀어지는 속도`,
+        energy: `${t} 중력에 붙잡힌 정도`,
+        touchdownTilt: '착륙할 때 기울기 (수직 기준)',
+        thrustUsed: '쓴 수정 추진',
+      };
+      return (
+        actor +
+        (phrase[e.metric] ??
+          `${t ? t + ' ' : ''}${nouns[e.metric] ?? metrics[e.metric]?.label ?? '관측값'}`)
+      );
+    }
     if (e.kind === 'window') {
       const period =
         e.domain.kind === 'metric' &&
         e.domain.metric === 'angularTravel' &&
         e.width.kind === 'constant'
           ? number(e.width.value / (2 * Math.PI)) + '바퀴'
-          : e.domain.kind === 'metric' && e.domain.metric === 'time' && e.width.kind === 'constant'
-            ? number(e.width.value) + '초'
-            : '관측 구간';
+          : e.domain.kind === 'metric' &&
+              e.domain.metric === 'orbitTurns' &&
+              e.width.kind === 'constant'
+            ? number(e.width.value) + '바퀴'
+            : e.domain.kind === 'metric' &&
+                e.domain.metric === 'time' &&
+                e.width.kind === 'constant'
+              ? number(e.width.value) + '초'
+              : '관측 구간';
       if (e.operation === 'coverage') return `${period} 구간의 관측 완료율`;
       return `${period} 동안 · ${label(e.value)} ${{ min: '최소', max: '최대', mean: '평균', rms: '평균 벗어남', integral: '누적량', change: '변화량', fractionPositive: '양수인 비율' }[e.operation]}`;
     }
@@ -50,7 +75,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
       return label(child) + '의 크기';
     }
     if (e.operation === 'subtract' && e.args[1].kind === 'recorded')
-      return label(e.args[0]) + ' · 통과 순간 대비 변화';
+      return label(e.args[0]) + '의 변화 (기록한 순간 대비)';
     if (
       e.operation === 'subtract' &&
       e.args[0].kind === 'metric' &&
@@ -73,7 +98,9 @@ export function goalExplanation(stage: Stage, node: Condition): string {
           ? number(n * 100) + '%'
           : e.kind === 'metric' && e.metric === 'time'
             ? number(n) + '초'
-            : withUnit(number(n), e.kind === 'metric' ? metrics[e.metric]?.unit : 'u');
+            : e.kind === 'metric' && metrics[e.metric]?.unit === 'rad'
+              ? number((n * 180) / Math.PI) + '°'
+              : withUnit(number(n), e.kind === 'metric' ? metrics[e.metric]?.unit : 'u');
   function walk(c: Condition): string[] {
     if (c.kind === 'quantify')
       return [
@@ -98,11 +125,53 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         c.left.kind === 'calculate' &&
         c.operator === 'lte' &&
         c.right.kind === 'constant' &&
-        c.right.value === 1 &&
+        Math.abs(c.right.value - 1) < 1e-6 &&
         JSON.stringify(c.left).includes('touchdownNormalSpeed') &&
         JSON.stringify(c.left).includes('touchdownTangentialSpeed')
+      ) {
+        // (normal / a)² + (tangential / b)² ≤ 1: name both limits.
+        const limits = JSON.stringify(c.left).match(
+          /touchdown(Normal|Tangential)Speed[^}]*\}\s*,\s*\{"kind":"constant","value":([\d.]+)/g,
+        );
+        const of = (axis: string) =>
+          limits?.find((m) => m.includes(axis))?.match(/"value":([\d.]+)/)?.[1];
+        const normal = of('Normal'),
+          side = of('Tangential');
+        return [
+          normal && side
+            ? `착륙 속도: 수직 ${number(Number(normal))} u/s, 옆 ${number(Number(side))} u/s 안쪽`
+            : '착륙 속도가 기체 한계 안',
+        ];
+      }
+      if (
+        c.left.kind === 'metric' &&
+        c.left.metric === 'landed' &&
+        c.right.kind === 'constant' &&
+        ['gte', 'gt'].includes(c.operator)
       )
-        return ['착륙 속도가 기체 한계 안'];
+        return [
+          `${c.left.actorId && c.left.actorId !== 'craft' ? name(c.left.actorId) + ' · ' : ''}${name(c.left.targetId)} 표면에 안전하게 정착`,
+        ];
+      if (
+        c.left.kind === 'window' &&
+        c.left.operation === 'min' &&
+        c.left.value.kind === 'calculate' &&
+        c.left.value.operation === 'min' &&
+        c.right.kind === 'constant' &&
+        c.right.value === 0 &&
+        ['gte', 'gt'].includes(c.operator)
+      )
+        return [`${label(c.left).split(' 동안')[0]} 내내 위 조건 지키기`];
+      if (
+        c.left.kind === 'calculate' &&
+        c.left.operation === 'subtract' &&
+        c.left.args[0].kind === 'metric' &&
+        c.left.args[0].metric === 'thrustUsed' &&
+        c.right.kind === 'constant' &&
+        c.right.value < 1e-4 &&
+        ['lt', 'lte'].includes(c.operator)
+      )
+        return ['그동안 수정 추진 쓰지 않기'];
       if (
         c.left.kind === 'window' &&
         c.left.domain.kind === 'metric' &&
@@ -128,7 +197,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
       )
         return [
           name(c.left.targetId) +
-            (['lt', 'lte'].includes(c.operator) ? '에 붙잡힌 궤도' : '을 벗어나는 속도'),
+            (['lt', 'lte'].includes(c.operator) ? '에 붙잡힌 궤도' : '을 벗어날 만큼 빠르게'),
         ];
       if (
         c.left.kind === 'metric' &&
@@ -140,7 +209,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
         return ['엔진 꺼짐'];
       return [
         label(c.left) +
-          ' · ' +
+          ': ' +
           (c.right.kind === 'constant' ? value(c.left, c.right.value) : label(c.right)) +
           ' ' +
           { lt: '미만', lte: '이하', gt: '초과', gte: '이상', eq: '일치' }[c.operator],
@@ -149,17 +218,19 @@ export function goalExplanation(stage: Stage, node: Condition): string {
     if (c.kind === 'event')
       return [
         name(c.targetId) +
-          ' · ' +
           {
-            gate: '통과',
-            collision: '접촉',
-            separation: '분리',
-            burn: '점화',
-            deployment: '장치 작동',
+            gate: ' 통과',
+            collision: '에 닿기',
+            separation: ' 분리',
+            burn: ' 점화',
+            deployment: ' 장치 작동',
           }[c.event],
       ];
-    if (c.kind === 'capture') return ['통과할 때의 ' + label(c.value), ...walk(c.when)];
-    if (c.kind === 'hold') return [number(c.duration) + '초 연속 유지', ...walk(c.child)];
+    if (c.kind === 'capture') return ['아래 순간의 ' + label(c.value) + ' 기록', ...walk(c.when)];
+    if (c.kind === 'hold') {
+      const inner = walk(c.child);
+      return [HOLD + number(c.duration) + '|' + inner.length, ...inner];
+    }
     if (c.kind === 'once') return walk(c.child);
     if (c.kind === 'not') return walk(c.child).map((s) => '아님 · ' + s);
     if (!('children' in c)) return [];
@@ -190,7 +261,7 @@ export function goalExplanation(stage: Stage, node: Condition): string {
           if (lower.right.kind === 'constant' && upper.right.kind === 'constant')
             return [
               label(child.left) +
-                ' · ' +
+                ': ' +
                 value(child.left, lower.right.value) +
                 ' ~ ' +
                 value(child.left, upper.right.value),
@@ -203,8 +274,28 @@ export function goalExplanation(stage: Stage, node: Condition): string {
     if (c.kind === 'sequence') return ['다음 순서대로', ...lines];
     return lines;
   }
-  return [...new Set(walk(node))].join('\n');
+  // Drop repeated lines. A hold whose lines were all said already reads "위 상태를 …".
+  const out: string[] = [],
+    seen = new Set<string>(),
+    all = walk(node);
+  for (let i = 0; i < all.length; i++) {
+    const line = all[i];
+    if (line.startsWith(HOLD)) {
+      const [time, count] = line.slice(HOLD.length).split('|');
+      const inner = all.slice(i + 1, i + 1 + Number(count));
+      if (inner.length && inner.every((l) => seen.has(l))) {
+        out.push(`위 상태를 ${time}초 동안 계속 유지`);
+        i += inner.length;
+      } else out.push(`아래 상태를 ${time}초 동안 계속 유지`);
+      continue;
+    }
+    if (seen.has(line)) continue;
+    seen.add(line);
+    out.push(line);
+  }
+  return out.join('\n');
 }
+const HOLD = '\u0000hold:';
 function markerExplanation(stage: Stage, goal: Goal): string | undefined {
   const marker = goal.marker;
   if (!marker || marker.managed === false) return;
@@ -224,7 +315,7 @@ function markerExplanation(stage: Stage, goal: Goal): string | undefined {
       ? `${marker.turns ?? 1}바퀴`
       : marker.span === 'instant' && marker.kind !== 'surface'
         ? '한 순간이라도'
-        : `${time.toFixed(1)}초 연속 유지`,
+        : `${number(time)}초 동안 계속`,
     ...(marker.kind === 'orbit' && marker.coast ? ['엔진을 끈 상태로'] : []),
     ...(marker.kind === 'surface'
       ? [
@@ -246,7 +337,12 @@ export function missionGoalsHtml(stage: Stage) {
           markerExplanation(stage, g) ?? goalExplanation(stage, g.condition)
         )
           .split('\n')
-          .map((line) => `<li><span aria-hidden="true">◇</span>${escape(line)}</li>`)
+          // Grouping words ("다음 순서대로", "다음 중 하나") head the lines below them.
+          .map((line) =>
+            /^다음 (순서대로|중 하나)$|^아래 상태를 .*계속 유지$|^아래 순간의 .*기록$/.test(line)
+              ? `<li class="criterion-group">${escape(line)}</li>`
+              : `<li><span aria-hidden="true">◇</span>${escape(line)}</li>`,
+          )
           .join(
             '',
           )}</ul><button data-goal-focus="${g.id}">${controlIcon('follow')}<span>지도에서 보기</span></button></article>`,

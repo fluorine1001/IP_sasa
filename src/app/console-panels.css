@@ -248,3 +248,98 @@ body.game-ui :focus-visible {
     font-weight: 700;
   }
 }
+
+/* ---------- 성공 조건 dialog: dark ink on paper, one condition per line ---------- */
+body.game-ui dialog.mission-goals {
+  width: min(640px, calc(100vw - 24px));
+  padding: 20px 22px 18px;
+  color: var(--paper-ink);
+}
+body.game-ui dialog.mission-goals h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
+}
+body.game-ui dialog.mission-goals .goal-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+body.game-ui dialog.mission-goals .goal-mode svg {
+  width: 16px;
+  height: 16px;
+  color: var(--amber);
+}
+body.game-ui dialog.mission-goals .goal-explanation {
+  margin: 0 0 12px;
+  padding: 14px 16px 14px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: #fffaf0;
+  box-shadow: 0 3px 0 var(--ink);
+}
+body.game-ui dialog.mission-goals .goal-explanation h3 {
+  margin: 0 0 6px;
+  color: var(--paper-ink);
+  font-size: var(--fs-lg);
+  font-weight: 900;
+  line-height: 1.35;
+}
+body.game-ui dialog.mission-goals .goal-window {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  color: var(--paper-dim);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+body.game-ui dialog.mission-goals .goal-window svg {
+  width: 16px;
+  height: 16px;
+}
+body.game-ui dialog.mission-goals .criterion-list {
+  display: grid;
+  gap: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #c7b48499;
+}
+body.game-ui dialog.mission-goals .criterion-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 4px;
+  border-radius: 0;
+  border-bottom: 1px solid #c7b48499;
+  background: transparent;
+  color: var(--paper-ink);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  line-height: 1.5;
+}
+body.game-ui dialog.mission-goals .criterion-list li > span {
+  flex: none;
+  color: #a3741f;
+  font-weight: 900;
+}
+body.game-ui dialog.mission-goals .criterion-list li.criterion-group {
+  padding-top: 11px;
+  color: var(--paper-dim);
+  font-size: var(--fs-xs);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+body.game-ui dialog.mission-goals .criterion-list li.criterion-group ~ li:not(.criterion-group) {
+  padding-left: 18px;
+}
+body.game-ui dialog.mission-goals .goal-explanation button {
+  font-size: var(--fs-sm);
+}

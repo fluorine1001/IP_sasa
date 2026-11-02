@@ -37,7 +37,12 @@ const { objectiveGoals } = await server.ssrLoadModule('/src/world/goals.ts');
 const { expressionValue } = await server.ssrLoadModule('/src/world/expressions.ts');
 const { dynamicView } = await server.ssrLoadModule('/src/world/dynamics.ts');
 const { robustnessTracker } = await import('./robustness.mjs');
-const { objectPosition: objectPositionFn } = await server.ssrLoadModule('/src/world/celestial.ts');
+const celestialMod = await server.ssrLoadModule('/src/world/celestial.ts');
+const objectPositionFn = {
+  objectPosition: celestialMod.objectPosition,
+  bodyPosition: celestialMod.bodyPosition,
+  bodyVelocity: celestialMod.bodyVelocity,
+};
 const { fastFlight } = await import('./fast-flight.mjs');
 const fastFly = fastFlight({
   engine: await server.ssrLoadModule('/src/world/engine.ts'),
@@ -138,7 +143,8 @@ let flights = 0;
 let lastResiduals = new Map();
 let pruned = 0;
 const budgetCheck = !process.argv.includes('--no-budget');
-let simulated = 0; // seconds of flight actually integrated (prefix sharing saves these)
+let simulated = 0;
+let firstWin; // seconds of flight actually integrated (prefix sharing saves these)
 function score(u, upto = Infinity, snap = undefined) {
   flights++;
   const plan = planOf(u, false, upto);
@@ -175,6 +181,7 @@ function score(u, upto = Infinity, snap = undefined) {
         if (upto < events.length && c.run.time >= settled && stopAt === end)
           stopAt = Math.min(end, c.run.time + phaseWindow + tracker.remaining() * 0.0);
         if (c.run.time > stopAt) return false;
+        if (lookaheadStop && tracker.doomed()) return false;
         if (budgetCheck && !budgetChecked && c.run.time >= settled) {
           budgetChecked = true;
           late = c.run.time + tracker.remaining() - end;
@@ -664,6 +671,206 @@ function prefixSnapshot(x, ti, upto) {
   simulated += run.time;
   return { run, tracker: tracker.state() };
 }
+/** Maneuvers: a turn made while the engine is off only matters for the next burn, and a
+ * stop only ends the burn before it, so searching them one by one sees no effect (flat
+ * score) until the burn happens. A maneuver = [turns while off] + ignite + stop: one
+ * burn with (start time, direction, throttle, duration), searched jointly. Pushes,
+ * separations and deployments are maneuvers of their own; the launch burn and its
+ * first stop form maneuver -1. */
+const kindOf = (e) => {
+  if (e.key.startsWith('push')) return 'push';
+  const c = ref.engineCommands[Number(e.key.split('.')[1])];
+  if (c.releasePayload) return 'deploy';
+  if (c.separate) return 'separate';
+  if (c.throttle !== undefined) return c.throttle > 0 ? 'ignite' : 'stop';
+  return 'turn';
+};
+const paramIndex = (prefix, field) => params.findIndex((p) => p.key === `${prefix}.${field}`);
+const maneuvers = (() => {
+  const out = [];
+  const launch = { events: [], launch: true };
+  let open = params.some((p) => p.key === 'launch.power') && stage.rocket ? launch : null;
+  let pending = [];
+  events.forEach((e, k) => {
+    const kind = kindOf(e);
+    if (kind === 'turn' && !open) pending.push(k);
+    else if (kind === 'turn') open.events.push(k);
+    else if (kind === 'ignite') {
+      open = { events: [...pending, k], ignite: k, turns: pending };
+      pending = [];
+      out.push(open);
+    } else if (kind === 'stop' && open && open.stop === undefined) {
+      open.stop = k;
+      open.events.push(k);
+      open = null;
+    } else out.push({ events: [...pending.splice(0), k], single: k });
+  });
+  if (pending.length) out.push({ events: pending, single: pending.at(-1) });
+  if (launch.events.length || launch.stop !== undefined) out.unshift(launch);
+  return out.map((m) => {
+    const anchor = m.ignite ?? m.single;
+    const key = anchor === undefined ? undefined : events[anchor].key;
+    const turnKey = m.turns?.length ? events[m.turns.at(-1)].key : undefined;
+    return {
+      ...m,
+      first: m.events.length ? Math.min(...m.events) : 0,
+      last: m.events.length ? Math.max(...m.events) : -1,
+      ti: key ? paramIndex(key, 'time') : -1,
+      ai: turnKey ? paramIndex(turnKey, 'angle') : key ? paramIndex(key, 'angle') : -1,
+      pi: m.launch ? paramIndex('launch', 'power') : key ? paramIndex(key, 'power') : -1,
+      si: m.stop !== undefined ? paramIndex(events[m.stop].key, 'time') : -1,
+      turnTimes: (m.turns ?? []).map((k) => paramIndex(events[k].key, 'time')),
+    };
+  });
+})();
+const norm = (i, v) => (v - params[i].min) / (params[i].max - params[i].min);
+/** Levenberg-Marquardt on a few coordinates: drives the vector of unmet condition parts
+ * to zero (implicit-function targeting), with forward differences resumed from a snapshot.
+ * Time coordinates step by more than one goal tick so their derivatives are not zero. */
+function lmOn(x0, idx, upto, snap, iterations = 12) {
+  const res = (u) => {
+    const f = score(u, upto, snap);
+    return { f, r: lastResiduals };
+  };
+  let x = x0.slice(),
+    cur = res(x),
+    lambda = 1e-2;
+  const norm = (r) => Math.hypot(...r.values());
+  for (let it = 0; it < iterations && cur.f > 0; it++) {
+    const keys = [...cur.r.keys()];
+    const r0 = keys.map((k) => cur.r.get(k));
+    if (!keys.length) break;
+    const J = idx.map((i) => {
+      const h = params[i].key.endsWith('.time')
+        ? Math.max(0.25 / (params[i].max - params[i].min), 1e-4)
+        : 2e-3;
+      const y = x.slice();
+      y[i] = x[i] + (x[i] + h > 1 ? -h : h);
+      const ri = res(y).r;
+      return keys.map((k, j) => ((ri.get(k) ?? 0) - r0[j]) / (y[i] - x[i]));
+    });
+    const JTJ = idx.map((_, a) => idx.map((_, b) => J[a].reduce((n, v, j) => n + v * J[b][j], 0)));
+    const JTr = idx.map((_, a) => J[a].reduce((n, v, j) => n + v * r0[j], 0));
+    let moved = false;
+    for (let tries = 0; tries < 6; tries++) {
+      const A = JTJ.map((row, a) => row.map((v, b) => v + (a === b ? lambda * (v + 1e-9) : 0)));
+      const step = solve(
+        idx.length,
+        A,
+        JTr.map((v) => -v),
+      );
+      if (!step) {
+        lambda *= 10;
+        continue;
+      }
+      const y = x.slice();
+      idx.forEach((i, a) => (y[i] = Math.min(1, Math.max(0, x[i] + step[a]))));
+      const next = res(y);
+      if (
+        next.f === 0 ||
+        next.f < cur.f - 1e-9 ||
+        (Math.abs(next.f - cur.f) < 1e-9 && norm(next.r) < norm(cur.r))
+      ) {
+        x = y;
+        cur = next;
+        lambda = Math.max(1e-6, lambda / 4);
+        moved = true;
+        break;
+      }
+      lambda *= 6;
+    }
+    if (!moved) break;
+  }
+  return { u: x, f: cur.f };
+}
+/** Search one maneuver cell (start time t, direction a): fit throttle and duration by a
+ * small 2-D scan and alternating golden sections, all resumed from one prefix snapshot. */
+function cellSearchGroup(memberU, gi, t, a) {
+  const m = maneuvers[gi];
+  const upto = m.last + 1;
+  const base = memberU.slice();
+  if (m.ti >= 0 && t !== undefined) base[m.ti] = t;
+  if (m.ai >= 0 && a !== undefined) base[m.ai] = a;
+  const start = m.ti >= 0 ? valueOf(base)[m.ti] : 0;
+  m.turnTimes.forEach(
+    (i, j) => (base[i] = norm(i, Math.max(0, start - 0.02 * (m.turnTimes.length - j)))),
+  );
+  const maxDur = m.si >= 0 ? params[m.si].max - start : 0;
+  const at = (pw, du) => {
+    const x = base.slice();
+    if (m.pi >= 0) x[m.pi] = pw;
+    if (m.si >= 0) x[m.si] = norm(m.si, Math.min(params[m.si].max, start + du * maxDur));
+    return x;
+  };
+  // Prefix: everything before this maneuver's first command, flown to its first time.
+  const firstTime = m.turnTimes.length ? Math.max(0, start - 0.02 * m.turnTimes.length) : start;
+  let snap;
+  if ((useSnapshots && m.first > 0) || (useSnapshots && firstTime > 0)) {
+    const prev = planOf(base, false, m.first);
+    const cand = planOf(at(0.5, 0.5), false, upto);
+    const settled = Math.max(
+      0,
+      ...(cand.engineCommands ?? []).map((c) => c.time),
+      ...cand.impulses.map((c) => c.time),
+    );
+    const tracker = robustnessTracker(stage, expressionValue, roots, settled, objectPositionFn);
+    const run =
+      firstTime > 0
+        ? fastFly(stage, prev, firstTime, (c) => void tracker.step(c), goalEvery, undefined, true)
+        : undefined;
+    if (run && run.status === 'running' && run.time >= firstTime - 1e-9) {
+      simulated += run.time;
+      snap = { run, tracker: tracker.state() };
+    }
+  }
+  const sc = (pw, du) => {
+    const x = at(pw, du);
+    // Nothing is credited before a plan's last command, so the snapshot's goal state is
+    // the same for every duration; score() restores it with each candidate's own settle time.
+    return { x, f: score(x, upto, snap) };
+  };
+  const hasP = m.pi >= 0,
+    hasD = m.si >= 0;
+  let best = { f: Infinity };
+  const P = hasP ? [0.15, 0.4, 0.65, 0.9] : [0.5],
+    Dg = hasD ? [0.02, 0.08, 0.2, 0.45] : [0.5];
+  for (const pw of P)
+    for (const du of Dg) {
+      const r = sc(pw, du);
+      if (r.f < best.f) best = { ...r, pw, du };
+    }
+  if (useLM && best.f > 0) {
+    const idx = [m.pi, m.si, m.ti, m.ai].filter((i) => i >= 0);
+    const r = lmOn(best.x, idx, upto, snap, 10);
+    if (r.f < best.f) return r;
+    return { u: best.x, f: best.f };
+  }
+  const g = (Math.sqrt(5) - 1) / 2;
+  for (let round = 0; round < 3 && best.f > 0; round++)
+    for (const axis of [hasP && 'p', hasD && 'd'].filter(Boolean)) {
+      let lo = Math.max(
+          0,
+          (axis === 'p' ? best.pw : best.du) - (axis === 'p' ? 0.25 : best.du * 0.8 + 0.01),
+        ),
+        hi = Math.min(
+          1,
+          (axis === 'p' ? best.pw : best.du) + (axis === 'p' ? 0.25 : best.du * 0.8 + 0.01),
+        );
+      for (let it = 0; it < goldenSteps && best.f > 0; it++) {
+        const v1 = hi - g * (hi - lo),
+          v2 = lo + g * (hi - lo);
+        const r1 = axis === 'p' ? sc(v1, best.du) : sc(best.pw, v1);
+        const r2 = axis === 'p' ? sc(v2, best.du) : sc(best.pw, v2);
+        if (r1.f < best.f)
+          best = axis === 'p' ? { ...r1, pw: v1, du: best.du } : { ...r1, pw: best.pw, du: v1 };
+        if (r2.f < best.f)
+          best = axis === 'p' ? { ...r2, pw: v2, du: best.du } : { ...r2, pw: best.pw, du: v2 };
+        if (r1.f <= r2.f) hi = v2;
+        else lo = v1;
+      }
+    }
+  return { u: best.x, f: best.f };
+}
 /** One (time, direction) cell of a phase: scan the magnitude, then golden-section it. */
 function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
   const at = (pw) => {
@@ -712,35 +919,139 @@ function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
   return { u: at(best.pw), f: best.f };
 }
 /** The same phase search with cells spread over worker threads (one engine each). */
-async function gridPhasesParallel(workers, beamSize, timeBins, angleBins, powerBins) {
-  let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
-  let nextId = 0;
+/** A tiny worker pool: tasks go to idle workers; `until` stops dispatching early. */
+let workerPool;
+function poolOf(workers) {
+  if (workerPool) return workerPool;
+  const idle = [...workers];
   const waiting = new Map();
-  for (const w of workers)
+  let queue = [];
+  let nextId = 0;
+  for (const [wi, w] of workers.entries())
     w.on('message', (m) => {
       flights += m.flights;
       pruned += m.pruned;
       simulated += m.simulated;
-      waiting.get(m.id)(m);
+      idle.push(workers[wi]);
+      const done = waiting.get(m.id);
       waiting.delete(m.id);
+      if (queue.length) queue.shift()();
+      done?.(m);
     });
-  const idle = [...workers];
-  const queue = [];
-  const run = (task) =>
+  const submit = (task) =>
     new Promise((resolve) => {
       const id = nextId++;
-      waiting.set(id, (m) => {
-        idle.push(m.worker === undefined ? workers[m.wi] : workers[m.wi]);
-        resolve(m);
-        if (queue.length) queue.shift()();
-      });
+      waiting.set(id, resolve);
       const send = () => {
-        const wi = workers.indexOf(idle.shift());
-        workers[wi].postMessage({ ...task, id, wi });
+        const w = idle.shift();
+        w.postMessage({ ...task, id, wi: workers.indexOf(w) });
       };
       if (idle.length) send();
       else queue.push(send);
     });
+  /** Run tasks in order; resolve with all results, or early once `stop(result)`. */
+  const all = (tasks, stop) =>
+    new Promise((resolve) => {
+      const results = [];
+      let pending = tasks.length,
+        stopped = false;
+      if (!pending) resolve(results);
+      for (const t of tasks)
+        submit(t).then((m) => {
+          if (stopped) return;
+          results.push(m);
+          if (stop?.(m)) {
+            stopped = true;
+            queue = []; // drop sends not yet made; in-flight ones finish and are ignored
+            for (const id of waiting.keys()) waiting.set(id, () => {});
+            resolve(results);
+            return;
+          }
+          if (--pending === 0) resolve(results);
+        });
+    });
+  workerPool = { all };
+  return workerPool;
+}
+/** Beam selection that keeps variety: when many candidates tie at the best score (a
+ * plateau: this command's effect only shows after a later one), pick them by farthest
+ * point sampling in this command's coordinates instead of an arbitrary top-k. */
+function selectBeam(pool, size, coords) {
+  const best = pool[0]?.f ?? Infinity;
+  const tied = pool.filter((r) => r.f <= best + 0.02 * Math.abs(best) + 1e-3);
+  if (tied.length <= size) {
+    const out = [...tied];
+    for (const r of pool) if (out.length < size && !out.includes(r)) out.push(r);
+    return out;
+  }
+  const dist = (a, b) => Math.hypot(...coords.map((i) => a.u[i] - b.u[i]));
+  const out = [tied[0]];
+  const near = tied.map((r) => dist(r, tied[0]));
+  while (out.length < size) {
+    let k = 0;
+    for (let i = 1; i < tied.length; i++) if (near[i] > near[k]) k = i;
+    if (near[k] <= 1e-9) break;
+    out.push(tied[k]);
+    tied.forEach((r, i) => (near[i] = Math.min(near[i], dist(r, tied[k]))));
+  }
+  return out;
+}
+async function maneuverPhasesParallel(workers, beamSize, timeBins, angleBins, first = false) {
+  let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
+  const pool0 = poolOf(workers);
+  for (const [gi, m] of maneuvers.entries()) {
+    const tasks = [];
+    for (const member of beam) {
+      const times =
+        m.ti >= 0 ? Array.from({ length: timeBins }, (_, k) => (k + 0.5) / timeBins) : [undefined];
+      const angles =
+        m.ai >= 0
+          ? Array.from({ length: angleBins }, (_, k) => (k + 0.5) / angleBins)
+          : [undefined];
+      for (const t of times) for (const a of angles) tasks.push({ memberU: member.u, gi, t, a });
+    }
+    const last = gi === maneuvers.length - 1;
+    const pool = await pool0.all(tasks, first && last ? (r) => r.f === 0 : undefined);
+    if (first && last && pool.some((r) => r.f === 0) && firstWin === undefined)
+      firstWin = (performance.now() - t0) / 1000;
+    pool.sort((a, b) => a.f - b.f);
+    beam = selectBeam(
+      pool,
+      beamSize,
+      [m.ti, m.ai, m.pi, m.si].filter((i) => i >= 0),
+    );
+    if (process.env.DEBUG_CASCADE)
+      console.log(
+        'sec',
+        ((performance.now() - t0) / 1000).toFixed(1),
+        'maneuver',
+        gi,
+        `[${m.events.map((k) => kindOf(events[k])).join(',')}]`,
+        beam
+          .map((b) => `${b.f.toFixed(2)}@${m.ti >= 0 ? valueOf(b.u)[m.ti].toFixed(1) : '-'}`)
+          .join(' '),
+        'flights',
+        flights,
+      );
+    if (last) {
+      const won = pool.filter((r) => r.f === 0).map((r) => r.u);
+      if (won.length) return won;
+    }
+  }
+  return [];
+}
+async function gridPhasesParallel(
+  workers,
+  beamSize,
+  timeBins,
+  angleBins,
+  powerBins,
+  first = false,
+) {
+  if (process.argv.includes('--maneuvers'))
+    return maneuverPhasesParallel(workers, beamSize, timeBins, angleBins, first);
+  let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
+  const pool0 = poolOf(workers);
   for (let phase = -1; phase < events.length; phase++) {
     const upto = phase + 1;
     const coords = params.map((_, i) => i).filter((i) => groups[i] === phase);
@@ -762,7 +1073,10 @@ async function gridPhasesParallel(workers, beamSize, timeBins, angleBins, powerB
         for (const a of angles)
           tasks.push({ memberU: member.u, t, a, ti, ai, pi, upto, powerBins });
     }
-    const pool = await Promise.all(tasks.map(run));
+    const last = phase === events.length - 1;
+    const pool = await pool0.all(tasks, first && last ? (m) => m.f === 0 : undefined);
+    if (first && last && pool.some((m) => m.f === 0) && firstWin === undefined)
+      firstWin = (performance.now() - t0) / 1000;
     pool.sort((a, b) => a.f - b.f);
     // Polish the best cells jointly in direction and magnitude (alternating golden
     // sections), since a coarse direction grid can sit beside a thin region.
@@ -839,6 +1153,8 @@ async function gridPhasesParallel(workers, beamSize, timeBins, angleBins, powerB
   }
   return out;
 }
+const useLM = process.argv.includes('--lm');
+const lookaheadStop = !process.argv.includes('--no-lookahead-stop');
 const polishTop = Number(process.argv.find((a) => a.startsWith('--polish='))?.split('=')[1] ?? '8');
 const goldenSteps = Number(
   process.argv.find((a) => a.startsWith('--golden='))?.split('=')[1] ?? '10',
@@ -1128,7 +1444,10 @@ if (!isMainThread) {
     const before = flights,
       prunedBefore = pruned,
       simBefore = simulated;
-    const r = cellSearch(m.memberU, m.t, m.a, m.ti, m.ai, m.pi, m.upto, m.powerBins);
+    const r =
+      m.gi !== undefined
+        ? cellSearchGroup(m.memberU, m.gi, m.t, m.a)
+        : cellSearch(m.memberU, m.t, m.a, m.ti, m.ai, m.pi, m.upto, m.powerBins);
     parentPort.postMessage({
       id: m.id,
       wi: m.wi,
@@ -1140,6 +1459,55 @@ if (!isMainThread) {
     });
   });
   await new Promise(() => {});
+}
+if (process.argv.includes('--debug-maneuvers')) {
+  console.log(
+    JSON.stringify(
+      maneuvers.map((m) => ({
+        events: m.events.map((k) => kindOf(events[k])),
+        ti: m.ti,
+        ai: m.ai,
+        pi: m.pi,
+        si: m.si,
+        turnTimes: m.turnTimes,
+        first: m.first,
+        last: m.last,
+      })),
+    ),
+  );
+  const u0 = params.map((p) => (p.value - p.min) / (p.max - p.min));
+  console.log('params', params.map((p) => p.key).join(' '));
+  for (const [gi, m] of maneuvers.entries()) {
+    console.log(
+      'ref partial',
+      gi,
+      score(u0, m.last + 1).toFixed(3),
+      JSON.stringify([...lastResiduals].map(([k, v]) => [k.slice(-14), +v.toFixed(3)])),
+    );
+  }
+  for (const pw of [0.6, 0.8, 1])
+    for (const st of [0.5, 0.73, 1.0]) {
+      const x = u0.slice();
+      x[0] = pw / params[0].max;
+      x[1] = st / params[1].max;
+      console.log(
+        'launch',
+        pw,
+        st,
+        score(x, 1).toFixed(3),
+        JSON.stringify([...lastResiduals].map(([k, v]) => [k.slice(-10), +v.toFixed(3)])),
+      );
+    }
+  const r = cellSearchGroup(u0, 0, undefined, undefined);
+  console.log(
+    'cell 0 from ref',
+    r.f.toFixed(3),
+    valueOf(r.u)
+      .map((v) => +v.toFixed(3))
+      .join(','),
+  );
+  await server.close();
+  process.exit(0);
 }
 if (process.argv.includes('--bench-score')) {
   const t = performance.now();
@@ -1189,13 +1557,22 @@ while (performance.now() < deadline) {
     );
   const batch =
     threads > 1 && process.argv.includes('--grid')
-      ? await gridPhasesParallel(
-          workers,
-          beamArg,
-          Number(arg('tb', '24')),
-          Number(arg('ab', '24')),
-          Number(arg('pb', '12')),
-        )
+      ? await (async () => {
+          // Iterative widening: a narrow beam first (often enough), wider only on failure.
+          const widths = process.argv.includes('--widen') ? [1, 4, beamArg] : [beamArg];
+          for (const w of widths) {
+            const found = await gridPhasesParallel(
+              workers,
+              w,
+              Number(arg('tb', '24')),
+              Number(arg('ab', '24')),
+              Number(arg('pb', '12')),
+              process.argv.includes('--first'),
+            );
+            if (found.length) return found;
+          }
+          return [];
+        })()
       : process.argv.includes('--hier')
         ? hierPhases(
             Number(arg('beam', '4')),
@@ -1231,7 +1608,7 @@ while (performance.now() < deadline) {
     if (home) {
       home.hits++;
       home.samples.push(found);
-    } else regions.push({ samples: explore(found, 60), hits: 1 });
+    } else regions.push({ samples: explore(found, Number(arg('explore', '20'))), hits: 1 });
   }
 }
 // Merge regions that turn out to be joined by a successful straight path.
@@ -1274,12 +1651,14 @@ for (const [i, region] of regions.entries()) {
   });
 }
 const singles = regions.filter((r) => r.hits === 1).length;
+const solvedSeconds = (performance.now() - started) / 1000; // search + mapping + verification
 const summary = {
   order,
   title: stage.title,
   dims: d,
-  seconds: +((performance.now() - started) / 1000).toFixed(0),
+  seconds: +solvedSeconds.toFixed(1),
   flights,
+  firstWinSeconds: firstWin === undefined ? null : +firstWin.toFixed(1),
   simulatedSeconds: Math.round(simulated),
   prunedByTimeBudget: pruned,
   starts,

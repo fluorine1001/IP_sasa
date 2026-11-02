@@ -10,9 +10,10 @@ export function robustnessTracker(
   expressionValue,
   objectiveIds,
   settled = 0,
-  objectPosition = undefined,
+  env = undefined,
   restore = undefined,
 ) {
+  const objectPosition = env?.objectPosition;
   // Progress is only credited once every command has run (t >= settled): before that the
   // starting state can look 'closest' and flatten the score for every plan.
   const goals = new Map(stage.goals.map((g) => [g.id, g]));
@@ -40,14 +41,98 @@ export function robustnessTracker(
     const at = expressionValue(w.domain, c, p, path + '.wd');
     const width = expressionValue(w.width, c, p, path + '.ww');
     if (![value, at, width].every(Number.isFinite)) return -1e3;
-    const m = mem(path, () => ({ q: [], first: at }));
+    const m = mem(path, () => ({ q: [], since: value >= 0 ? at : undefined }));
     m.q.push([at, value]);
     while (m.q.length && m.q[0][0] < at - width) m.q.shift();
-    const low = Math.min(...m.q.map((e) => e[1])) / 0.05;
-    const missing = Math.max(0, width - (at - m.first));
-    const v = squash(missing > 0 ? Math.min(low, -missing / Math.max(width, 1e-9)) : low);
+    // Unbroken stretch inside the condition so far (in window units, e.g. orbit turns).
+    if (value < 0) m.since = undefined;
+    else if (m.since === undefined) m.since = at;
+    const covered = m.since === undefined ? 0 : at - m.since;
+    // Look-ahead: once every command has run and the engine is off, the coming orbit is
+    // fixed. Predict it (two-body, one period) and read the window's own value along it,
+    // so a plan is judged by the orbit it set up, not by how much of it has flown yet.
+    if (
+      m.pred === undefined &&
+      env?.bodyPosition &&
+      c.run.time + 1e-9 >= settled &&
+      !(c.run.rocket?.throttle > 0) &&
+      w.domain.kind === 'metric'
+    ) {
+      const id = w.domain.targetId === '$target' ? c.bindings?.targetId : w.domain.targetId;
+      m.pred = predictMin(w.value, c, p, path, id);
+    }
+    let v;
+    if (covered + 1e-9 >= width)
+      v = squash(Math.min(...m.q.map((e) => e[1])) / 0.05); // done: margin
+    else if (m.pred !== undefined)
+      v = m.pred < 0 ? -0.5 + m.pred * 0.5 : -0.5 * (1 - covered / Math.max(width, 1e-9));
+    else if (value >= 0)
+      v = covered / Math.max(width, 1e-9) - 1; // how much of the window is held
+    else v = -1 + Math.max(-1, value / 0.05) * 0.5; // outside: how far outside
     current.set(path, v);
     return v;
+  }
+  /** Smallest value of `expr` along the predicted coasting orbit around body `id`. */
+  function predictMin(expr, c, p, path, id) {
+    const body = stage.bodies.find((b) => b.id === id);
+    if (!body?.mu) return undefined;
+    const t0 = c.run.time;
+    const bp = env.bodyPosition(stage, body, t0),
+      bv = env.bodyVelocity(stage, body, t0);
+    let r = { x: c.run.position.x - bp.x, y: c.run.position.y - bp.y };
+    let v = { x: c.run.velocity.x - bv.x, y: c.run.velocity.y - bv.y };
+    const rr = Math.hypot(r.x, r.y),
+      energy = (v.x ** 2 + v.y ** 2) / 2 - body.mu / rr;
+    const T = energy < 0 ? 2 * Math.PI * Math.sqrt((-body.mu / (2 * energy)) ** 3 / body.mu) : 20;
+    const steps = 96,
+      h = Math.min(T, 200) / steps;
+    const acc = (q) => {
+      const d = Math.hypot(q.x, q.y);
+      const k = -body.mu / d ** 3;
+      return { x: k * q.x, y: k * q.y };
+    };
+    let low = Infinity;
+    for (let i = 0; i <= steps; i++) {
+      // The surface is ignored on purpose: a virtual periapsis below it still says how far
+      // the orbit is from clearing the band, which keeps the score smooth.
+      if (Math.hypot(r.x, r.y) < 1e-3) break;
+      const t = t0 + i * h;
+      const P = env.bodyPosition(stage, body, t),
+        V = env.bodyVelocity(stage, body, t);
+      const run = {
+        ...c.run,
+        time: t,
+        position: { x: P.x + r.x, y: P.y + r.y },
+        velocity: { x: V.x + v.x, y: V.y + v.y },
+      };
+      const val = expressionValue(
+        expr,
+        { ...c, run, primary: { position: run.position, velocity: run.velocity } },
+        { complete: false, ratio: 0 },
+        path + '.pred',
+      );
+      if (Number.isFinite(val)) low = Math.min(low, val);
+      // RK4 step of the relative two-body motion.
+      const a1 = acc(r),
+        r2 = { x: r.x + (v.x * h) / 2, y: r.y + (v.y * h) / 2 },
+        v2 = { x: v.x + (a1.x * h) / 2, y: v.y + (a1.y * h) / 2 };
+      const a2 = acc(r2),
+        r3 = { x: r.x + (v2.x * h) / 2, y: r.y + (v2.y * h) / 2 },
+        v3 = { x: v.x + (a2.x * h) / 2, y: v.y + (a2.y * h) / 2 };
+      const a3 = acc(r3),
+        r4 = { x: r.x + v3.x * h, y: r.y + v3.y * h },
+        v4 = { x: v.x + a3.x * h, y: v.y + a3.y * h };
+      const a4 = acc(r4);
+      r = {
+        x: r.x + (h / 6) * (v.x + 2 * v2.x + 2 * v3.x + v4.x),
+        y: r.y + (h / 6) * (v.y + 2 * v2.y + 2 * v3.y + v4.y),
+      };
+      v = {
+        x: v.x + (h / 6) * (a1.x + 2 * a2.x + 2 * a3.x + a4.x),
+        y: v.y + (h / 6) * (a1.y + 2 * a2.y + 2 * a3.y + a4.y),
+      };
+    }
+    return low;
   }
   function compare(node, c, p, path) {
     if (
@@ -142,7 +227,7 @@ export function robustnessTracker(
         const low = Math.min(...m.window.map((w) => w[1]));
         return elapsed + 1e-9 >= n.duration
           ? low
-          : Math.min(low, -0.2 * (1 - elapsed / Math.max(n.duration, 1e-9)));
+          : Math.min(low, 0) - 0.2 * (1 - elapsed / Math.max(n.duration, 1e-9));
       }
       case 'sequence': {
         const m = mem(path, () => ({ k: 0, best: -Infinity }));
@@ -310,6 +395,11 @@ export function robustnessTracker(
         best: [...best],
         raw: [...raw],
       });
+    },
+    /** Some window's look-ahead already says the coming orbit misses it (search only). */
+    doomed() {
+      for (const m of memory.values()) if (m && m.pred !== undefined && m.pred < -0.02) return true;
+      return false;
     },
     /** Lower bound on the seconds the unfinished objectives still need from now. */
     remaining() {

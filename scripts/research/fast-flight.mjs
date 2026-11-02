@@ -6,6 +6,18 @@
 // Only quiet coasting far from everything uses a lean loop: the engine's gravity and
 // RK4 on the same 0.01 s grid, with goals checked on a coarser clock.
 // Every plan the search reports is re-flown by the real engine before it is shown.
+const contactWords = ['"collision"', '"landed"', '"touchdown'];
+const contactCache = new WeakMap();
+function contactGoals(stage) {
+  if (!contactCache.has(stage)) {
+    const text = JSON.stringify(stage.goals);
+    contactCache.set(
+      stage,
+      contactWords.some((w) => text.includes(w)),
+    );
+  }
+  return contactCache.get(stage);
+}
 export function fastFlight({ engine, celestial, goals, native }) {
   const { createRun, tick, WORLD_STEP } = engine;
   const { gravity, bodyPosition } = celestial;
@@ -66,6 +78,12 @@ export function fastFlight({ engine, celestial, goals, native }) {
       if (!quiet()) {
         // Exact: the engine's own step (it also applies due commands and updates goals).
         tick(run, stage, Math.min(WORLD_STEP, end - run.time), stage.objects, false);
+        // A crash cannot turn into a win unless a goal is about contact itself; the
+        // engine would play the impact out for seconds, the search stops here.
+        if (run.status === 'impact' && !contactGoals(stage)) {
+          run.status = 'failed';
+          return run;
+        }
         run.goalClock = run.time;
         run.goalBefore = run.position;
         if (run.status === 'won') return run;

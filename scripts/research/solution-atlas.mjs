@@ -51,6 +51,7 @@ const fastFly = fastFlight({
   celestial: await server.ssrLoadModule('/src/world/celestial.ts'),
   goals: await server.ssrLoadModule('/src/world/goals.ts'),
   native: await server.ssrLoadModule('/src/physics/nonlinear-native.ts'),
+  rocket: await server.ssrLoadModule('/src/world/rocket.ts'),
 });
 const useFast = !process.argv.includes('--engine-only');
 const goalEvery = Number(
@@ -190,7 +191,7 @@ function score(u, upto = Infinity, snap = undefined) {
         // has not improved for `phaseWindow` seconds (an approach still under way counts).
         if (upto < events.length && c.run.time >= settled) {
           const v = tracker.value(c.run);
-          if (v > bestSoFar + 1e-9) {
+          if (v > bestSoFar + extendStep) {
             bestSoFar = v;
             stopAt = Math.min(end, c.run.time + phaseWindow);
           } else if (stopAt === end) stopAt = Math.min(end, c.run.time + phaseWindow);
@@ -1328,6 +1329,9 @@ const strategy = {
 };
 const overtime = () => performance.now() > strategy.deadline;
 const lookaheadStop = !process.argv.includes('--no-lookahead-stop');
+const extendStep = Number(
+  process.argv.find((a) => a.startsWith('--extend-step='))?.split('=')[1] ?? '0.05',
+);
 const coarseStep = Number(
   process.argv.find((a) => a.startsWith('--coarse='))?.split('=')[1] ?? '0.01',
 );

@@ -18,7 +18,8 @@ function contactGoals(stage) {
   }
   return contactCache.get(stage);
 }
-export function fastFlight({ engine, celestial, goals, native }) {
+export function fastFlight({ engine, celestial, goals, native, rocket }) {
+  const poweredStep = rocket?.poweredStep;
   const { createRun, tick, WORLD_STEP } = engine;
   const { gravity, bodyPosition } = celestial;
   const { updateGoals } = goals;
@@ -61,15 +62,28 @@ export function fastFlight({ engine, celestial, goals, native }) {
     function quiet() {
       if (dynamicWorld || run.landed || run.status !== 'running') return false;
       if (run.rocket && run.rocket.throttle > 0) return false;
-      if (run.detached?.some((a) => !['landed', 'crashed'].includes(a.status))) return false;
+      // Detached stages and payloads may coast along (integrated below) but not burn or turn.
+      const flying = (run.detached ?? []).filter((a) => !['landed', 'crashed'].includes(a.status));
+      if (flying.some((a) => a.throttle > 0 || (a.targetDirection && !poweredStep))) return false;
+      if (flying.length && !poweredStep) return false;
       const nextCommand = commands.find((c) => !run.applied.has(c.id));
       if (nextCommand && nextCommand.time <= run.time + WORLD_STEP + 1e-9) return false;
-      const speed = Math.hypot(run.velocity.x, run.velocity.y);
-      for (const b of bodies) {
-        const c = bodyPosition(stage, b, run.time);
-        const gap = Math.hypot(run.position.x - c.x, run.position.y - c.y) - b.radius;
-        const air = b.atmosphere && b.atmosphere.density > 0 ? b.atmosphere.height : 0;
-        if (gap < Math.max(air, 0) + 0.6 + speed * Math.max(0.05, 2 * coarse)) return false;
+      // Clearance kept: the craft's own hull length (payload + remaining stages) plus 0.1.
+      const hullOf = (body) =>
+        body === run
+          ? run.rocket
+            ? 0.1 + 0.12 * Math.max(0, (stage.rocket?.parts.length ?? 0) - run.rocket.partIndex)
+            : 0.2
+          : 0.12;
+      for (const body of [run, ...flying]) {
+        const speed = Math.hypot(body.velocity.x, body.velocity.y);
+        for (const b of bodies) {
+          const c = bodyPosition(stage, b, run.time);
+          const gap = Math.hypot(body.position.x - c.x, body.position.y - c.y) - b.radius;
+          const air = b.atmosphere && b.atmosphere.density > 0 ? b.atmosphere.height : 0;
+          if (gap < Math.max(air, 0) + hullOf(body) + 0.1 + speed * Math.max(0.05, 2 * coarse))
+            return false;
+        }
       }
       return true;
     }
@@ -112,6 +126,22 @@ export function fastFlight({ engine, celestial, goals, native }) {
       const grid = (Math.floor((run.time + 1e-9) / step) + 1) * step;
       const nextPush = pushes.find((b) => !run.applied.has(b.id) && b.time > run.time + 1e-12);
       const slice = Math.min(grid, nextPush ? nextPush.time : Infinity, end) - run.time;
+      // Same order as the engine's tick: attitude/fuel/heat bookkeeping, then motion.
+      if (run.rocket && poweredStep) {
+        const damage = poweredStep(run, stage, slice);
+        if (damage) {
+          run.status = 'failed';
+          run.reason = damage;
+          return run;
+        }
+      }
+      for (const a of run.detached ?? []) {
+        if (['landed', 'crashed'].includes(a.status)) continue;
+        a.age += slice;
+        if (a.payload) a.heat = Math.max(0, a.heat - 0.03 * slice);
+        else poweredStep(run, stage, slice, a);
+        [a.position, a.velocity] = nativeRk4(acc, a.position, a.velocity, run.time, slice);
+      }
       [run.position, run.velocity] = nativeRk4(acc, run.position, run.velocity, run.time, slice);
       run.time += slice;
       if (Math.hypot(run.position.x, run.position.y) > stage.rules.worldRadius) {

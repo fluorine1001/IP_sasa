@@ -14,6 +14,7 @@ const fly = fastFlight({
   celestial: await server.ssrLoadModule('/src/world/celestial.ts'),
   goals: await server.ssrLoadModule('/src/world/goals.ts'),
   native: await server.ssrLoadModule('/src/physics/nonlinear-native.ts'),
+  rocket: await server.ssrLoadModule('/src/world/rocket.ts'),
 });
 const { parseStage } = await server.ssrLoadModule('/src/stages/validation.ts');
 const orders = process.argv.slice(2).map(Number);

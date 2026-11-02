@@ -1,47 +1,80 @@
-// Research prototype: a lean flight loop for SEARCH ONLY. It calls the engine's own
-// gravity, RK4 step and goal update on the same 0.01 s grid, cut at command times,
-// but skips everything the outcome does not need (hull sweeps, frames, evidence).
-// Every plan it reports is re-flown by the real engine before it is shown.
-// Supported: cold-gas plans (launch + instant pushes), static or scripted-motion bodies,
-// no atmosphere. Anything else returns undefined so the caller falls back to the engine.
-const contactMetrics = [
-  'landed',
-  'touchdownSpeed',
-  'touchdownNormalSpeed',
-  'touchdownTangentialSpeed',
-  'touchdownTilt',
-];
-const cache = new WeakMap();
-function contactGoals(stage) {
-  if (cache.has(stage)) return cache.get(stage);
-  const text = JSON.stringify(stage.goals);
-  const found = text.includes('"collision"') || contactMetrics.some((m) => text.includes(`"${m}"`));
-  cache.set(stage, found);
-  return found;
-}
-export function fastFlight({ engine, celestial, goals, native, dynamics }) {
-  const { createRun, WORLD_STEP } = engine;
+// Research prototype: a hybrid flight loop for SEARCH ONLY.
+// Whenever anything can happen (an engine command is due, the engine is burning, a
+// detached stage is still moving, the craft is near a surface or inside an atmosphere,
+// it has landed, or bodies move by mutual gravity) it advances with the engine's own
+// tick, so contact, landing, staging and every goal are exactly the engine's.
+// Only quiet coasting far from everything uses a lean loop: the engine's gravity and
+// RK4 on the same 0.01 s grid, with goals checked on a coarser clock.
+// Every plan the search reports is re-flown by the real engine before it is shown.
+export function fastFlight({ engine, celestial, goals, native }) {
+  const { createRun, tick, WORLD_STEP } = engine;
   const { gravity, bodyPosition } = celestial;
   const { updateGoals } = goals;
   const { nativeRk4 } = native;
-  return function fly(stage, plan, horizon, onSample, goalEvery = WORLD_STEP) {
-    if (stage.rocket || plan.engineCommands?.length) return undefined;
-    if (stage.bodies.some((b) => b.dynamic || (b.atmosphere && b.atmosphere.density > 0)))
-      return undefined;
-    if (stage.objects.some((o) => o.dynamic)) return undefined;
-    // Landing and contact goals need the engine's touchdown model; leave those to it.
-    if (contactGoals(stage)) return undefined;
-    const run = createRun(stage, plan);
+  /** resume: a snapshot run to continue from (prefix sharing); pause: stop at `horizon`
+   * without declaring the flight over, so the caller can snapshot it. */
+  return function fly(
+    stage,
+    plan,
+    horizon,
+    onSample,
+    goalEvery = WORLD_STEP,
+    resume = undefined,
+    pause = false,
+  ) {
+    const run = resume ?? createRun(stage, plan);
+    if (resume) run.plan = plan; // a new plan object: the engine re-indexes its schedule
     if (run.status !== 'running') return run;
     const pushes = [...plan.impulses].sort((a, b) => a.time - b.time);
-    let next = 0;
+    const commands = [...(plan.engineCommands ?? [])].sort((a, b) => a.time - b.time);
     const end = Math.min(horizon, stage.rules.maxTime);
+    let lastSample = resume ? run.time : -1;
     const acc = (p, _v, t) => gravity(stage, p, t);
     const bodies = stage.bodies.filter((b) => b.kind !== 'barycenter');
-    let lastSample = -1;
-    while (run.time < end - 1e-9) {
-      while (next < pushes.length && pushes[next].time <= run.time + 1e-12) {
-        const b = pushes[next++];
+    const dynamicWorld =
+      stage.bodies.some((b) => b.dynamic) || stage.objects.some((o) => o.dynamic);
+    const won = () =>
+      run.goalRoots.length &&
+      (stage.goalMode === 'any'
+        ? run.goalRoots.some((id) => run.goals[id].complete)
+        : run.goalRoots.every((id) => run.goals[id].complete));
+    const sample = (context) => {
+      if (onSample && run.time - lastSample >= 0.05 - 1e-9) {
+        lastSample = run.time;
+        return onSample(context);
+      }
+    };
+    /** Is the next 0.01 s certainly quiet? */
+    function quiet() {
+      if (dynamicWorld || run.landed || run.status !== 'running') return false;
+      if (run.rocket && run.rocket.throttle > 0) return false;
+      if (run.detached?.some((a) => !['landed', 'crashed'].includes(a.status))) return false;
+      const nextCommand = commands.find((c) => !run.applied.has(c.id));
+      if (nextCommand && nextCommand.time <= run.time + WORLD_STEP + 1e-9) return false;
+      const speed = Math.hypot(run.velocity.x, run.velocity.y);
+      for (const b of bodies) {
+        const c = bodyPosition(stage, b, run.time);
+        const gap = Math.hypot(run.position.x - c.x, run.position.y - c.y) - b.radius;
+        const air = b.atmosphere && b.atmosphere.density > 0 ? b.atmosphere.height : 0;
+        if (gap < Math.max(air, 0) + 0.6 + speed * 0.05) return false;
+      }
+      return true;
+    }
+    while (run.time < end - 1e-9 && (run.status === 'running' || run.status === 'impact')) {
+      const before = run.position,
+        previousTime = run.time;
+      if (!quiet()) {
+        // Exact: the engine's own step (it also applies due commands and updates goals).
+        tick(run, stage, Math.min(WORLD_STEP, end - run.time), stage.objects, false);
+        run.goalClock = run.time;
+        run.goalBefore = run.position;
+        if (run.status === 'won') return run;
+        if (sample({ stage, run, before, dt: run.time - previousTime, previousTime }) === false)
+          return run;
+        continue;
+      }
+      for (const b of pushes) {
+        if (run.applied.has(b.id) || b.time > run.time + 1e-12) continue;
         const size = Math.hypot(b.vector.x, b.vector.y);
         if (run.used + size > stage.rules.maneuverBudget + 1e-8) {
           run.status = 'failed';
@@ -53,34 +86,23 @@ export function fastFlight({ engine, celestial, goals, native, dynamics }) {
         run.velocity = { x: run.velocity.x + b.vector.x, y: run.velocity.y + b.vector.y };
       }
       const grid = (Math.floor((run.time + 1e-9) / WORLD_STEP) + 1) * WORLD_STEP;
-      const slice =
-        Math.min(grid, next < pushes.length ? pushes[next].time : Infinity, end) - run.time;
-      const before = run.position,
-        previousTime = run.time;
+      const nextPush = pushes.find((b) => !run.applied.has(b.id) && b.time > run.time + 1e-12);
+      const slice = Math.min(grid, nextPush ? nextPush.time : Infinity, end) - run.time;
       [run.position, run.velocity] = nativeRk4(acc, run.position, run.velocity, run.time, slice);
       run.time += slice;
-      for (const b of bodies) {
-        const c = bodyPosition(stage, b, run.time);
-        if (Math.hypot(run.position.x - c.x, run.position.y - c.y) < b.radius) {
-          run.status = 'failed';
-          run.reason = 'contact';
-          return run;
-        }
-      }
       if (Math.hypot(run.position.x, run.position.y) > stage.rules.worldRadius) {
         run.status = 'failed';
         run.reason = '탐사 범위를 벗어났습니다.';
         return run;
       }
-      // Goal checks may run on a coarser clock than physics (search only): holds and
-      // windows integrate the elapsed time since the previous check, so totals agree.
+      // Goals on a coarser clock while coasting: holds and windows integrate the elapsed
+      // time since the previous check, so totals agree with the engine's.
       if (
         run.time - (run.goalClock ?? 0) < goalEvery - 1e-9 &&
         run.time < end - 1e-9 &&
         goalEvery > WORLD_STEP
-      ) {
-        if (Math.hypot(run.position.x, run.position.y) <= stage.rules.worldRadius) continue;
-      }
+      )
+        continue;
       const context = {
         stage,
         run,
@@ -91,21 +113,13 @@ export function fastFlight({ engine, celestial, goals, native, dynamics }) {
       run.goalClock = run.time;
       run.goalBefore = run.position;
       updateGoals(context);
-      if (
-        run.goalRoots.length &&
-        (stage.goalMode === 'any'
-          ? run.goalRoots.some((id) => run.goals[id].complete)
-          : run.goalRoots.every((id) => run.goals[id].complete))
-      ) {
+      if (won()) {
         run.status = 'won';
         return run;
       }
-      if (onSample && run.time - lastSample >= 0.05 - 1e-9) {
-        lastSample = run.time;
-        if (onSample(context) === false) return run;
-      }
+      if (sample(context) === false) return run;
     }
-    run.status = 'observed';
+    if (!pause && (run.status === 'running' || run.status === 'impact')) run.status = 'observed';
     return run;
   };
 }

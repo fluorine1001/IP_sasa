@@ -37,6 +37,7 @@ const { objectiveGoals } = await server.ssrLoadModule('/src/world/goals.ts');
 const { expressionValue } = await server.ssrLoadModule('/src/world/expressions.ts');
 const { dynamicView } = await server.ssrLoadModule('/src/world/dynamics.ts');
 const { robustnessTracker } = await import('./robustness.mjs');
+const { objectPosition: objectPositionFn } = await server.ssrLoadModule('/src/world/celestial.ts');
 const { fastFlight } = await import('./fast-flight.mjs');
 const fastFly = fastFlight({
   engine: await server.ssrLoadModule('/src/world/engine.ts'),
@@ -137,20 +138,29 @@ let flights = 0;
 let lastResiduals = new Map();
 let pruned = 0;
 const budgetCheck = !process.argv.includes('--no-budget');
-function score(u, upto = Infinity) {
+let simulated = 0; // seconds of flight actually integrated (prefix sharing saves these)
+function score(u, upto = Infinity, snap = undefined) {
   flights++;
   const plan = planOf(u, false, upto);
-  const run = createRun(stage, plan);
-  if (run.status !== 'running') return 3;
+  const run = snap ? undefined : createRun(stage, plan);
+  if (run && run.status !== 'running') return 3;
   const settled = Math.max(
     0,
     ...(plan.engineCommands ?? []).map((c) => c.time),
     ...plan.impulses.map((c) => c.time),
   );
-  const tracker = robustnessTracker(stage, expressionValue, roots, settled);
+  const tracker = robustnessTracker(
+    stage,
+    expressionValue,
+    roots,
+    settled,
+    objectPositionFn,
+    snap?.tracker,
+  );
   let budgetChecked = false;
   const end = horizon(stage);
-  if (useFast) {
+  if (useFast || snap) {
+    const startAt = snap ? snap.run.time : 0;
     // Lean search flight: same physics and goal code, goals checked every 0.05 s.
     let late = 0;
     // A partial plan (later commands not yet placed) is only flown long enough to show
@@ -172,8 +182,10 @@ function score(u, upto = Infinity) {
         }
       },
       goalEvery,
+      snap ? structuredClone(snap.run) : undefined,
     );
     if (fast) {
+      simulated += fast.time - startAt;
       lastResiduals = tracker.residuals();
       if (fast.status === 'won') return 0;
       if (late > 1e-6) {
@@ -632,6 +644,26 @@ const t0 = performance.now();
  * random local steps we scan time and direction on a grid and solve the magnitude by a
  * coarse scan plus golden-section refinement (one-dimensional, so it is cheap). Phases
  * chain through a beam that keeps one plan per time bin. */
+/** Prefix sharing: fly the earlier phases' commands once up to this cell's command time
+ * and keep the engine run and goal-margin state there. Every candidate value for the
+ * new command then resumes from that snapshot instead of flying from t = 0 again. */
+const useSnapshots = !process.argv.includes('--no-snapshots');
+function prefixSnapshot(x, ti, upto) {
+  if (!useSnapshots || ti === undefined) return undefined;
+  const tAbs = valueOf(x)[ti];
+  const prev = planOf(x, false, upto - 1);
+  const cand = planOf(x, false, upto);
+  const settled = Math.max(
+    0,
+    ...(cand.engineCommands ?? []).map((c) => c.time),
+    ...cand.impulses.map((c) => c.time),
+  );
+  const tracker = robustnessTracker(stage, expressionValue, roots, settled, objectPositionFn);
+  const run = fastFly(stage, prev, tAbs, (c) => void tracker.step(c), goalEvery, undefined, true);
+  if (!run || run.status !== 'running' || run.time < tAbs - 1e-9) return undefined;
+  simulated += run.time;
+  return { run, tracker: tracker.state() };
+}
 /** One (time, direction) cell of a phase: scan the magnitude, then golden-section it. */
 function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
   const at = (pw) => {
@@ -641,13 +673,15 @@ function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
     if (pi !== undefined) x[pi] = pw;
     return x;
   };
+  const snap = prefixSnapshot(at(0.5), ti, upto);
+  const sc = (x) => score(x, upto, snap);
   if (pi === undefined) {
     const x = at();
-    return { u: x, f: score(x, upto) };
+    return { u: x, f: sc(x) };
   }
   const scan = Array.from({ length: powerBins }, (_, k) => (k + 0.5) / powerBins).map((pw) => ({
     pw,
-    f: score(at(pw), upto),
+    f: sc(at(pw), upto),
   }));
   const k = scan.reduce((b, s, i) => (s.f < scan[b].f ? i : b), 0);
   let lo = Math.max(0, scan[k].pw - 1 / powerBins),
@@ -656,8 +690,8 @@ function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
   const g = (Math.sqrt(5) - 1) / 2;
   let x1 = hi - g * (hi - lo),
     x2 = lo + g * (hi - lo),
-    f1 = score(at(x1), upto),
-    f2 = score(at(x2), upto);
+    f1 = sc(at(x1), upto),
+    f2 = sc(at(x2), upto);
   for (let it = 0; it < goldenSteps && best.f > 0; it++) {
     if (f1 < best.f) best = { pw: x1, f: f1 };
     if (f2 < best.f) best = { pw: x2, f: f2 };
@@ -666,13 +700,13 @@ function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
       x2 = x1;
       f2 = f1;
       x1 = hi - g * (hi - lo);
-      f1 = score(at(x1), upto);
+      f1 = sc(at(x1), upto);
     } else {
       lo = x1;
       x1 = x2;
       f1 = f2;
       x2 = lo + g * (hi - lo);
-      f2 = score(at(x2), upto);
+      f2 = sc(at(x2), upto);
     }
   }
   return { u: at(best.pw), f: best.f };
@@ -686,6 +720,7 @@ async function gridPhasesParallel(workers, beamSize, timeBins, angleBins, powerB
     w.on('message', (m) => {
       flights += m.flights;
       pruned += m.pruned;
+      simulated += m.simulated;
       waiting.get(m.id)(m);
       waiting.delete(m.id);
     });
@@ -1091,7 +1126,8 @@ if (process.argv.includes('--line-probe')) {
 if (!isMainThread) {
   parentPort.on('message', (m) => {
     const before = flights,
-      prunedBefore = pruned;
+      prunedBefore = pruned,
+      simBefore = simulated;
     const r = cellSearch(m.memberU, m.t, m.a, m.ti, m.ai, m.pi, m.upto, m.powerBins);
     parentPort.postMessage({
       id: m.id,
@@ -1100,6 +1136,7 @@ if (!isMainThread) {
       f: r.f,
       flights: flights - before,
       pruned: pruned - prunedBefore,
+      simulated: simulated - simBefore,
     });
   });
   await new Promise(() => {});
@@ -1243,6 +1280,7 @@ const summary = {
   dims: d,
   seconds: +((performance.now() - started) / 1000).toFixed(0),
   flights,
+  simulatedSeconds: Math.round(simulated),
   prunedByTimeBudget: pruned,
   starts,
   successes,

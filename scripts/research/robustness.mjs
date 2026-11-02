@@ -5,17 +5,26 @@
 // Margins are kept unsaturated (only clipped) so far-away plans still get a slope.
 const squash = (m) => Math.max(-1e3, Math.min(1e3, m));
 
-export function robustnessTracker(stage, expressionValue, objectiveIds, settled = 0) {
+export function robustnessTracker(
+  stage,
+  expressionValue,
+  objectiveIds,
+  settled = 0,
+  objectPosition = undefined,
+  restore = undefined,
+) {
   // Progress is only credited once every command has run (t >= settled): before that the
   // starting state can look 'closest' and flatten the score for every plan.
   const goals = new Map(stage.goals.map((g) => [g.id, g]));
-  const memory = new Map(); // path -> node state
-  const progress = new Map(); // goal id -> GoalProgress used only for expression memory
-  const best = new Map(); // goal id -> best margin so far (goals are absorbing)
+  // All mutable state lives in these maps, so a tracker can be snapshotted mid-flight and
+  // resumed (prefix sharing): see state() and the `restore` argument.
+  const memory = new Map(restore ? structuredClone(restore.memory) : []); // path -> node state
+  const progress = new Map(restore ? structuredClone(restore.progress) : []); // expression memory
+  const best = new Map(restore ? restore.best : []); // goal id -> best margin so far
   // Leaf margins seen during the current evaluation, and the set taken at the best moment.
   let current = new Map(),
     bestLeaves = new Map();
-  const raw = new Map(); // path -> latest { a, b, node } of each comparison
+  const raw = new Map(restore ? restore.raw : []); // path -> latest { a, b } of each comparison
   const mem = (path, init) => {
     let m = memory.get(path);
     if (!m) memory.set(path, (m = init()));
@@ -60,7 +69,7 @@ export function robustnessTracker(stage, expressionValue, objectiveIds, settled 
           ? squash((b - a) / scale)
           : squash((1e-6 - Math.abs(a - b)) / scale);
     current.set(path, v);
-    raw.set(path, { a, b, node });
+    raw.set(path, { a, b });
     return v;
   }
   function event(node, c) {
@@ -81,10 +90,23 @@ export function robustnessTracker(stage, expressionValue, objectiveIds, settled 
         ? 1
         : -1;
     if (node.event === 'gate') {
-      // Distance from the gate's opening, so a near miss scores better than a far one.
+      // Passing a gate = crossing its line inside its opening. Margin: how far inside the
+      // opening the craft is when it is on the line, otherwise how far from the opening.
       const gate = stage.objects.find((o) => o.id === targetId);
-      if (!gate) return -1;
-      return c.gatePassed?.has(targetId) ? 1 : -0.5;
+      if (!gate || !objectPosition) return -1;
+      const g = objectPosition(stage, gate, c.run.time);
+      const n = { x: Math.cos(gate.angle), y: Math.sin(gate.angle) };
+      const rx = c.run.position.x - g.x,
+        ry = c.run.position.y - g.y;
+      const across = Math.abs(rx * n.x + ry * n.y); // distance from the gate line
+      const along = Math.abs(-rx * n.y + ry * n.x); // distance along the line from the centre
+      const r = Math.max(gate.radius, 1e-6);
+      const crossed =
+        c.before &&
+        ((c.before.x - g.x) * n.x + (c.before.y - g.y) * n.y) * (rx * n.x + ry * n.y) <= 0;
+      return crossed
+        ? squash((r - along) / r)
+        : -squash(Math.hypot(across, Math.max(0, along - r)) / r) - 1e-3;
     }
     return -1;
   }
@@ -280,6 +302,14 @@ export function robustnessTracker(stage, expressionValue, objectiveIds, settled 
     /** Call once per engine slice with the same context the engine builds. */
     step(c) {
       for (const id of objectiveIds) goalValue(goals.get(id), c);
+    },
+    state() {
+      return structuredClone({
+        memory: [...memory],
+        progress: [...progress],
+        best: [...best],
+        raw: [...raw],
+      });
     },
     /** Lower bound on the seconds the unfinished objectives still need from now. */
     remaining() {

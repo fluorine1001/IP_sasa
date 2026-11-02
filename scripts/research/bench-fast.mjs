@@ -28,6 +28,8 @@ for (const f of await readdir('data/stages')) {
   for (let i = 0; i < 60; i++) {
     const p = structuredClone(ref);
     const k = i < 30 ? 0.02 : 0.3; // near the reference, and far from it
+    for (const c of p.engineCommands ?? [])
+      c.time = Math.max(0, Math.min(H, c.time + (rnd() - 0.5) * k * 2));
     for (const b of p.impulses) {
       b.time = Math.max(0, Math.min(H, b.time + (rnd() - 0.5) * k * H));
       const a = Math.atan2(b.vector.y, b.vector.x) + (rnd() - 0.5) * k * 6,

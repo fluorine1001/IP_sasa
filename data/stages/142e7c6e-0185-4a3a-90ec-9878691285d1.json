@@ -89,12 +89,20 @@
     }
   },
   "rules": {
-    "launchLimit": 1.8,
-    "maneuverBudget": 0.7,
+    "launchLimit": 1,
+    "maneuverBudget": 0,
     "maxTime": 65,
     "worldRadius": 24,
     "sensorSlots": 4,
-    "attempts": 5
+    "attempts": 5,
+    "commandLimits": {
+      "ignite": 3,
+      "stop": 3,
+      "turn": 3,
+      "separate": 1,
+      "push": 0
+    },
+    "timelineDuration": 20
   },
   "camera": {
     "x": 0,
@@ -104,17 +112,52 @@
   "referencePlans": [
     {
       "launch": {
-        "x": 0.011450594297976164,
-        "y": 1.4312937521985976
+        "x": 0.9969149658696022,
+        "y": 0
       },
-      "impulses": [
+      "impulses": [],
+      "engineCommands": [
         {
-          "id": "f53a1f7e-6bfc-4a15-87ea-e85b0b8cc384",
-          "time": 9.174999999999887,
-          "vector": {
-            "x": 0.028084027852770796,
-            "y": -0.29057627761381827
+          "id": "6958b5ad-8fcc-474f-8c7a-a00794de8d27",
+          "time": 0.20356037011382072,
+          "actorId": "craft",
+          "direction": {
+            "x": -0.3643716412379445,
+            "y": 0.9312536212340689
           }
+        },
+        {
+          "id": "f9a41bdf-7552-461b-bc76-1e42ebe39313",
+          "time": 0.41439864136849175,
+          "actorId": "craft",
+          "throttle": 0
+        },
+        {
+          "id": "ea8001a8-934e-461c-a656-5f3ef44bc1e0",
+          "time": 0.46439864136849174,
+          "actorId": "craft",
+          "separate": true
+        },
+        {
+          "id": "abdef108-de3a-4a2a-8cec-5bbfc1949e87",
+          "time": 10.698797394702336,
+          "actorId": "craft",
+          "direction": {
+            "x": -1,
+            "y": -1.2246467991473532e-16
+          }
+        },
+        {
+          "id": "ec8d7d23-cfdf-4b99-983c-ed3ed25770b6",
+          "time": 3,
+          "actorId": "craft",
+          "throttle": 1
+        },
+        {
+          "id": "7df68fd5-af19-4dff-bae2-1b6112e0435a",
+          "time": 3.3603948900674068,
+          "actorId": "craft",
+          "throttle": 0
         }
       ]
     }
@@ -128,7 +171,7 @@
   "launchBodyId": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
   "launchAngle": 0,
   "learning": {
-    "briefing": "먼저 달 가까이 가는 방향을 찾으세요. 가까이 도달한 발사를 복사한 뒤, 접근 중 반대로 미는 시각만 바꾸며 비교해보세요.",
+    "briefing": "1단으로 지구를 떠나 달로 향하고, 다 쓴 1단은 버리세요. 2단 착륙 엔진은 달에 가까워졌을 때 켜서 달과의 속도 차이를 줄여야 합니다. 방향과 점화 시각을 하나씩 바꿔 기록을 비교하세요.",
     "instruments": [
       {
         "id": "approach",
@@ -194,7 +237,7 @@
     "cues": [
       {
         "id": "near",
-        "message": "실제로 달 가까이 왔습니다. 아직 빨리 다가온다면 반대 방향 추진에도 시간이 필요합니다. 같은 접근을 복사해서 제동 시작 시각을 비교하세요.",
+        "message": "실제로 달 가까이 왔습니다. 아직 빨리 다가온다면 2단 엔진을 반대 방향으로 켜는 데에도 시간이 필요합니다. 같은 접근을 복사해서 제동 시작 시각을 비교하세요.",
         "pause": false,
         "when": {
           "kind": "compare",
@@ -209,6 +252,38 @@
             "value": 0.5
           }
         }
+      }
+    ]
+  },
+  "rocket": {
+    "payloadMass": 0.15,
+    "parts": [
+      {
+        "id": "c4d37ee4-17bf-4bba-b603-5d4b2bc212bd",
+        "name": "1단 · 지구 이탈 부스터",
+        "area": 0.01,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "turnRate": 3.141592653589793,
+        "dryMass": 0.4,
+        "fuelMass": 1.25,
+        "thrust": 6,
+        "exhaustSpeed": 2.3,
+        "ignitionLimit": 1
+      },
+      {
+        "id": "8d00a38a-566a-404b-ab80-0b922fb16d82",
+        "name": "2단 · 달 착륙 엔진",
+        "area": 0.01,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "turnRate": 3.141592653589793,
+        "dryMass": 0.25,
+        "fuelMass": 0.3,
+        "thrust": 1.1,
+        "exhaustSpeed": 1.6,
+        "ignitionLimit": 2,
+        "maxLandingSpeed": 0.27
       }
     ]
   }

@@ -105,12 +105,20 @@
     }
   },
   "rules": {
-    "launchLimit": 1.8,
-    "maneuverBudget": 0.5,
+    "launchLimit": 1,
+    "maneuverBudget": 0,
     "maxTime": 65,
     "worldRadius": 24,
     "sensorSlots": 4,
-    "attempts": 5
+    "attempts": 5,
+    "commandLimits": {
+      "ignite": 3,
+      "stop": 3,
+      "turn": 3,
+      "separate": 1,
+      "push": 0
+    },
+    "timelineDuration": 25
   },
   "camera": {
     "x": 0,
@@ -120,17 +128,73 @@
   "referencePlans": [
     {
       "launch": {
-        "x": 0,
-        "y": 1.473652234116544
+        "x": 0.8067031878878386,
+        "y": 0
       },
-      "impulses": [
+      "impulses": [],
+      "engineCommands": [
         {
-          "id": "e841b158-571c-41e7-bf85-be57b886d2c9",
-          "time": 11.416955746240594,
-          "vector": {
-            "x": 0,
-            "y": -0.2157750261820255
+          "id": "31159d91-4adc-4c7c-bf0f-7ee57d3b09c2",
+          "time": 0,
+          "actorId": "craft",
+          "direction": {
+            "x": -0.22264616350027536,
+            "y": 0.9748993208935006
           }
+        },
+        {
+          "id": "81d9e951-6a48-469e-b989-328aaf535fd9",
+          "time": 0.5541402241115321,
+          "actorId": "craft",
+          "throttle": 0
+        },
+        {
+          "id": "bca6adf9-eb51-47b7-a812-a3154cd8b9fd",
+          "time": 0.6041402241115321,
+          "actorId": "craft",
+          "separate": true
+        },
+        {
+          "id": "1b89c99e-7f63-4001-ab84-e5802f4b50fa",
+          "time": 3.7058565342184613,
+          "actorId": "craft",
+          "direction": {
+            "x": -0.18769549571159866,
+            "y": -0.9822272653971571
+          }
+        },
+        {
+          "id": "01940bfa-f884-42f5-8403-a4ffa694fd91",
+          "time": 5.705856534218461,
+          "actorId": "craft",
+          "throttle": 1
+        },
+        {
+          "id": "d67427ca-48d5-49c0-a747-3f3eac16ed62",
+          "time": 5.775752161447659,
+          "actorId": "craft",
+          "throttle": 0
+        },
+        {
+          "id": "59415f50-db10-473e-9e23-4992b1026c59",
+          "time": 13.549664922594886,
+          "actorId": "craft",
+          "direction": {
+            "x": 0.3143454938919881,
+            "y": -0.9493086486858751
+          }
+        },
+        {
+          "id": "d1db4006-1fcd-4a35-a751-0ece426029b9",
+          "time": 13.799664922594886,
+          "actorId": "craft",
+          "throttle": 0.3
+        },
+        {
+          "id": "e0e75628-3d99-4665-b734-f5e51576d94f",
+          "time": 13.982324513907088,
+          "actorId": "craft",
+          "throttle": 0
         }
       ]
     }
@@ -144,7 +208,7 @@
   "launchBodyId": "2be2629e-ada7-43da-8cb7-db47a6a08fcc",
   "launchAngle": 0,
   "learning": {
-    "briefing": "정거장이 움직이는 길을 보세요. 서로 가까워져도 빠르게 엇갈리면 만난 것이 아닙니다. 같은 접근에서 제동이나 첫 추진을 하나씩 바꿔, 거리와 엇갈리는 빠르기를 함께 비교하세요.",
+    "briefing": "1단으로 우편 위성이 도는 높이까지 올라가고, 다 쓴 1단은 버리세요. 위성 곁에서 2단을 켜 엇갈리는 속도를 맞춰야 함께 움직일 수 있습니다. 상승 방향과 2단 점화 시각을 하나씩 바꿔 비교하세요.",
     "instruments": [
       {
         "id": "approach",
@@ -208,5 +272,36 @@
       }
     ],
     "cues": []
+  },
+  "rocket": {
+    "payloadMass": 0.15,
+    "parts": [
+      {
+        "id": "db9d10a6-7393-4c8c-9d18-0cf40232403e",
+        "name": "1단 · 상승 부스터",
+        "area": 0.01,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "turnRate": 3.141592653589793,
+        "dryMass": 0.4,
+        "fuelMass": 1.25,
+        "thrust": 6,
+        "exhaustSpeed": 2.3,
+        "ignitionLimit": 1
+      },
+      {
+        "id": "6c385301-6013-4ebf-b887-38b8334c2303",
+        "name": "2단 · 만남 엔진",
+        "area": 0.01,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "turnRate": 3.141592653589793,
+        "dryMass": 0.25,
+        "fuelMass": 0.3,
+        "thrust": 1,
+        "exhaustSpeed": 1.6,
+        "ignitionLimit": 3
+      }
+    ]
   }
 }

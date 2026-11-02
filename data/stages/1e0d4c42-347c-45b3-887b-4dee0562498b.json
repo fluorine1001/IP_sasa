@@ -116,17 +116,16 @@
     }
   },
   "rules": {
-    "launchLimit": 0.3,
-    "maneuverBudget": 0.1,
+    "launchLimit": 1,
+    "maneuverBudget": 0,
     "maxTime": 120,
     "timelineDuration": 120,
     "commandLimits": {
-      "ignite": 6,
-      "stop": 6,
-      "turn": 6,
-      "separate": 2,
-      "push": 3,
-      "deploy": 2
+      "ignite": 4,
+      "stop": 4,
+      "turn": 4,
+      "separate": 0,
+      "push": 0
     },
     "worldRadius": 64,
     "sensorSlots": 0,
@@ -140,17 +139,46 @@
   "referencePlans": [
     {
       "launch": {
-        "x": 0,
-        "y": 0.2231418688767595
+        "x": 0.34807957517914473,
+        "y": 0
       },
-      "impulses": [
+      "impulses": [],
+      "engineCommands": [
         {
-          "id": "match-velocity",
-          "time": 95.73995719757885,
-          "vector": {
-            "x": 0,
-            "y": -0.04056768304170413
+          "id": "12da2e9a-2808-4f1c-a7b1-e957da1bf134",
+          "time": 0,
+          "actorId": "craft",
+          "direction": {
+            "x": 0.4869219333791306,
+            "y": 0.8734454938886167
           }
+        },
+        {
+          "id": "e070bd4d-3154-4473-92e3-90e9484c9d75",
+          "time": 1.3151875518262386,
+          "actorId": "craft",
+          "throttle": 0
+        },
+        {
+          "id": "73c44064-a342-43e1-a49d-077e2d95a650",
+          "time": 32.452583613776234,
+          "actorId": "craft",
+          "direction": {
+            "x": -0.6738175283016622,
+            "y": 0.7388977862691419
+          }
+        },
+        {
+          "id": "c65a0eeb-2b45-402e-a825-15f809628dcd",
+          "time": 34.452583613776234,
+          "actorId": "craft",
+          "throttle": 0.25
+        },
+        {
+          "id": "ccf668fe-e380-4e54-b521-502cbd800a5f",
+          "time": 34.98741638622377,
+          "actorId": "craft",
+          "throttle": 0
         }
       ]
     }
@@ -161,5 +189,23 @@
     "seed": 31415,
     "timeLimit": 120
   },
-  "published": true
+  "published": true,
+  "rocket": {
+    "payloadMass": 0.1,
+    "parts": [
+      {
+        "id": "0e5383d3-d092-4446-8f68-62edd5e546f0",
+        "name": "정밀 기동 엔진",
+        "area": 0.01,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "turnRate": 3.141592653589793,
+        "dryMass": 0.3,
+        "fuelMass": 0.2,
+        "thrust": 0.25,
+        "exhaustSpeed": 1.2,
+        "ignitionLimit": 4
+      }
+    ]
+  }
 }

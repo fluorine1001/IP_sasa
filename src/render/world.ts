@@ -4,6 +4,7 @@ import { paintCraftLocator } from './craft-locator';
 import { paintGoalRegion } from './goal-region';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
+import { paintPush, paintPushMarks, recentPushes } from './push-effect';
 import { hullSize } from '../world/hull';
 import { physicalRadius } from '../world/contact';
 import { impactDirection } from '../world/impact';
@@ -264,6 +265,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         s.run.probe ? '#80cbd5' : '#f9b671',
       );
     const observedTrail = s.replay ? s.history : s.run?.trail;
+    if (s.trails !== false) paintPushMarks(ctx, screen, s.run, s.stage, observedTrail);
     if (s.trails !== false && observedTrail) {
       ctx.lineWidth = 3;
       for (let i = 1; i < observedTrail.length; i++) {
@@ -631,6 +633,8 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     s.run?.rocket?.partIndex ?? 0,
   );
   const p = screen(ship);
+  // A push changes speed in an instant; puffs and an arrow make that moment visible.
+  for (const push of recentPushes(s.run, s.stage)) paintPush(ctx, p, push, !!s.reducedMotion);
   for (const actor of s.run?.detached ?? []) {
     if (actor.age > 0.45) continue;
     const split = screen(add(actor.position, scale(actor.direction, hullSize(1, true).length)));

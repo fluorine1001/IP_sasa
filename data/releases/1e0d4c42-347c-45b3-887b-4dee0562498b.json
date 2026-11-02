@@ -116,17 +116,16 @@
     }
   },
   "rules": {
-    "launchLimit": 0.3,
-    "maneuverBudget": 0.1,
+    "launchLimit": 1,
+    "maneuverBudget": 0,
     "maxTime": 120,
     "timelineDuration": 120,
     "commandLimits": {
-      "ignite": 6,
-      "stop": 6,
-      "turn": 6,
-      "separate": 2,
-      "push": 3,
-      "deploy": 2
+      "ignite": 4,
+      "stop": 4,
+      "turn": 4,
+      "separate": 0,
+      "push": 0
     },
     "worldRadius": 64,
     "sensorSlots": 0,
@@ -144,5 +143,23 @@
     "seed": 31415,
     "timeLimit": 120
   },
-  "published": true
+  "published": true,
+  "rocket": {
+    "payloadMass": 0.1,
+    "parts": [
+      {
+        "id": "0e5383d3-d092-4446-8f68-62edd5e546f0",
+        "name": "정밀 기동 엔진",
+        "area": 0.01,
+        "maxQ": 2,
+        "maxHeat": 2,
+        "turnRate": 3.141592653589793,
+        "dryMass": 0.3,
+        "fuelMass": 0.2,
+        "thrust": 0.25,
+        "exhaustSpeed": 1.2,
+        "ignitionLimit": 4
+      }
+    ]
+  }
 }

@@ -55,7 +55,16 @@ for (const f of await readdir('data/stages')) {
     const e = engine.execute(stage, p, false);
     tEngine += performance.now() - t;
     t = performance.now();
-    const r = fly(stage, p, H, undefined, Number(process.env.GOAL_EVERY ?? 0.01));
+    const r = fly(
+      stage,
+      p,
+      H,
+      undefined,
+      Number(process.env.GOAL_EVERY ?? 0.01),
+      undefined,
+      false,
+      Number(process.env.COARSE ?? 0.01),
+    );
     tFast += performance.now() - t;
     if (!r) {
       unsupported = true;

@@ -33,6 +33,7 @@ export function fastFlight({ engine, celestial, goals, native }) {
     goalEvery = WORLD_STEP,
     resume = undefined,
     pause = false,
+    coarse = WORLD_STEP,
   ) {
     const run = resume ?? createRun(stage, plan);
     if (resume) run.plan = plan; // a new plan object: the engine re-indexes its schedule
@@ -68,7 +69,7 @@ export function fastFlight({ engine, celestial, goals, native }) {
         const c = bodyPosition(stage, b, run.time);
         const gap = Math.hypot(run.position.x - c.x, run.position.y - c.y) - b.radius;
         const air = b.atmosphere && b.atmosphere.density > 0 ? b.atmosphere.height : 0;
-        if (gap < Math.max(air, 0) + 0.6 + speed * 0.05) return false;
+        if (gap < Math.max(air, 0) + 0.6 + speed * Math.max(0.05, 2 * coarse)) return false;
       }
       return true;
     }
@@ -103,7 +104,12 @@ export function fastFlight({ engine, celestial, goals, native }) {
         run.applied.add(b.id);
         run.velocity = { x: run.velocity.x + b.vector.x, y: run.velocity.y + b.vector.y };
       }
-      const grid = (Math.floor((run.time + 1e-9) / WORLD_STEP) + 1) * WORLD_STEP;
+      // Multi-fidelity: once every command has run, a quiet coast may use a longer RK4
+      // step (search only; verification always re-flies on the engine's 0.01 s grid).
+      const pending =
+        pushes.some((b) => !run.applied.has(b.id)) || commands.some((c) => !run.applied.has(c.id));
+      const step = pending ? WORLD_STEP : coarse;
+      const grid = (Math.floor((run.time + 1e-9) / step) + 1) * step;
       const nextPush = pushes.find((b) => !run.applied.has(b.id) && b.time > run.time + 1e-12);
       const slice = Math.min(grid, nextPush ? nextPush.time : Infinity, end) - run.time;
       [run.position, run.velocity] = nativeRk4(acc, run.position, run.velocity, run.time, slice);

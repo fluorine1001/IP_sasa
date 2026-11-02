@@ -42,6 +42,8 @@ const objectPositionFn = {
   objectPosition: celestialMod.objectPosition,
   bodyPosition: celestialMod.bodyPosition,
   bodyVelocity: celestialMod.bodyVelocity,
+  objectVelocity: celestialMod.objectVelocity,
+  landingReading: (await server.ssrLoadModule('/src/world/landing.ts')).landingReading,
 };
 const { fastFlight } = await import('./fast-flight.mjs');
 const fastFly = fastFlight({
@@ -155,6 +157,10 @@ function score(u, upto = Infinity, snap = undefined) {
     ...(plan.engineCommands ?? []).map((c) => c.time),
     ...plan.impulses.map((c) => c.time),
   );
+  const laterPush =
+    upto < events.length && events.slice(upto).some((e) => e.key.startsWith('push'))
+      ? stage.rules.maneuverBudget
+      : 0;
   const tracker = robustnessTracker(
     stage,
     expressionValue,
@@ -162,6 +168,7 @@ function score(u, upto = Infinity, snap = undefined) {
     settled,
     objectPositionFn,
     snap?.tracker,
+    laterPush,
   );
   let budgetChecked = false;
   const end = horizon(stage);
@@ -171,15 +178,23 @@ function score(u, upto = Infinity, snap = undefined) {
     let late = 0;
     // A partial plan (later commands not yet placed) is only flown long enough to show
     // what its own last command achieved: the next step's own minimum time plus slack.
-    let stopAt = end;
+    let stopAt = end,
+      bestSoFar = -Infinity;
     const fast = fastFly(
       stage,
       plan,
       end,
       (c) => {
         tracker.step(c);
-        if (upto < events.length && c.run.time >= settled && stopAt === end)
-          stopAt = Math.min(end, c.run.time + phaseWindow + tracker.remaining() * 0.0);
+        // Partial plans fly while their goal margin keeps improving, and stop once it
+        // has not improved for `phaseWindow` seconds (an approach still under way counts).
+        if (upto < events.length && c.run.time >= settled) {
+          const v = tracker.value(c.run);
+          if (v > bestSoFar + 1e-9) {
+            bestSoFar = v;
+            stopAt = Math.min(end, c.run.time + phaseWindow);
+          } else if (stopAt === end) stopAt = Math.min(end, c.run.time + phaseWindow);
+        }
         if (c.run.time > stopAt) return false;
         if (lookaheadStop && tracker.doomed()) return false;
         if (budgetCheck && !budgetChecked && c.run.time >= settled) {
@@ -190,6 +205,8 @@ function score(u, upto = Infinity, snap = undefined) {
       },
       goalEvery,
       snap ? structuredClone(snap.run) : undefined,
+      false,
+      coarseStep,
     );
     if (fast) {
       simulated += fast.time - startAt;
@@ -886,6 +903,36 @@ function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
     const x = at();
     return { u: x, f: sc(x) };
   }
+  // Exact sub-solution: an instant push changes velocity linearly, so the push that makes
+  // the craft's velocity equal a goal target's velocity at this moment is solved in
+  // closed form (no search). Tried first; the scan below still runs if it is not enough.
+  const matched =
+    snap && ai !== undefined && params[pi].key.startsWith('push')
+      ? velocityMatches(snap.run, ai, pi)
+      : [];
+  let seed;
+  for (const m of matched) {
+    const x = at(m.power);
+    x[ai] = m.angle;
+    const f = sc(x);
+    if (process.env.DEBUG_MATCH) {
+      const r = execute(stage, planOf(x), false);
+      console.log(
+        'match t',
+        valueOf(x)[ti].toFixed(2),
+        'power',
+        valueOf(x)[pi].toFixed(4),
+        'f',
+        f.toFixed(3),
+        r.status,
+        r.reason?.slice(0, 40),
+        'end',
+        r.time.toFixed(1),
+      );
+    }
+    if (!seed || f < seed.f) seed = { u: x, f };
+    if (f === 0) return seed;
+  }
   const scan = Array.from({ length: powerBins }, (_, k) => (k + 0.5) / powerBins).map((pw) => ({
     pw,
     f: sc(at(pw), upto),
@@ -916,7 +963,120 @@ function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
       f2 = sc(at(x2), upto);
     }
   }
-  return { u: at(best.pw), f: best.f };
+  const out = { u: at(best.pw), f: best.f };
+  return seed && seed.f < out.f ? seed : out;
+}
+const distanceLimits = (() => {
+  const out = new Set();
+  const visit = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (
+      n.kind === 'compare' &&
+      n.left?.kind === 'metric' &&
+      n.left.metric === 'distance' &&
+      ['lte', 'lt'].includes(n.operator) &&
+      n.right?.kind === 'constant'
+    )
+      out.add(n.right.value);
+    for (const v of Object.values(n)) if (typeof v === 'object') visit(v);
+  };
+  stage.goals.forEach((g) => visit(g.condition));
+  return [...out];
+})();
+/** Times (unit-cube, for the phase's time coordinate) of the deepest local minima of
+ * the distance to each velocity target along the member's coast without this command. */
+function closestApproaches(memberU, upto) {
+  if (!velocityTargetIds.length) return [];
+  const prev = planOf(memberU, false, upto - 1);
+  const track = velocityTargetIds.map(() => []);
+  fastFly(
+    stage,
+    prev,
+    horizon(stage),
+    (c) => {
+      velocityTargetIds.forEach((id, k) => {
+        const o = stage.objects.find((x) => x.id === id),
+          b = stage.bodies.find((x) => x.id === id);
+        const q = o
+          ? objectPositionFn.objectPosition(stage, o, c.run.time)
+          : objectPositionFn.bodyPosition(stage, b, c.run.time);
+        track[k].push([c.run.time, Math.hypot(c.run.position.x - q.x, c.run.position.y - q.y)]);
+      });
+    },
+    goalEvery,
+    undefined,
+    false,
+    coarseStep,
+  );
+  const tp = params.find((p) => p.key.endsWith('.time'));
+  const times = [];
+  for (const tr of track) {
+    const minima = tr.filter(
+      (e, i) => i > 0 && i < tr.length - 1 && e[1] <= tr[i - 1][1] && e[1] <= tr[i + 1][1],
+    );
+    minima.sort((a, b) => a[1] - b[1]);
+    // Also the moments the approach first enters each goal distance band (at 90/60/30 %),
+    // so a matching push can happen inside the band without touching the target.
+    for (const limit of distanceLimits)
+      for (const f of [0.9, 0.6, 0.3]) {
+        const i = tr.findIndex((e, k) => k > 0 && tr[k - 1][1] > limit * f && e[1] <= limit * f);
+        if (i > 0) times.push(Math.min(1, Math.max(0, (tr[i][0] - tp.min) / (tp.max - tp.min))));
+      }
+    if (process.env.DEBUG_APPROACH)
+      console.log(
+        'approach',
+        minima
+          .slice(0, 3)
+          .map(([t, dd]) => `${t.toFixed(1)}s:${dd.toFixed(3)}`)
+          .join(' '),
+      );
+    for (const [t] of minima.slice(0, 3))
+      times.push(Math.min(1, Math.max(0, (t - tp.min) / (tp.max - tp.min))));
+  }
+  return times;
+}
+/** Targets whose velocity a goal compares against (speed/vx/vy/relativeSpeed metrics). */
+const velocityTargetIds = (() => {
+  const ids = new Set();
+  const visit = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (
+      n.kind === 'metric' &&
+      ['speed', 'relativeSpeed', 'vx', 'vy'].includes(n.metric) &&
+      n.targetId &&
+      n.targetId !== 'origin' &&
+      !n.targetId.startsWith('$')
+    )
+      ids.add(n.targetId);
+    if (n.kind === 'quantify' && n.targetIds) for (const t of n.targetIds) ids.add(t);
+    for (const v of Object.values(n)) if (typeof v === 'object') visit(v);
+  };
+  stage.goals.forEach((g) => visit(g.condition));
+  return [...ids].filter(
+    (id) => stage.objects.some((o) => o.id === id) || stage.bodies.some((b) => b.id === id),
+  );
+})();
+/** Push (as unit-cube power/angle) that sets the craft's velocity to each target's. */
+function velocityMatches(run, ai, pi) {
+  const out = [];
+  for (const id of velocityTargetIds) {
+    const o = stage.objects.find((x) => x.id === id),
+      b = stage.bodies.find((x) => x.id === id);
+    const v = o
+      ? objectPositionFn.objectVelocity?.(stage, o, run.time)
+      : objectPositionFn.bodyVelocity(stage, b, run.time);
+    if (!v) continue;
+    const dv = { x: v.x - run.velocity.x, y: v.y - run.velocity.y };
+    const power = Math.hypot(dv.x, dv.y);
+    const P = params[pi],
+      A = params[ai];
+    if (process.env.DEBUG_MATCH)
+      console.log('needed dv', power.toFixed(4), 'budget', P.max, 't', run.time.toFixed(2));
+    if (power > P.max) continue;
+    const deg = (Math.atan2(dv.y, dv.x) * 180) / Math.PI;
+    out.push({ power: (power - P.min) / (P.max - P.min), angle: (deg - A.min) / (A.max - A.min) });
+  }
+  return out;
 }
 /** The same phase search with cells spread over worker threads (one engine each). */
 /** A tiny worker pool: tasks go to idle workers; `until` stops dispatching early. */
@@ -1011,7 +1171,8 @@ async function maneuverPhasesParallel(workers, beamSize, timeBins, angleBins, fi
       for (const t of times) for (const a of angles) tasks.push({ memberU: member.u, gi, t, a });
     }
     const last = gi === maneuvers.length - 1;
-    const pool = await pool0.all(tasks, first && last ? (r) => r.f === 0 : undefined);
+    const pool = await pool0.all(tasks, (r) => (first && last && r.f === 0) || overtime());
+    if (overtime()) return [];
     if (first && last && pool.some((r) => r.f === 0) && firstWin === undefined)
       firstWin = (performance.now() - t0) / 1000;
     pool.sort((a, b) => a.f - b.f);
@@ -1048,7 +1209,7 @@ async function gridPhasesParallel(
   powerBins,
   first = false,
 ) {
-  if (process.argv.includes('--maneuvers'))
+  if (strategy.mode === 'maneuvers')
     return maneuverPhasesParallel(workers, beamSize, timeBins, angleBins, first);
   let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
   const pool0 = poolOf(workers);
@@ -1072,9 +1233,15 @@ async function gridPhasesParallel(
       for (const t of times)
         for (const a of angles)
           tasks.push({ memberU: member.u, t, a, ti, ai, pi, upto, powerBins });
+      // Event-anchored times: the closest approaches to goal targets along this member's
+      // coast (one prefix flight), where a velocity-matching push is solved exactly.
+      if (ti !== undefined && pi !== undefined && params[pi].key.startsWith('push'))
+        for (const tc of closestApproaches(member.u, upto))
+          tasks.push({ memberU: member.u, t: tc, a: 0.5, ti, ai, pi, upto, powerBins: 2 });
     }
     const last = phase === events.length - 1;
-    const pool = await pool0.all(tasks, first && last ? (m) => m.f === 0 : undefined);
+    const pool = await pool0.all(tasks, (m) => (first && last && m.f === 0) || overtime());
+    if (overtime()) return [];
     if (first && last && pool.some((m) => m.f === 0) && firstWin === undefined)
       firstWin = (performance.now() - t0) / 1000;
     pool.sort((a, b) => a.f - b.f);
@@ -1154,7 +1321,16 @@ async function gridPhasesParallel(
   return out;
 }
 const useLM = process.argv.includes('--lm');
+// Algorithm portfolio: which phase decomposition runs now, and until when.
+const strategy = {
+  mode: process.argv.includes('--maneuvers') ? 'maneuvers' : 'events',
+  deadline: Infinity,
+};
+const overtime = () => performance.now() > strategy.deadline;
 const lookaheadStop = !process.argv.includes('--no-lookahead-stop');
+const coarseStep = Number(
+  process.argv.find((a) => a.startsWith('--coarse='))?.split('=')[1] ?? '0.01',
+);
 const polishTop = Number(process.argv.find((a) => a.startsWith('--polish='))?.split('=')[1] ?? '8');
 const goldenSteps = Number(
   process.argv.find((a) => a.startsWith('--golden='))?.split('=')[1] ?? '10',
@@ -1558,18 +1734,35 @@ while (performance.now() < deadline) {
   const batch =
     threads > 1 && process.argv.includes('--grid')
       ? await (async () => {
-          // Iterative widening: a narrow beam first (often enough), wider only on failure.
+          // Algorithm portfolio, each with iterative widening (narrow beam first): the
+          // per-command cascade (fast on most stages) under a time cap, then whole
+          // maneuvers (burns whose turn/stop only matter together) for the rest.
           const widths = process.argv.includes('--widen') ? [1, 4, beamArg] : [beamArg];
-          for (const w of widths) {
-            const found = await gridPhasesParallel(
-              workers,
-              w,
-              Number(arg('tb', '24')),
-              Number(arg('ab', '24')),
-              Number(arg('pb', '12')),
-              process.argv.includes('--first'),
-            );
-            if (found.length) return found;
+          const plan = process.argv.includes('--portfolio')
+            ? [
+                { mode: 'events', cap: Number(arg('cap', '25')) },
+                ...(stage.rocket
+                  ? [{ mode: 'maneuvers', cap: Infinity }]
+                  : [{ mode: 'events', cap: Infinity }]),
+              ]
+            : [{ mode: strategy.mode, cap: Infinity }];
+          for (const step of plan) {
+            strategy.mode = step.mode;
+            strategy.deadline = performance.now() + step.cap * 1000;
+            for (const w of step.mode === 'events' && plan.length > 1 && step.cap !== Infinity
+              ? widths.slice(0, 2)
+              : widths) {
+              const found = await gridPhasesParallel(
+                workers,
+                w,
+                Number(step.mode === 'maneuvers' ? arg('mtb', '8') : arg('tb', '24')),
+                Number(step.mode === 'maneuvers' ? arg('mab', '8') : arg('ab', '24')),
+                Number(arg('pb', '12')),
+                process.argv.includes('--first'),
+              );
+              if (found.length) return found;
+              if (overtime()) break;
+            }
           }
           return [];
         })()

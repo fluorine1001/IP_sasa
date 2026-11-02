@@ -12,6 +12,7 @@ export function robustnessTracker(
   settled = 0,
   env = undefined,
   restore = undefined,
+  relaxVelocity = false,
 ) {
   const objectPosition = env?.objectPosition;
   // Progress is only credited once every command has run (t >= settled): before that the
@@ -72,6 +73,90 @@ export function robustnessTracker(
     current.set(path, v);
     return v;
   }
+  /** Where and how a coasting craft (or detached stage) will touch down: two-body motion
+   * around the body pulling hardest, until it reaches the surface, then the engine's own
+   * touchdown reading. Cached per actor; recomputed after any burn by that actor. */
+  const touch = new Map();
+  function predictTouchdown(c, actorId = 'craft') {
+    const actor = actorId === 'craft' ? undefined : c.run.detached?.find((a) => a.id === actorId);
+    const burning = actor ? actor.throttle > 0 : c.run.rocket?.throttle > 0;
+    if (!env?.landingReading || c.run.time + 1e-9 < settled || burning) return undefined;
+    if (touch.has(actorId)) return touch.get(actorId);
+    const pos = actor ? actor.position : c.run.position,
+      vel = actor ? actor.velocity : c.run.velocity;
+    let body,
+      pull = -1;
+    for (const b of stage.bodies) {
+      if (b.kind === 'barycenter' || !b.mu) continue;
+      const q = env.bodyPosition(stage, b, c.run.time);
+      const r2 = (pos.x - q.x) ** 2 + (pos.y - q.y) ** 2;
+      if (b.mu / r2 > pull) {
+        pull = b.mu / r2;
+        body = b;
+      }
+    }
+    if (!body) return undefined;
+    const t0 = c.run.time,
+      bp = env.bodyPosition(stage, body, t0),
+      bv = env.bodyVelocity(stage, body, t0);
+    let r = { x: pos.x - bp.x, y: pos.y - bp.y },
+      v = { x: vel.x - bv.x, y: vel.y - bv.y };
+    const acc = (q) => {
+      const d = Math.hypot(q.x, q.y);
+      const k = -body.mu / d ** 3;
+      return { x: k * q.x, y: k * q.y };
+    };
+    let gap = Infinity;
+    const h = 0.02;
+    for (let i = 0; i < 3000; i++) {
+      const d = Math.hypot(r.x, r.y);
+      gap = Math.min(gap, d - body.radius);
+      if (d <= body.radius + 0.02) {
+        const t = t0 + i * h,
+          P = env.bodyPosition(stage, body, t),
+          V = env.bodyVelocity(stage, body, t);
+        const heading = actor ? actor.direction : (c.run.rocket?.direction ?? c.run.attitude ?? v);
+        const reading = env.landingReading(
+          stage,
+          body,
+          { x: P.x + r.x, y: P.y + r.y },
+          { x: V.x + v.x, y: V.y + v.y },
+          heading,
+          t,
+        );
+        const out = { bodyId: body.id, reading, gap: 0 };
+        touch.set(actorId, out);
+        return out;
+      }
+      const a1 = acc(r),
+        r2 = { x: r.x + (v.x * h) / 2, y: r.y + (v.y * h) / 2 },
+        v2 = { x: v.x + (a1.x * h) / 2, y: v.y + (a1.y * h) / 2 };
+      const a2 = acc(r2),
+        r3 = { x: r.x + (v2.x * h) / 2, y: r.y + (v2.y * h) / 2 },
+        v3 = { x: v.x + (a2.x * h) / 2, y: v.y + (a2.y * h) / 2 };
+      const a3 = acc(r3),
+        r4 = { x: r.x + v3.x * h, y: r.y + v3.y * h },
+        v4 = { x: v.x + a3.x * h, y: v.y + a3.y * h };
+      const a4 = acc(r4);
+      r = {
+        x: r.x + (h / 6) * (v.x + 2 * v2.x + 2 * v3.x + v4.x),
+        y: r.y + (h / 6) * (v.y + 2 * v2.y + 2 * v3.y + v4.y),
+      };
+      v = {
+        x: v.x + (h / 6) * (a1.x + 2 * a2.x + 2 * a3.x + a4.x),
+        y: v.y + (h / 6) * (a1.y + 2 * a2.y + 2 * a3.y + a4.y),
+      };
+    }
+    const out = { bodyId: body.id, gap };
+    touch.set(actorId, out);
+    return out;
+  }
+  const touchdownText = new WeakMap();
+  const usesTouchdown = (node) => {
+    if (!touchdownText.has(node))
+      touchdownText.set(node, /touchdown|"landed"/.test(JSON.stringify(node)));
+    return touchdownText.get(node);
+  };
   /** Smallest value of `expr` along the predicted coasting orbit around body `id`. */
   function predictMin(expr, c, p, path, id) {
     const body = stage.bodies.find((b) => b.id === id);
@@ -135,6 +220,65 @@ export function robustnessTracker(
     return low;
   }
   function compare(node, c, p, path) {
+    // A later instant push can match velocity exactly (solved in closed form), so while it
+    // is still unplaced, velocity conditions toward a target do not steer the search.
+    // ...but only by what that push can still deliver: |v| <= tolerance + remaining budget.
+    const relax =
+      relaxVelocity > 0 &&
+      node.left.kind === 'metric' &&
+      ['speed', 'relativeSpeed', 'vx', 'vy'].includes(node.left.metric) &&
+      node.left.targetId &&
+      node.left.targetId !== 'origin' &&
+      ['lte', 'lt'].includes(node.operator)
+        ? relaxVelocity
+        : 0;
+    if (usesTouchdown(node)) {
+      const actorId =
+        node.left.actorId === '$actor'
+          ? c.bindings?.actorId
+          : (node.left.actorId ?? (c.bindings?.actorId || 'craft'));
+      const actor =
+        actorId && actorId !== 'craft' ? c.run.detached?.find((a) => a.id === actorId) : undefined;
+      const done = actor
+        ? ['landed', 'crashed'].includes(actor.status)
+        : c.run.touchdownNormalSpeed !== undefined;
+      if (!done) {
+        const pred = predictTouchdown(c, actorId || 'craft');
+        if (!pred) return -1e3 + 0;
+        if (pred.reading === undefined) {
+          const v = -1 - pred.gap / 0.05;
+          current.set(path, v);
+          return v;
+        }
+        const r = pred.reading;
+        const fake = actor
+          ? {
+              ...c.run,
+              detached: c.run.detached.map((a) =>
+                a === actor
+                  ? {
+                      ...a,
+                      status: 'landed',
+                      bodyId: pred.bodyId,
+                      touchdownSpeed: r.speed,
+                      touchdownNormalSpeed: r.normalSpeed,
+                      touchdownTangentialSpeed: r.tangentSpeed,
+                      touchdownTilt: r.tilt,
+                    }
+                  : a,
+              ),
+            }
+          : {
+              ...c.run,
+              landed: { bodyId: pred.bodyId, angle: 0 },
+              touchdownSpeed: r.speed,
+              touchdownNormalSpeed: r.normalSpeed,
+              touchdownTangentialSpeed: r.tangentSpeed,
+              touchdownTilt: r.tilt,
+            };
+        c = { ...c, run: fake };
+      }
+    }
     if (
       node.left.kind === 'window' &&
       node.left.operation === 'coverage' &&
@@ -144,7 +288,7 @@ export function robustnessTracker(
     )
       return alwaysWindow(node, c, p, path);
     const a = expressionValue(node.left, c, p, path + '.left'),
-      b = expressionValue(node.right, c, p, path + '.right');
+      b = expressionValue(node.right, c, p, path + '.right') + relax;
     if (!Number.isFinite(a) || !Number.isFinite(b)) return -1e3;
     const scale = Math.max(Math.abs(b), 0.05);
     const v =

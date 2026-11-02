@@ -110,6 +110,8 @@ const roots = objectiveGoals(stage).map((g) => g.id);
 let flights = 0;
 /** 0 when won; otherwise 1 - (continuous goal margin), so closer plans score lower. */
 let lastResiduals = new Map();
+let pruned = 0;
+const budgetCheck = !process.argv.includes('--no-budget');
 function score(u, upto = Infinity) {
   flights++;
   const plan = planOf(u, false, upto);
@@ -121,6 +123,7 @@ function score(u, upto = Infinity) {
     ...plan.impulses.map((c) => c.time),
   );
   const tracker = robustnessTracker(stage, expressionValue, roots, settled);
+  let budgetChecked = false;
   const end = horizon(stage);
   while ((run.status === 'running' || run.status === 'impact') && run.time < end - 1e-8) {
     const before = { ...run.position },
@@ -134,6 +137,17 @@ function score(u, upto = Infinity) {
       dt: run.time - previousTime,
       previousTime,
     });
+    // Time budget (necessary condition): once every command has run, if the unfinished
+    // goal parts need longer than the time left, this plan cannot win. Stop early.
+    if (budgetCheck && !budgetChecked && run.time >= settled) {
+      budgetChecked = true;
+      const late = run.time + tracker.remaining() - end;
+      if (late > 1e-6) {
+        pruned++;
+        lastResiduals = tracker.residuals();
+        return 20 + late;
+      }
+    }
   }
   lastResiduals = tracker.residuals();
   if (process.env.DEBUG_SCORE)
@@ -239,12 +253,17 @@ function newton(start, iterations = 30) {
     const r0 = keys.map((k) => cur.r.get(k));
     // Time-integrated parts (holds, orbit coverage) change in tick-sized steps, so time
     // coordinates use a step longer than one 0.05 s tick; others a tiny one.
+    // Some parts (holds, orbit coverage) only change in whole 0.05 s ticks, so a tiny
+    // step can show no change at all. Grow the step until the residual actually moves.
     const J = x.map((v, i) => {
-      const h = params[i].key.endsWith('.time') ? 0.12 / (params[i].max - params[i].min) : 1e-5;
-      const y = x.slice();
-      y[i] = v + (v + h > 1 ? -h : h);
-      const ri = residual(y).r;
-      return keys.map((k, j) => ((ri.get(k) ?? 0) - r0[j]) / (y[i] - v));
+      let h = params[i].key.endsWith('.time') ? 0.12 / (params[i].max - params[i].min) : 1e-5;
+      for (let grow = 0; grow < 5; grow++, h *= 8) {
+        const y = x.slice();
+        y[i] = v + (v + h > 1 ? -h : h);
+        const ri = residual(y).r;
+        const col = keys.map((k, j) => ((ri.get(k) ?? 0) - r0[j]) / (y[i] - v));
+        if (col.some((g) => g !== 0) || grow === 4) return col;
+      }
     }); // J[i][j] = d r_j / d u_i
     const JTJ = x.map((_, i) => x.map((_, k) => J[i].reduce((n, a, j) => n + a * J[k][j], 0)));
     const JTr = x.map((_, i) => J[i].reduce((n, a, j) => n + a * r0[j], 0));
@@ -300,6 +319,140 @@ function newton(start, iterations = 30) {
 }
 /** Finite-difference gradient descent with backtracking; for the last stretch. */
 const cascadeBeam = (a, b, c) => cascade(a, b, c, true);
+/** DIRECT (Jones, Perttunen & Stuckman 1993): trisect the cells that lie on the lower-right
+ * convex hull of (cell size, score). No Lipschitz constant is needed; large cells keep
+ * being split (global) while small promising ones are refined (local). Cells whose
+ * centre already wins are set aside as seeds and are not refined further here. */
+function direct(budget) {
+  const cells = [{ c: Array(d).fill(0.5), level: Array(d).fill(0) }];
+  cells[0].f = score(cells[0].c);
+  const seeds = [];
+  let evals = 1;
+  const size = (cell) => 0.5 * Math.hypot(...cell.level.map((l) => 3 ** -l));
+  while (evals < budget) {
+    const open = cells.filter((cell) => cell.f > 0);
+    if (!open.length) break;
+    // Best cell per size class, then the lower-right convex hull (monotone chain).
+    const bySize = new Map();
+    for (const cell of open) {
+      const key = size(cell).toPrecision(9);
+      if (!bySize.has(key) || bySize.get(key).f > cell.f) bySize.set(key, cell);
+    }
+    const pts = [...bySize.values()].sort((a, b) => size(a) - size(b));
+    const fmin = Math.min(...open.map((c) => c.f));
+    const hull = [];
+    for (const p of pts) {
+      while (hull.length >= 2) {
+        const [a, b] = hull.slice(-2);
+        const cross = (size(b) - size(a)) * (p.f - a.f) - (b.f - a.f) * (size(p) - size(a));
+        if (cross <= 0) hull.pop();
+        else break;
+      }
+      hull.push(p);
+    }
+    // Keep hull points from the global minimum to the largest cell (the lower-right part).
+    const start = hull.findIndex((p) => p.f === Math.min(...hull.map((q) => q.f)));
+    const chosen = hull.slice(start).filter((p, i, arr) => {
+      if (i === arr.length - 1) return true;
+      const q = arr[i + 1];
+      const K = (q.f - p.f) / (size(q) - size(p));
+      return p.f - K * size(p) <= fmin - 1e-4 * Math.abs(fmin) || K <= 0;
+    });
+    for (const cell of chosen) {
+      const minLevel = Math.min(...cell.level);
+      const dims = cell.level.map((l, i) => i).filter((i) => cell.level[i] === minLevel);
+      const delta = 3 ** -(minLevel + 1);
+      const probes = dims.map((i) => {
+        const plus = cell.c.slice(), minus = cell.c.slice();
+        plus[i] += delta;
+        minus[i] -= delta;
+        const fp = score(plus), fm = score(minus);
+        evals += 2;
+        return { i, plus, minus, fp, fm, w: Math.min(fp, fm) };
+      }).sort((a, b) => a.w - b.w);
+      for (const pr of probes) {
+        cell.level[pr.i]++;
+        for (const [c, f] of [[pr.plus, pr.fp], [pr.minus, pr.fm]]) {
+          const child = { c, level: cell.level.slice(), f };
+          cells.push(child);
+          if (f === 0) seeds.push(c);
+        }
+      }
+      if (cell.f === 0) seeds.push(cell.c);
+    }
+    if (process.env.DEBUG_DIRECT && cells.length % 200 < 2 * d) console.log('direct cells', cells.length, 'evals', evals, 'fmin', fmin.toFixed(3), 'seeds', seeds.length);
+  }
+  return seeds;
+}
+/** Exhaustive per-phase search: each new command has at most 3 coordinates, so instead of
+ * random local steps we scan time and direction on a grid and solve the magnitude by a
+ * coarse scan plus golden-section refinement (one-dimensional, so it is cheap). Phases
+ * chain through a beam that keeps one plan per time bin. */
+function gridPhases(beamSize, timeBins, angleBins, powerBins) {
+  let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
+  for (let phase = -1; phase < events.length; phase++) {
+    const upto = phase + 1;
+    const coords = params.map((_, i) => i).filter((i) => groups[i] === phase);
+    const ti = coords.find((i) => params[i].key.endsWith('.time'));
+    const ai = coords.find((i) => params[i].key.endsWith('.angle'));
+    const pi = coords.find((i) => params[i].key.endsWith('.power'));
+    const pool = [];
+    for (const member of beam) {
+      const times = ti === undefined ? [undefined] : Array.from({ length: timeBins }, (_, k) => (k + 0.5) / timeBins);
+      const angles = ai === undefined ? [undefined] : Array.from({ length: angleBins }, (_, k) => (k + 0.5) / angleBins);
+      for (const t of times)
+        for (const a of angles) {
+          const at = (pw) => {
+            const x = member.u.slice();
+            if (t !== undefined) x[ti] = t;
+            if (a !== undefined) x[ai] = a;
+            if (pi !== undefined) x[pi] = pw;
+            return x;
+          };
+          if (pi === undefined) {
+            const x = at();
+            pool.push({ u: x, f: score(x, upto) });
+            continue;
+          }
+          const scan = Array.from({ length: powerBins }, (_, k) => (k + 0.5) / powerBins).map((pw) => ({ pw, f: score(at(pw), upto) }));
+          let k = scan.reduce((b, s, i) => (s.f < scan[b].f ? i : b), 0);
+          // Golden-section refinement of the magnitude around the best scan point.
+          let lo = Math.max(0, scan[k].pw - 1 / powerBins), hi = Math.min(1, scan[k].pw + 1 / powerBins);
+          let best = scan[k];
+          const g = (Math.sqrt(5) - 1) / 2;
+          let x1 = hi - g * (hi - lo), x2 = lo + g * (hi - lo), f1 = score(at(x1), upto), f2 = score(at(x2), upto);
+          for (let it = 0; it < 10 && best.f > 0; it++) {
+            if (f1 < best.f) best = { pw: x1, f: f1 };
+            if (f2 < best.f) best = { pw: x2, f: f2 };
+            if (f1 <= f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - g * (hi - lo); f1 = score(at(x1), upto); }
+            else { lo = x1; x1 = x2; f1 = f2; x2 = lo + g * (hi - lo); f2 = score(at(x2), upto); }
+          }
+          pool.push({ u: at(best.pw), f: best.f });
+        }
+    }
+    pool.sort((a, b) => a.f - b.f);
+    const seen = new Set();
+    beam = [];
+    for (const m of pool) {
+      if (beam.length >= beamSize) break;
+      const key = ti === undefined ? beam.length : Math.floor(m.u[ti] * timeBins);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      beam.push(m);
+    }
+    if (process.env.DEBUG_CASCADE) console.log('grid phase', phase, beam.map((b) => `${b.f.toFixed(2)}@${ti === undefined ? '-' : valueOf(b.u)[ti].toFixed(1)}`).join(' '), 'flights', flights);
+    if (phase === events.length - 1) {
+      const won = pool.filter((m) => m.f === 0).map((m) => m.u);
+      if (won.length) return won;
+    }
+  }
+  const out = [];
+  for (const m of beam) {
+    const won = newton(m.u);
+    if (won) out.push(won);
+  }
+  return out;
+}
 /** Systematic version: for each new command, sweep its time over the whole remaining
  * window on a grid and fit only its other values at each time. The beam keeps the best
  * plan per time bin, so early and late launch windows both survive to the next phase. */
@@ -529,7 +682,7 @@ let starts = 0,
 const deadline = started + seconds * 1000;
 while (performance.now() < deadline) {
   starts++;
-  const batch = process.argv.includes('--sweep') ? sweep(6, 24, 25) : cascade(4, 3, 40);
+  const batch = process.argv.includes('--grid') ? gridPhases(6, Number(arg('tb', '24')), Number(arg('ab', '24')), Number(arg('pb', '12'))) : process.argv.includes('--direct') ? direct(Number(arg('budget', '3000'))) : process.argv.includes('--sweep') ? sweep(6, 24, 25) : cascade(4, 3, 40);
   for (const found of batch) {
     successes++;
     let home;
@@ -594,6 +747,7 @@ const summary = {
   dims: d,
   seconds: +((performance.now() - started) / 1000).toFixed(0),
   flights,
+  prunedByTimeBudget: pruned,
   starts,
   successes,
   regions: regions.length,

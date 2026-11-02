@@ -7,6 +7,8 @@
 // Usage: node scripts/research/solution-atlas.mjs --order=14 [--seconds=120] [--seed=1]
 import { createServer } from 'vite';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { Worker, isMainThread, parentPort } from 'node:worker_threads';
+import { availableParallelism } from 'node:os';
 
 const arg = (name, fallback) =>
   process.argv.find((a) => a.startsWith('--' + name + '='))?.split('=')[1] ?? fallback;
@@ -35,6 +37,20 @@ const { objectiveGoals } = await server.ssrLoadModule('/src/world/goals.ts');
 const { expressionValue } = await server.ssrLoadModule('/src/world/expressions.ts');
 const { dynamicView } = await server.ssrLoadModule('/src/world/dynamics.ts');
 const { robustnessTracker } = await import('./robustness.mjs');
+const { fastFlight } = await import('./fast-flight.mjs');
+const fastFly = fastFlight({
+  engine: await server.ssrLoadModule('/src/world/engine.ts'),
+  celestial: await server.ssrLoadModule('/src/world/celestial.ts'),
+  goals: await server.ssrLoadModule('/src/world/goals.ts'),
+  native: await server.ssrLoadModule('/src/physics/nonlinear-native.ts'),
+});
+const useFast = !process.argv.includes('--engine-only');
+const goalEvery = Number(
+  process.argv.find((a) => a.startsWith('--goal-every='))?.split('=')[1] ?? '0.05',
+);
+const phaseWindow = Number(
+  process.argv.find((a) => a.startsWith('--phase-window='))?.split('=')[1] ?? 'Infinity',
+);
 const horizon = (stage) => stage.audit.timeLimit ?? stage.rules.maxTime;
 
 const files = await readdir('data/stages');
@@ -92,8 +108,17 @@ const events = [
 const groupOf = (p) =>
   p.key.startsWith('launch') ? -1 : events.findIndex((e) => p.key.startsWith(e.key + '.'));
 const groups = params.map(groupOf);
+const cloneRef = () => ({
+  ...ref,
+  launch: { ...ref.launch },
+  impulses: ref.impulses.map((b) => ({ ...b, vector: { ...b.vector } })),
+  engineCommands: (ref.engineCommands ?? []).map((c) => ({
+    ...c,
+    ...(c.direction ? { direction: { ...c.direction } } : {}),
+  })),
+});
 function planOf(u, round = false, upto = Infinity) {
-  const plan = structuredClone(ref);
+  const plan = cloneRef();
   valueOf(u).forEach((v, i) => {
     const value = round ? Math.round(v / units[i]) * units[i] : v;
     setValue(plan, params[i].key, value);
@@ -125,6 +150,39 @@ function score(u, upto = Infinity) {
   const tracker = robustnessTracker(stage, expressionValue, roots, settled);
   let budgetChecked = false;
   const end = horizon(stage);
+  if (useFast) {
+    // Lean search flight: same physics and goal code, goals checked every 0.05 s.
+    let late = 0;
+    // A partial plan (later commands not yet placed) is only flown long enough to show
+    // what its own last command achieved: the next step's own minimum time plus slack.
+    let stopAt = end;
+    const fast = fastFly(
+      stage,
+      plan,
+      end,
+      (c) => {
+        tracker.step(c);
+        if (upto < events.length && c.run.time >= settled && stopAt === end)
+          stopAt = Math.min(end, c.run.time + phaseWindow + tracker.remaining() * 0.0);
+        if (c.run.time > stopAt) return false;
+        if (budgetCheck && !budgetChecked && c.run.time >= settled) {
+          budgetChecked = true;
+          late = c.run.time + tracker.remaining() - end;
+          if (late > 1e-6) return false;
+        }
+      },
+      goalEvery,
+    );
+    if (fast) {
+      lastResiduals = tracker.residuals();
+      if (fast.status === 'won') return 0;
+      if (late > 1e-6) {
+        pruned++;
+        return 20 + late;
+      }
+      return 1 - tracker.value(fast) + 1e-3;
+    }
+  }
   while ((run.status === 'running' || run.status === 'impact') && run.time < end - 1e-8) {
     const before = { ...run.position },
       previousTime = run.time;
@@ -362,17 +420,24 @@ function direct(budget) {
       const minLevel = Math.min(...cell.level);
       const dims = cell.level.map((l, i) => i).filter((i) => cell.level[i] === minLevel);
       const delta = 3 ** -(minLevel + 1);
-      const probes = dims.map((i) => {
-        const plus = cell.c.slice(), minus = cell.c.slice();
-        plus[i] += delta;
-        minus[i] -= delta;
-        const fp = score(plus), fm = score(minus);
-        evals += 2;
-        return { i, plus, minus, fp, fm, w: Math.min(fp, fm) };
-      }).sort((a, b) => a.w - b.w);
+      const probes = dims
+        .map((i) => {
+          const plus = cell.c.slice(),
+            minus = cell.c.slice();
+          plus[i] += delta;
+          minus[i] -= delta;
+          const fp = score(plus),
+            fm = score(minus);
+          evals += 2;
+          return { i, plus, minus, fp, fm, w: Math.min(fp, fm) };
+        })
+        .sort((a, b) => a.w - b.w);
       for (const pr of probes) {
         cell.level[pr.i]++;
-        for (const [c, f] of [[pr.plus, pr.fp], [pr.minus, pr.fm]]) {
+        for (const [c, f] of [
+          [pr.plus, pr.fp],
+          [pr.minus, pr.fm],
+        ]) {
           const child = { c, level: cell.level.slice(), f };
           cells.push(child);
           if (f === 0) seeds.push(c);
@@ -380,54 +445,391 @@ function direct(budget) {
       }
       if (cell.f === 0) seeds.push(cell.c);
     }
-    if (process.env.DEBUG_DIRECT && cells.length % 200 < 2 * d) console.log('direct cells', cells.length, 'evals', evals, 'fmin', fmin.toFixed(3), 'seeds', seeds.length);
+    if (process.env.DEBUG_DIRECT && cells.length % 200 < 2 * d)
+      console.log(
+        'direct cells',
+        cells.length,
+        'evals',
+        evals,
+        'fmin',
+        fmin.toFixed(3),
+        'seeds',
+        seeds.length,
+      );
   }
   return seeds;
 }
+/** Component map by flood fill on a lattice fitted to the region: along each coordinate
+ * the step is a quarter of the region's local width (found by bisection), so thin and
+ * wide directions get the same number of cells. Every lattice cell centre is flown at
+ * most once (hash map); the fill visits the region's cells plus a one-cell skin. */
+function mapComponent(seed, budget) {
+  const width = params.map((_, i) => {
+    const side = (sign) => {
+      let good = 0,
+        step = 1e-5,
+        bad;
+      while (true) {
+        const v = seed[i] + sign * step;
+        if (v < 0 || v > 1) return sign > 0 ? 1 - seed[i] : seed[i];
+        const u = seed.slice();
+        u[i] = v;
+        if (wins(u)) {
+          good = step;
+          step *= 2;
+        } else {
+          bad = step;
+          break;
+        }
+      }
+      for (let k = 0; k < 10; k++) {
+        const m = (good + bad) / 2;
+        const u = seed.slice();
+        u[i] = seed[i] + sign * m;
+        if (wins(u)) good = m;
+        else bad = m;
+      }
+      return good;
+    };
+    return Math.max(1e-6, side(-1) + side(1));
+  });
+  const step = width.map((w) => w / 4);
+  const key = (k) => k.join(',');
+  const point = (k) => seed.map((v, i) => v + k[i] * step[i]);
+  const seen = new Map();
+  const queue = [Array(d).fill(0)];
+  seen.set(key(queue[0]), true);
+  let head = 0,
+    flown = 0;
+  const inside = [];
+  while (head < queue.length && flown < budget) {
+    const k = queue[head++];
+    const u = point(k);
+    const ok = u.every((v) => v >= 0 && v <= 1) && (flown++, wins(u));
+    seen.set(key(k), ok);
+    if (!ok) continue;
+    inside.push(u);
+    for (let i = 0; i < d; i++)
+      for (const sgn of [-1, 1]) {
+        const n = k.slice();
+        n[i] += sgn;
+        if (!seen.has(key(n))) {
+          seen.set(key(n), null);
+          queue.push(n);
+        }
+      }
+  }
+  return {
+    inside,
+    flown,
+    complete: head >= queue.length,
+    widths: width.map((w, i) => w * (params[i].max - params[i].min)),
+    step,
+  };
+}
+/** Coarse-to-fine per-phase search (branch and bound on a 3-D grid): a coarse grid over
+ * (time, direction, magnitude) of the new command, then only the best cells are split
+ * in two along every axis, level after level. Cost per phase is
+ * O(coarse grid + levels x kept cells x 8) instead of O(full grid). */
+function hierPhases(beamSize, base, keep, levels) {
+  let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
+  for (let phase = -1; phase < events.length; phase++) {
+    const upto = phase + 1;
+    const axes = params.map((_, i) => i).filter((i) => groups[i] === phase);
+    const ti = axes.find((i) => params[i].key.endsWith('.time'));
+    const pool = [];
+    for (const member of beam) {
+      // Cells: centre + half-width per axis (unit cube coordinates).
+      let cells = [];
+      const n = axes.map((i) =>
+        params[i].key.endsWith('.power')
+          ? base[2]
+          : params[i].key.endsWith('.angle')
+            ? base[1]
+            : base[0],
+      );
+      const total = n.reduce((a, b) => a * b, 1);
+      for (let k = 0; k < total; k++) {
+        let r = k;
+        const c = axes.map((_, j) => {
+          const idx = r % n[j];
+          r = Math.floor(r / n[j]);
+          return (idx + 0.5) / n[j];
+        });
+        cells.push({ c, h: n.map((m) => 0.5 / m) });
+      }
+      const evalCell = (cell) => {
+        const x = member.u.slice();
+        axes.forEach((i, j) => (x[i] = cell.c[j]));
+        cell.u = x;
+        cell.f = score(x, upto);
+        return cell;
+      };
+      cells.forEach(evalCell);
+      for (let level = 0; level < levels; level++) {
+        cells.sort((a, b) => a.f - b.f);
+        if (cells[0].f === 0 && phase === events.length - 1) break;
+        const chosen = [],
+          seen = new Set();
+        for (const cell of cells) {
+          if (chosen.length >= keep) break;
+          const key = ti === undefined ? chosen.length : Math.floor(cell.u[ti] * 12);
+          if (seen.has(key) && chosen.length >= keep / 2) continue;
+          seen.add(key);
+          chosen.push(cell);
+        }
+        const children = [];
+        for (const cell of chosen) {
+          const half = cell.h.map((v) => v / 2);
+          for (let m = 0; m < 2 ** axes.length; m++)
+            children.push(
+              evalCell({
+                c: cell.c.map((v, j) => v + ((m >> j) & 1 ? half[j] : -half[j])),
+                h: half,
+              }),
+            );
+        }
+        cells = [...chosen, ...children];
+      }
+      pool.push(...cells);
+    }
+    pool.sort((a, b) => a.f - b.f);
+    const seen = new Set();
+    beam = [];
+    for (const m of pool) {
+      if (beam.length >= beamSize) break;
+      const key = ti === undefined ? beam.length : Math.floor(m.u[ti] * 12);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      beam.push(m);
+    }
+    if (process.env.DEBUG_CASCADE)
+      console.log(
+        'hier phase',
+        phase,
+        beam
+          .map((b) => `${b.f.toFixed(2)}@${ti === undefined ? '-' : valueOf(b.u)[ti].toFixed(2)}`)
+          .join(' '),
+        'flights',
+        flights,
+        'sec',
+        ((performance.now() - t0) / 1000).toFixed(0),
+      );
+    if (phase === events.length - 1) {
+      const won = pool.filter((m) => m.f === 0).map((m) => m.u);
+      if (won.length) return won;
+    }
+  }
+  const out = [];
+  for (const m of beam) {
+    const won = newton(m.u, 12);
+    if (won) out.push(won);
+  }
+  return out;
+}
+const t0 = performance.now();
 /** Exhaustive per-phase search: each new command has at most 3 coordinates, so instead of
  * random local steps we scan time and direction on a grid and solve the magnitude by a
  * coarse scan plus golden-section refinement (one-dimensional, so it is cheap). Phases
  * chain through a beam that keeps one plan per time bin. */
+/** One (time, direction) cell of a phase: scan the magnitude, then golden-section it. */
+function cellSearch(memberU, t, a, ti, ai, pi, upto, powerBins) {
+  const at = (pw) => {
+    const x = memberU.slice();
+    if (t !== undefined) x[ti] = t;
+    if (a !== undefined) x[ai] = a;
+    if (pi !== undefined) x[pi] = pw;
+    return x;
+  };
+  if (pi === undefined) {
+    const x = at();
+    return { u: x, f: score(x, upto) };
+  }
+  const scan = Array.from({ length: powerBins }, (_, k) => (k + 0.5) / powerBins).map((pw) => ({
+    pw,
+    f: score(at(pw), upto),
+  }));
+  const k = scan.reduce((b, s, i) => (s.f < scan[b].f ? i : b), 0);
+  let lo = Math.max(0, scan[k].pw - 1 / powerBins),
+    hi = Math.min(1, scan[k].pw + 1 / powerBins);
+  let best = scan[k];
+  const g = (Math.sqrt(5) - 1) / 2;
+  let x1 = hi - g * (hi - lo),
+    x2 = lo + g * (hi - lo),
+    f1 = score(at(x1), upto),
+    f2 = score(at(x2), upto);
+  for (let it = 0; it < goldenSteps && best.f > 0; it++) {
+    if (f1 < best.f) best = { pw: x1, f: f1 };
+    if (f2 < best.f) best = { pw: x2, f: f2 };
+    if (f1 <= f2) {
+      hi = x2;
+      x2 = x1;
+      f2 = f1;
+      x1 = hi - g * (hi - lo);
+      f1 = score(at(x1), upto);
+    } else {
+      lo = x1;
+      x1 = x2;
+      f1 = f2;
+      x2 = lo + g * (hi - lo);
+      f2 = score(at(x2), upto);
+    }
+  }
+  return { u: at(best.pw), f: best.f };
+}
+/** The same phase search with cells spread over worker threads (one engine each). */
+async function gridPhasesParallel(workers, beamSize, timeBins, angleBins, powerBins) {
+  let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
+  let nextId = 0;
+  const waiting = new Map();
+  for (const w of workers)
+    w.on('message', (m) => {
+      flights += m.flights;
+      pruned += m.pruned;
+      waiting.get(m.id)(m);
+      waiting.delete(m.id);
+    });
+  const idle = [...workers];
+  const queue = [];
+  const run = (task) =>
+    new Promise((resolve) => {
+      const id = nextId++;
+      waiting.set(id, (m) => {
+        idle.push(m.worker === undefined ? workers[m.wi] : workers[m.wi]);
+        resolve(m);
+        if (queue.length) queue.shift()();
+      });
+      const send = () => {
+        const wi = workers.indexOf(idle.shift());
+        workers[wi].postMessage({ ...task, id, wi });
+      };
+      if (idle.length) send();
+      else queue.push(send);
+    });
+  for (let phase = -1; phase < events.length; phase++) {
+    const upto = phase + 1;
+    const coords = params.map((_, i) => i).filter((i) => groups[i] === phase);
+    if (!coords.length) continue;
+    const ti = coords.find((i) => params[i].key.endsWith('.time'));
+    const ai = coords.find((i) => params[i].key.endsWith('.angle'));
+    const pi = coords.find((i) => params[i].key.endsWith('.power'));
+    const tasks = [];
+    for (const member of beam) {
+      const times =
+        ti === undefined
+          ? [undefined]
+          : Array.from({ length: timeBins }, (_, k) => (k + 0.5) / timeBins);
+      const angles =
+        ai === undefined
+          ? [undefined]
+          : Array.from({ length: angleBins }, (_, k) => (k + 0.5) / angleBins);
+      for (const t of times)
+        for (const a of angles)
+          tasks.push({ memberU: member.u, t, a, ti, ai, pi, upto, powerBins });
+    }
+    const pool = await Promise.all(tasks.map(run));
+    pool.sort((a, b) => a.f - b.f);
+    // Polish the best cells jointly in direction and magnitude (alternating golden
+    // sections), since a coarse direction grid can sit beside a thin region.
+    if (ai !== undefined && pi !== undefined)
+      for (const m of pool.slice(0, polishTop)) {
+        if (m.f === 0) continue;
+        let x = m.u.slice(),
+          fx = m.f;
+        for (let round = 0; round < 3 && fx > 0; round++)
+          for (const [i, span] of [
+            [ai, 1 / angleBins],
+            [pi, 1 / powerBins / 2],
+          ]) {
+            const line = (v) => {
+              const y = x.slice();
+              y[i] = Math.min(1, Math.max(0, v));
+              return y;
+            };
+            let lo = x[i] - span,
+              hi = x[i] + span;
+            const g = (Math.sqrt(5) - 1) / 2;
+            for (let it = 0; it < 8 && fx > 0; it++) {
+              const a1 = hi - g * (hi - lo),
+                a2 = lo + g * (hi - lo);
+              const f1 = score(line(a1), upto),
+                f2 = score(line(a2), upto);
+              if (f1 < fx) {
+                x = line(a1);
+                fx = f1;
+              }
+              if (f2 < fx) {
+                x = line(a2);
+                fx = f2;
+              }
+              if (f1 <= f2) hi = a2;
+              else lo = a1;
+            }
+            span;
+          }
+        m.u = x;
+        m.f = fx;
+      }
+    pool.sort((a, b) => a.f - b.f);
+    const seen = new Set();
+    beam = [];
+    for (const m of pool) {
+      if (beam.length >= beamSize) break;
+      const key = ti === undefined ? beam.length : Math.floor(m.u[ti] * timeBins);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      beam.push(m);
+    }
+    if (process.env.DEBUG_CASCADE)
+      console.log(
+        'sec',
+        ((performance.now() - t0) / 1000).toFixed(1),
+        'phase',
+        phase,
+        beam
+          .map((b) => `${b.f.toFixed(2)}@${ti === undefined ? '-' : valueOf(b.u)[ti].toFixed(1)}`)
+          .join(' '),
+        'flights',
+        flights,
+      );
+    if (phase === events.length - 1) {
+      const won = pool.filter((m) => m.f === 0).map((m) => m.u);
+      if (won.length) return won;
+    }
+  }
+  const out = [];
+  for (const m of beam) {
+    const won = newton(m.u);
+    if (won) out.push(won);
+  }
+  return out;
+}
+const polishTop = Number(process.argv.find((a) => a.startsWith('--polish='))?.split('=')[1] ?? '8');
+const goldenSteps = Number(
+  process.argv.find((a) => a.startsWith('--golden='))?.split('=')[1] ?? '10',
+);
 function gridPhases(beamSize, timeBins, angleBins, powerBins) {
   let beam = [{ u: Array.from({ length: d }, () => 0.5), f: Infinity }];
   for (let phase = -1; phase < events.length; phase++) {
     const upto = phase + 1;
     const coords = params.map((_, i) => i).filter((i) => groups[i] === phase);
+    if (!coords.length) continue;
     const ti = coords.find((i) => params[i].key.endsWith('.time'));
     const ai = coords.find((i) => params[i].key.endsWith('.angle'));
     const pi = coords.find((i) => params[i].key.endsWith('.power'));
     const pool = [];
     for (const member of beam) {
-      const times = ti === undefined ? [undefined] : Array.from({ length: timeBins }, (_, k) => (k + 0.5) / timeBins);
-      const angles = ai === undefined ? [undefined] : Array.from({ length: angleBins }, (_, k) => (k + 0.5) / angleBins);
+      const times =
+        ti === undefined
+          ? [undefined]
+          : Array.from({ length: timeBins }, (_, k) => (k + 0.5) / timeBins);
+      const angles =
+        ai === undefined
+          ? [undefined]
+          : Array.from({ length: angleBins }, (_, k) => (k + 0.5) / angleBins);
       for (const t of times)
         for (const a of angles) {
-          const at = (pw) => {
-            const x = member.u.slice();
-            if (t !== undefined) x[ti] = t;
-            if (a !== undefined) x[ai] = a;
-            if (pi !== undefined) x[pi] = pw;
-            return x;
-          };
-          if (pi === undefined) {
-            const x = at();
-            pool.push({ u: x, f: score(x, upto) });
-            continue;
-          }
-          const scan = Array.from({ length: powerBins }, (_, k) => (k + 0.5) / powerBins).map((pw) => ({ pw, f: score(at(pw), upto) }));
-          let k = scan.reduce((b, s, i) => (s.f < scan[b].f ? i : b), 0);
-          // Golden-section refinement of the magnitude around the best scan point.
-          let lo = Math.max(0, scan[k].pw - 1 / powerBins), hi = Math.min(1, scan[k].pw + 1 / powerBins);
-          let best = scan[k];
-          const g = (Math.sqrt(5) - 1) / 2;
-          let x1 = hi - g * (hi - lo), x2 = lo + g * (hi - lo), f1 = score(at(x1), upto), f2 = score(at(x2), upto);
-          for (let it = 0; it < 10 && best.f > 0; it++) {
-            if (f1 < best.f) best = { pw: x1, f: f1 };
-            if (f2 < best.f) best = { pw: x2, f: f2 };
-            if (f1 <= f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - g * (hi - lo); f1 = score(at(x1), upto); }
-            else { lo = x1; x1 = x2; f1 = f2; x2 = lo + g * (hi - lo); f2 = score(at(x2), upto); }
-          }
-          pool.push({ u: at(best.pw), f: best.f });
+          pool.push(cellSearch(member.u, t, a, ti, ai, pi, upto, powerBins));
         }
     }
     pool.sort((a, b) => a.f - b.f);
@@ -440,7 +842,18 @@ function gridPhases(beamSize, timeBins, angleBins, powerBins) {
       seen.add(key);
       beam.push(m);
     }
-    if (process.env.DEBUG_CASCADE) console.log('grid phase', phase, beam.map((b) => `${b.f.toFixed(2)}@${ti === undefined ? '-' : valueOf(b.u)[ti].toFixed(1)}`).join(' '), 'flights', flights);
+    if (process.env.DEBUG_CASCADE)
+      console.log(
+        'sec',
+        ((performance.now() - t0) / 1000).toFixed(0),
+        'grid phase',
+        phase,
+        beam
+          .map((b) => `${b.f.toFixed(2)}@${ti === undefined ? '-' : valueOf(b.u)[ti].toFixed(1)}`)
+          .join(' '),
+        'flights',
+        flights,
+      );
     if (phase === events.length - 1) {
       const won = pool.filter((m) => m.f === 0).map((m) => m.u);
       if (won.length) return won;
@@ -675,6 +1088,53 @@ if (process.argv.includes('--line-probe')) {
   await server.close();
   process.exit(0);
 }
+if (!isMainThread) {
+  parentPort.on('message', (m) => {
+    const before = flights,
+      prunedBefore = pruned;
+    const r = cellSearch(m.memberU, m.t, m.a, m.ti, m.ai, m.pi, m.upto, m.powerBins);
+    parentPort.postMessage({
+      id: m.id,
+      wi: m.wi,
+      u: r.u,
+      f: r.f,
+      flights: flights - before,
+      pruned: pruned - prunedBefore,
+    });
+  });
+  await new Promise(() => {});
+}
+if (process.argv.includes('--bench-score')) {
+  const t = performance.now();
+  for (let i = 0; i < 150; i++) score(Array.from({ length: d }, random), i % 2 ? Infinity : 1);
+  console.log('ms per score', ((performance.now() - t) / 150).toFixed(1));
+  await server.close();
+  process.exit(0);
+}
+if (process.argv.includes('--map-reference')) {
+  // Mapping test from a known solution: how many flights to cover its whole region?
+  const u0 = params.map((p) => (p.value - p.min) / (p.max - p.min));
+  const t0 = performance.now();
+  const m = mapComponent(u0, Number(arg('budget', '6000')));
+  const values = m.inside.map(valueOf);
+  console.log(
+    JSON.stringify({
+      order,
+      dims: d,
+      flights,
+      cells: m.inside.length,
+      complete: m.complete,
+      seconds: +((performance.now() - t0) / 1000).toFixed(0),
+      localWidths: params.map((p, i) => `${p.label} ${m.widths[i].toPrecision(3)}`),
+      extent: params.map(
+        (p, k) =>
+          `${p.label} ${Math.min(...values.map((v) => v[k])).toFixed(3)}~${Math.max(...values.map((v) => v[k])).toFixed(3)}`,
+      ),
+    }),
+  );
+  await server.close();
+  process.exit(0);
+}
 const started = performance.now();
 const regions = []; // { samples, hits }
 let starts = 0,
@@ -682,7 +1142,43 @@ let starts = 0,
 const deadline = started + seconds * 1000;
 while (performance.now() < deadline) {
   starts++;
-  const batch = process.argv.includes('--grid') ? gridPhases(6, Number(arg('tb', '24')), Number(arg('ab', '24')), Number(arg('pb', '12'))) : process.argv.includes('--direct') ? direct(Number(arg('budget', '3000'))) : process.argv.includes('--sweep') ? sweep(6, 24, 25) : cascade(4, 3, 40);
+  const beamArg = Number(arg('beam', '6'));
+  const threads = Number(arg('workers', '1'));
+  let workers = [];
+  if (threads > 1 && process.argv.includes('--grid'))
+    workers = Array.from(
+      { length: threads },
+      () => new Worker(new URL(import.meta.url), { argv: process.argv.slice(2) }),
+    );
+  const batch =
+    threads > 1 && process.argv.includes('--grid')
+      ? await gridPhasesParallel(
+          workers,
+          beamArg,
+          Number(arg('tb', '24')),
+          Number(arg('ab', '24')),
+          Number(arg('pb', '12')),
+        )
+      : process.argv.includes('--hier')
+        ? hierPhases(
+            Number(arg('beam', '4')),
+            [Number(arg('tb', '8')), Number(arg('ab', '8')), Number(arg('pb', '8'))],
+            Number(arg('keep', '16')),
+            Number(arg('levels', '4')),
+          )
+        : process.argv.includes('--grid')
+          ? gridPhases(
+              beamArg,
+              Number(arg('tb', '24')),
+              Number(arg('ab', '24')),
+              Number(arg('pb', '12')),
+            )
+          : process.argv.includes('--direct')
+            ? direct(Number(arg('budget', '3000')))
+            : process.argv.includes('--sweep')
+              ? sweep(6, 24, 25)
+              : cascade(4, 3, 40);
+  for (const w of workers) await w.terminate();
   for (const found of batch) {
     successes++;
     let home;

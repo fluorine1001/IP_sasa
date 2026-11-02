@@ -182,7 +182,13 @@ export function robustnessTracker(stage, expressionValue, objectiveIds, settled 
     const out = new Map();
     const visit = (k) => {
       if (k.kind === 'all') return k.children.forEach(visit);
-      if (k.kind === 'compare' && k.left.kind === 'metric' && k.left.metric === 'distance' && ['gte', 'gt'].includes(k.operator) && k.right.kind === 'constant') {
+      if (
+        k.kind === 'compare' &&
+        k.left.kind === 'metric' &&
+        k.left.metric === 'distance' &&
+        ['gte', 'gt'].includes(k.operator) &&
+        k.right.kind === 'constant'
+      ) {
         const t = k.left.targetId === '$target' ? bindings?.targetId : k.left.targetId;
         out.set(t, Math.max(out.get(t) ?? 0, k.right.value));
       }
@@ -196,12 +202,16 @@ export function robustnessTracker(stage, expressionValue, objectiveIds, settled 
         const m = memory.get(path);
         const k = m?.k ?? 0;
         let sum = 0;
-        for (let i = k; i < n.children.length; i++) sum += need(n.children[i], `${path}.${i}`, bindings, radii);
+        for (let i = k; i < n.children.length; i++)
+          sum += need(n.children[i], `${path}.${i}`, bindings, radii);
         return sum;
       }
       case 'hold': {
         const m = memory.get(path);
-        return Math.max(0, n.duration - (m?.held ?? 0)) + 0 * need(n.child, path + '.child', bindings, radii);
+        return (
+          Math.max(0, n.duration - (m?.held ?? 0)) +
+          0 * need(n.child, path + '.child', bindings, radii)
+        );
       }
       case 'all': {
         const r = new Map([...radii, ...lowerRadius(n, bindings)]);
@@ -231,12 +241,19 @@ export function robustnessTracker(stage, expressionValue, objectiveIds, settled 
         // Orbit-turn windows: covering width w of an orbit needs w periods at the band's
         // smallest radius (the fastest possible orbit), minus what is already covered.
         const l = n.left;
-        if (l.kind === 'window' && l.domain?.kind === 'metric' && l.domain.metric === 'orbitTurns' && ['gte', 'gt'].includes(n.operator)) {
+        if (
+          l.kind === 'window' &&
+          l.domain?.kind === 'metric' &&
+          l.domain.metric === 'orbitTurns' &&
+          ['gte', 'gt'].includes(n.operator)
+        ) {
           const t = l.domain.targetId === '$target' ? bindings?.targetId : l.domain.targetId;
           const width = l.width?.kind === 'constant' ? l.width.value : 0;
           const r = raw.get(path);
           const done = r ? Math.max(0, Math.min(1, r.a / Math.max(1e-9, r.b))) : 0;
-          return n.right.kind === 'constant' && n.right.value > 0 ? width * period(t, radii.get(t) ?? 0) * (1 - done) : 0;
+          return n.right.kind === 'constant' && n.right.value > 0
+            ? width * period(t, radii.get(t) ?? 0) * (1 - done)
+            : 0;
         }
         return 0;
       }

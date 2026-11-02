@@ -16,16 +16,20 @@ export function planSpace({ stage, ref, engine, celestial, launchMod }) {
   const pad = launchMod.surfaceLaunch(stage);
   // Coordinates (all in [0, 1] after scaling).
   const coords = [];
-  if (stage.rules.launchLimit > 0) coords.push({ key: 'launch.power', min: 0, max: stage.rules.launchLimit });
-  if (!stage.rocket && stage.rules.launchLimit > 0) coords.push({ key: 'launch.angle', min: -180, max: 180 });
+  if (stage.rules.launchLimit > 0)
+    coords.push({ key: 'launch.power', min: 0, max: stage.rules.launchLimit });
+  if (!stage.rocket && stage.rules.launchLimit > 0)
+    coords.push({ key: 'launch.angle', min: -180, max: 180 });
   words.forEach((w, k) => {
     coords.push({ key: `e${k}.gap`, min: 0, max: span });
     const c = w.value;
     if (w.kind === 'push') {
       coords.push({ key: `e${k}.power`, min: 0, max: stage.rules.maneuverBudget });
       coords.push({ key: `e${k}.angle`, min: -180, max: 180 });
-    } else if (c.throttle !== undefined && c.throttle > 0) coords.push({ key: `e${k}.power`, min: 0, max: 1 });
-    else if (c.direction && c.throttle === undefined) coords.push({ key: `e${k}.angle`, min: -180, max: 180 });
+    } else if (c.throttle !== undefined && c.throttle > 0)
+      coords.push({ key: `e${k}.power`, min: 0, max: 1 });
+    else if (c.direction && c.throttle === undefined)
+      coords.push({ key: `e${k}.angle`, min: -180, max: 180 });
   });
   const index = new Map(coords.map((c, i) => [c.key, i]));
   const value = (u, key) => {
@@ -35,7 +39,8 @@ export function planSpace({ stage, ref, engine, celestial, launchMod }) {
   };
   /** Velocity direction relative to the body pulling hardest on the craft. */
   function frame(run) {
-    let best, pull = -1;
+    let best,
+      pull = -1;
     for (const b of stage.bodies) {
       if (b.kind === 'barycenter' || !b.mu) continue;
       const p = bodyPosition(stage, b, run.time);
@@ -60,7 +65,9 @@ export function planSpace({ stage, ref, engine, celestial, launchMod }) {
     const plan = base();
     const power = value(u, 'launch.power');
     const launchAngle = index.has('launch.angle')
-      ? ((pad ? Math.atan2(pad.normal.y, pad.normal.x) : (stage.launchAngle ?? 0)) * 180) / Math.PI + value(u, 'launch.angle')
+      ? ((pad ? Math.atan2(pad.normal.y, pad.normal.x) : (stage.launchAngle ?? 0)) * 180) /
+          Math.PI +
+        value(u, 'launch.angle')
       : ((stage.launchAngle ?? 0) * 180) / Math.PI;
     const a = (launchAngle * Math.PI) / 180;
     plan.launch = { x: Math.cos(a) * power, y: Math.sin(a) * power };
@@ -89,7 +96,10 @@ export function planSpace({ stage, ref, engine, celestial, launchMod }) {
       }
       run.plan = structuredClone(plan); // the engine re-indexes a new plan object
     }
-    while ((run.status === 'running' || run.status === 'impact') && run.time < Math.min(horizon, stopAt) - 1e-8)
+    while (
+      (run.status === 'running' || run.status === 'impact') &&
+      run.time < Math.min(horizon, stopAt) - 1e-8
+    )
       tick(run, stage, Math.min(0.1, Math.min(horizon, stopAt) - run.time), stage.objects, false);
     return { run, plan };
   }

@@ -3,7 +3,12 @@
 import { createServer } from 'vite';
 import { readFile, readdir } from 'node:fs/promises';
 import { planSpace } from './plan-space.mjs';
-const server = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false, ws: false, watch: null }, appType: 'custom', logLevel: 'error' });
+const server = await createServer({
+  configFile: false,
+  server: { middlewareMode: true, hmr: false, ws: false, watch: null },
+  appType: 'custom',
+  logLevel: 'error',
+});
 const engine = await server.ssrLoadModule('/src/world/engine.ts');
 const celestial = await server.ssrLoadModule('/src/world/celestial.ts');
 const launchMod = await server.ssrLoadModule('/src/world/launch.ts');
@@ -21,20 +26,45 @@ for (const f of await readdir('data/stages')) {
   for (const [i, c] of space.coords.entries()) {
     const span = c.max - c.min;
     const side = (sign) => {
-      let good = 0, step = 1e-6, bad;
+      let good = 0,
+        step = 1e-6,
+        bad;
       while (true) {
         const v = u0[i] + sign * step;
         if (v < 0 || v > 1) return { w: sign > 0 ? 1 - u0[i] : u0[i], open: true };
-        const u = u0.slice(); u[i] = v;
-        if (won(u)) { good = step; step *= 2; } else { bad = step; break; }
+        const u = u0.slice();
+        u[i] = v;
+        if (won(u)) {
+          good = step;
+          step *= 2;
+        } else {
+          bad = step;
+          break;
+        }
       }
-      for (let k = 0; k < 16 && bad - good > 1e-7; k++) { const m = (good + bad) / 2; const u = u0.slice(); u[i] = u0[i] + sign * m; if (won(u)) good = m; else bad = m; }
+      for (let k = 0; k < 16 && bad - good > 1e-7; k++) {
+        const m = (good + bad) / 2;
+        const u = u0.slice();
+        u[i] = u0[i] + sign * m;
+        if (won(u)) good = m;
+        else bad = m;
+      }
       return { w: good };
     };
-    const lo = side(-1), hi = side(1);
+    const lo = side(-1),
+      hi = side(1);
     const unit = c.key.endsWith('gap') ? 0.01 : c.key.endsWith('angle') ? 1 : 0.01;
-    rows.push(`${c.key} ${(((lo.w + hi.w) * span) / unit).toPrecision(3)}${lo.open || hi.open ? '(끝)' : ''}`);
+    rows.push(
+      `${c.key} ${(((lo.w + hi.w) * span) / unit).toPrecision(3)}${lo.open || hi.open ? '(끝)' : ''}`,
+    );
   }
-  console.log(JSON.stringify({ order: stage.order, title: stage.title, referenceWinsInNewCoords: check, widthsInPlayerUnits: rows }));
+  console.log(
+    JSON.stringify({
+      order: stage.order,
+      title: stage.title,
+      referenceWinsInNewCoords: check,
+      widthsInPlayerUnits: rows,
+    }),
+  );
 }
 await server.close();

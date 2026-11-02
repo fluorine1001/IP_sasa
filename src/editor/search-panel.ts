@@ -10,6 +10,7 @@ import {
 } from './solution-search';
 import type { Stage, RoutePlan, Run } from '../world/types';
 import SearchWorker from './search.worker?worker&inline';
+import AtlasWorker from './atlas/atlas.worker?worker&inline';
 import BlockerWorker from './blockers.worker?worker&inline';
 import { SearchClient } from './search-client';
 import { inverseStatus } from './inverse-status';
@@ -48,7 +49,7 @@ export function solutionSearchPanel(
   function form() {
     renderedIssues = '';
     const audit = root.querySelector<HTMLElement>('#audit');
-    panel.innerHTML = `<div class="search-config"><header><b>풀이 탐색</b><button id="search-run">탐색</button><button id="search-stop">중지</button></header><label><input id="search-auto" type="checkbox" ${enabled ? 'checked' : ''}> 변경 후 자동</label>
+    panel.innerHTML = `<div class="search-config"><header><b>풀이 탐색</b><button id="search-run">탐색</button><button id="search-fast" title="실제 비행을 빠르게 반복해 해를 찾는 실험 기능입니다. 보여 주는 해는 모두 실제 엔진으로 다시 비행해 확인한 것입니다.">빠른 탐색 (실험)</button><button id="search-stop">중지</button></header><label><input id="search-auto" type="checkbox" ${enabled ? 'checked' : ''}> 변경 후 자동</label>
       <details class="search-options"><summary>탐색 범위·예산</summary><label><input id="search-continuous" type="checkbox" ${continuous ? 'checked' : ''}> 중지할 때까지 계속 역산</label>
       <select id="search-layout" aria-label="조사할 예약 구성"><option value="all" ${selected === 'all' ? 'selected' : ''}>모든 허용 조작</option>${templates.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${escape(item.label)} · 범위 조사</option>`).join('')}</select>
       <label>묶음당 관계 연산량<input id="search-budget" type="number" min="16" max="8192" value="${budgetValue}"></label><label>예약 개수 상한<input id="search-depth" type="number" min="0" max="256" value="${maxCommands ?? ''}" placeholder="스테이지 한도 사용"></label><details><summary>변수 범위·고정</summary><div id="search-parameters"></div></details></details><button id="search-continue" hidden>더 조사</button></div>
@@ -171,7 +172,7 @@ export function solutionSearchPanel(
     chosenFamily = -1;
     rendered = '';
   }
-  function run() {
+  function run(fast = false) {
     invalidate();
     const errors = issues(getStage());
     if (errors.length) {
@@ -183,28 +184,35 @@ export function solutionSearchPanel(
     if (!choice) return;
     const budget = Number(panel.querySelector<HTMLInputElement>('#search-budget')!.value);
     panel.querySelector('#search-run')!.textContent = '탐색';
-    worker = new SearchClient(() => new SearchWorker({ name: 'solution-search' }), {
-      result: (report) => {
-        if (current !== revision) return;
-        result = report;
-        playback.setFamilies(result.families);
-        show();
+    worker = new SearchClient(
+      () =>
+        fast
+          ? new AtlasWorker({ name: 'fast-solution-search' })
+          : new SearchWorker({ name: 'solution-search' }),
+      {
+        result: (report) => {
+          if (current !== revision) return;
+          result = report;
+          playback.setFamilies(result.families);
+          show();
+        },
+        recovering: () => {
+          if (current === revision)
+            panel.querySelector('#search-status')!.textContent = '탐색 연결 복구 중…';
+        },
+        fault: (fault) => {
+          if (current !== revision) return;
+          paused = true;
+          show();
+          panel.querySelector('#search-status')!.textContent =
+            `탐색 중단 · ${result?.families.length ? '찾은 결과는 보존했습니다. ' : ''}${fault.message}`;
+          panel.querySelector('#search-run')!.textContent = '다시 탐색';
+        },
       },
-      recovering: () => {
-        if (current === revision)
-          panel.querySelector('#search-status')!.textContent = '탐색 연결 복구 중…';
-      },
-      fault: (fault) => {
-        if (current !== revision) return;
-        paused = true;
-        show();
-        panel.querySelector('#search-status')!.textContent =
-          `탐색 중단 · ${result?.families.length ? '찾은 결과는 보존했습니다. ' : ''}${fault.message}`;
-        panel.querySelector('#search-run')!.textContent = '다시 탐색';
-      },
-    });
+    );
     worker.start({
       revision: current,
+      ...(fast ? { seconds: 60 } : {}),
       stage: structuredClone(getStage()),
       templates: structuredClone(selected === 'all' ? templates : [choice]),
       budget,
@@ -235,6 +243,7 @@ export function solutionSearchPanel(
     form();
     const ready = !issues(getStage()).length;
     panel.querySelector<HTMLButtonElement>('#search-run')!.disabled = !ready;
+    panel.querySelector<HTMLButtonElement>('#search-fast')!.disabled = !ready;
     if (!ready)
       panel.querySelector('#search-status')!.textContent =
         '기체와 판정을 배치하면 탐색할 수 있습니다.';
@@ -293,6 +302,7 @@ export function solutionSearchPanel(
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
       if (!button) return;
       if (button.id === 'search-run') run();
+      if (button.id === 'search-fast') run(true);
       if (button.id === 'search-continue' && result && worker) {
         worker.postMessage({
           revision,

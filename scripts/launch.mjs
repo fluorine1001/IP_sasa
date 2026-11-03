@@ -134,13 +134,14 @@ function open(target) {
 }
 
 export const MIN_NODE = 24;
-const MODES = ['app', 'play', 'dev', 'editor', 'share', 'doctor'];
+const MODES = ['app', 'play', 'dev', 'editor', 'editor-browser', 'share', 'doctor'];
 const USAGE =
   '사용법: node scripts/launch.mjs <app|play|dev|editor|share|doctor> [--no-open]\n' +
   '  app     아폴로 앱을 엽니다 (게임 + 메뉴의 스테이지 제작소).\n' +
   '  play    한 파일짜리 게임(dist/play.html)을 브라우저로 엽니다.\n' +
   '  dev     코드를 고치면 바로 반영되는 개발 서버로 게임을 엽니다.\n' +
-  '  editor  스테이지 제작소를 엽니다. 창을 닫지 마세요.\n' +
+  '  editor  이 폴더의 스테이지 제작소를 앱 창으로 엽니다 (편집 키 없이, 이 컴퓨터에 저장).\n' +
+  '  editor-browser  같은 제작소를 브라우저로 엽니다. 이 창을 닫지 마세요.\n' +
   '  share   편집 키가 있는 공유 제작소 서버를 시작합니다.\n' +
   '  doctor  실행 환경을 점검합니다.';
 
@@ -226,6 +227,8 @@ async function desktopShortcut(mode) {
     '$s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); ' +
     `$s.TargetPath = ${psQuote(path.join(root, (mode === 'app' ? 'play' : mode) + '.cmd'))}; ` +
     `$s.WorkingDirectory = ${psQuote(root)}; ` +
+    // Minimised: the launcher console only flashes while it starts the app window.
+    '$s.WindowStyle = 7; ' +
     '$s.Save(); Write-Output created }';
   await new Promise((resolve) =>
     execFile(
@@ -262,6 +265,12 @@ async function desktopApp(noOpen) {
     await writeFile(stamp, JSON.stringify({ inputs }));
   } else console.log('바뀐 파일이 없어 준비된 화면을 씁니다.');
   if (noOpen) return;
+  await openApp([]);
+  console.log('아폴로를 열었습니다.');
+}
+
+/** Starts the Electron app detached, so it outlives this console window. */
+async function openApp(args) {
   const require = createRequire(import.meta.url);
   let electron;
   try {
@@ -273,15 +282,24 @@ async function desktopApp(noOpen) {
     delete require.cache[require.resolve('electron')];
     electron = require('electron');
   }
-  // The window outlives this console: closing the launcher window does not close the game.
-  const child = spawn(electron, [root], {
+  const child = spawn(electron, [root, ...args], {
     cwd: root,
     detached: true,
     stdio: 'ignore',
     windowsHide: false,
   });
   child.unref();
-  console.log('아폴로를 열었습니다.');
+}
+
+/**
+ * The stage workshop of THIS folder in its own app window: the app starts the
+ * project's dev server itself and stops it when the window closes, so there is no
+ * console to keep open and no editor key (saves go to data/stages here).
+ */
+async function localWorkshop(noOpen) {
+  if (noOpen) return;
+  await openApp(['--local-workshop']);
+  console.log('아폴로 제작소를 열었습니다. 이 창은 닫아도 됩니다.');
 }
 
 async function launch(mode, noOpen) {
@@ -292,6 +310,7 @@ async function launch(mode, noOpen) {
   await dependencies();
   if (!noOpen) await desktopShortcut(mode);
   if (mode === 'app') return desktopApp(noOpen);
+  if (mode === 'editor') return localWorkshop(noOpen);
   if (mode === 'play') {
     const { buildOffline } = await import('./build-offline.mjs');
     const file = await cachedOffline(root, buildOffline);
@@ -303,7 +322,7 @@ async function launch(mode, noOpen) {
     await run(process.execPath, [path.join(root, 'scripts/serve-workshop.mjs'), '--lan']);
     return;
   }
-  await devServer(mode, noOpen);
+  await devServer(mode === 'editor-browser' ? 'editor' : mode, noOpen);
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {

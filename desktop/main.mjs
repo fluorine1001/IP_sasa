@@ -4,8 +4,9 @@
 // server whenever there is a connection, through Chromium's own network stack,
 // so it follows the computer's proxy/PAC settings, VPN routes and installed
 // certificates (school and company networks included).
-import { app, BrowserWindow, Menu, net, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, Menu, net, protocol, session, shell } from 'electron';
 import { readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allowServer, contentType, insideRoot, serverConfigUrl } from './serve.mjs';
@@ -13,11 +14,23 @@ import { allowServer, contentType, insideRoot, serverConfigUrl } from './serve.m
 const here = path.dirname(fileURLToPath(import.meta.url));
 const content = path.join(here, '..', 'dist-workshop');
 const ORIGIN = 'app://apollo';
+// `--local-workshop`: open the stage workshop straight from this project folder (the
+// files you edit), served by a local Vite server inside the app. No console window to
+// keep open and no editor key: saves go to data/stages on this computer. Closing the
+// window stops the server. Only in a project checkout (the installed app has no Vite).
+const LOCAL = process.argv.includes('--local-workshop');
+const projectRoot = path.join(here, '..');
+let localServer;
+let localOrigin = '';
 
 // Saves (progress, settings, workshop drafts) live in the app's own profile folder,
 // e.g. %APPDATA%\Apollo on Windows. The name stays fixed so updates keep the saves.
 app.setName('아폴로');
-app.setPath('userData', path.join(app.getPath('appData'), 'Apollo'));
+// The local workshop keeps its own profile, so it can run next to the game app.
+app.setPath(
+  'userData',
+  path.join(app.getPath('appData'), LOCAL ? 'Apollo Local Workshop' : 'Apollo'),
+);
 // UDP/QUIC is often blocked or mangled on school and office networks; plain HTTPS is reliable.
 app.commandLine.appendSwitch('disable-quic');
 protocol.registerSchemesAsPrivileged([
@@ -122,6 +135,7 @@ function connectWorkshop() {
 }
 
 function open(page = '/') {
+  const origin = LOCAL ? localOrigin : ORIGIN;
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -133,18 +147,19 @@ function open(page = '/') {
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, sandbox: true, spellcheck: false },
   });
-  window.loadURL(ORIGIN + page);
+  window.loadURL(origin + page);
   // Other sites open in the normal browser; the app never navigates away from itself.
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith(ORIGIN)) {
-      open(new URL(url).pathname);
+    if (url.startsWith(origin)) {
+      const next = new URL(url);
+      open(next.pathname + next.search);
       return { action: 'deny' };
     }
     if (/^https?:/.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
   window.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(ORIGIN)) {
+    if (!url.startsWith(origin)) {
       event.preventDefault();
       if (/^https?:/.test(url)) void shell.openExternal(url);
     }
@@ -161,7 +176,7 @@ function menu() {
         {
           label: '스테이지 제작소 열기',
           accelerator: 'CmdOrCtrl+E',
-          click: () => open('/editor.html'),
+          click: () => open(LOCAL ? '/editor.html?local' : '/editor.html'),
         },
         { type: 'separator' },
         { label: '끝내기', role: 'quit' },
@@ -191,8 +206,41 @@ app.on('second-instance', () => {
   } else open('/');
 });
 app.on('window-all-closed', () => app.quit());
+app.on('will-quit', () => void localServer?.close());
+
+/** The project's own dev server, started inside the app (see LOCAL above). */
+async function startLocalWorkshop() {
+  process.env.VITE_CONFIG_NATIVE_IGNORE_WARNING ??= 'true';
+  const vite = await import(
+    pathToFileURL(path.join(projectRoot, 'node_modules/vite/dist/node/index.js')).href
+  );
+  localServer = await vite.createServer({
+    root: projectRoot,
+    configFile: path.join(projectRoot, 'vite.config.ts'),
+    server: { host: '127.0.0.1', port: 5173, strictPort: false },
+    logLevel: 'warn',
+  });
+  await localServer.listen();
+  localOrigin = localServer.resolvedUrls.local[0].replace(/\/$/, '');
+}
 
 app.whenReady().then(async () => {
+  if (LOCAL) {
+    try {
+      await startLocalWorkshop();
+    } catch (error) {
+      dialog.showErrorBox(
+        '아폴로 제작소',
+        '로컬 제작소를 시작하지 못했습니다. 프로젝트 폴더의 editor.cmd로 다시 실행하세요.\n\n' +
+          (error?.message ?? error),
+      );
+      app.quit();
+      return;
+    }
+    menu();
+    open('/editor.html?local');
+    return;
+  }
   await loadServer();
   serveContent();
   connectWorkshop();

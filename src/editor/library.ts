@@ -14,7 +14,10 @@ export function stageLibrary(
   message: (text: string) => void,
   workspace: { current: () => Stage; documents: StageDocuments; rename: (title: string) => void },
 ) {
-  let base = readSaved<string>('orbit-stage-server-v1', serverConfig.url),
+  // Opened as the local workshop (editor.html?local): files on this computer first.
+  // The saved choice is kept and still selectable; it is just not the starting point.
+  const localWorkshop = new URLSearchParams(location.search).has('local');
+  let base = localWorkshop ? '' : readSaved<string>('orbit-stage-server-v1', serverConfig.url),
     key = editorCredentials.key,
     entries: Entry[] = [];
   let source: 'server' | 'local' | 'trash' = 'server',

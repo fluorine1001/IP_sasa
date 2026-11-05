@@ -13,6 +13,8 @@ export type SearchRequest = {
   continuous?: boolean;
   pause?: boolean;
   ack?: boolean;
+  /** Fast (experimental) search only: wall-clock budget in seconds. */
+  seconds?: number;
 };
 export type SearchFault = {
   phase: 'startup' | 'runtime' | 'message' | 'input';

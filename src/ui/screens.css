@@ -254,3 +254,52 @@ dialog.credits ul {
   font-weight: var(--fw-medium);
   color: var(--n-800);
 }
+
+/* ---------- Campaign ---------- */
+body.game-ui .chapter-question::before {
+  content: none;
+}
+.medal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  color: var(--c-text-dim);
+}
+.medal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+body.game-ui .stage-card {
+  position: relative;
+}
+body.game-ui .stage-card.recommended {
+  outline: 3px solid var(--c-accent);
+  outline-offset: 3px;
+}
+.stage-next {
+  position: absolute;
+  top: -12px;
+  right: var(--sp-3);
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  color: var(--c-on-accent);
+  background: var(--c-accent);
+  border: var(--stroke-thin) solid var(--c-line);
+  border-radius: var(--r-sm);
+}
+.stage-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+.stage-tags .tag {
+  padding: 1px var(--sp-2);
+  font-size: var(--fs-1);
+  color: var(--c-doc-dim);
+  border: 1px solid color-mix(in srgb, var(--p-900) 30%, transparent);
+  border-radius: var(--r-pill);
+}

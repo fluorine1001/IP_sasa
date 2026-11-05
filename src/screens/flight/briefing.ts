@@ -1,0 +1,161 @@
+/* Mission briefing: everything a player needs before the first launch, on one sheet.
+ * Goals in plain words, how medals are earned, the given physical data for every body
+ * and stage of the craft, and the controls this mission allows. Numbers derive from the
+ * stage itself; bodies whose gravity is hidden stay hidden (measuring them is the puzzle). */
+import { escape, readSaved, writeSaved } from '../../app/core';
+import type { Stage } from '../../world/types';
+import { bodyFacts } from '../../world/conic';
+import { bodyPosition, bodyVelocity } from '../../world/celestial';
+import { commandNames, type CommandKind } from '../../world/program';
+import { missionGoalsHtml } from './goal-guide';
+import { controlIcon } from './controls';
+
+const f = (n: number, digits = 2) =>
+  !Number.isFinite(n)
+    ? '—'
+    : Math.abs(n) >= 100
+      ? n.toFixed(0)
+      : Math.abs(n) >= 10
+        ? n.toFixed(1)
+        : n.toFixed(digits);
+
+/** Per-stage numbers of the rocket: what each stage can do on its own. */
+export function stageTable(stage: Stage) {
+  const r = stage.rocket;
+  if (!r) return [];
+  const payload = r.payloadMass + (r.payloads ?? []).reduce((m, p) => m + p.mass, 0);
+  return r.parts.map((p, i) => {
+    const above = r.parts.slice(i + 1).reduce((m, q) => m + q.dryMass + q.fuelMass, 0) + payload;
+    const m0 = p.dryMass + p.fuelMass + above;
+    const m1 = p.dryMass + above;
+    const flow = p.thrust / Math.max(1e-9, p.exhaustSpeed);
+    return {
+      name: p.name,
+      mass: m0,
+      thrust: p.thrust,
+      burn: p.fuelMass / Math.max(1e-9, flow),
+      deltaV: p.exhaustSpeed * Math.log(m0 / m1),
+      ignitions: p.ignitionLimit,
+      accel: p.thrust / m0,
+    };
+  });
+}
+
+function bodiesHtml(stage: Stage) {
+  const rows = stage.bodies
+    .filter((b) => b.kind !== 'barycenter')
+    .map((b) => {
+      const facts = bodyFacts(b);
+      const hidden = b.hiddenGravity;
+      let motion = '고정';
+      if (b.motion) {
+        const parent = stage.bodies.find((p) => p.id === b.motion!.parentId);
+        const rel = parent
+          ? Math.hypot(
+              bodyVelocity(stage, b, 0).x - bodyVelocity(stage, parent, 0).x,
+              bodyVelocity(stage, b, 0).y - bodyVelocity(stage, parent, 0).y,
+            )
+          : 0;
+        motion =
+          rel > 1e-9
+            ? `${escape(parent?.name ?? '')} 둘레 ${f((2 * Math.PI * b.motion.radius) / rel, 1)}초에 한 바퀴`
+            : '고정';
+      } else if (b.dynamic) motion = '서로 끌어당기며 움직임';
+      const air =
+        b.atmosphere && b.atmosphere.density > 0 ? `높이 ${f(b.atmosphere.height)} u` : '없음';
+      const q = (v: number) => (hidden ? '<span class="dim">관측 필요</span>' : f(v, 3));
+      return `<tr><th scope="row"><i class="swatch" style="--swatch:${escape(b.color)}"></i>${escape(b.name)}</th><td class="num">${f(b.radius)}</td><td class="num">${q(facts.surfaceGravity)}</td><td class="num">${q(facts.surfaceOrbitSpeed)}</td><td class="num">${q(facts.escapeSpeed)}</td><td>${air}</td><td>${motion}</td></tr>`;
+    });
+  return `<table class="ui-table briefing-table"><thead><tr><th>천체</th><th class="num">반지름 u</th><th class="num">표면 중력 u/s²</th><th class="num">표면 원궤도 속력 u/s</th><th class="num">탈출 속력 u/s</th><th>대기</th><th>움직임</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function craftHtml(stage: Stage) {
+  if (!stage.rocket) {
+    const launchBody = stage.bodies.find((b) => b.id === stage.launchBodyId);
+    const start = stage.spawn.position;
+    const alt = launchBody
+      ? Math.hypot(
+          start.x - bodyPosition(stage, launchBody, 0).x,
+          start.y - bodyPosition(stage, launchBody, 0).y,
+        ) - launchBody.radius
+      : undefined;
+    return `<div class="briefing-stats">${[
+      stage.rules.launchLimit > 0
+        ? ['발사 추진 최대', f(stage.rules.launchLimit, 3), 'u/s']
+        : undefined,
+      stage.rules.maneuverBudget > 0
+        ? ['수정 추진 총량', f(stage.rules.maneuverBudget, 3), 'u/s']
+        : undefined,
+      alt !== undefined ? ['출발 고도', f(Math.max(0, alt)), 'u'] : undefined,
+      ['시작 속력', f(Math.hypot(stage.spawn.velocity.x, stage.spawn.velocity.y), 3), 'u/s'],
+    ]
+      .filter((x): x is string[] => !!x)
+      .map(
+        ([l, v, u]) => `<div class="ui-stat"><span>${l}</span><b>${v}<small>${u}</small></b></div>`,
+      )
+      .join(
+        '',
+      )}</div><p class="dim">냉가스 추진은 한 순간에 속도를 바꿉니다. 추진의 세기는 그 순간 더해지는 속력입니다.</p>`;
+  }
+  const rows = stageTable(stage);
+  const launchBody = stage.bodies.find((b) => b.id === stage.launchBodyId) ?? stage.bodies[0];
+  const g =
+    launchBody && !launchBody.hiddenGravity ? bodyFacts(launchBody).surfaceGravity : undefined;
+  const total = rows.reduce((s, r) => s + r.deltaV, 0);
+  return `<table class="ui-table briefing-table"><thead><tr><th>단</th><th class="num">점화 시 질량</th><th class="num">최대 추력</th><th class="num">최대 출력 연소</th><th class="num">속력 변화 Δv</th><th class="num">점화 횟수</th>${g ? '<th class="num">추력 대 무게</th>' : ''}</tr></thead><tbody>${rows
+    .map(
+      (r, i) =>
+        `<tr><th scope="row"><i class="swatch stage-${i + 1}"></i>${escape(r.name)}</th><td class="num">${f(r.mass)}</td><td class="num">${f(r.thrust, 3)}</td><td class="num">${f(r.burn, 1)} 초</td><td class="num">${f(r.deltaV, 3)} u/s</td><td class="num">${r.ignitions}회</td>${g ? `<td class="num">${f(r.accel / g, 2)}배</td>` : ''}</tr>`,
+    )
+    .join(
+      '',
+    )}</tbody></table><p class="dim">Δv는 진공에서 그 단의 연료를 모두 쓸 때 얻는 속력 변화입니다. 모든 단을 합하면 <b>${f(total, 3)} u/s</b>. 중력과 공기 저항으로 실제 비행에서는 이보다 줄어듭니다.</p>`;
+}
+
+function controlsHtml(stage: Stage) {
+  const kinds: CommandKind[] = stage.rocket
+    ? [
+        'ignite',
+        'stop',
+        'turn',
+        'separate',
+        ...(stage.rocket.payloads?.length ? (['deploy'] as const) : []),
+      ]
+    : stage.rules.maneuverBudget > 0
+      ? ['push']
+      : [];
+  const limit = (k: CommandKind) => {
+    const n = stage.rules.commandLimits?.[k];
+    if (k === 'separate') return `${n ?? stage.rocket?.parts.length}회`;
+    if (k === 'deploy') return `${stage.rocket?.payloads?.length ?? 0}회`;
+    return n === undefined ? '제한 없음' : `${n}회`;
+  };
+  const items = [
+    stage.rules.launchLimit > 0
+      ? `<li><b>발사</b><span>${stage.rocket ? '처음 출력' : '방향과 세기'}</span></li>`
+      : '',
+    ...kinds.map((k) => `<li><b>${commandNames[k]}</b><span>${limit(k)}</span></li>`),
+  ];
+  return `<ul class="briefing-controls">${items.join('')}</ul>`;
+}
+
+export function briefingHtml(stage: Stage, eyebrow: string) {
+  return `<header class="briefing-head"><span class="ui-eyebrow">${escape(eyebrow)}</span><h2 class="ui-h2">${escape(stage.title)}</h2>${stage.description ? `<p class="ui-body">${escape(stage.description)}</p>` : ''}<button id="goal-close" class="ui-btn ghost sm briefing-close" aria-label="브리핑 닫기">${controlIcon('close')}</button></header>
+<section class="briefing-section"><h3 class="ui-h3">성공 조건</h3>${missionGoalsHtml(stage)}</section>
+<section class="briefing-section"><h3 class="ui-h3">메달</h3><ul class="briefing-medals"><li><i class="medal-dot success"></i><b>성공</b><span>성공 조건을 모두 채웁니다.</span></li><li><i class="medal-dot budget"></i><b>예산 안</b><span>${stage.rocket ? '연료' : '추진'}을 90% 이하로 씁니다.</span></li><li><i class="medal-dot clean"></i><b>무손상</b><span>예산 안에서, 기체가 받은 힘이 한계 아래입니다.</span></li></ul></section>
+<section class="briefing-section"><h3 class="ui-h3">주어진 정보 · 기체</h3>${craftHtml(stage)}</section>
+<section class="briefing-section"><h3 class="ui-h3">주어진 정보 · 천체</h3>${bodiesHtml(stage)}</section>
+<section class="briefing-section two"><div><h3 class="ui-h3">쓸 수 있는 조작</h3>${controlsHtml(stage)}</div><div><h3 class="ui-h3">계산 도구</h3><p class="ui-body">지도의 <b class="info">하늘색 점선</b>은 지금 상태에서 엔진을 끄면 그리게 될 궤도를 <b>가장 가까운 천체 하나의 중력만으로</b> 계산한 것입니다. <b class="plan">주황 점선</b>은 예약한 추진을 직전 비행의 같은 순간에 더한 계산입니다. 다른 천체의 중력, 공기, 엔진 연소, 착륙은 실제 비행으로만 확인할 수 있습니다.</p></div></section>
+<footer class="briefing-foot"><button id="briefing-ready" class="ui-btn primary lg">계획 세우기</button></footer>`;
+}
+
+const KEY = 'apollo-briefed-v1';
+/** First visit to a mission opens the briefing; players can turn auto-open off. */
+export function shouldAutoBrief(stageId: string) {
+  if (readSaved<boolean>('apollo-briefing-auto', true) === false) return false;
+  return !readSaved<string[]>(KEY, []).includes(stageId);
+}
+export function markBriefed(stageId: string) {
+  const seen = readSaved<string[]>(KEY, []);
+  if (!seen.includes(stageId)) writeSaved(KEY, [...seen, stageId]);
+}

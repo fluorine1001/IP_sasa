@@ -24,6 +24,9 @@ export default defineConfig({
               name: 'orbit-stage-server-v1',
               value: JSON.stringify(baseURL),
             },
+            // Mission briefings and first-run onboarding are covered by their own specs.
+            { name: 'apollo-briefing-auto', value: 'false' },
+            { name: 'apollo-first-run-v1', value: 'true' },
           ],
         },
       ],

@@ -25,6 +25,7 @@ import './app/console-readability.css';
 import './app/console-timeline.css';
 import './app/console-panels.css';
 import './ui/components.css';
+import './ui/screens.css';
 // Scopes the illustrated mission-control theme to the game (the workshop keeps its own look).
 document.body.classList.add('game-ui');
 const saved = readSaved<Partial<Settings>>('orbit-settings-v1', {});

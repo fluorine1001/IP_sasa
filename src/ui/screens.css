@@ -1,0 +1,158 @@
+/* Screen-level layouts built from the design system (src/ui/components.css). */
+
+/* ---------- Mission briefing (paper document) ---------- */
+body.game-ui dialog.mission-goals.briefing {
+  width: min(880px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100vh - 40px);
+  padding: 0;
+  overflow: auto;
+}
+.briefing-head {
+  position: relative;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-6) var(--sp-4);
+  border-bottom: var(--stroke-thin) solid color-mix(in srgb, var(--p-900) 25%, transparent);
+}
+.briefing-head .ui-eyebrow {
+  justify-self: start;
+}
+.briefing-head p {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--c-doc-dim);
+}
+body.game-ui .briefing-close {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  min-height: 36px;
+  width: 36px;
+  padding: 0;
+  color: var(--c-doc-text);
+  border-color: color-mix(in srgb, var(--p-900) 35%, transparent);
+}
+.briefing-section {
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px dashed color-mix(in srgb, var(--p-900) 22%, transparent);
+}
+.briefing-section h3 {
+  margin-bottom: var(--sp-2);
+  color: var(--c-doc-text);
+}
+.briefing-section.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--sp-5);
+}
+.briefing-section p {
+  margin: var(--sp-2) 0 0;
+}
+.briefing-section .dim {
+  color: var(--c-doc-dim);
+  font-size: var(--fs-1);
+}
+.briefing-section b.info {
+  color: var(--sky-600);
+}
+.briefing-section b.plan {
+  color: var(--amber-600);
+}
+.briefing-table {
+  color: var(--c-doc-text);
+}
+.briefing-table th[scope='row'] {
+  font-weight: var(--fw-bold);
+  opacity: 1;
+  white-space: nowrap;
+}
+.briefing-table .swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: 0;
+  border: 2px solid var(--c-line);
+  border-radius: var(--r-pill);
+  background: var(--swatch, var(--n-300));
+}
+.briefing-table .swatch.stage-1 {
+  background: var(--cmd-ignite);
+}
+.briefing-table .swatch.stage-2 {
+  background: var(--cmd-separate);
+}
+.briefing-table .swatch.stage-3 {
+  background: var(--cmd-turn);
+}
+.briefing-table .swatch.stage-4 {
+  background: var(--cmd-deploy);
+}
+.briefing-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-6);
+}
+.briefing-stats .ui-stat > span,
+.briefing-stats .ui-stat > b small {
+  color: var(--c-doc-dim);
+}
+.briefing-medals,
+.briefing-controls {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.briefing-medals li,
+.briefing-controls li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.briefing-controls li span {
+  margin-left: auto;
+  color: var(--c-doc-dim);
+}
+.medal-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--c-line);
+  border-radius: var(--r-pill);
+  transform: translateY(1px);
+}
+.medal-dot.success {
+  background: var(--yellow-400);
+}
+.medal-dot.budget {
+  background: var(--sky-400);
+}
+.medal-dot.clean {
+  background: var(--green-400);
+}
+.briefing-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--sp-4) var(--sp-6) var(--sp-5);
+}
+@media (max-width: 650px) {
+  .briefing-head,
+  .briefing-section,
+  .briefing-foot {
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
+  }
+  .briefing-section.two {
+    grid-template-columns: 1fr;
+  }
+  .briefing-table {
+    display: block;
+    overflow-x: auto;
+  }
+  .briefing-foot .ui-btn {
+    width: 100%;
+  }
+}

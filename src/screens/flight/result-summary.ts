@@ -27,14 +27,19 @@ export function flightMedals(stage: Stage, run: Run) {
 }
 
 /** One short stamp word for how the flight ended. */
-function stamp(run: Run): { text: string; tone: 'good' | 'bad' | 'neutral' } {
+const wantsLanding = (stage: Stage) =>
+  /"(landed|touchdown\w*|landingSpeed)"/.test(JSON.stringify(stage.goals)) ||
+  stage.objects.some((o) => o.kind === 'landing-site');
+function stamp(stage: Stage, run: Run): { text: string; tone: 'good' | 'bad' | 'neutral' } {
   const r = run.reason;
   if (run.status === 'won') return { text: '임무 완료', tone: 'good' };
   if (run.status === 'aborted' || r === '비행 중단') return { text: '비행 중단', tone: 'neutral' };
   if (run.impact || r.includes('착륙 한계') || r.includes('옆미끄러짐'))
     return r.includes('충돌했습니다')
       ? { text: '충돌', tone: 'bad' }
-      : { text: '착륙 실패', tone: 'bad' };
+      : wantsLanding(stage)
+        ? { text: '착륙 실패', tone: 'bad' }
+        : { text: '추락', tone: 'bad' };
   if (r.includes('과열')) return { text: '과열', tone: 'bad' };
   if (r.includes('구조')) return { text: '구조 손상', tone: 'bad' };
   if (r.includes('충돌')) return { text: '충돌', tone: 'bad' };
@@ -51,7 +56,7 @@ export function resultSummary(
   previous?: RoutePlan,
   options: { hasNext?: boolean } = {},
 ) {
-  const seal = stamp(run);
+  const seal = stamp(stage, run);
 
   // Goals the flight did not reach lead with how close it came.
   const goalRows = objectiveGoals(stage).map((g) => {

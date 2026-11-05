@@ -22,7 +22,8 @@ import { goalStatus } from './goal-status';
 import { loadReadout } from './load-readout';
 import { altitude, orbitHtml, telemetryHtml } from './telemetry';
 import { tutorialLesson } from '../tutorial/lesson';
-import { missionGoalsHtml } from './goal-guide';
+import { chapterOf } from '../../stages/chapters';
+import { briefingHtml, markBriefed, shouldAutoBrief } from './briefing';
 import { planChanges, singleVariableChange } from '../../world/plan-diff';
 import './mission-info.css';
 import './compact.css';
@@ -169,7 +170,7 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     notebook = false,
     hudClock = 0;
   app.root.innerHTML = `<canvas id="world" class="space" tabindex="0" aria-label="궤도 비행 지도"></canvas>
-<header class="mission-panel panel"><div class="badge">${training ? '비행 실습' : args.onReturn ? '제작 시험' : '임무'}</div><h2>${escape(stage.title)}</h2><div id="goals"></div><button id="goal-details" aria-label="목표 조건 확인">${controlIcon('target')}<span>성공 조건</span></button><div id="experiment-summary" hidden></div></header>
+<header class="mission-panel panel"><div class="badge">${training ? '비행 실습' : args.onReturn ? '제작 시험' : '임무'}</div><h2>${escape(stage.title)}</h2><div id="goals"></div><button id="goal-details" aria-label="임무 브리핑과 성공 조건">${controlIcon('target')}<span>브리핑 · 성공 조건</span></button><div id="experiment-summary" hidden></div></header>
 ${training ? '<aside id="training-panel" aria-label="통합 훈련 안내"></aside>' : ''}
 ${controlButton('exit', 'back', '임무 나가기', 'mission-exit with-label')}
 <aside class="resources panel"><div id="mode"></div><div id="flight-readouts" class="flight-readouts"></div><div id="initial-output" class="initial-output"></div><label class="resource-row"><span id="fuel-label">연료</span><output id="fuel-value" class="meter-value"></output><meter id="fuel" min="0" max="${stage.rules.maneuverBudget}" value="${stage.rules.maneuverBudget}"></meter></label><label id="pad-reading" class="resource-row"><span>표면 중력</span><output id="pad-gravity-value" class="meter-value"></output><meter id="pad-gravity" min="0" max="1" aria-label="발사대 중력계"></meter></label></aside>
@@ -182,7 +183,7 @@ ${controlButton('exit', 'back', '임무 나가기', 'mission-exit with-label')}
 ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
 <button id="launch" class="primary console-button with-label launch-command" aria-label="발사">${controlIcon('rocket')}<span class="control-label">발사</span></button></div></div>
 <div id="timeline-host"></div><div class="dock-status"><span id="dock-phase"></span><span id="hint" class="sr-only"></span><span id="dock-clock"></span></div>
-</footer><section id="notebook" class="overlay panel" hidden aria-label="비행 기록"></section><section id="result" class="result panel" hidden aria-live="polite"></section><div id="callout" class="callout" hidden aria-hidden="true"></div><dialog id="mission-goals" class="mission-goals panel"><button id="goal-close" aria-label="목표 조건 닫기">${controlIcon('close')}</button><h2>성공 조건</h2>${missionGoalsHtml(stage)}</dialog>`;
+</footer><section id="notebook" class="overlay panel" hidden aria-label="비행 기록"></section><section id="result" class="result panel" hidden aria-live="polite"></section><div id="callout" class="callout" hidden aria-hidden="true"></div><dialog id="mission-goals" class="mission-goals briefing ui-doc ui-dialog" aria-label="임무 브리핑">${briefingHtml(stage, training ? '비행 실습' : args.onReturn ? '제작 시험' : `${chapterOf(stage).title} · 임무 ${String(stage.order).padStart(2, '0')}`)}</dialog>`;
 
   const canvas = app.root.querySelector<HTMLCanvasElement>('#world')!,
     el = (id: string) => app.root.querySelector<HTMLElement>(`#${id}`)!;
@@ -257,6 +258,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     updateHud();
   };
   el('goal-close').onclick = () => goalDialog.close();
+  el('briefing-ready').onclick = () => goalDialog.close();
+  goalDialog.addEventListener('close', () => markBriefed(stage.id));
+  if (!training && !args.onReturn && !session?.trials.length && shouldAutoBrief(stage.id))
+    queueMicrotask(() => goalDialog.isConnected && !goalDialog.open && goalDialog.showModal());
   goalDialog.addEventListener(
     'click',
     (e) => {

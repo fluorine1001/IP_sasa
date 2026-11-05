@@ -303,3 +303,57 @@ body.game-ui .stage-card.recommended {
   border: 1px solid color-mix(in srgb, var(--p-900) 30%, transparent);
   border-radius: var(--r-pill);
 }
+
+/* ---------- Readability floor (audit 2026-11-05) ----------
+ * Each rule raises a measured failure to WCAG AA: 4.5:1 for text under 24px, 3:1 above. */
+body.game-ui .stage-medals i {
+  color: var(--p-800);
+  border-color: var(--p-600);
+}
+body.game-ui .orbit-calc header small {
+  color: var(--c-text-dim);
+}
+body.game-ui .result-stamp.bad {
+  color: var(--red-600);
+  border-color: var(--red-600);
+}
+body.game-ui #notebook .trial-outcome:not(.won) {
+  color: var(--red-600);
+  border-color: var(--red-600);
+}
+body.game-ui #notebook .trial-readings,
+body.game-ui #notebook .trial-readings > div,
+body.game-ui #notebook .trial-readings b {
+  color: var(--c-doc-text);
+}
+body.game-ui .engine-bench svg text {
+  font-size: 13px;
+}
+body.game-ui .tutorial-card small {
+  display: inline-flex;
+  align-self: start;
+  padding: var(--sp-1) var(--sp-3);
+  color: var(--c-on-accent);
+  background: var(--c-accent);
+  border: var(--stroke-thin) solid var(--c-line);
+  border-radius: var(--r-md);
+}
+body.game-ui .tool-count:not(:empty) {
+  color: var(--n-950);
+  background: var(--n-100);
+}
+body.game-ui .chapter-card.selected .chapter-caption strong {
+  color: var(--n-50);
+}
+/* Phones: no hover, so hover tooltips only linger over other text; the REC chip has no room. */
+@media (hover: none), (max-width: 650px) {
+  body.game-ui .flight-deck #follow::after,
+  body.game-ui .flight-deck #vehicle::after {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  body.game-ui #replay-monitor {
+    display: none;
+  }
+}

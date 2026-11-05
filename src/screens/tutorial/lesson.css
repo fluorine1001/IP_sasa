@@ -80,7 +80,8 @@
   cursor: pointer;
 }
 #training-panel button:disabled {
-  opacity: 0.4;
+  opacity: 0.6;
+  border-style: dashed;
   cursor: default;
 }
 #training-dock {

@@ -398,13 +398,22 @@ export function tutorialLesson(root: HTMLElement, steps: Instruction[], signal: 
           x: Math.max(8, Math.min(innerWidth - width - 8, p.x)),
           y: Math.max(8, Math.min(maxY, p.y)),
         }));
+        // Never cover the text the step is about: the mission card and the instruments.
+        const keepClear = ['.mission-panel', '.resources']
+          .map((q) => root.querySelector(q)?.getBoundingClientRect())
+          .filter((r): r is DOMRect => !!r && r.width > 0);
+        const covers = (p: { x: number; y: number }) =>
+          keepClear.some(
+            (r) => p.x < r.right && p.x + width > r.left && p.y < r.bottom && p.y + height > r.top,
+          );
         const chosen = candidates.find(
           (p) =>
+            !covers(p) &&
             Math.hypot(
               x - Math.max(p.x, Math.min(p.x + width, x)),
               y - Math.max(p.y, Math.min(p.y + height, y)),
             ) >=
-            radius + 8,
+              radius + 8,
         ) ?? { x: 8, y: Math.max(8, maxY) };
         clampPosition(chosen.x, chosen.y);
         origin = { x: parseFloat(panel.style.left), y: parseFloat(panel.style.top) };

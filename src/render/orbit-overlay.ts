@@ -85,9 +85,13 @@ export function drawOrbitSketches(
     }
     if (label) {
       const s = screen(path[Math.min(path.length - 1, 18)]);
+      ctx.font = canvasFont(13, 'bold');
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = palette.n950 + 'e6';
+      ctx.fillRect(s.x + 6, s.y - 22, tw + 10, 20);
       ctx.fillStyle = color;
-      ctx.font = canvasFont(13);
-      ctx.fillText(label, s.x + 8, s.y - 12);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, s.x + 11, s.y - 12);
     }
     ctx.restore();
   }

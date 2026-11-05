@@ -164,3 +164,93 @@ body.game-ui .goal-row .goal-near {
   font-size: var(--fs-1);
   color: var(--c-doc-dim);
 }
+
+/* ---------- Pause menu ---------- */
+dialog.pause-menu {
+  width: min(420px, calc(100vw - 32px));
+  padding: var(--sp-5);
+}
+.pause-menu .ui-h2 {
+  margin-bottom: var(--sp-4);
+}
+.pause-actions {
+  display: grid;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.pause-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-2);
+}
+.pause-row input[type='range'] {
+  flex: 1;
+  max-width: 200px;
+  accent-color: var(--c-accent);
+}
+.pause-menu .ui-h3 {
+  margin: var(--sp-4) 0 var(--sp-2);
+}
+.pause-keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--c-text-dim);
+}
+.pause-keys dt {
+  white-space: nowrap;
+}
+.pause-keys dd {
+  margin: 0;
+}
+
+/* ---------- Title ---------- */
+.title-pitch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: var(--sp-3) 0 var(--sp-5);
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-2);
+  color: var(--c-text-dim);
+}
+.title-pitch li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.title-pitch b {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: var(--fs-1);
+  color: var(--c-on-accent);
+  background: var(--c-accent);
+  border: var(--stroke-thin) solid var(--c-line);
+  border-radius: var(--r-pill);
+}
+.title-quiet {
+  display: flex;
+  gap: var(--sp-2);
+}
+.title-quiet button {
+  flex: 1;
+}
+dialog.credits {
+  padding: var(--sp-5) var(--sp-6);
+}
+dialog.credits ul {
+  padding-left: 1.2em;
+}
+#first-flight small {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-medium);
+  color: var(--n-800);
+}

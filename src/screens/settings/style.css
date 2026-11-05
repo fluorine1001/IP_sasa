@@ -1,19 +1,52 @@
-.setting {
-  padding: 22px;
-  border: 3px solid var(--ink);
-  background: var(--n-600);
-  border-radius: var(--r-lg);
-  box-shadow: 0 4px 0 var(--n-900);
+.settings-sheet h1 {
+  margin-bottom: var(--sp-4);
 }
-
+.settings-group {
+  margin: 0 0 var(--sp-5);
+}
+.settings-group h2 {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.06em;
+  color: var(--c-accent);
+}
 .setting {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 16px 0;
-  gap: 20px;
+  gap: var(--sp-4);
+  margin: 0 0 var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--c-surface-1);
+  border: var(--stroke) solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
 }
-
-.setting input[type='range'] {
-  width: 45%;
+.setting > span {
+  display: grid;
+  gap: 2px;
+  font-weight: var(--fw-medium);
+}
+.setting small {
+  font-size: var(--fs-1);
+  color: var(--c-text-dim);
+}
+.setting.slider input[type='range'] {
+  flex: 1;
+  max-width: 320px;
+  accent-color: var(--c-accent);
+}
+.setting.slider output {
+  min-width: 3.5em;
+  text-align: right;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+.setting.slider > span {
+  flex: none;
+  width: 9em;
+}
+.setting.slider input[type='range'] {
+  max-width: none;
 }

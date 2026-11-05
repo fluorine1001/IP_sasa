@@ -85,12 +85,12 @@
   /* ---------- Type: one family, six steps, 13px floor ---------- */
   --font:
     'Pretendard Variable', Pretendard, 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --fs-1: 13px;
-  --fs-2: 15px;
-  --fs-3: 17px;
-  --fs-4: 21px;
-  --fs-5: 28px;
-  --fs-6: 44px;
+  --fs-1: calc(13px * var(--ui-scale, 1));
+  --fs-2: calc(15px * var(--ui-scale, 1));
+  --fs-3: calc(17px * var(--ui-scale, 1));
+  --fs-4: calc(21px * var(--ui-scale, 1));
+  --fs-5: calc(28px * var(--ui-scale, 1));
+  --fs-6: calc(44px * var(--ui-scale, 1));
   --fs-display: clamp(64px, 8vw, 120px);
   --fw-regular: 450;
   --fw-medium: 560;

@@ -96,9 +96,9 @@ summary:focus-visible {
 }
 .title-planet .planet-art {
   box-shadow:
-    inset -35px -18px color-mix(in srgb, var(--n-850) 27%, transparent),
-    0 0 0 3px var(--n-850),
-    0 0 0 15px color-mix(in srgb, var(--n-200) 8%, transparent);
+    inset -35px -18px #10262e44,
+    0 0 0 3px #12232c,
+    0 0 0 15px #adc5a414;
 }
 .flight-deck {
   background-color: var(--n-600);

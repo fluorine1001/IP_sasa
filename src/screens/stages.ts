@@ -1,5 +1,5 @@
 import { controls, escape, readSaved, writeSaved, type App, type Screen } from '../app/core.ts';
-import { campaignChapters } from '../stages/chapters';
+import { campaignChapters, chapterOf } from '../stages/chapters';
 import './campaign.css';
 import { catalog } from '../stages/catalog.ts';
 import { liveCatalog } from '../stages/live-catalog';
@@ -18,10 +18,21 @@ function vehicleLabel(stage: Stage) {
   const parts = stage.rocket?.parts.length ?? 0;
   return parts === 0 ? '냉가스 기체' : parts === 1 ? '1단 로켓' : parts + '단 로켓';
 }
+/** Set by the title's 이어하기: the campaign opens the first unfinished mission. */
+export const continueRequest = { pending: false };
+/** First unfinished campaign mission in order, if the player has started at all. */
+export function nextMission(app: App) {
+  const chapters = campaignChapters(catalog, app.completed);
+  const order = chapters.flatMap((c) => c.stages);
+  if (!order.some((s) => app.completed.has(s.id))) return undefined;
+  return order.find((s) => !app.completed.has(s.id));
+}
 export function stagesScreen(app: App): Screen {
   const abort = new AbortController();
   let available: import('../world/types').Stage[] = catalog;
   let selected = readSaved<string>('orbit-chapter-v1', 'departure');
+  const resume = continueRequest.pending ? nextMission(app) : undefined;
+  if (resume) selected = chapterOf(resume).id;
   function draw() {
     const chapters = campaignChapters(available, app.completed);
     // The embedded catalog may arrive before a user's server-only chapter.
@@ -87,6 +98,10 @@ export function stagesScreen(app: App): Screen {
       );
   }
   draw();
+  if (continueRequest.pending) {
+    continueRequest.pending = false;
+    app.root.querySelector<HTMLButtonElement>(`[data-stage="${resume?.id ?? ''}"]`)?.click();
+  }
   void liveCatalog(catalog, abort.signal).then((stages) => {
     if (!abort.signal.aborted) {
       available = stages;

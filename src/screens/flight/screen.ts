@@ -23,6 +23,7 @@ import { loadReadout } from './load-readout';
 import { altitude, brakingHtml, orbitHtml, telemetryHtml } from './telemetry';
 import { tutorialLesson } from '../tutorial/lesson';
 import { chapterOf } from '../../stages/chapters';
+import { t } from '../../i18n';
 import { briefingHtml, markBriefed, shouldAutoBrief } from './briefing';
 import { planChanges, singleVariableChange } from '../../world/plan-diff';
 import './mission-info.css';
@@ -258,6 +259,33 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     updateHud();
   };
   el('goal-close').onclick = () => goalDialog.close();
+  app.root.insertAdjacentHTML(
+    'beforeend',
+    `<dialog id="pause-menu" class="ui-dialog ui-panel pause-menu" aria-label="${t('pause.title')}"><h2 class="ui-h2">${t('pause.title')}</h2><div class="pause-actions"><button id="pause-resume" class="ui-btn primary lg">${t('pause.resume')}</button><button id="pause-briefing" class="ui-btn">${t('pause.briefing')}</button><button id="pause-exit" class="ui-btn">${t('pause.exit')}</button></div><label class="pause-row"><span>${t('settings.master')}</span><input id="pause-volume" type="range" min="0" max="1" step=".05" value="${app.settings.volume}"></label><label class="pause-row"><span>${t('settings.orbitTool')}</span><input id="pause-orbit" type="checkbox" ${app.settings.orbitTool ? 'checked' : ''}></label><h3 class="ui-h3">${t('pause.keys')}</h3><dl class="pause-keys"><dt><kbd>Space</kbd></dt><dd>발사 · 일시정지</dd><dt><kbd>R</kbd></dt><dd>다시 발사</dd><dt><kbd>C</kbd></dt><dd>로켓 따라가기</dd><dt><kbd>Tab</kbd></dt><dd>분리된 단 선택</dd><dt><kbd>1</kbd> <kbd>4</kbd></dt><dd>1배속 · 4배속</dd><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · 휠</dt><dd>지도 이동 · 확대</dd><dt><kbd>Esc</kbd></dt><dd>이 메뉴</dd></dl></dialog>`,
+  );
+  const pauseMenu = el('pause-menu') as HTMLDialogElement;
+  function openPause() {
+    if (!pauseMenu.open && !goalDialog.open) pauseMenu.showModal();
+  }
+  el('pause-resume').onclick = () => {
+    pauseMenu.close();
+    if (run?.status === 'running') paused = false;
+    updateHud();
+  };
+  el('pause-briefing').onclick = () => {
+    pauseMenu.close();
+    goalDialog.showModal();
+  };
+  el('pause-exit').onclick = () => {
+    pauseMenu.close();
+    exit();
+  };
+  pauseMenu.addEventListener('input', () => {
+    app.settings.volume = Number((el('pause-volume') as HTMLInputElement).value);
+    app.settings.orbitTool = (el('pause-orbit') as HTMLInputElement).checked;
+    app.saveSettings();
+    updateHud();
+  });
   el('briefing-ready').onclick = () => goalDialog.close();
   goalDialog.addEventListener('close', () => markBriefed(stage.id));
   if (!training && !args.onReturn && !session?.trials.length && shouldAutoBrief(stage.id))
@@ -1167,7 +1195,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     (e) => {
       if (!app.root.isConnected) return;
       if ((e.target as HTMLElement).matches('input,select,textarea')) return;
-      if (goalDialog.open) return;
+      if (goalDialog.open || pauseMenu.open) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code))
         e.preventDefault();
       keys.add(e.code);
@@ -1182,6 +1210,14 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         else paused = true;
         keys.clear();
         updateHud();
+        const busy = ['command-popover', 'program-editor', 'notebook', 'rate-options'].some(
+          (id) => app.root.querySelector<HTMLElement>('#' + id)?.hidden === false,
+        );
+        // Defer: the same Escape press would otherwise cancel the modal it just opened.
+        if (!busy) {
+          e.preventDefault();
+          setTimeout(openPause, 0);
+        }
       }
       if (e.code === 'KeyC') following = !following;
 

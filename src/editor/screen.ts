@@ -375,6 +375,8 @@ export function editorScreen(app: App): Screen {
     inspectedSelection = key;
   }
   function showAudit() {
+    // A test flight replaces the workshop page; the panel is redrawn on return.
+    if (!app.root.querySelector('#audit')) return;
     const errors = issues(model.stage),
       warnings = physicalDesignIssues(model.stage);
     el('audit').innerHTML =

@@ -117,7 +117,12 @@ let last = performance.now();
 function frame(now: number) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  screen?.frame?.(dt);
+  try {
+    screen?.frame?.(dt);
+  } catch (error) {
+    // One bad frame must not freeze the game: report it and keep the loop alive.
+    console.error(error);
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

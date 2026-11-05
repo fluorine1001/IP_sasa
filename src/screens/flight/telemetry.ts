@@ -3,6 +3,7 @@ import { bodyPosition } from '../../world/celestial';
 import { escape } from '../../app/core';
 import { length, sub } from '../../physics/vector';
 import { conicOf } from '../../world/conic';
+import { rocketMass } from '../../world/rocket';
 
 /** Height above the nearest solid surface right now: an observation, never a forecast. */
 export function altitude(stage: Stage, run: Run) {
@@ -70,4 +71,24 @@ export function orbitHtml(
     row('탈출 속력', `${c.escapeSpeed.toFixed(3)} u/s`) +
     `</section>`
   );
+}
+
+/** Landing calculator: the height a full-throttle vertical brake needs from this moment,
+ * with the current stage's thrust and mass and the surface gravity. A calculation the
+ * player compares with the real height, not a forecast of the flight. */
+export function brakingHtml(stage: Stage, run: Run) {
+  const r = run.rocket,
+    part = stage.rocket?.parts[r?.partIndex ?? -1];
+  if (!r || !part || !r.airborne || (r.fuel[r.partIndex] ?? 0) <= 0) return '';
+  const c = conicOf(stage, run.position, run.velocity, run.time);
+  if (!c || c.altitude > Math.max(1.5, c.body.radius * 1.5)) return '';
+  const rn = Math.hypot(c.r.x, c.r.y);
+  const down = -(c.r.x * c.v.x + c.r.y * c.v.y) / rn;
+  if (down <= 0.005) return '';
+  const g = c.mu / (rn * rn);
+  const a = part.thrust / rocketMass(stage, run);
+  const net = a - g;
+  const need = net > 0 ? (down * down) / (2 * net) : Infinity;
+  const margin = c.altitude - need;
+  return `<section class="orbit-calc braking" aria-label="착륙 계산"><header><b>착륙 계산</b><small>지금 최대 출력으로 수직 감속하면</small></header><div class="orbit-row"><span>멈추는 데 필요한 높이</span><b>${Number.isFinite(need) ? need.toFixed(2) + ' u' : '추력 부족'}</b></div><div class="orbit-row"><span>지금 높이</span><b>${c.altitude.toFixed(2)} u</b></div><div class="orbit-row ${margin < 0 ? 'bad' : ''}"><span>여유</span><b>${Number.isFinite(margin) ? margin.toFixed(2) + ' u' : '—'}</b></div><div class="orbit-row"><span>감속에 걸리는 시간</span><b>${net > 0 ? (down / net).toFixed(2) + ' 초' : '—'}</b></div></section>`;
 }

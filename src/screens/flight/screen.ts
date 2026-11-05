@@ -18,9 +18,9 @@ import { landingReadout } from './landing-readout';
 import { resultSummary, flightMedals } from './result-summary';
 import { preflightChecklist } from './preflight';
 import { saveMedals } from '../../app/records';
-import { goalStatus } from './goal-status';
+import { goalNearest, goalStatus } from './goal-status';
 import { loadReadout } from './load-readout';
-import { altitude, orbitHtml, telemetryHtml } from './telemetry';
+import { altitude, brakingHtml, orbitHtml, telemetryHtml } from './telemetry';
 import { tutorialLesson } from '../tutorial/lesson';
 import { chapterOf } from '../../stages/chapters';
 import { briefingHtml, markBriefed, shouldAutoBrief } from './briefing';
@@ -704,7 +704,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     if (landing) el('landing-readout').innerHTML = landing;
     el('flight-readouts').innerHTML = displayed
       ? telemetryHtml(dynamicView(stage, displayed), displayed) +
-        (app.settings.orbitTool ? orbitHtml(dynamicView(stage, displayed), displayed) : '')
+        (app.settings.orbitTool
+          ? orbitHtml(dynamicView(stage, displayed), displayed) +
+            brakingHtml(dynamicView(stage, displayed), displayed)
+          : '')
       : '';
     el('trial-count').textContent = String(trials.length);
     el('launch').hidden = replayIndex >= 0 || (!!run && !ended);
@@ -841,7 +844,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       .map((g) => {
         const p = run?.goals[g.id];
         const status = goalStatus(g, run);
-        return `<div class="goal-row ${p?.complete ? 'done' : ''}"><span class="goal-name"><i aria-hidden="true">${p?.complete ? '✓' : ''}</i>${escape(g.title)}</span><em class="goal-state" data-state="${escape(status)}">${escape(status)}</em><progress max="1" value="${p?.ratio ?? 0}" aria-label="${escape(g.title)} 진행"></progress>${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
+        return `<div class="goal-row ${p?.complete ? 'done' : ''}"><span class="goal-name"><i aria-hidden="true">${p?.complete ? '✓' : ''}</i>${escape(g.title)}</span><em class="goal-state" data-state="${escape(status)}">${escape(status)}</em><progress max="1" value="${p?.ratio ?? 0}" aria-label="${escape(g.title)} 진행"></progress>${run && goalNearest(p) ? `<small class="goal-near">${escape(goalNearest(p))}</small>` : ''}${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
       })
       .join('');
     el('goals')

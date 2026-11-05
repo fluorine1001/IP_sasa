@@ -714,7 +714,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     controlledId = ids[(index + 1) % ids.length];
     if (ids.length > 1) lesson?.record('vehicle');
     following = true;
-    toast(`추적 대상: ${actor()?.name ?? '주 로켓'}. 다른 비행체도 계속 움직입니다.`);
+    toast(`추적 · ${actor()?.name ?? '주 로켓'}`);
   }
   function updateHud() {
     canvas.dataset.phase = replayIndex >= 0 ? 'replay' : run ? 'flight' : 'plan';
@@ -933,7 +933,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       // Screen-reader status only (visually hidden).
       el('hint').textContent = run
         ? '실제 비행 관측을 기록합니다'
-        : `${plan.impulses.length + (plan.engineCommands?.length ?? 0)}개 비행 조작 예약 · ${history.length ? '지난 비행의 실제 궤적' : '미래 궤도는 표시되지 않습니다'}`;
+        : `${plan.impulses.length + (plan.engineCommands?.length ?? 0)}개 비행 조작 예약 · ${history.length ? '지난 비행의 실제 궤적' : '기록 없음'}`;
   }
   /** Bars alone are unreadable: each meter also shows its share as a number. */
   function syncMeters() {
@@ -964,7 +964,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     Object.assign(camera, stage.camera);
     keys.clear();
     el('result').hidden = true;
-    toast('계획 편집 · 같은 환경과 이전 기록 유지');
+    toast('계획 편집');
     updateHud();
   }
   function start(probe = false) {

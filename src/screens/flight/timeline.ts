@@ -76,7 +76,7 @@ export function flightTimeline(
     (['ignite', 'stop', 'turn', 'separate'] as const)
       .map((k, i) => '<i>' + eventIcon(k) + ['출력', '끄기', '회전', '분리'][i] + '</i>')
       .join('') +
-    '</span><span id="timeline-explanation"></span></div></section><aside id="program-editor" class="program-editor panel" hidden aria-label="발사 전 비행 계획"><div class="program-title"><h2>비행 순서 설계</h2><button id="program-close">접기</button></div><p id="program-contract">발사 전에 확정합니다. 비행 중에는 조작을 추가하거나 바꿀 수 없습니다.</p><div id="launch-readout"></div><div id="program-fields"></div><div id="program-warnings"></div></aside><aside id="command-popover" role="dialog" aria-label="선택한 비행 조작" hidden></aside>';
+    '</span><span id="timeline-explanation"></span></div></section><aside id="program-editor" class="program-editor panel" hidden aria-label="발사 전 비행 계획"><div class="program-title"><h2>비행 순서 설계</h2><button id="program-close">접기</button></div><p id="program-contract"></p><div id="launch-readout"></div><div id="program-fields"></div><div id="program-warnings"></div></aside><aside id="command-popover" role="dialog" aria-label="선택한 비행 조작" hidden></aside>';
   // Toolbar controls may be mounted into the shared console; keep their node references.
   const nodes = new Map(
     [...root.querySelectorAll<HTMLElement>('[id]')].map((node) => [node.id, node]),

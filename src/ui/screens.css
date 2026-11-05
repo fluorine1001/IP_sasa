@@ -404,3 +404,21 @@ body.game-ui .help-grid .m-clean {
   font-weight: var(--fw-regular);
   color: var(--c-doc-dim);
 }
+
+/* ---------- Event callout: a log line, not a badge ---------- */
+body.game-ui .callout {
+  padding: var(--sp-1) var(--sp-4);
+  color: var(--c-text);
+  background: color-mix(in srgb, var(--n-950) 85%, transparent);
+  border: 1px solid var(--n-400);
+  border-radius: var(--r-sm);
+  box-shadow: none;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+}
+body.game-ui .callout[data-tone='warn'] {
+  color: var(--red-200);
+  background: color-mix(in srgb, var(--n-950) 85%, transparent);
+  border-color: var(--red-400);
+}

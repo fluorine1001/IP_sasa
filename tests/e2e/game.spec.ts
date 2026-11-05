@@ -65,7 +65,7 @@ test('탐사 시작은 스테이지 목록을 열고 도움말과 설정은 독�
   await page.locator('.stage-card').first().click();
   await expect(page.locator('#world')).toBeVisible();
   await expect(page.locator('#probe')).toHaveCount(0);
-  await expect(page.locator('#hint')).toContainText('미래 궤도는 표시되지 않습니다');
+  await expect(page.locator('#hint')).toContainText('기록 없음');
   expect(errors).toEqual([]);
 });
 
@@ -524,7 +524,7 @@ test('개발용 제작 도구에서 관측·상황 단서·장면을 편집하�
   expect(saved.randomization).toBeUndefined();
   await page.locator('#test-stage').click();
   await expect(page.locator('#world')).toBeVisible();
-  await expect(page.locator('#hint')).toContainText('미래 궤도는 표시되지 않습니다');
+  await expect(page.locator('#hint')).toContainText('기록 없음');
 });
 
 test('유한 연소의 실제 관측으로 낮음과 지나침을 구분하고 예약한 궤도 계획을 실행한다', async ({

@@ -50,7 +50,7 @@ body.game-ui .resources #flight-readouts:not(:empty)::before {
   white-space: nowrap;
 }
 body.game-ui .resources #vehicle-map:not(:empty)::before {
-  content: '로켓';
+  content: '기체';
 }
 body.game-ui .resources #initial-output:not([hidden])::before {
   content: '발사 조건';

@@ -492,3 +492,15 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
 .frame-diagram .frame-craft {
   fill: var(--paper-ink);
 }
+/* Δv: a typed number beside its slider. */
+.game-ui #command-popover .dv-field .dv-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-weight: 800;
+}
+.game-ui #command-popover .dv-field input[type='number'] {
+  width: 7ch;
+  font-variant-numeric: tabular-nums;
+}

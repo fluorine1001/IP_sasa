@@ -47,6 +47,8 @@ import { sub, scale, length, unit, type Vec } from '../../physics/vector.ts';
 import { createRun, tick, WORLD_STEP } from '../../world/engine.ts';
 import { FrameClock } from '../../world/frame-clock';
 import type { LogAttempt } from './flight-log';
+import { previewStates } from '../../world/plan-preview';
+import { apsisNames } from '../../world/heading';
 import { firstChangeTime } from '../../world/first-change';
 import { gravity } from '../../world/celestial.ts';
 import { drawWorld } from '../../render/world.ts';
@@ -116,15 +118,24 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     const last = trials.at(-1);
     if (last) {
       const changed = firstChangeTime(last.scheduledPlan, plan) ?? Infinity;
-      for (const push of plan.impulses) {
-        if (push.time > last.duration || changed < push.time - 1e-9) continue;
-        const before = replayAt(last.frames, Math.max(0, push.time - 1e-3), last.flightPlan);
-        if (!before || before.landed) continue;
-        const c = conicFor({
-          ...before,
-          velocity: { x: before.velocity.x + push.vector.x, y: before.velocity.y + push.vector.y },
-        });
-        if (c) out.push({ conic: c, tone: 'plan', label: `${push.time.toFixed(2)}초 추진 후` });
+      // The last flight's state is usable up to the first planned difference.
+      const recorded = (time: number) => {
+        if (time > last.duration || changed < time - 1e-9) return undefined;
+        const f = replayAt(last.frames, Math.max(0, time - 1e-3), last.flightPlan);
+        return f && !f.landed && f.rocket?.airborne !== false
+          ? { position: f.position, velocity: f.velocity, time: f.time }
+          : undefined;
+      };
+      for (const { change, state } of previewStates(stage, plan, recorded)) {
+        const c = conicFor(state);
+        if (c)
+          out.push({
+            conic: c,
+            tone: 'plan',
+            label: change.at
+              ? `${change.label} (${apsisNames[change.at]}) 후`
+              : `${change.time.toFixed(1)}초 ${change.label} 후`,
+          });
       }
       if (replayTime !== undefined && replayTime > 0) {
         const frame = replayAt(last.frames, Math.min(replayTime, last.duration), last.flightPlan);

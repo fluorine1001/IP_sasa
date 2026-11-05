@@ -80,7 +80,9 @@
       },
       "startTime": 0,
       "endTime": 100,
-      "dependsOn": ["91f05c4c-f076-48d0-9f05-545dc640a9b2"],
+      "dependsOn": [
+        "91f05c4c-f076-48d0-9f05-545dc640a9b2"
+      ],
       "condition": {
         "kind": "hold",
         "duration": 0.5,
@@ -163,8 +165,8 @@
   "referencePlans": [
     {
       "launch": {
-        "x": 0.35,
-        "y": 0.4
+        "x": 0.3552058528794401,
+        "y": 0.3953843725796322
       },
       "impulses": []
     }

@@ -8,14 +8,14 @@
         "name": "착륙 엔진",
         "dryMass": 0.3,
         "fuelMass": 0.5,
-        "thrust": 0.6,
+        "thrust": 0.95,
         "exhaustSpeed": 1.5,
         "area": 0.02,
         "maxQ": 2,
         "maxHeat": 2,
         "ignitionLimit": 4,
         "turnRate": 3.141592653589793,
-        "maxLandingSpeed": 0.2
+        "maxLandingSpeed": 0.12
       }
     ]
   },
@@ -75,7 +75,7 @@
               "operator": "lte",
               "right": {
                 "kind": "constant",
-                "value": 0.18
+                "value": 0.1
               }
             },
             {
@@ -88,7 +88,7 @@
               "operator": "lte",
               "right": {
                 "kind": "constant",
-                "value": 0.2
+                "value": 0.15
               }
             }
           ]

@@ -32,14 +32,23 @@ export function transformPlan(
   const p = structuredClone(plan),
     { lengthScale: l, timeScale: t, rotation: r } = spec;
   p.launch = vectorTransform(p.launch, powered ? 1 : l / t, r);
+  // Speed changes scale as length/time and trigger heights as length; orbit-frame
+  // headings are already rotation-free.
+  if (p.launchDv !== undefined) p.launchDv *= l / t;
   p.impulses.forEach((v) => {
     v.time *= t;
     v.vector = vectorTransform(v.vector, l / t, r);
+    if (v.magnitude !== undefined) v.magnitude *= l / t;
+    if (v.altitude !== undefined) v.altitude *= l;
   });
   p.deployments?.forEach((v) => (v.time *= t));
   p.engineCommands?.forEach((v) => {
     v.time *= t;
     if (v.direction) v.direction = vectorTransform(v.direction, 1, r);
+    if (v.burn) {
+      v.burn.dv *= l / t;
+      if (v.burn.altitude !== undefined) v.burn.altitude *= l;
+    }
   });
   return p;
 }

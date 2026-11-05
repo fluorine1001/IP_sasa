@@ -78,18 +78,17 @@ function trainingVehicle(s: Stage) {
   s.rules.launchLimit = 1;
   s.rules.maneuverBudget = 0;
 }
+/** Launch, drop the booster, then make the orbit round at its highest point. */
 function carrierPlan(): RoutePlan {
   return {
     launch: { x: 1, y: 0 },
+    launchDv: 0.33,
     impulses: [],
     engineCommands: [
-      command('cutoff', 0.7011213599296398, { throttle: 0 }),
-      command('separate', 0.7011213599296398, { separate: true }),
-      command('pitch', 0.7011213599296398, {
-        direction: { x: 0.4600212085580246, y: 0.8879079274771763 },
+      command('separate', 0.63, { separate: true }),
+      command('relight', 0.68, {
+        burn: { dv: 0.21, heading: { frame: 'prograde', angle: 0 }, at: 'apoapsis' },
       }),
-      command('relight', 9.185767858202645, { throttle: 1 }),
-      command('coast', 9.926970405964184, { throttle: 0 }),
     ],
   };
 }
@@ -118,12 +117,19 @@ export function complexMissions(): MissionCase[] {
       ],
     };
     goal(s, { kind: 'recovery', targetId: s.bodies[0].id, speed: 0.1, duration: 0.2, tilt: 0.15 });
-    const witness = {
+    // Brake straight up once down to 0.1 u: the height, not a clock time, sets the landing.
+    const witness: RoutePlan = {
       launch: { x: 0, y: 0 },
       impulses: [],
       engineCommands: [
-        command('brake', 4.35578124999995, { throttle: 1 }),
-        command('cutoff', 4.699999999999944, { throttle: 0 }),
+        command('brake', 0, {
+          burn: {
+            dv: 0.35,
+            heading: { frame: 'outward', angle: 0 },
+            at: 'altitude',
+            altitude: 0.1,
+          },
+        }),
       ],
     };
     cases.push({
@@ -221,8 +227,10 @@ export function complexMissions(): MissionCase[] {
     });
     const witness = carrierPlan();
     witness.engineCommands!.push(
-      command('booster-brake', 5.837343749999919, { actorId: s.rocket!.parts[0].id, throttle: 1 }),
-      command('booster-cutoff', 5.979999999999917, { actorId: s.rocket!.parts[0].id, throttle: 0 }),
+      command('booster-brake', 0.68, {
+        actorId: s.rocket!.parts[0].id,
+        burn: { dv: 0.3, heading: { frame: 'outward', angle: 0 }, at: 'altitude', altitude: 0.06 },
+      }),
     );
     cases.push({ id: 'separated-booster-recovery', stage: s, witness, negative: [carrierPlan()] });
   }
@@ -250,16 +258,14 @@ export function complexMissions(): MissionCase[] {
     s.goals.push(m);
     const witness: RoutePlan = {
       launch: { x: 1, y: 0 },
+      launchDv: 0.38,
       impulses: [],
       engineCommands: [
-        command('cutoff', 0.6993489967211491, { throttle: 0 }),
-        command('pitch', 0.6993489967211491, {
-          direction: { x: -0.24310665245537028, y: 0.9699995647070898 },
+        command('relight', 1, {
+          burn: { dv: 0.22, heading: { frame: 'prograde', angle: 0 }, at: 'apoapsis' },
         }),
-        command('relight', 4.844141570118187, { throttle: 1 }),
-        command('coast', 5.135761256730522, { throttle: 0 }),
         ...s.rocket!.payloads.map((p, i) =>
-          command(`release-${i}`, 5.155761256730521 + i * 0.2, { releasePayload: p.id }),
+          command(`release-${i}`, 16 + i * 0.2, { releasePayload: p.id }),
         ),
       ],
     };
@@ -383,7 +389,9 @@ export function timedMission(source: MissionCase, timeScale: number): MissionCas
   // The separation spring has a FIXED velocity in the actual engine; time
   // scaling is therefore not an exact symmetry of recovery. Independently
   // authored contact roots are frozen here, never handed to the search.
-  if (source.id === 'separated-booster-recovery') {
+  // A brake armed on height needs no frozen times: it fires at the same height at any scale.
+  const timedBrake = witness.engineCommands?.some((c) => c.id === 'booster-cutoff');
+  if (source.id === 'separated-booster-recovery' && timedBrake) {
     const contact =
       timeScale === 0.8
         ? [4.7643749999999425, 4.88999999999994]

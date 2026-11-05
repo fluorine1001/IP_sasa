@@ -525,7 +525,7 @@
                   },
                   "right": {
                     "kind": "constant",
-                    "value": 0.99
+                    "value": 0.999999999
                   }
                 },
                 {
@@ -828,7 +828,7 @@
         "y": 0
       },
       "startTime": 0,
-      "endTime": 90,
+      "endTime": 65,
       "dependsOn": [],
       "marker": {
         "kind": "orbit",
@@ -878,8 +878,8 @@
   "rules": {
     "launchLimit": 1,
     "maneuverBudget": 0,
-    "maxTime": 90,
-    "timelineDuration": 90,
+    "maxTime": 65,
+    "timelineDuration": 65,
     "commandLimits": {
       "ignite": 6,
       "stop": 6,
@@ -904,17 +904,17 @@
         "x": 1,
         "y": 0
       },
-      "launchDv": 0.42,
+      "launchDv": 0.35,
       "engineCommands": [
         {
           "id": "relight",
-          "time": 1.2,
+          "time": 2.2,
           "actorId": "craft",
           "burn": {
             "dv": 0.23,
             "heading": {
               "frame": "prograde",
-              "angle": 0
+              "angle": -5
             },
             "at": "apoapsis"
           }
@@ -938,7 +938,7 @@
     "samples": 16,
     "maxPassRate": 0.01,
     "seed": 31415,
-    "timeLimit": 90
+    "timeLimit": 65
   },
   "published": true,
   "launchBodyId": "70b79833-36fe-5afa-8edf-92411a90b34e"

@@ -18,7 +18,7 @@ try {
     .split(',')
     .map(Number);
   console.log(
-    `여유 기준: 시각 ±${MARGIN.time}초 · Δv ±${MARGIN.dv} · 각도 ±${MARGIN.angle}° · 발사 세기 ±${MARGIN.launchPower * 100}% · 냉가스 발사 방향 ±${MARGIN.launchAngle}°`,
+    `여유 기준: 시각 ±${MARGIN.time}초 · Δv ±max(${MARGIN.dv}, ${MARGIN.dvShare * 100}%) · 각도 ±${MARGIN.angle}° · 발사 세기 ±${MARGIN.launchPower * 100}% · 냉가스 발사 방향 ±${MARGIN.launchAngle}°`,
   );
   let failed = false;
   const stages = [];

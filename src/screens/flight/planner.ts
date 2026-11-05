@@ -16,7 +16,8 @@ import { headingNames, type Apsis, type Heading, type HeadingFrame } from '../..
 import { burnEstimate, frameDiagram } from './burn-panel';
 
 const frames: HeadingFrame[] = ['prograde', 'retrograde', 'outward', 'inward'];
-const round2 = (n: number) => Math.round(n * 100) / 100;
+const round2 = (n: number) => Math.round(n * 100) / 100,
+  round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 type Tool = 'burn' | 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy';
 const names: Record<Tool, string> = {
@@ -279,29 +280,33 @@ export function timelinePlanner(
           );
       }
       if (c?.burn || impulse) fields += frameButtons(relative, !!impulse);
+      if (relative?.frame === 'match')
+        fields +=
+          '<label>맞출 대상 <select data-edit="match-target" aria-label="상대속도를 맞출 대상">' +
+          matchTargets()
+            .map(
+              (t) =>
+                `<option value="${escape(t.id)}"${t.id === relative.targetId ? ' selected' : ''}>${escape(t.name)}</option>`,
+            )
+            .join('') +
+          '</select></label>';
       if (relative)
         fields += range(
-          relative.frame === 'prograde' || relative.frame === 'retrograde'
-            ? '기울기 (+ 바깥 / − 안쪽)'
-            : '기울기 (+ 진행 / − 역진행)',
+          relative.frame === 'match'
+            ? '기울기 (+ 왼쪽 / − 오른쪽)'
+            : relative.frame === 'prograde' || relative.frame === 'retrograde'
+              ? '기울기 (+ 바깥 / − 안쪽)'
+              : '기울기 (+ 진행 / − 역진행)',
           'tilt',
           relative.angle,
           -90,
           90,
           '°',
-          5,
+          1,
         );
       if (c?.burn) {
         const estimate = burnEstimate(stage, p, c.id);
-        fields += range(
-          '속력 변화 Δv',
-          'dv',
-          c.burn.dv,
-          0.01,
-          Math.max(0.01, estimate.stageDv),
-          ' u/s',
-          0.01,
-        );
+        fields += dvField('속력 변화 Δv', 'dv', c.burn.dv, Math.max(0.01, estimate.stageDv));
         fields += '<div id="burn-estimate">' + estimate.html + '</div>';
       }
       if (relative) fields += frameDiagram(relative);
@@ -317,14 +322,11 @@ export function timelinePlanner(
           '°',
         );
       if (impulse)
-        fields += range(
+        fields += dvField(
           '속력 변화',
           'push',
           impulse.magnitude ?? length(impulse.vector),
-          0,
           stage.rules.maneuverBudget,
-          ' u/s',
-          0.01,
         );
       // Steering a dropped stage only makes sense once a stage can be dropped.
       if (c && !c.separate && !c.releasePayload && (stage.rocket?.parts.length ?? 0) > 1)
@@ -413,6 +415,14 @@ export function timelinePlanner(
       const input = e.target as HTMLInputElement,
         key = input.dataset.edit;
       if (!key || key === 'actor') return;
+      if (key === 'match-target') {
+        const h = command(selected)?.burn?.heading ?? push(selected)?.heading;
+        if (h) h.targetId = input.value;
+        action?.('edit');
+        changed();
+        update();
+        return;
+      }
       const value = Number(input.value);
       if (!Number.isFinite(value)) return;
       const p = get().plan,
@@ -432,21 +442,26 @@ export function timelinePlanner(
       if (key === 'angle' && impulse)
         impulse.vector = scale(heading(stage, clamp(value, -180, 180)), length(impulse.vector));
       if (key === 'push' && impulse) {
-        const size = round2(clamp(value, 0, stage.rules.maneuverBudget));
+        const size = round3(clamp(value, 0, stage.rules.maneuverBudget));
         impulse.vector = scale(heading(stage, degrees(impulse.vector)), size);
         if (impulse.heading) impulse.magnitude = size;
       }
       if (key === 'tilt') {
         const h = c?.burn?.heading ?? impulse?.heading;
-        if (h) h.angle = Math.round(clamp(value, -90, 90) / 5) * 5;
+        if (h) h.angle = Math.round(clamp(value, -90, 90));
       }
-      if (key === 'dv' && c?.burn) c.burn.dv = Math.max(0.01, round2(value));
+      if (key === 'dv' && c?.burn) c.burn.dv = Math.max(0.001, round3(value));
       if (key === 'launch-dv') p.launchDv = value > 0 ? round2(value) : undefined;
       if (key === 'trigger-height') {
         const target = c?.burn ?? impulse;
         if (target) target.altitude = Math.max(0, round2(value));
       }
       action?.(key === 'time' ? 'move' : 'edit');
+      // A typed value and its slider show the same number.
+      popup.querySelectorAll<HTMLInputElement>(`[data-edit="${key}"]`).forEach((other) => {
+        if (other !== input)
+          other.value = other.type === 'number' ? value.toFixed(3) : String(value);
+      });
       const output = input.closest('label')?.querySelector('output');
       if (output && key === 'launch-dv')
         output.textContent = value > 0 ? value.toFixed(2) + ' u/s' : '연료 끝까지';
@@ -585,14 +600,24 @@ export function timelinePlanner(
       if (frame) {
         const c = command(selected),
           impulse = push(selected);
-        if (c?.burn) c.burn.heading = { frame: frame as HeadingFrame, angle: 0 };
+        const targetId = frame === 'match' ? matchTargets()[0]?.id : undefined;
+        if (c?.burn)
+          c.burn.heading = {
+            frame: frame as HeadingFrame,
+            angle: 0,
+            ...(targetId ? { targetId } : {}),
+          };
         else if (impulse) {
           const size = impulse.magnitude ?? length(impulse.vector);
           if (frame === 'map') {
             impulse.heading = undefined;
             impulse.magnitude = undefined;
           } else {
-            impulse.heading = { frame: frame as HeadingFrame, angle: 0 };
+            impulse.heading = {
+              frame: frame as HeadingFrame,
+              angle: 0,
+              ...(targetId ? { targetId } : {}),
+            };
             impulse.magnitude = size;
           }
         }
@@ -712,10 +737,31 @@ export function timelinePlanner(
       ' u/s</span></span></label>'
     );
   }
+  function matchTargets() {
+    return [
+      ...stage.objects
+        .filter((o) => o.motion || o.dynamic)
+        .map((o) => ({ id: o.id, name: o.name })),
+      ...stage.bodies.filter((b) => b.motion || b.dynamic).map((b) => ({ id: b.id, name: b.name })),
+    ];
+  }
+  /** A speed change: typed to the calculator's precision, or dragged. */
+  function dvField(label: string, key: string, value: number, max: number) {
+    const top = (Math.floor(max * 1000) / 1000).toFixed(3);
+    return (
+      `<label class="dv-field">${label}<span class="dv-entry"><input type="number" data-edit="${key}" min="0.001" max="${top}" step="0.001" value="${value.toFixed(3)}" aria-label="${label} (u/s)"> u/s</span>` +
+      `<input type="range" data-edit="${key}" min="0.001" max="${top}" step="0.001" value="${value}" aria-label="${label} 조절"><span class="range-ends">0.001<span>${top} u/s</span></span></label>`
+    );
+  }
   function frameButtons(h: Heading | undefined, allowMap: boolean) {
     return (
       '<div class="frame-choice" role="group" aria-label="기준 방향">' +
-      [...frames, ...(allowMap ? (['map'] as const) : [])]
+      [
+        ...frames,
+        // Meeting something: a burn against the motion relative to it.
+        ...(matchTargets().length ? (['match'] as const) : []),
+        ...(allowMap ? (['map'] as const) : []),
+      ]
         .map(
           (f) =>
             `<button type="button" data-frame="${f}" aria-pressed="${(h?.frame ?? 'map') === f}">${f === 'map' ? '지도' : headingNames[f]}</button>`,

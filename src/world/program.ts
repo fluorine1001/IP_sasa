@@ -37,7 +37,7 @@ export function programEvents(plan: RoutePlan): ProgramEvent[] {
           {
             ...base,
             kind: 'burn' as const,
-            label: `${triggerText(c.burn)}연소 Δv ${c.burn.dv.toFixed(2)} · ${headingLabel(c.burn.heading)}`,
+            label: `${triggerText(c.burn)}연소 Δv ${formatDv(c.burn.dv)} · ${headingLabel(c.burn.heading)}`,
           },
         ];
       const labels: ProgramEvent[] = [];
@@ -65,7 +65,7 @@ export function programEvents(plan: RoutePlan): ProgramEvent[] {
       kind: 'push' as const,
       label:
         '추진 · 속력 변화 ' +
-        (c.magnitude ?? length(c.vector)).toFixed(2) +
+        formatDv(c.magnitude ?? length(c.vector)) +
         (c.heading ? ' · ' + headingLabel(c.heading) : '') +
         (c.at ? ' · ' + triggerText(c).trim() : ''),
       actorId: 'craft',
@@ -302,4 +302,8 @@ export function triggerText(t: { at?: Apsis; altitude?: number }) {
   if (!t.at) return '';
   if (t.at === 'altitude') return `높이 ${(t.altitude ?? 0).toFixed(2)} u까지 내려오면 `;
   return `이후 첫 ${apsisNames[t.at]}에서 `;
+}
+/** Δv as players type it: three decimals for small burns, two for large ones. */
+export function formatDv(v: number) {
+  return Math.abs(v) < 0.1 ? v.toFixed(3) : v.toFixed(2);
 }

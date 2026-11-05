@@ -76,6 +76,8 @@ export function burnEstimate(stage: Stage, plan: RoutePlan, id: string) {
 
 /** The burn direction drawn in the orbit's frame: surface below, motion to the right. */
 export function frameDiagram(h: Heading) {
+  // A relative-motion burn has no orbit-frame picture; its target and Δv say it all.
+  if (h.frame === 'match') return '';
   const base = { prograde: 0, retrograde: 180, outward: 90, inward: -90 }[h.frame];
   // Along-track bases tilt toward outward (up); radial bases tilt toward prograde (right).
   const tilt = h.frame === 'retrograde' ? -h.angle : h.frame === 'outward' ? -h.angle : h.angle;

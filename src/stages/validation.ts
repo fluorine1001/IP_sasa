@@ -603,7 +603,7 @@ function validHeading(h: unknown) {
   const v = h as { frame?: unknown; angle?: unknown } | undefined;
   return (
     !!v &&
-    ['prograde', 'retrograde', 'outward', 'inward'].includes(v.frame as string) &&
+    ['prograde', 'retrograde', 'outward', 'inward', 'match'].includes(v.frame as string) &&
     Number.isFinite(v.angle) &&
     Math.abs(v.angle as number) <= 180
   );

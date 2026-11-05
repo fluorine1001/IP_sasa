@@ -3,7 +3,7 @@ import { craftCenter } from './craft-center';
 import { landingBounds, landingReading, surfaceVelocity } from './landing';
 import { planConstraints } from './program';
 import { captureFrame } from './replay';
-import { craftHull, hullSize, hullPoseAt, settleHull } from './hull';
+import { craftHull, hullSize, hullPoseAt, settleHull, ROCKET_SEGMENT_LENGTH } from './hull';
 import { firstContact } from './contact';
 import { collectEvidence, emptyEvidence } from './evidence';
 import { beginImpact, advanceImpact } from './impact';
@@ -113,6 +113,10 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
         }
       : undefined,
   };
+  // A free-flying spawn states where the craft's mass is and how it moves; physics
+  // follows the hull's middle, so the tracked base point sits half a hull behind it.
+  if (run.rocket && !stage.launchBodyId)
+    run.position = sub(run.position, scale(run.rocket.direction, craftHull(stage, run).length / 2));
   // A launch with a Δv cutoff is the first Δv burn: already lit, pointing where the pad points.
   if (run.rocket && plan.launchDv !== undefined && run.rocket.throttle > 0)
     run.rocket.burn = {
@@ -393,16 +397,25 @@ export function tick(
           surfaceClearance(stage),
         );
         run.velocity = surfaceVelocity(stage, body, run.position, run.time + slice);
-      } else
-        [run.position, run.velocity] = integrate(
+      } else {
+        // The tracked point is the hull's base; the mass moves with the hull's middle.
+        // Integrating the middle keeps a turn (which pivots about the middle) from
+        // shifting the orbit.
+        const middle = run.rocket
+          ? scale(run.rocket.direction, craftHull(stage, run).length / 2)
+          : { x: 0, y: 0 };
+        const [centre, velocity] = integrate(
           stage,
-          run.position,
+          add(run.position, middle),
           run.velocity,
           run.time,
           slice,
           stage.rocket ? rocketMass(stage, run) : 1,
           part?.area ?? 0,
         );
+        run.position = sub(centre, middle);
+        run.velocity = velocity;
+      }
       run.time = slice === gridGap ? gridTime : run.time + slice;
       remaining -= slice;
       stage = dynamicView(source, run);
@@ -438,15 +451,20 @@ export function tick(
                 maxLandingSpeed: 0.05,
               }
             : stage.rocket!.parts.find((p) => p.id === actor.id)!;
-        [actor.position, actor.velocity] = integrate(
+        const middle = actor.payload
+          ? { x: 0, y: 0 }
+          : scale(actor.direction, ROCKET_SEGMENT_LENGTH / 2);
+        const [actorCentre, actorVelocity] = integrate(
           stepWorld,
-          actor.position,
+          add(actor.position, middle),
           actor.velocity,
           previousTime,
           slice,
           actor.dryMass + actor.fuel,
           part.area,
         );
+        actor.position = sub(actorCentre, middle);
+        actor.velocity = actorVelocity;
         if (actor.payload) {
           const a = atmosphericState(stage, actor.position, actor.velocity, run.time);
           actor.heat = Math.max(

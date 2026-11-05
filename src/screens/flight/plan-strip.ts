@@ -1,4 +1,4 @@
-import { launchCutoffTime, launchFraction } from '../../world/program';
+import { formatDv, launchCutoffTime, launchFraction } from '../../world/program';
 import { length } from '../../physics/vector';
 import { STAGE_COLORS } from '../../render/rocket-sprite';
 import { apsisNames } from '../../world/heading';
@@ -124,6 +124,7 @@ export const headingShort = {
   retrograde: '역진행',
   outward: '바깥',
   inward: '안쪽',
+  match: '맞추기',
 } as const;
 
 export const stageColor = (index: number) => STAGE_COLORS[index % STAGE_COLORS.length];
@@ -191,7 +192,7 @@ export function chipText(
           prefix +
           (command?.burn?.at ? apsisNames[command.burn.at] + ' ' : '') +
           (command?.burn ? headingShort[command.burn.heading.frame] : '연소'),
-        value: command?.burn ? 'Δv ' + command.burn.dv.toFixed(2) : '',
+        value: command?.burn ? 'Δv ' + formatDv(command.burn.dv) : '',
       };
     case 'push': {
       const push = plan.impulses.find((c) => c.id === event.id);
@@ -199,7 +200,7 @@ export function chipText(
         word:
           (push?.at ? apsisNames[push.at] + ' ' : '') +
           (push?.heading ? headingShort[push.heading.frame] : '추진'),
-        value: push ? (push.magnitude ?? length(push.vector)).toFixed(2) : '',
+        value: push ? formatDv(push.magnitude ?? length(push.vector)) : '',
       };
     }
     case 'deploy':

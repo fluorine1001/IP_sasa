@@ -4,7 +4,13 @@ import type { Stage, Run } from './types.ts';
 import { bodyPosition, bodyVelocity } from './celestial.ts';
 import { add, sub, length, scale, unit } from '../physics/vector.ts';
 import { burn, engineSetting, hybridFloat, separationReset } from '../physics/hybrid-kernel';
-import { resolveHeading, triggerFired, triggerReading, type Apsis, type Heading } from './heading';
+import {
+  resolveHeadingNear,
+  triggerFired,
+  triggerReading,
+  type Apsis,
+  type Heading,
+} from './heading';
 import { dominantBody } from './conic';
 export type RocketPart = {
   id: string;
@@ -404,7 +410,14 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     const now = triggerReading(stage, position, velocity, run.time);
     if (triggerFired(pending.at, pending.last, now, pending.altitude)) {
       pending.at = undefined;
-      pending.direction = resolveHeading(stage, position, velocity, run.time, pending.heading!);
+      pending.direction = resolveHeadingNear(
+        stage,
+        position,
+        velocity,
+        run.time,
+        pending.heading!,
+        pending.direction,
+      );
       state.targetDirection = pending.direction;
     }
     pending.last = now;

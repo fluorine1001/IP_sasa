@@ -29,7 +29,7 @@ try {
   const { parseStage } = await server.ssrLoadModule('/src/stages/validation.ts');
   const { execute } = await server.ssrLoadModule('/src/world/engine.ts');
   const { orbitFrame } = await server.ssrLoadModule('/src/world/heading.ts');
-  const { planMargin, MARGIN } = await server.ssrLoadModule('/src/stages/margin.ts');
+  const { planMargin, MARGIN, dvMargin } = await server.ssrLoadModule('/src/stages/margin.ts');
   const { objectiveGoals } = await server.ssrLoadModule('/src/world/goals.ts');
   const order = Number(arg('order'));
   let file, stage;
@@ -187,7 +187,7 @@ try {
     if (plan.launchDv !== undefined)
       ps.push({
         name: '발사 Δv',
-        step: MARGIN.dv,
+        step: dvMargin(plan.launchDv),
         get: (p) => p.launchDv,
         set: (p, v) => (p.launchDv = Math.max(0.01, v)),
       });
@@ -205,7 +205,7 @@ try {
       if (c.burn) {
         ps.push({
           name: `연소${i + 1} Δv`,
-          step: MARGIN.dv,
+          step: dvMargin(c.burn.dv),
           get: (p) => p.engineCommands[i].burn.dv,
           set: (p, v) => (p.engineCommands[i].burn.dv = Math.max(0.01, v)),
         });
@@ -233,7 +233,7 @@ try {
       });
       ps.push({
         name: `추진${i + 1} 세기`,
-        step: MARGIN.dv,
+        step: dvMargin(m.magnitude ?? Math.hypot(m.vector.x, m.vector.y)),
         get: (p) =>
           p.impulses[i].magnitude ?? Math.hypot(p.impulses[i].vector.x, p.impulses[i].vector.y),
         set: (p, v) => {
@@ -273,19 +273,24 @@ try {
   }
   const round = (plan) => {
     const p = structuredClone(plan);
-    if (p.launchDv !== undefined) p.launchDv = Math.round(p.launchDv * 100) / 100;
+    if (p.launchDv !== undefined) p.launchDv = Math.round(p.launchDv * 1000) / 1000;
     for (const c of p.engineCommands ?? []) {
       c.time = Math.round(c.time * 100) / 100;
       if (c.burn) {
         if (c.burn.altitude !== undefined)
           c.burn.altitude = Math.round(c.burn.altitude * 100) / 100;
-        c.burn.dv = Math.round(c.burn.dv * 100) / 100;
+        c.burn.dv = Math.round(c.burn.dv * 1000) / 1000;
         c.burn.heading.angle = Math.round(c.burn.heading.angle);
       }
     }
     for (const m of p.impulses) {
       m.time = Math.round(m.time * 100) / 100;
       if (m.heading) m.heading.angle = Math.round(m.heading.angle);
+      if (m.magnitude !== undefined) {
+        m.magnitude = Math.round(m.magnitude * 1000) / 1000;
+        const l = Math.hypot(m.vector.x, m.vector.y) || 1;
+        m.vector = { x: (m.vector.x / l) * m.magnitude, y: (m.vector.y / l) * m.magnitude };
+      }
       if (m.altitude !== undefined) m.altitude = Math.round(m.altitude * 100) / 100;
     }
     return p;

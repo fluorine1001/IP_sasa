@@ -10,8 +10,10 @@ import type { RoutePlan, Stage } from '../world/types';
 export const MARGIN = {
   /** seconds */
   time: 0.1,
-  /** u/s, a Δv burn or a cold-gas push */
-  dv: 0.01,
+  /** u/s, a Δv burn or a cold-gas push: one input step (the calculator previews the
+   * planned orbit, so players can dial a burn to this), or this share of the burn */
+  dv: 0.001,
+  dvShare: 0.02,
   /** degrees, orbit-frame tilt or a map-fixed push direction */
   angle: 2,
   /** fraction of the launch limit */
@@ -22,6 +24,8 @@ export const MARGIN = {
   launchAngle: 1,
 } as const;
 
+/** The Δv nudge for a burn of this size. */
+export const dvMargin = (dv: number) => Math.max(MARGIN.dv, MARGIN.dvShare * Math.abs(dv));
 export type MarginCheck = { knob: string; delta: string; won: boolean };
 
 const rotate = (v: { x: number; y: number }, degrees: number) => {
@@ -60,10 +64,15 @@ export function nudges(
   }
   if (plan.launchDv !== undefined)
     for (const sign of [1, -1])
-      variant('발사 연소 Δv', `${sign > 0 ? '+' : '−'}${MARGIN.dv}`, (p) => {
-        if (p.launchDv! + sign * MARGIN.dv <= 0) return false;
-        p.launchDv! += sign * MARGIN.dv;
-      });
+      variant(
+        '발사 연소 Δv',
+        `${sign > 0 ? '+' : '−'}${dvMargin(plan.launchDv!).toFixed(3)}`,
+        (p) => {
+          const step = dvMargin(plan.launchDv!);
+          if (p.launchDv! + sign * step <= 0) return false;
+          p.launchDv! += sign * step;
+        },
+      );
   (plan.engineCommands ?? []).forEach((c, i) => {
     const name = c.burn ? `연소 ${i + 1}` : c.separate ? `분리 ${i + 1}` : `엔진 ${i + 1}`;
     for (const sign of [1, -1]) {
@@ -75,10 +84,11 @@ export function nudges(
           if (Math.abs(other.time - c.time) < 1e-9) other.time += sign * MARGIN.time;
       });
       if (c.burn) {
-        variant(name + ' Δv', `${s}${MARGIN.dv}`, (p) => {
-          const b = p.engineCommands![i].burn!;
-          if (b.dv + sign * MARGIN.dv <= 0) return false;
-          b.dv += sign * MARGIN.dv;
+        variant(name + ' Δv', `${s}${dvMargin(c.burn.dv).toFixed(3)}`, (p) => {
+          const b = p.engineCommands![i].burn!,
+            step = dvMargin(c.burn!.dv);
+          if (b.dv + sign * step <= 0) return false;
+          b.dv += sign * step;
         });
         variant(name + ' 기울기', `${s}${MARGIN.angle}°`, (p) => {
           p.engineCommands![i].burn!.heading.angle += sign * MARGIN.angle;
@@ -100,9 +110,10 @@ export function nudges(
         if (m.time + sign * MARGIN.time < 0) return false;
         p.impulses[i].time += sign * MARGIN.time;
       });
-      variant(name + ' 세기', `${s}${MARGIN.dv}`, (p) => {
+      const pushStep = dvMargin(m.magnitude ?? length(m.vector));
+      variant(name + ' 세기', `${s}${pushStep.toFixed(3)}`, (p) => {
         const q = p.impulses[i],
-          size = (q.magnitude ?? length(q.vector)) + sign * MARGIN.dv;
+          size = (q.magnitude ?? length(q.vector)) + sign * pushStep;
         if (size <= 0) return false;
         q.vector = scaled(q.vector, size);
         if (q.heading) q.magnitude = size;

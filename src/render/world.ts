@@ -1,4 +1,5 @@
 import { canvasFont } from './fonts';
+import { drawOrbitSketches, type OrbitSketch } from './orbit-overlay';
 import { paintRocket } from './rocket-sprite';
 import { paintLaunchPad } from './launch-pad';
 import { paintCraftLocator } from './craft-locator';
@@ -39,6 +40,8 @@ export type DrawState = {
   controlledId?: string;
   thrust?: Vec;
   observations?: import('../world/types').Observation[];
+  /** Orbit calculator conics, drawn under the craft. */
+  orbits?: OrbitSketch[];
 };
 const LABEL_FONT = canvasFont(14, 'bold');
 /** A filled label plate centred on x, top edge at y: names stay legible over any terrain. */
@@ -481,6 +484,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fillStyle = '#9ccebd';
     ctx.fillRect(a.x - 2, a.y - 2, 4, 4);
   }
+  if (s.orbits?.length && !foreground) drawOrbitSketches(ctx, s.orbits, c, w, h);
   // Incomplete drafts must not paint an implicit spacecraft at the origin.
   if (!visible('spawn') || (s.stage.spawn.placed === false && !s.run)) return { ctx, w, h };
   const surface = surfaceLaunch(s.stage, t);

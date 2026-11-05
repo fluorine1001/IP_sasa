@@ -20,7 +20,7 @@ import { preflightChecklist } from './preflight';
 import { saveMedals } from '../../app/records';
 import { goalStatus } from './goal-status';
 import { loadReadout } from './load-readout';
-import { altitude, telemetryHtml } from './telemetry';
+import { altitude, orbitHtml, telemetryHtml } from './telemetry';
 import { tutorialLesson } from '../tutorial/lesson';
 import { missionGoalsHtml } from './goal-guide';
 import { planChanges, singleVariableChange } from '../../world/plan-diff';
@@ -49,6 +49,9 @@ import { gravity } from '../../world/celestial.ts';
 import { drawWorld } from '../../render/world.ts';
 import { toWorld, toScreen, zoomAt } from '../../render/camera.ts';
 import type { Run, RoutePlan, Observation } from '../../world/types.ts';
+import type { FlightFrame } from '../../world/replay';
+import { conicOf, type Conic } from '../../world/conic';
+import type { OrbitSketch } from '../../render/orbit-overlay';
 import { uid } from '../../stages/factory.ts';
 import type { FlightSession } from './session';
 export function playScreen(app: App, args: PlayArgs, session?: FlightSession): Screen {
@@ -84,6 +87,52 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     trainingSaved = false;
   syncLaunch(stage);
   const director = flightSoundDirector(stage);
+  let launchSketch: { key: string; conic?: Conic } = { key: '' };
+  /** Orbit calculator: two-body conics of the visible craft and of planned pushes. */
+  function orbitSketches(view: Run | FlightFrame | undefined): OrbitSketch[] {
+    if (!app.settings.orbitTool) return [];
+    const conicFor = (v: Pick<Run, 'position' | 'velocity' | 'time'> & Partial<Run>) =>
+      conicOf(dynamicView(stage, v as Run), v.position, v.velocity, v.time);
+    if (view) {
+      if (view.landed || view.rocket?.airborne === false) return [];
+      if (view.status !== 'running' && view.status !== 'impact' && replayIndex < 0) return [];
+      const c = conicFor(view);
+      return c ? [{ conic: c, tone: 'live' }] : [];
+    }
+    const out: OrbitSketch[] = [];
+    // Before launch: a cold-gas launch is itself an instant push from a known state.
+    if (!stage.rocket && Math.hypot(plan.launch.x, plan.launch.y) > 1e-9) {
+      const key = JSON.stringify(plan.launch);
+      if (launchSketch.key !== key) {
+        const start = createRun(stage, plan);
+        launchSketch = { key, conic: conicFor(start) };
+      }
+      if (launchSketch.conic)
+        out.push({ conic: launchSketch.conic, tone: 'plan', label: '발사 직후' });
+    }
+    const last = trials.at(-1);
+    if (last) {
+      const changed = firstChangeTime(last.scheduledPlan, plan) ?? Infinity;
+      for (const push of plan.impulses) {
+        if (push.time > last.duration || changed < push.time - 1e-9) continue;
+        const before = replayAt(last.frames, Math.max(0, push.time - 1e-3), last.flightPlan);
+        if (!before || before.landed) continue;
+        const c = conicFor({
+          ...before,
+          velocity: { x: before.velocity.x + push.vector.x, y: before.velocity.y + push.vector.y },
+        });
+        if (c) out.push({ conic: c, tone: 'plan', label: `${push.time.toFixed(2)}초 추진 후` });
+      }
+      if (replayTime !== undefined && replayTime > 0) {
+        const frame = replayAt(last.frames, Math.min(replayTime, last.duration), last.flightPlan);
+        if (frame && !frame.landed && frame.rocket?.airborne !== false) {
+          const c = conicFor(frame);
+          if (c) out.push({ conic: c, tone: 'live' });
+        }
+      }
+    }
+    return out;
+  }
   function defaultPlan(): RoutePlan {
     return {
       launch: {
@@ -649,7 +698,8 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     el('landing-readout').hidden = !landing;
     if (landing) el('landing-readout').innerHTML = landing;
     el('flight-readouts').innerHTML = displayed
-      ? telemetryHtml(dynamicView(stage, displayed), displayed)
+      ? telemetryHtml(dynamicView(stage, displayed), displayed) +
+        (app.settings.orbitTool ? orbitHtml(dynamicView(stage, displayed), displayed) : '')
       : '';
     el('trial-count').textContent = String(trials.length);
     el('launch').hidden = replayIndex >= 0 || (!!run && !ended);
@@ -1281,6 +1331,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         trails: app.settings.trails,
         observations: notes,
         controlledId,
+        orbits: orbitSketches(visibleRun),
       });
       const area = canvas.getBoundingClientRect();
       const craft = toScreen(

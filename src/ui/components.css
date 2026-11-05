@@ -1,0 +1,263 @@
+/* Design-system components. Loaded after the legacy console layers so new markup reads
+ * only tokens. New UI uses these classes; old selectors are retired screen by screen. */
+
+/* ---------- Buttons ---------- */
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+  padding: 0 var(--sp-4);
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-bold);
+  color: var(--c-text);
+  background: var(--c-surface-2);
+  border: var(--stroke) solid var(--c-line);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-2), var(--sh-inset);
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    background var(--t-fast);
+}
+.ui-btn:hover:not(:disabled) {
+  background: var(--c-surface-3);
+}
+.ui-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: var(--sh-1);
+}
+.ui-btn:focus-visible {
+  outline: 3px solid var(--c-focus);
+  outline-offset: 2px;
+}
+.ui-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ui-btn.primary {
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+}
+.ui-btn.primary:hover:not(:disabled) {
+  background: var(--amber-200);
+}
+.ui-btn.ghost {
+  background: transparent;
+  box-shadow: none;
+  border-color: color-mix(in srgb, var(--c-text) 25%, transparent);
+}
+.ui-btn.danger {
+  background: var(--red-600);
+}
+.ui-btn.lg {
+  min-height: 52px;
+  padding: 0 var(--sp-5);
+  font-size: var(--fs-3);
+}
+.ui-btn.sm {
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-1);
+}
+.ui-btn svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* ---------- Surfaces ---------- */
+.ui-panel {
+  background: var(--c-surface-1);
+  color: var(--c-text);
+  border: var(--stroke) solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2), var(--sh-inset);
+}
+.ui-doc {
+  background-color: var(--c-doc);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--p-400) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--p-400) 22%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+  color: var(--c-doc-text);
+  border: var(--stroke) solid var(--c-line);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-3);
+}
+.ui-doc .dim,
+.ui-doc small {
+  color: var(--c-doc-dim);
+}
+
+/* ---------- Text roles ---------- */
+.ui-eyebrow {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  border: var(--stroke-thin) solid var(--c-line);
+  border-radius: var(--r-sm);
+}
+.ui-h1 {
+  font-size: var(--fs-6);
+  font-weight: var(--fw-heavy);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.ui-h2 {
+  font-size: var(--fs-4);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  margin: 0;
+}
+.ui-h3 {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-bold);
+  margin: 0;
+}
+.ui-body {
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+}
+
+/* ---------- Key caps ---------- */
+kbd,
+.ui-kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 1px 6px;
+  font: inherit;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  text-align: center;
+  color: var(--c-text);
+  background: var(--n-800);
+  border: var(--stroke-thin) solid var(--c-line);
+  border-bottom-width: 4px;
+  border-radius: var(--r-sm);
+}
+
+/* ---------- Stat: label, value, unit, reference ---------- */
+.ui-stat {
+  display: grid;
+  gap: 2px;
+}
+.ui-stat > span {
+  font-size: var(--fs-1);
+  color: var(--c-text-dim);
+}
+.ui-stat > b {
+  font-size: var(--fs-4);
+  font-weight: var(--fw-heavy);
+}
+.ui-stat > b small {
+  margin-left: 3px;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-medium);
+  color: var(--c-text-dim);
+}
+
+/* ---------- Data table ---------- */
+.ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-1);
+}
+.ui-table th,
+.ui-table td {
+  padding: 6px var(--sp-2);
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+.ui-table th {
+  font-weight: var(--fw-medium);
+  opacity: 0.75;
+}
+.ui-table td.num,
+.ui-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Progress ---------- */
+.ui-meter {
+  height: 8px;
+  background: var(--n-950);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.ui-meter > i {
+  display: block;
+  height: 100%;
+  width: calc(var(--v, 0) * 100%);
+  background: var(--c-info);
+  border-radius: inherit;
+  transition: width var(--t-med) var(--ease);
+}
+.ui-meter.ok > i {
+  background: var(--c-ok);
+}
+
+/* ---------- Dialog ---------- */
+dialog.ui-dialog {
+  max-width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow: auto;
+}
+dialog.ui-dialog::backdrop {
+  background: color-mix(in srgb, var(--n-950) 70%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/* ---------- Orbit calculator readout (flight instruments) ---------- */
+.orbit-calc {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: color-mix(in srgb, var(--sky-600) 18%, var(--n-850));
+  border: var(--stroke-thin) solid color-mix(in srgb, var(--c-info) 55%, var(--c-line));
+  border-radius: var(--r-md);
+}
+.orbit-calc header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: 2px;
+}
+.orbit-calc header b {
+  color: var(--sky-200);
+  font-size: var(--fs-1);
+}
+.orbit-calc header small {
+  color: var(--c-text-faint);
+  font-size: var(--fs-1);
+}
+.orbit-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--fs-1);
+  color: var(--c-text-dim);
+}
+.orbit-row b {
+  color: var(--c-text);
+  font-weight: var(--fw-bold);
+}
+.orbit-row.bad b {
+  color: var(--red-200);
+}
+.orbit-row.info b {
+  color: var(--sky-200);
+}

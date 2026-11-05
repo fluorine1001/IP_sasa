@@ -46,6 +46,7 @@ import { flightSoundDirector } from '../../audio/flight-director';
 import { sub, scale, length, unit, type Vec } from '../../physics/vector.ts';
 import { createRun, tick, WORLD_STEP } from '../../world/engine.ts';
 import { FrameClock } from '../../world/frame-clock';
+import type { LogAttempt } from './flight-log';
 import { firstChangeTime } from '../../world/first-change';
 import { gravity } from '../../world/celestial.ts';
 import { drawWorld } from '../../render/world.ts';
@@ -244,6 +245,13 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   function planAction(id: string) {
     const next = JSON.stringify(plan);
     if (id === 'choose-time' || next !== lastPlan) lesson?.record(id);
+    // The chosen plan time also scrubs the past flights on the map: where the craft
+    // and the moving bodies were at that moment in the record.
+    if (id === 'choose-time' && trials.length && timelineApi) {
+      replayTime = timelineApi.selectedTime();
+      const input = app.root.querySelector<HTMLInputElement>('#replay-time');
+      if (input) input.value = String(replayTime);
+    }
     lastPlan = next;
   }
   function saveSession() {
@@ -314,6 +322,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     { signal },
   );
 
+  let timelineApi: { selectedTime(): number } | undefined;
   const timeline = flightTimeline(
     el('timeline-host'),
     stage,
@@ -329,6 +338,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             recordedEnd: trial.duration,
             playing: replayPlaying,
             ended: !run || ended,
+            log: [
+              trial,
+              trials[replayIndex - 1] ?? trials.find((t) => t !== trial && t === trials.at(-1)),
+            ].filter((t): t is Trial => !!t),
           }
         : {
             phase: run ? 'flight' : 'plan',
@@ -337,6 +350,23 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             applied: run?.applied,
             time: run?.time ?? 0,
             ended,
+            log: (
+              (run && !ended
+                ? [
+                    {
+                      number: trials.length + 1,
+                      duration: run.time,
+                      frames: run.frames,
+                      series: Object.fromEntries(
+                        Object.entries(run.goals)
+                          .filter(([, p]) => p.series)
+                          .map(([id, p]) => [id, p.series!]),
+                      ),
+                    },
+                    trials.at(-1),
+                  ]
+                : [trials.at(-1), trials.at(-2)]) as (LogAttempt | undefined)[]
+            ).filter((t): t is LogAttempt => !!t),
           };
     },
     () => updateHud(),
@@ -358,6 +388,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     signal,
     planAction,
   );
+  timelineApi = timeline;
   el('dock-plan').append(el('program-toggle'));
   el('dock-replay').append(el('replay-toggle'), el('replay-exit'));
   el('dock-phase').append(el('timeline-mode'));
@@ -979,6 +1010,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     timeline.close();
     cancelDrag();
     run = createRun(stage, plan, probe);
+    run.recordSeries = true;
     fastUntil = trials.length ? (firstChangeTime(trials.at(-1)!.scheduledPlan, plan) ?? 0) : 0;
     flightClock.reset();
     lesson?.record('launch');

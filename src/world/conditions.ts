@@ -122,6 +122,7 @@ function evaluateNode(
             ? Math.max(0, a - b)
             : Math.abs(a - b);
       const distance = missing / Math.max(Math.abs(b), 1e-9);
+      if (c.run.recordSeries) recordSample(p, path, node, a, b, c.run.time);
       p.closest ??= {};
       if (!p.closest[path] || distance < p.closest[path].distance)
         p.closest[path] = {
@@ -463,4 +464,38 @@ export function conditionCost(
   if (n.kind === 'window') return 1 + recurse(n.value) + recurse(n.domain) + recurse(n.width);
   if (n.when) return 1 + recurse(n.when) + recurse(n.value);
   return 1;
+}
+
+const SERIES_STEP = 0.05,
+  SERIES_LIMIT = 4000;
+/** Passive record of what the judge compared, for the flight log graph. Never read by judgement. */
+function recordSample(
+  p: GoalProgress,
+  path: string,
+  node: Extract<Condition, { kind: 'compare' }>,
+  value: number,
+  target: number,
+  time: number,
+) {
+  p.series ??= {};
+  const series = (p.series[path] ??= {
+    metric: node.left.kind === 'metric' ? node.left.metric : '관측값',
+    targetId: node.left.kind === 'metric' ? node.left.targetId : '',
+    operator: node.operator,
+    target,
+    t: [],
+    v: [],
+  });
+  series.target = target;
+  const last = series.t.at(-1);
+  if (last !== undefined && time - last < SERIES_STEP - 1e-9) {
+    if (Math.abs(last - time) < 1e-9) series.v[series.v.length - 1] = value;
+    return;
+  }
+  series.t.push(time);
+  series.v.push(value);
+  if (series.t.length > SERIES_LIMIT) {
+    series.t = series.t.filter((_, i) => i % 2 === 0);
+    series.v = series.v.filter((_, i) => i % 2 === 0);
+  }
 }

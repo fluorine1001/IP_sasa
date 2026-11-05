@@ -161,7 +161,8 @@ summary:focus-visible {
   background: var(--red-200);
 }
 .resources {
-  max-height: calc(100dvh - 330px);
+  /* Stop above the console, whatever its height (the flight log makes it taller). */
+  max-height: calc(100dvh - var(--deck-offset, 260px) - 84px);
   overflow-y: auto;
 }
 /* Keep the current editor's workspace dimensions above older result-dock rules. */

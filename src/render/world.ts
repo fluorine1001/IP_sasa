@@ -1,3 +1,5 @@
+import { haloText, leaderLabel } from './annotate';
+import { palette } from '../ui/palette';
 import { canvasFont } from './fonts';
 import { drawOrbitSketches, type OrbitSketch } from './orbit-overlay';
 import { paintRocket } from './rocket-sprite';
@@ -173,11 +175,22 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     if (spot) {
       ctx.font = LABEL_FONT;
       ctx.textAlign = 'center';
+      // State the band's heights above the surface: the same numbers the briefing uses.
+      // A single ring is a distance from the centre; a band is a height range above the surface.
+      const single = Math.abs(g.display.max - g.display.min) < 1e-6;
+      const surface = single && body && Math.abs(g.display.max - body.radius) < body.radius * 0.02;
+      const range = surface
+        ? ' · 표면'
+        : single
+          ? ` · 중심에서 ${fmtBand(g.display.max)} u`
+          : body
+            ? ` · 높이 ${fmtBand(g.display.min - body.radius)}–${fmtBand(g.display.max - body.radius)} u`
+            : '';
       nameTag(
         ctx,
-        complete ? '목표 ✓' : '목표',
+        (complete ? '목표 ✓' : '목표') + range,
         spot.x,
-        spot.y - 11,
+        spot.y - 26,
         complete ? '#6fbf73' : '#f2cf4a',
         '#0d171c',
       );
@@ -222,27 +235,28 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
               s.stage.bodies.find((b) => b.id === id) ?? s.stage.objects.find((o) => o.id === id);
             if (!target) continue;
             const p = screen(position);
-            ctx.strokeStyle = '#a4cab3aa';
-            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = palette.n50 + '99';
+            ctx.lineWidth = 1.25;
             ctx.setLineDash([3, 5]);
             ctx.beginPath();
             ctx.arc(p.x, p.y, Math.max(6, target.radius * c.zoom), 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillStyle = '#a4cab3';
-            ctx.font = canvasFont(13);
-            ctx.fillText(`${target.name} · 기록 ${sample.time.toFixed(1)}초`, p.x + 8, p.y - 8);
+            haloText(
+              ctx,
+              `${target.name} · 기록 ${sample.time.toFixed(1)}초`,
+              { x: p.x + Math.max(6, target.radius * c.zoom) + 6, y: p.y },
+              palette.n50,
+            );
           }
+        // Where the craft was at this moment of a past flight: a plotted point, not a marker.
         const q = screen(sample.position);
-        ctx.fillStyle = ['#ffe1a1', '#79c7d6', '#b6a1de', '#d0cc76'][i % 4];
-        ctx.beginPath();
-        ctx.arc(q.x, q.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.font = canvasFont(13);
-        ctx.fillText(
+        leaderLabel(
+          ctx,
+          q,
           `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
-          q.x + 10,
-          q.y - 10,
+          i === 0 ? palette.n50 : palette.n300,
+          { x: q.x - 1, y: q.y + 1 },
         );
       }
     if (s.history?.length && (s.selectedHistory || s.trails !== false))
@@ -686,4 +700,9 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.restore();
   }
   return { w, h, screen };
+}
+
+function fmtBand(v: number) {
+  const a = Math.abs(v);
+  return a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2);
 }

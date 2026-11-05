@@ -134,6 +134,8 @@ export type GoalProgress = {
       distance: number;
     }
   >;
+  /** Sampled values of each compared quantity, kept only when the run asks for it (flight log graph). */
+  series?: Record<string, MeasuredSeries>;
   conditionMemory?: ConditionMemory;
   checkpoints?: Record<string, { value: number; time: number }>;
   windows?: Record<string, WindowMemory>;
@@ -148,7 +150,17 @@ export type Observation = {
   vector: Vec;
   text: string;
 };
+export type MeasuredSeries = {
+  metric: string;
+  targetId: string;
+  operator: string;
+  target: number;
+  t: number[];
+  v: number[];
+};
 export type Run = {
+  /** Record per-condition value series for the flight log graph. Off for audits and search. */
+  recordSeries?: boolean;
   peakLoad?: number;
   evidence: import('./evidence').EvidenceState;
   time: number;

@@ -362,3 +362,145 @@
 .timeline-burns {
   display: none;
 }
+
+/* Flight log graph: past measurements on the timeline's time axis. */
+.flight-log {
+  margin: 2px 14px 4px;
+  font-size: var(--fs-1);
+  color: var(--c-text-dim);
+}
+.flight-log[hidden] {
+  display: none;
+}
+.log-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+}
+.flight-deck .flight-log .log-metric {
+  min-height: 0;
+  height: auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 8px;
+  font-size: var(--fs-1);
+  color: var(--c-text);
+  background: var(--c-sunken);
+  border: 1px solid var(--n-500);
+  border-radius: var(--r-sm);
+  box-shadow: none;
+}
+.log-metric:hover {
+  border-color: var(--c-text-dim);
+}
+.log-metric small {
+  color: var(--c-text-dim);
+  font-size: var(--fs-1);
+}
+.log-readings {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--c-text-dim);
+}
+.log-reading {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--c-doc);
+}
+.log-reading i {
+  width: 14px;
+  border-top: 2px solid var(--c-doc);
+}
+.log-reading.previous {
+  color: var(--c-text-dim);
+}
+.log-reading.previous i {
+  border-top: 2px dashed var(--c-text-dim);
+}
+.log-plot {
+  position: relative;
+  height: 56px;
+  margin-top: 2px;
+  background: var(--c-sunken);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.log-plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.log-band {
+  fill: color-mix(in srgb, var(--c-target) 14%, transparent);
+}
+.log-threshold {
+  stroke: var(--c-target);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.log-line {
+  fill: none;
+  stroke: var(--c-doc);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.log-line.previous {
+  stroke: var(--c-text-dim);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.log-mark {
+  position: absolute;
+  left: 6px;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  color: var(--c-target);
+  font-variant-numeric: tabular-nums;
+  background: var(--c-sunken);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.log-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid var(--c-doc);
+  pointer-events: none;
+}
+@media (max-width: 720px) {
+  .flight-log {
+    margin: 0 10px 2px;
+  }
+  .log-plot {
+    height: 36px;
+  }
+  .log-reading.previous {
+    display: none;
+  }
+  .log-head {
+    min-height: 22px;
+  }
+  .flight-deck .flight-log .log-metric {
+    padding: 1px 6px;
+    max-width: 55%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Camera controls do nothing before launch; they appear with the flight. */
+.flight-deck[data-phase='plan'] :is(#follow, #vehicle) {
+  display: none;
+}

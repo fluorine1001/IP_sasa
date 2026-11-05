@@ -30,9 +30,12 @@ export type TimelineState = {
   recordedEnd?: number;
   playing?: boolean;
   ended?: boolean;
+  /** Past (and the live) flights to draw in the flight log graph, newest first. */
+  log?: LogAttempt[];
 };
 import { eventIcon } from '../../render/program-icons';
 import { burnSpans, chipText, stageColor, textWidth } from './plan-strip';
+import { flightLogHtml, logGroups, type LogAttempt } from './flight-log';
 export { eventIcon } from '../../render/program-icons';
 /** Round-number ticks ("5초", "10초") at a spacing that fits about `slots` labels. */
 export function timeTicks(duration: number, slots: number) {
@@ -63,6 +66,8 @@ export function flightTimeline(
   action?: (id: string) => void,
 ) {
   let fingerprint = '',
+    logFingerprint = '',
+    logKey = '',
     selectedTime = 2,
     editorOpen = false;
   let viewDuration = Math.min(timelineDuration(stage), planningTimeLimit(stage));
@@ -72,7 +77,7 @@ export function flightTimeline(
   root.innerHTML =
     '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-burns" class="timeline-burns" aria-hidden="true"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
     timelineDuration(stage) +
-    '" step="0.01" value="0"></div><div id="timeline-palette"></div><button id="timeline-extend" hidden>시간선 늘리기 +</button><div class="timeline-caption"><span class="timeline-legend">' +
+    '" step="0.01" value="0"></div><div id="flight-log" class="flight-log" hidden></div><div id="timeline-palette"></div><button id="timeline-extend" hidden>시간선 늘리기 +</button><div class="timeline-caption"><span class="timeline-legend">' +
     (['ignite', 'stop', 'turn', 'separate'] as const)
       .map((k, i) => '<i>' + eventIcon(k) + ['출력', '끄기', '회전', '분리'][i] + '</i>')
       .join('') +
@@ -400,6 +405,46 @@ export function flightTimeline(
     selectTime,
     action,
   );
+  function drawLog(state: TimelineState, duration: number) {
+    const host = el('flight-log'),
+      attempts = state.log ?? [],
+      groups = logGroups(stage, attempts);
+    if (!groups.length) {
+      host.hidden = true;
+      logFingerprint = '';
+      return;
+    }
+    let index = groups.findIndex((g) => g.key === logKey);
+    if (index < 0) {
+      index = 0;
+      logKey = groups[0].key;
+    }
+    const cursor = state.phase === 'plan' ? selectedTime : state.time;
+    const key = JSON.stringify([
+      attempts.map((a) => [a.number, a.duration.toFixed(2)]),
+      logKey,
+      duration,
+      cursor.toFixed(2),
+      groups.length,
+    ]);
+    host.hidden = false;
+    if (key === logFingerprint) return;
+    logFingerprint = key;
+    host.innerHTML = flightLogHtml(
+      stage,
+      attempts,
+      groups[index],
+      duration,
+      cursor,
+      index,
+      groups.length,
+    );
+    host.querySelector<HTMLButtonElement>('#log-metric')!.onclick = () => {
+      logKey = groups[(index + 1) % groups.length].key;
+      logFingerprint = '';
+      update();
+    };
+  }
   function update() {
     const state = get(),
       plan = state.plan;
@@ -421,6 +466,7 @@ export function flightTimeline(
       viewports.set(viewportKey, viewDuration);
     }
     const duration = viewDuration;
+    drawLog(state, duration);
     // Tick density follows the drawn width, so phones get fewer, still legible labels.
     const trackWidth = Math.round((el('timeline-track').clientWidth || 640) / 80);
     const key = JSON.stringify([
@@ -647,5 +693,6 @@ export function flightTimeline(
       planner.close();
     },
     refresh: refreshFields,
+    selectedTime: () => selectedTime,
   };
 }

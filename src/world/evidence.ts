@@ -1,6 +1,6 @@
 import { captureFrame, type FlightFrame } from './replay';
 import { evaluateCondition, expressionValue, type Condition, type Expression } from './conditions';
-import type { GoalContext, GoalProgress, RoutePlan, Run, Stage } from './types';
+import type { GoalContext, GoalProgress, MeasuredSeries, RoutePlan, Run, Stage } from './types';
 import { length } from '../physics/vector';
 import { planChanges, singleVariableChange } from './plan-diff';
 
@@ -36,6 +36,8 @@ export type Trial = {
   duration: number;
   trail: Run['trail'];
   evidence: EvidenceState;
+  /** goal id → compared quantity path → sampled values (flight log graph). */
+  series?: Record<string, Record<string, MeasuredSeries>>;
 };
 export const emptyEvidence = (): EvidenceState => ({ readings: {}, memory: {}, cues: [] });
 export function learningDesign(stage: Stage): LearningDesign {
@@ -120,6 +122,11 @@ export function recordTrial(run: Run, number: number): Trial {
     duration: run.time,
     trail: structuredClone(run.trail),
     evidence: structuredClone(run.evidence),
+    series: Object.fromEntries(
+      Object.entries(run.goals)
+        .filter(([, p]) => p.series)
+        .map(([id, p]) => [id, structuredClone(p.series!)]),
+    ),
   };
 }
 export function compareTrials(a: Trial, b: Trial): string {

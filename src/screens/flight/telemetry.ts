@@ -47,7 +47,9 @@ export function orbitHtml(
   const c = conicOf(stage, run.position, run.velocity, run.time);
   if (!c) return '';
   const alt = (r: number) => (r - c.body.radius).toFixed(r - c.body.radius < 10 ? 2 : 1);
-  const lacking = c.circularSpeed - c.speed;
+  // Sideways speed is what keeps an orbit up; compare it, not the total, with the circular speed.
+  const sideways = Math.abs(c.h) / Math.hypot(c.r.x, c.r.y);
+  const lacking = c.circularSpeed - sideways;
   const row = (label: string, value: string, tone = '') =>
     `<div class="orbit-row ${tone}"><span>${label}</span><b>${value}</b></div>`;
   return (
@@ -65,7 +67,7 @@ export function orbitHtml(
     (c.period ? row('한 바퀴', `${c.period.toFixed(1)} 초`) : '') +
     row('원궤도 속력', `${c.circularSpeed.toFixed(3)} u/s`) +
     row(
-      lacking > 0 ? '원궤도까지 부족' : '원궤도보다 초과',
+      lacking > 0 ? '원궤도까지 옆 속력 부족' : '원궤도보다 옆 속력 초과',
       `${Math.abs(lacking).toFixed(3)} u/s`,
     ) +
     row('탈출 속력', `${c.escapeSpeed.toFixed(3)} u/s`) +

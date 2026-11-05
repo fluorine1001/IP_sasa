@@ -52,3 +52,12 @@ describe('two-body orbit calculator', () => {
     expect(f.orbitSpeedAt(1)).toBeCloseTo(Math.sqrt(0.5), 12);
   });
 });
+describe('straight up-and-down flight', () => {
+  it('reads the top of the hop and a fall', () => {
+    const c = at({ x: 1.2, y: 0 }, { x: 0.3, y: 0 });
+    // energy = 0.045 − 1/1.2; a = −1/(2E); apex r = 2a for a radial path
+    const E = 0.045 - 1 / 1.2;
+    expect(c.apoapsis).toBeCloseTo(-1 / E, 9);
+    expect(c.impactNu).toBeDefined();
+  });
+});

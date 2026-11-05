@@ -162,7 +162,7 @@ body.game-ui .goal-row .goal-near {
   grid-column: 1 / -1;
   display: block;
   font-size: var(--fs-1);
-  color: var(--c-doc-dim);
+  color: var(--c-text-dim);
 }
 
 /* ---------- Pause menu ---------- */
@@ -356,4 +356,108 @@ body.game-ui .chapter-card.selected .chapter-caption strong {
   body.game-ui #replay-monitor {
     display: none;
   }
+}
+
+/* ---------- Tutorial hub ---------- */
+body.game-ui .tutorial-hub .tutorial-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+.tutorial-guide {
+  padding: var(--sp-5);
+}
+.tutorial-loop {
+  display: grid;
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0;
+  padding-left: 1.4em;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+}
+.tutorial-loop b {
+  display: block;
+  color: var(--c-accent);
+}
+.tutorial-guide .dim {
+  color: var(--c-text-dim);
+}
+@media (max-width: 650px) {
+  body.game-ui .tutorial-hub .tutorial-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Flight manual ---------- */
+body.game-ui .help-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+body.game-ui .help-grid .info {
+  color: var(--sky-200);
+  font-weight: var(--fw-bold);
+}
+body.game-ui .help-grid .plan {
+  color: var(--amber-200);
+  font-weight: var(--fw-bold);
+}
+body.game-ui .help-grid .m-success,
+body.game-ui .help-grid .m-budget,
+body.game-ui .help-grid .m-clean {
+  display: inline-block;
+  min-width: 4.5em;
+}
+body.game-ui .help-grid .m-success {
+  color: var(--yellow-400);
+}
+body.game-ui .help-grid .m-budget {
+  color: var(--sky-200);
+}
+body.game-ui .help-grid .m-clean {
+  color: var(--green-200);
+}
+.help-keys dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, auto) minmax(140px, 1fr));
+  gap: var(--sp-2) var(--sp-3);
+  margin: var(--sp-3) 0 0;
+  align-items: center;
+}
+.help-keys dt {
+  white-space: nowrap;
+}
+.help-keys dd {
+  margin: 0;
+  color: var(--c-text-dim);
+}
+.help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+/* ---------- Result report ---------- */
+.result-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-5);
+  margin: var(--sp-2) 0;
+  font-size: var(--fs-1);
+}
+.result-stats div {
+  display: flex;
+  gap: var(--sp-2);
+}
+.result-stats dt {
+  color: var(--c-doc-dim);
+}
+.result-stats dd {
+  margin: 0;
+  font-weight: var(--fw-bold);
+  color: var(--c-doc-text);
+}
+.result-stats small {
+  font-weight: var(--fw-regular);
+  color: var(--c-doc-dim);
 }

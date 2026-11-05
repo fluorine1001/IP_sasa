@@ -78,7 +78,6 @@ body.game-ui {
 .game-ui #command-popover,
 .game-ui .result,
 .game-ui dialog.mission-goals,
-.game-ui .mission-panel.panel,
 .game-ui .stage-card {
   background-color: var(--paper);
   background-image:
@@ -97,16 +96,21 @@ body.game-ui {
 .game-ui .program-editor label,
 .game-ui #command-popover b,
 .game-ui #command-popover label,
-.game-ui dialog.mission-goals h2,
+.game-ui dialog.mission-goals h2 {
+  color: var(--paper-ink);
+}
+/* The mission card is a live instrument: console metal, like the gauges. */
 .game-ui .mission-panel h2,
 .game-ui .mission-panel .goal-row span {
-  color: var(--paper-ink);
+  color: var(--text);
 }
 .game-ui .program-editor p,
 .game-ui .program-editor small,
-.game-ui #command-popover small,
-.game-ui .mission-panel small {
+.game-ui #command-popover small {
   color: var(--paper-dim);
+}
+.game-ui .mission-panel small {
+  color: var(--text-dim);
 }
 
 /* Label tape: the one place panels name themselves. */

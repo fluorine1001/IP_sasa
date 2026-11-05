@@ -19,6 +19,7 @@ export function drawOrbitSketches(
   const reach = Math.max(w, h) / camera.zoom + Math.hypot(camera.x, camera.y) + 4;
   for (const { conic: c, tone, label } of sketches) {
     const color = tone === 'plan' ? palette.amber400 : palette.sky400;
+    if (Math.abs(c.h) < 1e-9) continue; // straight up-and-down: no curve to draw
     const path = conicPath(c, Math.max(reach, c.periapsis * 4));
     if (path.length < 2) continue;
     ctx.save();

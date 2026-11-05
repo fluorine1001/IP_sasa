@@ -85,13 +85,14 @@ export function conicAround(
   const periapsisAngle = e > 1e-9 ? Math.atan2(ev.y, ev.x) : Math.atan2(r.y, r.x);
   const sense = h >= 0 ? 1 : -1;
   const nu = wrap(sense * (Math.atan2(r.y, r.x) - periapsisAngle));
-  const bound = energy < 0 && e < 1;
+  const bound = energy < 0;
   const a = Math.abs(energy) < 1e-12 ? Infinity : -mu / (2 * energy);
-  const periapsis = p / (1 + e);
-  const apoapsis = bound ? p / (1 - e) : Infinity;
+  // a(1 ∓ e) stays exact for a straight up-and-down path (h → 0, e → 1) where p/(1 − e) fails.
+  const periapsis = bound ? a * (1 - e) : p / (1 + e);
+  const apoapsis = bound ? a * (1 + e) : Infinity;
   const period = bound ? 2 * Math.PI * Math.sqrt(a ** 3 / mu) : undefined;
   let impactNu: number | undefined;
-  if (periapsis < body.radius && Math.abs(h) > 1e-12) {
+  if (periapsis < body.radius && Math.abs(h) > 1e-9) {
     // r(ν) = p / (1 + e cos ν) = R  →  cos ν = (p/R − 1)/e; the craft moves towards +ν.
     const c = e > 1e-12 ? (p / body.radius - 1) / e : 2;
     // The craft moves towards +ν; the inbound crossing (dr/dν ∝ sin ν < 0) is at −acos(c).
@@ -100,7 +101,7 @@ export function conicAround(
       // An open path only meets the surface if it has not yet passed that crossing.
       if (bound || nu < n0) impactNu = n0;
     }
-  } else if (Math.abs(h) <= 1e-12 && rv < 0) impactNu = nu; // straight fall
+  } else if (Math.abs(h) <= 1e-9 && (rv < 0 || bound)) impactNu = nu; // straight fall
   const periapsisPassed = !bound && nu > 0;
   return {
     body,

@@ -47,7 +47,7 @@ test('탐사 시작은 스테이지 목록을 열고 도움말과 설정은 독�
   await page.goto('/');
   await page.getByRole('button', { name: '비행 안내서', exact: true }).click();
   await expect(page.getByRole('heading', { name: '비행 안내서' })).toBeVisible();
-  await expect(page.locator('main')).toContainText('앞으로의 궤도는 보여주지 않습니다');
+  await expect(page.locator('main')).toContainText('실제 비행으로만 알 수 있습니다');
   await expect(page.locator('#practice')).toBeVisible();
   await expect(page.locator('#training-panel')).toHaveCount(0);
   await page.locator('#back').click();

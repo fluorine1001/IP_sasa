@@ -54,7 +54,7 @@ export function resultSummary(
   stage: Stage,
   run: Run,
   previous?: RoutePlan,
-  options: { hasNext?: boolean } = {},
+  options: { hasNext?: boolean; attempt?: number } = {},
 ) {
   const seal = stamp(stage, run);
 
@@ -108,6 +108,9 @@ export function resultSummary(
           .join('')}</div>`
       : '';
 
+  const share = medals.initial > 0 ? Math.min(1, medals.used / medals.initial) : 0;
+  const stats = `<dl class="result-stats">${options.attempt ? `<div><dt>시도</dt><dd>${options.attempt}번째</dd></div>` : ''}<div><dt>비행 시간</dt><dd>${run.time.toFixed(2)}초</dd></div><div><dt>${stage.rocket ? '연료 사용' : '추진 사용'}</dt><dd>${Math.round(share * 100)}%${run.status === 'won' ? ` <small>(예산 안 기준 90%)</small>` : ''}</dd></div></dl>`;
+
   const changes = previous ? planChanges(previous, run.initialPlan ?? run.plan) : [];
   // On a retry, what changed since the last flight; nothing to say on the first.
   const change = !previous
@@ -125,5 +128,5 @@ export function resultSummary(
   // A flight stopped by hand has nothing to analyse: stamp and actions only.
   if (run.status === 'aborted')
     return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${actions}`;
-  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${change ? `<p class="result-change">${escape(change)}</p>` : ''}${actions}`;
+  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${stats}${change ? `<p class="result-change">${escape(change)}</p>` : ''}${actions}`;
 }

@@ -1030,10 +1030,14 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     el('result').hidden = false;
     el('result').innerHTML = resultSummary(stage, run, trials.at(-2)?.scheduledPlan, {
       hasNext: !!args.next,
+      attempt: trials.length,
     });
     el('result').dataset.outcome = run.status === 'won' ? 'won' : 'failed';
-    if (run.status === 'won' && !args.onReturn && !training)
-      saveMedals(stage.id, flightMedals(stage, run));
+    if (run.status === 'won' && !args.onReturn && !training) {
+      const earned = flightMedals(stage, run);
+      saveMedals(stage.id, earned);
+      if (earned.budget) setTimeout(() => eventSound('medal'), 900);
+    }
     beginReplay(trials.length - 1, true);
     el('result-close').onclick = () => {
       el('result').hidden = true;

@@ -101,7 +101,7 @@ test('표면에서 발사·정지·수동 비행 종료·기록 확인', async (
   await page.locator('#replay-exit').click();
   await expect(page.locator('#inventory')).toHaveCount(0);
   await expect(page.locator('#hint')).toContainText('지난 비행');
-  await expect(page.locator('#flight-status')).toContainText('같은 환경');
+  await expect(page.locator('#flight-status')).toContainText('계획 편집');
   await page.locator('#notes').click();
   await expect(page.locator('#notebook')).toContainText('발사대 중력 관측');
   await expect(page.locator('.trial-card')).toHaveCount(1);
@@ -339,7 +339,7 @@ test('종료는 재도전 화면에 머무르며 다른 스테이지에는 비�
   await expect(page.locator('#inventory')).toHaveCount(0);
   await expect(page.locator('#note-count')).toHaveText('1');
   await expect(page.locator('#hint')).toContainText('0개 비행 조작 예약');
-  await expect(page.locator('#hint')).toContainText('미래 궤도');
+  await expect(page.locator('#hint')).toContainText('기록 없음');
   await page.locator('#notes').click();
   await expect(page.locator('.trial-card')).toHaveCount(0);
   await page.locator('#close-notes').click();

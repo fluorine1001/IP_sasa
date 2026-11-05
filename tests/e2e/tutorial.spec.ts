@@ -132,7 +132,10 @@ for (const width of [1440, 390])
     await page.locator('#program-toggle').click();
     await expect(page.locator('#program-launch-power')).toBeEnabled();
     await page.locator('#program-close').click();
-    for (const id of ['launch', 'program-toggle', 'vehicle', 'notes']) {
+    // Camera controls do nothing before launch, so the plan phase does not show them.
+    await expect(page.locator('#vehicle')).toBeHidden();
+    await expect(page.locator('#follow')).toBeHidden();
+    for (const id of ['launch', 'program-toggle', 'notes']) {
       const rect = (await page.locator('#' + id).boundingBox())!;
       expect(rect.x).toBeGreaterThanOrEqual(0);
       expect(rect.x + rect.width).toBeLessThanOrEqual(width);

@@ -48,7 +48,9 @@ export function actorDiagram(stage: Stage, actorId: string, firstPart = 0) {
     })
     .join('');
   const name = craft ? '본체' : escape(parts.find((p) => p.id === actorId)?.name ?? '분리된 단');
-  return `<figure class="actor-diagram stage-stack" role="img" aria-label="${craft ? '본체' : '분리된 단'}"><div class="stack-row">${chips}<span class="stack-nose ${craft ? 'on' : 'off'}"></span></div><figcaption>${name}${craft && firstPart > 0 ? ` · ${firstPart}단 분리됨` : ''}</figcaption></figure>`;
+  // The nose is the payload body; it is labelled so it does not read as a play button.
+  const caption = craft ? (firstPart > 0 ? `${firstPart}단까지 분리됨` : '') : name;
+  return `<figure class="actor-diagram stage-stack" role="img" aria-label="${craft ? '본체' + (caption ? ' · ' + caption : '') : '분리된 단 · ' + name}"><div class="stack-row">${chips}<span class="stack-nose ${craft ? 'on' : 'off'}">본체</span></div>${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`;
 }
 
 /** Same up/right axes as the world map, not a second rotated coordinate convention. */

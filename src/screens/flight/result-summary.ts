@@ -72,7 +72,7 @@ export function resultSummary(
       : '';
     return {
       done: !!progress?.complete,
-      html: `<li class="${progress?.complete ? 'done' : 'open'}"><span class="goal-check" aria-hidden="true">${progress?.complete ? '✓' : ''}</span><span>${escape(g.title)}${near ? `<small>목표 ${target} · 최고 <b>${withUnit(near.value.toFixed(2), unit)}</b> (${near.time.toFixed(1)}초)</small>` : ''}</span></li>`,
+      html: `<li class="${progress?.complete ? 'done' : 'open'}"><span class="goal-check" aria-hidden="true">${progress?.complete ? '✓' : ''}</span><span>${escape(g.title)}${near ? `<small>목표 ${target} · ${['lte', 'lt'].includes(near.operator) ? '최저' : ['gte', 'gt'].includes(near.operator) ? '최고' : '최근접'} <b>${withUnit(near.value.toFixed(2), unit)}</b> (${near.time.toFixed(1)}초)</small>` : ''}</span></li>`,
     };
   });
 

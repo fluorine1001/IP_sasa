@@ -205,7 +205,7 @@ export function flightTimeline(
           eventIcon(e.kind) +
           '<b>' +
           escape(e.label) +
-          '</b><button data-delete="' +
+          '</b><button data-sound="remove" data-delete="' +
           e.id +
           '" aria-label="예약 삭제">×</button></div><div class="command-controls">' +
           timeInput(e.id, e.time) +
@@ -251,7 +251,7 @@ export function flightTimeline(
           (k) =>
             '<button ' +
             (canAddCommand(stage, plan, k as CommandKind) ? '' : 'disabled ') +
-            'data-add="' +
+            'data-sound="place" data-add="' +
             k +
             '">' +
             eventIcon(k as ProgramEvent['kind']) +

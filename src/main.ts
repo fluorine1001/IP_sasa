@@ -18,6 +18,7 @@ import { tutorialsScreen } from './screens/tutorial/hub.ts';
 import { playScreen } from './screens/flight/screen.ts';
 import { tutorialCatalog } from './stages/catalog.ts';
 import { liveCatalog } from './stages/live-catalog';
+import { installAudio, installUiSounds, setVolumes } from './audio/engine';
 import './app/expedition-theme.css';
 import './app/console-theme.css';
 import './app/console-readability.css';
@@ -26,11 +27,18 @@ import './app/console-panels.css';
 // Scopes the illustrated mission-control theme to the game (the workshop keeps its own look).
 document.body.classList.add('game-ui');
 const saved = readSaved<Partial<Settings>>('orbit-settings-v1', {});
+const unit = (value: unknown, fallback: number) =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
 const settings: Settings = {
-  volume:
-    typeof saved.volume === 'number' && Number.isFinite(saved.volume)
-      ? Math.max(0, Math.min(1, saved.volume))
-      : 0.5,
+  volume: unit(saved.volume, 0.7),
+  sfxVolume: unit(saved.sfxVolume, 0.8),
+  uiVolume: unit(saved.uiVolume, 0.6),
+  ambienceVolume: unit(saved.ambienceVolume, 0.5),
+  orbitTool: saved.orbitTool !== false,
+  uiScale:
+    typeof saved.uiScale === 'number' && Number.isFinite(saved.uiScale)
+      ? Math.max(0.85, Math.min(1.25, saved.uiScale))
+      : 1,
   grid: saved.grid === true,
   trails: saved.trails !== false,
   reducedMotion: saved.reducedMotion === true,
@@ -49,7 +57,7 @@ const app: App = {
   completed,
   saveSettings: () => {
     writeSaved('orbit-settings-v1', settings);
-    document.body.classList.toggle('reduced-motion', settings.reducedMotion);
+    applySettings();
   },
   complete: (id) => {
     completed.add(id);
@@ -81,6 +89,23 @@ const app: App = {
                 : playScreen(app, args!);
   },
 };
+function applySettings() {
+  document.body.classList.toggle('reduced-motion', settings.reducedMotion);
+  document.documentElement.style.setProperty('--ui-scale', String(settings.uiScale));
+  setVolumes({
+    master: settings.volume,
+    sfx: settings.sfxVolume,
+    ui: settings.uiVolume,
+    ambience: settings.ambienceVolume,
+  });
+}
+installAudio({
+  master: settings.volume,
+  sfx: settings.sfxVolume,
+  ui: settings.uiVolume,
+  ambience: settings.ambienceVolume,
+});
+installUiSounds(app.root);
 app.saveSettings();
 inertialScroll(app.root);
 app.go(

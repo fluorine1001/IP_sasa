@@ -39,7 +39,8 @@ import { syncLaunch } from '../../world/launch.ts';
 import { dynamicView } from '../../world/dynamics.ts';
 import { atmosphericState } from '../../world/rocket.ts';
 import { controls, escape, type App, type PlayArgs, type Screen } from '../../app/core.ts';
-import { sound } from '../../app/sound.ts';
+import { eventSound } from '../../audio/engine';
+import { flightSoundDirector } from '../../audio/flight-director';
 import { sub, scale, length, unit, type Vec } from '../../physics/vector.ts';
 import { createRun, tick, WORLD_STEP } from '../../world/engine.ts';
 import { FrameClock } from '../../world/frame-clock';
@@ -82,6 +83,7 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
   let trainingWon = false,
     trainingSaved = false;
   syncLaunch(stage);
+  const director = flightSoundDirector(stage);
   function defaultPlan(): RoutePlan {
     return {
       launch: {
@@ -895,7 +897,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     controlledId = 'craft';
     keys.clear();
     seenCues.clear();
-    sound(app.settings.volume, 'launch');
+    eventSound('liftoff');
     announced.clear();
     callout('발사');
     updateHud();
@@ -929,7 +931,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     stash();
     notebook = false;
     drawNotes();
-    sound(app.settings.volume, run.status === 'won' ? 'win' : 'fail');
+    eventSound(run.status === 'won' ? 'win' : 'fail');
     if (run.status === 'won') {
       trainingWon = true;
       lesson?.record('solve');
@@ -1251,6 +1253,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         if (run.status !== 'impact') finish();
       } else flightClock.reset();
       const visibleRun = replayIndex >= 0 ? replayView : run;
+      director.observe(visibleRun, {
+        audible: replayIndex >= 0 ? replayPlaying : !paused && !document.hidden,
+        ambient: true,
+      });
       if (following && visibleRun) {
         const focus = craftCenter(stage, visibleRun, controlledId);
         const blend = 1 - Math.exp(-Math.min(dt, 0.05) * 8);
@@ -1305,6 +1311,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       }
     },
     dispose: () => {
+      director.silence();
       saveSession();
       abort.abort();
       sizeObserver.disconnect();

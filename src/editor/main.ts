@@ -17,6 +17,11 @@ import {
 } from './manual-flight';
 const settings = readSaved<Settings>('orbit-settings-v1', {
   volume: 0.5,
+  sfxVolume: 0.8,
+  uiVolume: 0.6,
+  ambienceVolume: 0.5,
+  orbitTool: true,
+  uiScale: 1,
   grid: true,
   trails: true,
   reducedMotion: false,

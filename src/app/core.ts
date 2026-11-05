@@ -1,5 +1,18 @@
 import type { Stage, RoutePlan, Run } from '../world/types.ts';
-export type Settings = { volume: number; grid: boolean; trails: boolean; reducedMotion: boolean };
+export type Settings = {
+  /** Master volume 0..1. */
+  volume: number;
+  sfxVolume: number;
+  uiVolume: number;
+  ambienceVolume: number;
+  grid: boolean;
+  trails: boolean;
+  reducedMotion: boolean;
+  /** Orbit calculator overlay (two-body conic of the visible craft). */
+  orbitTool: boolean;
+  /** Interface scale, 0.85..1.25. */
+  uiScale: number;
+};
 export type PlayArgs = {
   stage: Stage;
   plan?: RoutePlan;

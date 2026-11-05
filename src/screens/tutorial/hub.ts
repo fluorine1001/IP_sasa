@@ -21,7 +21,9 @@ export function tutorialsScreen(app: App): Screen {
         (stage) =>
           `<button class="tutorial-card ${completed.has(stage.id) ? 'done' : ''}" data-stage="${stage.id}"><strong>${escape(stage.title)}</strong><ol class="tutorial-drills">${drills}</ol><small>${completed.has(stage.id) ? '수료 · 다시 연습' : '훈련 시작 ▶'}</small>${completed.has(stage.id) ? '<span class="tutorial-stamp">수료</span>' : ''}</button>`,
       )
-      .join('')}<aside class="ui-panel tutorial-guide"><h2 class="ui-h3">이 훈련에서 익히는 것</h2><ol class="tutorial-loop"><li><b>계획</b>시간선에 출력·끄기·회전·분리를 예약합니다. 발사하면 계획은 바꿀 수 없습니다.</li><li><b>비행</b>로켓은 예약대로만 움직입니다. 궤도 계산기의 하늘색 점선으로 지금 궤도를 읽습니다.</li><li><b>기록</b>실패한 비행도 기록으로 남습니다. 다시보기로 어디서 어긋났는지 찾고 한 가지만 바꿔 다시 발사합니다.</li></ol><p class="ui-body dim">훈련은 약 10분 걸립니다. 언제든 나갔다가 이어서 할 수 있습니다.</p><button id="to-campaign" class="ui-btn">임무 목록으로 →</button></aside></div><button id="back" class="ui-btn">← 처음 화면</button></main>`;
+      .join(
+        '',
+      )}<aside class="ui-panel tutorial-guide"><h2 class="ui-h3">이 훈련에서 익히는 것</h2><ol class="tutorial-loop"><li><b>계획</b>시간선에 출력·끄기·회전·분리를 예약합니다. 발사하면 계획은 바꿀 수 없습니다.</li><li><b>비행</b>로켓은 예약대로만 움직입니다. 궤도 계산기의 하늘색 점선으로 지금 궤도를 읽습니다.</li><li><b>기록</b>실패한 비행도 기록으로 남습니다. 다시보기로 어디서 어긋났는지 찾고 한 가지만 바꿔 다시 발사합니다.</li></ol><p class="ui-body dim">훈련은 약 10분 걸립니다. 언제든 나갔다가 이어서 할 수 있습니다.</p><button id="to-campaign" class="ui-btn">임무 목록으로 →</button></aside></div><button id="back" class="ui-btn">← 처음 화면</button></main>`;
     controls(
       app.root,
       { back: () => app.go('title'), 'to-campaign': () => app.go('stages') },

@@ -85,7 +85,7 @@ body.game-ui {
   font-size: var(--fs-md);
   font-weight: 700;
   line-height: 1.35;
-  color: var(--paper-ink);
+  color: var(--text);
 }
 .game-ui .goal-name i {
   flex: none;

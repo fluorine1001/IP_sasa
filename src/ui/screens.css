@@ -162,7 +162,7 @@ body.game-ui .goal-row .goal-near {
   grid-column: 1 / -1;
   display: block;
   font-size: var(--fs-1);
-  color: var(--c-doc-dim);
+  color: var(--c-text-dim);
 }
 
 /* ---------- Pause menu ---------- */

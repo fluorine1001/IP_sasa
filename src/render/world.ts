@@ -1,3 +1,4 @@
+import { canvasFont } from './fonts';
 import { paintRocket } from './rocket-sprite';
 import { paintLaunchPad } from './launch-pad';
 import { paintCraftLocator } from './craft-locator';
@@ -39,7 +40,7 @@ export type DrawState = {
   thrust?: Vec;
   observations?: import('../world/types').Observation[];
 };
-const LABEL_FONT = "bold 14px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif";
+const LABEL_FONT = canvasFont(14, 'bold');
 /** A filled label plate centred on x, top edge at y: names stay legible over any terrain. */
 function nameTag(
   ctx: CanvasRenderingContext2D,
@@ -105,7 +106,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.font = '13px sans-serif';
+    ctx.font = canvasFont(13);
     ctx.fillText(`여기서 갈라짐 · ${s.divergence.time.toFixed(1)}초`, p.x + 10, p.y - 10);
     ctx.restore();
   }
@@ -226,7 +227,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.fillStyle = '#a4cab3';
-            ctx.font = '11px sans-serif';
+            ctx.font = canvasFont(13);
             ctx.fillText(`${target.name} · 기록 ${sample.time.toFixed(1)}초`, p.x + 8, p.y - 8);
           }
         const q = screen(sample.position);
@@ -234,7 +235,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         ctx.beginPath();
         ctx.arc(q.x, q.y, 6, 0, Math.PI * 2);
         ctx.fill();
-        ctx.font = '12px sans-serif';
+        ctx.font = canvasFont(13);
         ctx.fillText(
           `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
           q.x + 10,
@@ -370,7 +371,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       const x = Math.max(40, Math.min(w - 40, p.x)),
         y = Math.max(55, Math.min(h - 180, p.y));
       ctx.fillStyle = '#d7d5a0';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font = canvasFont(13, 'bold');
       ctx.textAlign = 'center';
       ctx.fillText(`◇ ${b.name}`, x, y);
     }
@@ -432,7 +433,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.moveTo(-4, -r);
       ctx.lineTo(-4, r);
       ctx.stroke();
-      ctx.font = '12px sans-serif';
+      ctx.font = canvasFont(13);
       ctx.fillStyle = '#efc370';
       ctx.fillText('회수', 8, 0);
     } else if (o.kind === 'debris') {
@@ -587,7 +588,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
       );
     const p = screen(actor.position);
-    ctx.font = "bold 12px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif";
+    ctx.font = canvasFont(13, 'bold');
     ctx.textAlign = 'center';
     nameTag(
       ctx,

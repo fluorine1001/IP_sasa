@@ -65,7 +65,11 @@ body.game-ui .resources #flight-readouts:not(:empty)::before {
 body.game-ui .resources #vehicle-map:not(:empty)::before,
 body.game-ui .resources #initial-output:not([hidden])::before,
 body.game-ui .resources #flight-readouts:not(:empty)::before {
-  background: linear-gradient(#f2b54a55, #f2b54a55) no-repeat right center / calc(100% - 5em) 1px;
+  background: linear-gradient(
+      color-mix(in srgb, var(--amber-400) 33%, transparent),
+      color-mix(in srgb, var(--amber-400) 33%, transparent)
+    )
+    no-repeat right center / calc(100% - 5em) 1px;
 }
 body.game-ui .resources #vehicle-map {
   margin: 0 0 8px;
@@ -90,7 +94,7 @@ body.game-ui .resources #preflight:not([hidden]) {
   body.game-ui .resources #initial-output:not([hidden])::before,
   body.game-ui .resources #flight-readouts:not(:empty)::before {
     margin: 0 0 4px;
-    font-size: 12px;
+    font-size: var(--fs-1);
   }
 }
 
@@ -135,10 +139,10 @@ body.game-ui .mission-route .stage-goal b {
   display: inline-block;
   margin-right: 6px;
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--ink);
   color: var(--paper);
-  font-size: 12px;
+  font-size: var(--fs-1);
   font-weight: 900;
   line-height: 18px;
   vertical-align: 1px;
@@ -155,13 +159,13 @@ body.game-ui .stage-medals i {
   width: auto;
   height: auto;
   padding: 1px 7px;
-  border-radius: 999px;
-  border: 2px dashed #9c9478;
-  font-size: 12px;
+  border-radius: var(--r-pill);
+  border: 2px dashed var(--n-300);
+  font-size: var(--fs-1);
   font-style: normal;
   font-weight: 800;
   line-height: 16px;
-  color: #8a8366;
+  color: var(--p-600);
 }
 body.game-ui .stage-medals i.on {
   color: var(--ink);
@@ -257,7 +261,7 @@ body.game-ui dialog.mission-goals {
 }
 body.game-ui dialog.mission-goals h2 {
   margin: 0 0 12px;
-  font-size: 24px;
+  font-size: var(--fs-5);
 }
 body.game-ui dialog.mission-goals .goal-mode {
   display: inline-flex;
@@ -265,7 +269,7 @@ body.game-ui dialog.mission-goals .goal-mode {
   gap: 6px;
   margin: 0 0 14px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--ink);
   color: var(--paper);
   font-size: var(--fs-sm);
@@ -280,8 +284,8 @@ body.game-ui dialog.mission-goals .goal-explanation {
   margin: 0 0 12px;
   padding: 14px 16px 14px;
   border: 2px solid var(--ink);
-  border-radius: 8px;
-  background: #fffaf0;
+  border-radius: var(--r-md);
+  background: var(--p-50);
   box-shadow: 0 3px 0 var(--ink);
 }
 body.game-ui dialog.mission-goals .goal-explanation h3 {
@@ -310,7 +314,7 @@ body.game-ui dialog.mission-goals .criterion-list {
   margin: 0 0 12px;
   padding: 0;
   list-style: none;
-  border-top: 1px solid #c7b48499;
+  border-top: 1px solid color-mix(in srgb, var(--p-400) 60%, transparent);
 }
 body.game-ui dialog.mission-goals .criterion-list li {
   display: flex;
@@ -318,7 +322,7 @@ body.game-ui dialog.mission-goals .criterion-list li {
   gap: 10px;
   padding: 9px 4px;
   border-radius: 0;
-  border-bottom: 1px solid #c7b48499;
+  border-bottom: 1px solid color-mix(in srgb, var(--p-400) 60%, transparent);
   background: transparent;
   color: var(--paper-ink);
   font-size: var(--fs-md);
@@ -327,7 +331,7 @@ body.game-ui dialog.mission-goals .criterion-list li {
 }
 body.game-ui dialog.mission-goals .criterion-list li > span {
   flex: none;
-  color: #a3741f;
+  color: var(--p-600);
   font-weight: 900;
 }
 body.game-ui dialog.mission-goals .criterion-list li.criterion-group {

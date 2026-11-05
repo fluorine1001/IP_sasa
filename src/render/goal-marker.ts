@@ -1,3 +1,4 @@
+import { canvasFont } from './fonts';
 import { referencePosition } from '../world/actor-reference';
 import { ellipseFocusOffset } from '../physics/ellipse';
 import type { Goal, Stage, Run } from '../world/types';
@@ -118,7 +119,7 @@ export function paintMarker(
       ctx.arc(p.x, p.y, radius * zoom, 0, Math.PI * 2);
       ctx.stroke();
     }
-    ctx.font = '12px sans-serif';
+    ctx.font = canvasFont(13);
     ctx.fillStyle = '#eed290';
     ctx.fillText('접근 → 최근접 → 이탈', p.x + 10, p.y - 12);
   } else if (m.kind === 'orbit') {
@@ -178,14 +179,14 @@ export function paintMarker(
     ctx.arc(tip.x, tip.y, m.width * zoom, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.font = '12px sans-serif';
+    ctx.font = canvasFont(13);
     ctx.fillStyle = '#eed290';
     ctx.fillText('속도·방향 허용 원', tip.x + 10, tip.y - 10);
   } else {
     ctx.setLineDash([]);
     ctx.fillRect(p.x - 22, p.y - 15, 44, 30);
     ctx.strokeRect(p.x - 22, p.y - 15, 44, 30);
-    ctx.font = '12px sans-serif';
+    ctx.font = canvasFont(13);
     ctx.fillStyle = '#eed290';
     ctx.fillText(
       m.metric +

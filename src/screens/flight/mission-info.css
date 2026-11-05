@@ -2,52 +2,52 @@
   pointer-events: auto;
   margin: 8px 0 4px;
   padding: 6px 10px;
-  font-size: 12px;
-  color: #f0d79e;
-  background: #18303c;
-  border: 1px solid #728f87;
+  font-size: var(--fs-1);
+  color: var(--amber-200);
+  background: var(--n-750);
+  border: 1px solid var(--n-300);
 }
 .mission-goals {
   z-index: 30;
   width: min(680px, calc(100vw - 24px));
   max-height: 85dvh;
   overflow: auto;
-  color: #deebe3;
-  background: #203945;
+  color: var(--n-50);
+  background: var(--n-700);
   padding: 20px;
 }
 .mission-goals::backdrop {
-  background: #081725c9;
+  background: color-mix(in srgb, var(--n-900) 79%, transparent);
 }
 .mission-goals #goal-close {
   float: right;
 }
 .goal-explanation {
-  border-top: 1px solid #74968c;
+  border-top: 1px solid var(--n-300);
   padding: 12px 0;
 }
 .goal-explanation h3 {
-  color: #f2d298;
-  font-size: 16px;
+  color: var(--amber-200);
+  font-size: var(--fs-3);
 }
 .goal-explanation p {
   white-space: pre-line;
-  font-size: 13px;
+  font-size: var(--fs-1);
   line-height: 1.8;
 }
 .guide-rule {
-  font-size: 12px;
-  color: #aac7bd;
+  font-size: var(--fs-1);
+  color: var(--n-200);
 }
 .evidence-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 .evidence-table td,
 .evidence-table th {
   padding: 7px 5px;
-  border-bottom: 1px solid #658379;
+  border-bottom: 1px solid var(--p-600);
   text-align: left;
 }
 .evidence-table caption {
@@ -57,14 +57,14 @@
 }
 .reading-value {
   font-variant-numeric: tabular-nums;
-  color: #f0c882;
+  color: var(--p-300);
 }
 .result .reading-value {
-  color: #526e63;
+  color: var(--n-400);
 }
 @media (max-width: 650px) {
   .mission-panel #goal-details {
-    font-size: 10px;
+    font-size: var(--fs-1);
     margin-top: 4px;
     padding: 4px 6px;
   }

@@ -1,3 +1,4 @@
+import { canvasFont } from './fonts';
 import { length, type Vec } from '../physics/vector';
 import type { Run, Stage } from '../world/types';
 
@@ -72,7 +73,7 @@ export function paintPush(
   }
   // Label at the arrow tip.
   const text = (push.launch ? '발사 ' : '추진 ') + size.toFixed(2) + ' u/s';
-  ctx.font = "bold 13px 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif";
+  ctx.font = canvasFont(13, 'bold');
   const half = ctx.measureText(text).width / 2 + 6;
   const lx = tip.x + ux * (half + 6),
     ly = tip.y + uy * 16;

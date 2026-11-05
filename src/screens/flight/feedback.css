@@ -1,9 +1,9 @@
 .engine-bench {
   margin: 4px 0 12px;
   padding: 4px 8px;
-  border: 1px solid #55776f;
-  border-radius: 8px;
-  background: #152b35;
+  border: 1px solid var(--n-400);
+  border-radius: var(--r-md);
+  background: var(--n-800);
 }
 .rate-options {
   position: fixed;
@@ -30,8 +30,8 @@
   gap: 6px;
 }
 .rate-options [aria-pressed='true'] {
-  background: #e6b75f;
-  color: #142332;
+  background: var(--amber-400);
+  color: var(--n-850);
 }
 .timeline-event {
   overflow: visible;
@@ -44,8 +44,8 @@
   width: 14px;
   height: 14px;
   padding: 1px;
-  border-radius: 4px;
-  background: #203b45;
+  border-radius: var(--r-sm);
+  background: var(--n-700);
   border: 1px solid currentColor;
 }
 .flight-deck .timeline-direction svg {
@@ -61,7 +61,11 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(transparent 0 40%, #d6dfdf17 45% 53%, transparent 59%);
+  background: linear-gradient(
+    transparent 0 40%,
+    color-mix(in srgb, var(--n-100) 9%, transparent) 45% 53%,
+    transparent 59%
+  );
   animation: monitor-roll 5s linear infinite;
 }
 #replay-monitor .monitor-noise {
@@ -110,8 +114,8 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 10px;
-  color: #b5c9bf;
+  font-size: var(--fs-1);
+  color: var(--n-200);
 }
 .bench-flow {
   animation: bench-flow var(--flow-duration) linear infinite;
@@ -133,7 +137,7 @@
   height: 28px;
 }
 #vehicle-map .actor-diagram figcaption {
-  font-size: 9px;
+  font-size: var(--fs-1);
 }
 .actor-diagram svg {
   width: 100%;
@@ -169,7 +173,7 @@
   height: 45px;
 }
 .direction-dial text {
-  fill: #b6c9c0;
+  fill: var(--n-200);
   font: 9px sans-serif;
   pointer-events: none;
 }
@@ -191,7 +195,7 @@
 dialog,
 .menu-sheet {
   scrollbar-width: thin;
-  scrollbar-color: #b99b63 #17323c;
+  scrollbar-color: var(--yellow-600) var(--n-750);
 }
 [data-phase] ::-webkit-scrollbar,
 dialog::-webkit-scrollbar,
@@ -202,15 +206,15 @@ dialog::-webkit-scrollbar,
 [data-phase] ::-webkit-scrollbar-track,
 dialog::-webkit-scrollbar-track,
 .menu-sheet::-webkit-scrollbar-track {
-  background: #17323c;
-  border-radius: 8px;
+  background: var(--n-750);
+  border-radius: var(--r-md);
 }
 [data-phase] ::-webkit-scrollbar-thumb,
 dialog::-webkit-scrollbar-thumb,
 .menu-sheet::-webkit-scrollbar-thumb {
-  background: #b99b63;
-  border: 2px solid #17323c;
-  border-radius: 8px;
+  background: var(--yellow-600);
+  border: 2px solid var(--n-750);
+  border-radius: var(--r-md);
 }
 @media (prefers-reduced-motion: reduce) {
   .bench-flow {

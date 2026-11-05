@@ -19,12 +19,16 @@
   transform: none;
   padding: 9px 14px 7px;
   z-index: 5;
-  border: 2px solid #708c88;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #304651f5, #1b303ced);
+  border: 2px solid var(--n-300);
+  border-radius: var(--r-lg);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--n-600) 96%, transparent),
+    color-mix(in srgb, var(--n-750) 93%, transparent)
+  );
   box-shadow:
-    0 5px 0 #071822,
-    inset 0 1px #8ba6a233;
+    0 5px 0 var(--n-900),
+    inset 0 1px color-mix(in srgb, var(--n-300) 20%, transparent);
 }
 .dock-toolbar,
 .dock-plan-tools,
@@ -42,11 +46,11 @@
 }
 .dock-transport {
   margin-left: auto;
-  border-left: 1px solid #809d9255;
+  border-left: 1px solid color-mix(in srgb, var(--n-300) 33%, transparent);
   padding-left: 12px;
 }
 .dock-flight-actions {
-  border-left: 1px solid #809d9255;
+  border-left: 1px solid color-mix(in srgb, var(--n-300) 33%, transparent);
   padding-left: 12px;
 }
 .console-button,
@@ -60,12 +64,12 @@
   height: 36px;
   padding: 6px;
   flex-shrink: 0;
-  color: #d5e6de;
-  background: #1a303c;
-  border: 1px solid #768f89;
-  border-radius: 6px;
-  box-shadow: 0 2px #0b1d28;
-  font-size: 12px;
+  color: var(--n-100);
+  background: var(--n-750);
+  border: 1px solid var(--n-300);
+  border-radius: var(--r-md);
+  box-shadow: 0 2px var(--n-900);
+  font-size: var(--fs-1);
 }
 .console-button svg,
 .dock-popup svg,
@@ -88,14 +92,14 @@
 }
 .console-button:hover:not(:disabled),
 .dock-popup > summary:hover {
-  color: #fff0c4;
-  background: #38535e;
-  border-color: #dfc694;
+  color: var(--p-100);
+  background: var(--n-500);
+  border-color: var(--p-300);
 }
 .console-button[aria-pressed='true'] {
-  color: #a5e1cc;
-  border-color: #8bccb3;
-  background: #22493f;
+  color: var(--green-200);
+  border-color: var(--n-200);
+  background: var(--n-600);
 }
 .console-button:disabled {
   opacity: 0.32;
@@ -107,37 +111,37 @@
   bottom: calc(100% + 9px);
   left: 50%;
   transform: translateX(-50%);
-  background: #091c29;
-  color: #f5e8c8;
-  border: 1px solid #78968c;
-  border-radius: 5px;
+  background: var(--n-900);
+  color: var(--p-100);
+  border: 1px solid var(--n-300);
+  border-radius: var(--r-sm);
   padding: 7px 10px;
   white-space: nowrap;
   pointer-events: none;
   z-index: 20;
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 .plan-command {
-  color: #f0dbab;
-  border-color: #c0ae82;
+  color: var(--p-200);
+  border-color: var(--p-400);
 }
 .launch-command {
-  background: #ebb35d;
-  color: #142b36;
-  border-color: #f5d899;
+  background: var(--amber-400);
+  color: var(--n-800);
+  border-color: var(--amber-200);
   min-width: 96px;
-  font-size: 14px;
+  font-size: var(--fs-2);
 }
 .stop-flight {
-  color: #e8a59b;
+  color: var(--red-200);
 }
 .count-badge {
-  font-size: 10px;
+  font-size: var(--fs-1);
   min-width: 16px;
   padding: 1px 4px;
-  border-radius: 3px;
-  color: #bde1ce;
-  background: #0b202b;
+  border-radius: var(--r-sm);
+  color: var(--n-100);
+  background: var(--n-850);
 }
 .dock-popup {
   position: relative;
@@ -152,8 +156,8 @@
   display: none;
 }
 .dock-popup[open] > summary {
-  color: #f4d393;
-  border-color: #f4d393;
+  color: var(--amber-200);
+  border-color: var(--amber-200);
 }
 .dock-menu {
   position: absolute;
@@ -163,10 +167,10 @@
   padding: 12px;
   display: grid;
   gap: 8px;
-  background: #233b48;
-  border: 2px solid #78968c;
-  border-radius: 8px;
-  box-shadow: 0 6px 0 #06182488;
+  background: var(--n-700);
+  border: 2px solid var(--n-300);
+  border-radius: var(--r-md);
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--n-900) 53%, transparent);
   z-index: 10;
 }
 .dock-menu .console-button {
@@ -174,7 +178,7 @@
   justify-content: flex-start;
 }
 .dock-menu > span {
-  color: #efddac;
+  color: var(--p-200);
   font-weight: bold;
 }
 .flight-deck .flight-timeline {
@@ -194,7 +198,7 @@
   margin: 0 14px;
 }
 .flight-deck .timeline-caption {
-  font-size: 10px;
+  font-size: var(--fs-1);
   gap: 8px;
 }
 .flight-deck .timeline-explanation {
@@ -211,14 +215,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 10px;
-  color: #aec6bc;
+  font-size: var(--fs-1);
+  color: var(--n-200);
   margin-top: 4px;
-  border-top: 1px solid #809d9233;
+  border-top: 1px solid color-mix(in srgb, var(--n-300) 20%, transparent);
   padding-top: 5px;
 }
 .console-call-sign {
-  color: #90c9b1;
+  color: var(--n-200);
   letter-spacing: 0.1em;
   font-weight: bold;
   white-space: nowrap;
@@ -228,15 +232,15 @@
   display: inline-block;
   width: 5px;
   height: 5px;
-  background: #8ad2af;
+  background: var(--green-200);
   margin-right: 6px;
   border-radius: 50%;
 }
 .flight-deck[data-phase='flight'] .console-call-sign:before {
-  background: #efbb6e;
+  background: var(--amber-400);
 }
 .flight-deck[data-phase='replay'] .console-call-sign:before {
-  background: #8dc2d7;
+  background: var(--n-200);
 }
 #dock-clock {
   margin-left: auto;
@@ -256,7 +260,7 @@
   margin: 0;
 }
 #dock-phase #timeline-mode {
-  color: #d5c9a4;
+  color: var(--p-300);
   font-weight: 500;
 }
 .flight-deck[data-phase='replay'] #pause,
@@ -272,14 +276,14 @@
   right: 14px;
   z-index: 10;
   color: white;
-  background: #b94e4a;
-  border: 2px solid #df8278;
+  background: var(--red-600);
+  border: 2px solid var(--cmd-deploy);
   width: 36px;
   height: 36px;
-  box-shadow: 0 3px #502e32;
+  box-shadow: 0 3px var(--n-700);
 }
 .mission-exit.console-button:hover {
-  background: #d06056;
+  background: var(--red-400);
   color: white;
 }
 .mission-exit.console-button:hover:after {
@@ -295,14 +299,14 @@
   padding: 12px 15px;
 }
 .resources #mode {
-  font-size: 14px;
+  font-size: var(--fs-2);
   margin-bottom: 10px;
 }
 .console-eyebrow {
-  font-size: 10px;
+  font-size: var(--fs-1);
   letter-spacing: 0.12em;
-  color: #9fc2b1;
-  border-bottom: 1px solid #708c8855;
+  color: var(--n-200);
+  border-bottom: 1px solid color-mix(in srgb, var(--n-300) 33%, transparent);
   padding-bottom: 7px;
   margin-bottom: 9px;
 }
@@ -311,24 +315,24 @@
   padding: 13px 15px;
 }
 .mission-panel h2 {
-  font-size: 21px;
+  font-size: var(--fs-4);
   margin-bottom: 12px;
 }
 .mission-brief {
   pointer-events: auto;
-  font-size: 12px;
+  font-size: var(--fs-1);
   margin-top: 10px;
 }
 .mission-brief summary {
   cursor: pointer;
-  color: #cdbb91;
+  color: var(--p-400);
 }
 .mission-brief p {
-  font-size: 12px;
+  font-size: var(--fs-1);
   line-height: 1.65;
 }
 .mission-panel .goal-row {
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 #experiment-summary:empty {
   display: none;
@@ -337,7 +341,7 @@
   bottom: var(--deck-offset, 195px);
   padding: 7px 14px;
   max-width: 65vw;
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 .program-editor {
   position: fixed;
@@ -351,9 +355,9 @@
   right: 22px;
   width: min(440px, calc(100vw - 44px));
   max-height: calc(100vh - var(--deck-offset, 195px) - 72px);
-  background: #263d49;
-  color: #dbe6d9;
-  border-color: #7d9a8e;
+  background: var(--n-700);
+  color: var(--n-100);
+  border-color: var(--n-300);
   padding: 16px;
 }
 .archive-heading {
@@ -363,37 +367,37 @@
   gap: 10px;
 }
 .archive-heading h2 {
-  color: #eddbb1;
-  font-size: 19px;
+  color: var(--p-200);
+  font-size: var(--fs-4);
   margin: 5px 0 0;
 }
 #notebook .badge {
-  color: #9ecab6;
+  color: var(--n-200);
 }
 #notebook .archive-close {
   width: 32px;
   height: 32px;
   padding: 4px;
   margin: 0;
-  background: #b94e4a;
+  background: var(--red-600);
   color: white;
-  border: 1px solid #df8278;
+  border: 1px solid var(--cmd-deploy);
   position: static;
 }
 #notebook .archive-intro {
-  font-size: 12px;
-  color: #b6cfc1;
+  font-size: var(--fs-1);
+  color: var(--n-200);
   line-height: 1.6;
 }
 #notebook .trial-card {
-  background: #182e39;
-  color: #bcd2c6;
-  border: 1px solid #59776f;
+  background: var(--n-800);
+  color: var(--n-200);
+  border: 1px solid var(--n-400);
   margin: 0;
   padding: 11px;
 }
 #notebook .trial-card b {
-  color: #e4d6af;
+  color: var(--p-300);
 }
 .trial-heading {
   display: flex;
@@ -402,15 +406,15 @@
   margin-bottom: 8px;
 }
 .trial-outcome {
-  font-size: 10px;
-  border: 1px solid #688a7c;
-  color: #a7c9b8;
+  font-size: var(--fs-1);
+  border: 1px solid var(--p-600);
+  color: var(--n-200);
   padding: 2px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 .trial-outcome.won {
-  color: #f0ca80;
-  border-color: #d4a765;
+  color: var(--amber-200);
+  border-color: var(--p-400);
 }
 .trial-media {
   display: flex;
@@ -424,9 +428,9 @@
   height: 94px;
   padding: 0;
   margin: 0;
-  background: #102633;
-  color: #b7d0c1;
-  border: 1px solid #72998a;
+  background: var(--n-850);
+  color: var(--n-200);
+  border: 1px solid var(--n-300);
   overflow: hidden;
 }
 .trial-preview {
@@ -436,23 +440,23 @@
 }
 .preview-grid {
   fill: none;
-  stroke: #3d606344;
+  stroke: color-mix(in srgb, var(--n-500) 27%, transparent);
   stroke-width: 1;
 }
 .preview-path {
   fill: none;
-  stroke: #e5c285;
+  stroke: var(--p-300);
   stroke-width: 2;
 }
 .play-badge {
   position: absolute;
   top: 17px;
   left: 63px;
-  background: #21423add;
-  border: 1px solid #a3d3ba;
+  background: color-mix(in srgb, var(--n-700) 87%, transparent);
+  border: 1px solid var(--green-200);
   border-radius: 50%;
   padding: 6px;
-  color: #d8eac9;
+  color: var(--p-200);
   display: flex;
 }
 .play-badge svg {
@@ -464,16 +468,16 @@
   bottom: 3px;
   left: 0;
   right: 0;
-  font-size: 10px;
+  font-size: var(--fs-1);
 }
 .trial-meta {
   display: grid;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 .trial-meta small {
-  font-size: 10px;
-  color: #96b6a7;
+  font-size: var(--fs-1);
+  color: var(--cmd-stop);
 }
 #notebook .trial-actions {
   display: flex;
@@ -481,40 +485,40 @@
   margin-top: 7px;
 }
 #notebook .trial-actions button {
-  background: #2c4852;
-  color: #c8dfd0;
-  border: 1px solid #72998a;
+  background: var(--n-600);
+  color: var(--n-100);
+  border: 1px solid var(--n-300);
   padding: 6px 8px;
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-1);
 }
 .trial-readings,
 .archive-comparison,
 .sensor-archive {
-  font-size: 12px;
+  font-size: var(--fs-1);
   margin-top: 10px;
 }
 .trial-readings summary,
 .archive-comparison summary,
 .sensor-archive summary {
-  color: #9cc9b2;
+  color: var(--n-200);
   cursor: pointer;
 }
 #notebook .muted {
-  color: #90aea1;
+  color: var(--cmd-stop);
 }
 .archive-empty {
   display: grid;
   justify-items: center;
   gap: 10px;
   padding: 24px 12px;
-  font-size: 12px;
+  font-size: var(--fs-1);
   text-align: center;
 }
 .archive-empty svg {
   width: 36px;
   height: 36px;
-  color: #769b8b;
+  color: var(--n-300);
 }
 @media (max-width: 900px) {
   .flight-deck {
@@ -579,7 +583,7 @@
     padding: 5px;
   }
   .plan-command.with-label {
-    font-size: 11px;
+    font-size: var(--fs-1);
     padding: 5px 7px;
   }
   .launch-command {
@@ -611,7 +615,7 @@
     padding: 10px;
   }
   .mission-panel h2 {
-    font-size: 16px;
+    font-size: var(--fs-3);
   }
   .mission-brief p {
     display: block;
@@ -637,7 +641,7 @@
     gap: 8px;
   }
   .trial-meta {
-    font-size: 11px;
+    font-size: var(--fs-1);
   }
 }
 
@@ -655,7 +659,7 @@
 
 .program-editor #program-contract,
 .program-editor #launch-readout > small {
-  color: #536450;
+  color: var(--p-800);
 }
 .flight-deck .timeline-track {
   height: 86px;
@@ -669,10 +673,10 @@
   right: -5px;
   display: flex;
   padding: 1px;
-  color: #99d3df;
-  background: #17313d;
-  border: 1px solid #668f9a;
-  border-radius: 3px;
+  color: var(--sky-200);
+  background: var(--n-750);
+  border: 1px solid var(--n-300);
+  border-radius: var(--r-sm);
 }
 .timeline-event .timeline-direction svg {
   width: 10px;

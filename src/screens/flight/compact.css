@@ -4,16 +4,16 @@
   padding: 12px 14px;
 }
 .mission-panel .badge {
-  font-size: 10px;
+  font-size: var(--fs-1);
 }
 .mission-panel h2 {
-  font-size: 19px;
+  font-size: var(--fs-4);
   margin: 5px 0 10px;
 }
 .goal-row {
   display: grid;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-1);
 }
 .mission-panel #goal-details {
   display: inline-flex;
@@ -34,20 +34,20 @@
   padding: 12px;
 }
 .resources #mode {
-  font-size: 13px;
+  font-size: var(--fs-1);
   margin-bottom: 7px;
 }
 .resources .resource-row,
 #pad-reading {
-  font-size: 10px;
+  font-size: var(--fs-1);
   margin: 9px 0;
 }
 #inventory {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
-  color: #daca9f;
+  font-size: var(--fs-2);
+  color: var(--p-300);
 }
 #inventory svg {
   width: 20px;
@@ -56,7 +56,7 @@
 .calibration-stats {
   display: flex;
   gap: 12px;
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 .calibration-stats span {
   display: inline-flex;
@@ -68,13 +68,13 @@
   height: 16px;
 }
 .calibration-label {
-  font-size: 11px;
+  font-size: var(--fs-1);
 }
 .flight-readouts {
   display: flex;
   gap: 10px;
-  color: #b9d1c2;
-  font-size: 12px;
+  color: var(--n-200);
+  font-size: var(--fs-1);
   margin-top: 7px;
 }
 .flight-readouts span {
@@ -92,7 +92,7 @@
 }
 .flight-deck .dock-status {
   padding-top: 5px;
-  font-size: 10px;
+  font-size: var(--fs-1);
 }
 .flight-deck .plan-command {
   width: auto;
@@ -109,7 +109,7 @@
   display: none;
 }
 .flight-deck #program-toggle .control-label {
-  font-size: 11px;
+  font-size: var(--fs-1);
 }
 .result {
   left: 22px;
@@ -118,10 +118,10 @@
   width: 260px;
   padding: 12px;
   max-height: none;
-  background: #192d3deb;
-  color: #dce5d6;
-  border: 1px solid #718f85;
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--n-750) 92%, transparent);
+  color: var(--n-100);
+  border: 1px solid var(--n-300);
+  border-radius: var(--r-lg);
   box-shadow: none;
   display: flex;
   gap: 12px;
@@ -145,26 +145,26 @@
 .result .result-goals {
   padding-left: 20px;
   margin: 8px 0;
-  font-size: 13px;
+  font-size: var(--fs-1);
 }
 .result .result-goals small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 .result p {
-  color: #e7e6d8;
+  color: var(--n-50);
   line-height: 1.5;
 }
 .mission-panel [data-finish-missed] {
   pointer-events: auto;
 }
 .timeline-event.invalid {
-  color: #ffd5c9;
-  border-color: #ee7469;
-  background-color: #79433d;
+  color: var(--p-200);
+  border-color: var(--red-400);
+  background-color: var(--p-800);
 }
 #preflight {
-  color: #d7e5db;
+  color: var(--n-100);
   overflow-wrap: anywhere;
 }
 .result .result-measure meter {
@@ -178,27 +178,27 @@
 .result .result-mark svg {
   width: 28px;
   height: 28px;
-  color: #d6bd88;
+  color: var(--p-400);
 }
 .result h2 {
-  font-size: 18px;
+  font-size: var(--fs-3);
   margin: 3px 0;
 }
 .result .badge {
-  font-size: 10px;
-  color: #add6bd;
+  font-size: var(--fs-1);
+  color: var(--green-200);
 }
 .result small {
-  color: #b5c5bf;
-  font-size: 10px;
+  color: var(--n-200);
+  font-size: var(--fs-1);
 }
 .goal-mode,
 .goal-window {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #aecbbb;
-  font-size: 12px;
+  color: var(--n-200);
+  font-size: var(--fs-1);
 }
 .criterion-list {
   list-style: none;
@@ -209,20 +209,20 @@
 .criterion-list li {
   display: flex;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--fs-1);
   line-height: 1.6;
   padding: 8px 10px;
-  border-radius: 6px;
-  background: #102a36;
+  border-radius: var(--r-md);
+  background: var(--n-800);
 }
 .criterion-list li > span {
-  color: #dac485;
+  color: var(--p-300);
 }
 .goal-explanation button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--fs-1);
   padding: 6px 10px;
 }
 #goal-close svg {
@@ -235,7 +235,7 @@
   max-height: calc(100dvh - var(--deck-offset, 240px) - 28px);
 }
 #notebook .archive-heading h2 {
-  font-size: 17px;
+  font-size: var(--fs-3);
   margin: 0;
 }
 #notebook .archive-heading {
@@ -263,19 +263,19 @@
   margin: 0;
   flex-shrink: 0;
   width: 145px;
-  background: #102633;
-  border: 1px solid #617f80;
-  border-radius: 7px;
+  background: var(--n-850);
+  border: 1px solid var(--n-400);
+  border-radius: var(--r-md);
 }
 #notebook .trial-select[aria-pressed='true'] {
-  border: 2px solid #83d8ff;
+  border: 2px solid var(--sky-200);
 }
 .preview-path {
-  stroke: #83d8ff;
+  stroke: var(--sky-200);
   stroke-dasharray: 4 4;
 }
 .trial-meta {
-  font-size: 11px;
+  font-size: var(--fs-1);
   gap: 6px;
 }
 .trial-meta span {
@@ -288,14 +288,14 @@
   height: 14px;
 }
 .trial-heading {
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 #replay-monitor {
   position: fixed;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  border: 9px solid #08171c9c;
+  border: 9px solid color-mix(in srgb, var(--n-950) 61%, transparent);
   box-shadow: inset 0 0 90px #0007;
 }
 #replay-monitor[hidden] {
@@ -318,11 +318,11 @@
   top: 15px;
   left: 50%;
   transform: translateX(-50%);
-  color: #b8d7c9;
-  background: #10242ddd;
+  color: var(--n-100);
+  background: color-mix(in srgb, var(--n-850) 87%, transparent);
   padding: 5px 12px;
-  border: 1px solid #507569;
-  border-radius: 4px;
+  border: 1px solid var(--n-400);
+  border-radius: var(--r-sm);
   font: 12px monospace;
 }
 @media (max-width: 650px) {
@@ -331,7 +331,7 @@
     padding: 9px;
   }
   .mission-panel h2 {
-    font-size: 14px;
+    font-size: var(--fs-2);
   }
   .resources {
     top: 55px;
@@ -339,7 +339,7 @@
     padding: 9px;
   }
   .resources #mode {
-    font-size: 11px;
+    font-size: var(--fs-1);
   }
   .result {
     left: 8px;
@@ -347,7 +347,7 @@
     padding: 9px;
   }
   .result h2 {
-    font-size: 15px;
+    font-size: var(--fs-2);
   }
   .result .result-mark svg {
     width: 22px;
@@ -361,6 +361,6 @@
     top: 8px;
   }
   #replay-exit .control-label {
-    font-size: 10px;
+    font-size: var(--fs-1);
   }
 }

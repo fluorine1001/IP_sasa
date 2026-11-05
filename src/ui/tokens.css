@@ -1,0 +1,135 @@
+/* Apollo design tokens: the single source of colour, type, space, shape and motion.
+ * Every other stylesheet refers to these names; raw hex values belong only here.
+ * See docs/design-system.md for meanings and usage rules. */
+@import './fonts/pretendard/pretendard.css';
+
+:root {
+  /* ---------- Neutrals: cool console slate, darkest = ink ---------- */
+  --n-950: #0b1418;
+  --n-900: #101b20;
+  --n-850: #15232a;
+  --n-800: #1c2a31;
+  --n-750: #22313a;
+  --n-700: #2a3942;
+  --n-600: #344550;
+  --n-500: #415259;
+  --n-400: #5b6e72;
+  --n-300: #8b9a9b;
+  --n-200: #b5c0b8;
+  --n-100: #d9dfd2;
+  --n-50: #f4ecd5;
+
+  /* ---------- Paper: documents (briefing, report, conditions) ---------- */
+  --p-50: #fbf4df;
+  --p-100: #f5eacb;
+  --p-200: #efe2be;
+  --p-300: #e2d1a5;
+  --p-400: #c9b688;
+  --p-600: #8a7c5a;
+  --p-800: #5b5747;
+  --p-900: #26271f;
+
+  /* ---------- Signal colours: each has one meaning ---------- */
+  /* amber = the action to take now */
+  --amber-200: #f9d993;
+  --amber-400: #f2b54a;
+  --amber-600: #c4812c;
+  /* green = satisfied, success */
+  --green-200: #a9dfab;
+  --green-400: #6fbf73;
+  --green-600: #3c8747;
+  /* red = failure, danger */
+  --red-200: #f3a091;
+  --red-400: #e05a44;
+  --red-600: #a8331f;
+  /* yellow = the mission target on the map */
+  --yellow-200: #f8e48f;
+  --yellow-400: #f2cf4a;
+  --yellow-600: #b5952a;
+  /* sky = information and calculation tools */
+  --sky-200: #ade0f7;
+  --sky-400: #5eb2e8;
+  --sky-600: #2f7db3;
+
+  /* ---------- Command colours: timeline chips and craft only ---------- */
+  --cmd-ignite: #ef8a3c;
+  --cmd-stop: #a3abab;
+  --cmd-turn: #3db6a6;
+  --cmd-separate: #a084d8;
+  --cmd-push: #5eb2e8;
+  --cmd-deploy: #e57fa9;
+
+  /* ---------- Semantic roles ---------- */
+  --c-bg: var(--n-900);
+  --c-surface-1: var(--n-750);
+  --c-surface-2: var(--n-600);
+  --c-surface-3: var(--n-500);
+  --c-sunken: var(--n-850);
+  --c-line: var(--n-950);
+  --c-text: var(--n-50);
+  --c-text-dim: var(--n-200);
+  --c-text-faint: var(--n-300);
+  --c-accent: var(--amber-400);
+  --c-accent-strong: var(--amber-600);
+  --c-on-accent: var(--n-950);
+  --c-ok: var(--green-400);
+  --c-warn: var(--yellow-400);
+  --c-danger: var(--red-400);
+  --c-info: var(--sky-400);
+  --c-target: var(--yellow-400);
+  --c-doc: var(--p-200);
+  --c-doc-text: var(--p-900);
+  --c-doc-dim: var(--p-800);
+  --c-focus: var(--sky-200);
+
+  /* ---------- Type: one family, six steps, 13px floor ---------- */
+  --font:
+    'Pretendard Variable', Pretendard, 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
+  --fs-1: 13px;
+  --fs-2: 15px;
+  --fs-3: 17px;
+  --fs-4: 21px;
+  --fs-5: 28px;
+  --fs-6: 44px;
+  --fs-display: clamp(64px, 8vw, 120px);
+  --fw-regular: 450;
+  --fw-medium: 560;
+  --fw-bold: 700;
+  --fw-heavy: 820;
+  --lh-tight: 1.2;
+  --lh-body: 1.5;
+
+  /* ---------- Space: 4px grid ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+
+  /* ---------- Shape ---------- */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+  --stroke: 3px;
+  --stroke-thin: 2px;
+
+  /* ---------- Depth: hard ink drop shadows ---------- */
+  --sh-1: 0 2px 0 var(--c-line);
+  --sh-2: 0 4px 0 var(--c-line);
+  --sh-3: 0 6px 0 var(--c-line), 0 18px 40px #0008;
+  --sh-inset: inset 0 2px 0 #ffffff1c;
+
+  /* ---------- Motion ---------- */
+  --t-fast: 120ms;
+  --t-med: 220ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body {
+  font-family: var(--font);
+  font-feature-settings: 'tnum' 1;
+}

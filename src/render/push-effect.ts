@@ -1,4 +1,5 @@
-import { canvasFont } from './fonts';
+import { hairArrow, haloText } from './annotate';
+import { palette } from '../ui/palette';
 import { length, type Vec } from '../physics/vector';
 import type { Run, Stage } from '../world/types';
 
@@ -46,45 +47,24 @@ export function paintPush(
     const d = 12 + (16 + i * 11) * (0.4 + spread),
       r = 4 + i * 2.2 + 9 * spread;
     const side = (i - 1) * 4 * (0.5 + spread);
-    ctx.globalAlpha = Math.max(0, 0.85 * fade - i * 0.15);
-    ctx.fillStyle = i === 0 ? '#ffffff' : '#cfe8f2';
+    ctx.globalAlpha = Math.max(0, 0.55 * fade - i * 0.12);
+    ctx.fillStyle = i === 0 ? palette.n50 : palette.n300;
     ctx.beginPath();
     ctx.arc(at.x - ux * d - uy * side, at.y - uy * d + ux * side, r, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Arrow: which way the push changed the velocity.
-  const len = Math.max(34, Math.min(96, 34 + size * 220));
+  // Hairline arrow: which way the push changed the velocity, labelled with its size.
+  const len = Math.max(30, Math.min(80, 30 + size * 180));
   const tip = { x: at.x + ux * len, y: at.y + uy * len };
   ctx.globalAlpha = Math.min(1, 1.6 * fade);
-  ctx.lineCap = 'round';
-  for (const [color, width] of [
-    ['#0d171c', 7],
-    ['#5eb2e8', 3.5],
-  ] as const) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    ctx.moveTo(at.x + ux * 10, at.y + uy * 10);
-    ctx.lineTo(tip.x, tip.y);
-    ctx.moveTo(tip.x - ux * 10 - uy * 7, tip.y - uy * 10 + ux * 7);
-    ctx.lineTo(tip.x, tip.y);
-    ctx.lineTo(tip.x - ux * 10 + uy * 7, tip.y - uy * 10 - ux * 7);
-    ctx.stroke();
-  }
-  // Label at the arrow tip.
-  const text = (push.launch ? '발사 ' : '추진 ') + size.toFixed(2) + ' u/s';
-  ctx.font = canvasFont(13, 'bold');
-  const half = ctx.measureText(text).width / 2 + 6;
-  const lx = tip.x + ux * (half + 6),
-    ly = tip.y + uy * 16;
-  ctx.fillStyle = '#5eb2e8';
-  ctx.beginPath();
-  ctx.roundRect(lx - half, ly - 11, half * 2, 21, 5);
-  ctx.fill();
-  ctx.fillStyle = '#0d171c';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, lx, ly);
+  hairArrow(ctx, { x: at.x + ux * 10, y: at.y + uy * 10 }, tip, palette.n50);
+  haloText(
+    ctx,
+    `${push.launch ? '발사' : '추진'} Δv ${size.toFixed(2)} u/s`,
+    { x: tip.x + (ux >= 0 ? 8 : -8), y: tip.y + (uy >= 0 ? 10 : -10) },
+    palette.n50,
+    ux >= 0 ? 'left' : 'right',
+  );
   ctx.restore();
 }
 
@@ -116,27 +96,11 @@ export function paintPushMarks(
     const size = length(mark.vector);
     const ux = mark.vector.x / size,
       uy = -mark.vector.y / size;
-    ctx.lineCap = 'round';
-    for (const [color, width] of [
-      ['#0d171c', 5],
-      ['#5eb2e8', 2.5],
-    ] as const) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.beginPath();
-      ctx.moveTo(at.x, at.y);
-      ctx.lineTo(at.x + ux * 18, at.y + uy * 18);
-      ctx.moveTo(at.x + ux * 18 - ux * 6 - uy * 4, at.y + uy * 18 - uy * 6 + ux * 4);
-      ctx.lineTo(at.x + ux * 18, at.y + uy * 18);
-      ctx.lineTo(at.x + ux * 18 - ux * 6 + uy * 4, at.y + uy * 18 - uy * 6 - ux * 4);
-      ctx.stroke();
-    }
-    ctx.fillStyle = '#5eb2e8';
-    ctx.strokeStyle = '#0d171c';
-    ctx.lineWidth = 2;
+    hairArrow(ctx, at, { x: at.x + ux * 18, y: at.y + uy * 18 }, palette.n300, 1.25);
+    ctx.strokeStyle = palette.n300;
+    ctx.lineWidth = 1.25;
     ctx.beginPath();
-    ctx.arc(at.x, at.y, 5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.arc(at.x, at.y, 3, 0, Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();

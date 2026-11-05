@@ -93,23 +93,21 @@ function craftHtml(stage: Stage) {
       .map(
         ([l, v, u]) => `<div class="ui-stat"><span>${l}</span><b>${v}<small>${u}</small></b></div>`,
       )
-      .join(
-        '',
-      )}</div><p class="dim">냉가스 추진은 한 순간에 속도를 바꿉니다. 추진의 세기는 그 순간 더해지는 속력입니다.</p>`;
+      .join('')}</div>`;
   }
   const rows = stageTable(stage);
   const launchBody = stage.bodies.find((b) => b.id === stage.launchBodyId) ?? stage.bodies[0];
   const g =
     launchBody && !launchBody.hiddenGravity ? bodyFacts(launchBody).surfaceGravity : undefined;
   const total = rows.reduce((s, r) => s + r.deltaV, 0);
-  return `<table class="ui-table briefing-table"><thead><tr><th>단</th><th class="num">점화 시 질량</th><th class="num">최대 추력</th><th class="num">최대 출력 연소</th><th class="num">속력 변화 Δv</th><th class="num">점화 횟수</th>${g ? '<th class="num">추력 대 무게</th>' : ''}</tr></thead><tbody>${rows
+  return `<table class="ui-table briefing-table"><thead><tr><th>단</th><th class="num">점화 시 질량</th><th class="num">최대 추력</th><th class="num">최대 출력 연소</th><th class="num">진공 Δv</th><th class="num">점화 횟수</th>${g ? '<th class="num">추력 대 무게</th>' : ''}</tr></thead><tbody>${rows
     .map(
       (r, i) =>
         `<tr><th scope="row"><i class="swatch stage-${i + 1}"></i>${escape(r.name)}</th><td class="num">${f(r.mass)}</td><td class="num">${f(r.thrust, 3)}</td><td class="num">${f(r.burn, 1)} 초</td><td class="num">${f(r.deltaV, 3)} u/s</td><td class="num">${r.ignitions}회</td>${g ? `<td class="num">${f(r.accel / g, 2)}배</td>` : ''}</tr>`,
     )
     .join(
       '',
-    )}</tbody></table><p class="dim">Δv는 진공에서 그 단의 연료를 모두 쓸 때 얻는 속력 변화입니다. 모든 단을 합하면 <b>${f(total, 3)} u/s</b>. 중력과 공기 저항으로 실제 비행에서는 이보다 줄어듭니다.</p>`;
+    )}</tbody><tfoot><tr><th scope="row">합계</th><td></td><td></td><td></td><td class="num">${f(total, 3)} u/s</td><td></td>${g ? '<td></td>' : ''}</tr></tfoot></table>`;
 }
 
 function controlsHtml(stage: Stage) {
@@ -142,10 +140,10 @@ function controlsHtml(stage: Stage) {
 export function briefingHtml(stage: Stage, eyebrow: string) {
   return `<header class="briefing-head"><span class="ui-eyebrow">${escape(eyebrow)}</span><h2 class="ui-h2">${escape(stage.title)}</h2>${stage.description ? `<p class="ui-body">${escape(stage.description)}</p>` : ''}<button id="goal-close" class="ui-btn ghost sm briefing-close" aria-label="브리핑 닫기">${controlIcon('close')}</button></header>
 <section class="briefing-section"><h3 class="ui-h3">성공 조건</h3>${missionGoalsHtml(stage)}</section>
-<section class="briefing-section"><h3 class="ui-h3">메달</h3><ul class="briefing-medals"><li><i class="medal-dot success"></i><b>성공</b><span>성공 조건을 모두 채웁니다.</span></li><li><i class="medal-dot budget"></i><b>예산 안</b><span>${stage.rocket ? '연료' : '추진'}을 90% 이하로 씁니다.</span></li><li><i class="medal-dot clean"></i><b>무손상</b><span>예산 안에서, 기체가 받은 힘이 한계 아래입니다.</span></li></ul></section>
+<section class="briefing-section"><h3 class="ui-h3">메달</h3><ul class="briefing-medals"><li><i class="medal-dot success"></i><b>성공</b><span>성공 조건 충족</span></li><li><i class="medal-dot budget"></i><b>예산 안</b><span>${stage.rocket ? '연료' : '추진'} 사용 ≤ 90%</span></li><li><i class="medal-dot clean"></i><b>무손상</b><span>예산 안 · 기체 하중 &lt; 한계</span></li></ul></section>
 <section class="briefing-section"><h3 class="ui-h3">주어진 정보 · 기체</h3>${craftHtml(stage)}</section>
 <section class="briefing-section"><h3 class="ui-h3">주어진 정보 · 천체</h3>${bodiesHtml(stage)}</section>
-<section class="briefing-section two"><div><h3 class="ui-h3">쓸 수 있는 조작</h3>${controlsHtml(stage)}</div><div><h3 class="ui-h3">계산 도구</h3><p class="ui-body">지도의 <b class="info">하늘색 점선</b>은 지금 상태에서 엔진을 끄면 그리게 될 궤도를 <b>가장 가까운 천체 하나의 중력만으로</b> 계산한 것입니다. <b class="plan">주황 점선</b>은 예약한 추진을 직전 비행의 같은 순간에 더한 계산입니다. 다른 천체의 중력, 공기, 엔진 연소, 착륙은 실제 비행으로만 확인할 수 있습니다.</p></div></section>
+<section class="briefing-section"><h3 class="ui-h3">조작</h3>${controlsHtml(stage)}</section>
 <footer class="briefing-foot"><button id="briefing-ready" class="ui-btn primary lg">계획 세우기</button></footer>`;
 }
 

@@ -7,7 +7,6 @@ type Slider = { id: 'volume' | 'sfxVolume' | 'uiVolume' | 'ambienceVolume'; labe
 type Toggle = {
   id: 'grid' | 'trails' | 'reducedMotion' | 'orbitTool';
   label: StringKey;
-  hint: StringKey;
 };
 const sliders: Slider[] = [
   { id: 'volume', label: 'settings.master' },
@@ -16,9 +15,9 @@ const sliders: Slider[] = [
   { id: 'ambienceVolume', label: 'settings.ambience' },
 ];
 const display: Toggle[] = [
-  { id: 'grid', label: 'settings.grid', hint: 'settings.gridHint' },
-  { id: 'trails', label: 'settings.trails', hint: 'settings.trailsHint' },
-  { id: 'reducedMotion', label: 'settings.reducedMotion', hint: 'settings.reducedMotionHint' },
+  { id: 'grid', label: 'settings.grid' },
+  { id: 'trails', label: 'settings.trails' },
+  { id: 'reducedMotion', label: 'settings.reducedMotion' },
 ];
 const RESET_KEYS = [
   'orbit-completed-v1',
@@ -34,13 +33,13 @@ export function settingsScreen(app: App): Screen {
   const percent = (v: number) => `${Math.round(v * 100)}%`;
   const slider = ({ id, label }: Slider) =>
     `<label class="setting slider"><span>${t(label)}</span><input id="${id}" type="range" min="0" max="1" step=".05" value="${s[id] ?? 0}"><output for="${id}">${percent(s[id] ?? 0)}</output></label>`;
-  const toggle = ({ id, label, hint }: Toggle) =>
-    `<label class="setting"><span>${t(label)}<small>${t(hint)}</small></span><input id="${id}" type="checkbox" ${s[id] ? 'checked' : ''}></label>`;
+  const toggle = ({ id, label }: Toggle) =>
+    `<label class="setting"><span>${t(label)}</span><input id="${id}" type="checkbox" ${s[id] ? 'checked' : ''}></label>`;
   const briefing = readSaved<boolean>('apollo-briefing-auto', true) !== false;
   app.root.innerHTML = `<main class="menu-sheet narrow settings-sheet"><h1>${t('settings.title')}</h1>
 <section class="settings-group"><h2>${t('settings.sound')}</h2>${sliders.map(slider).join('')}</section>
 <section class="settings-group"><h2>${t('settings.display')}</h2><label class="setting slider"><span>${t('settings.uiScale')}</span><input id="uiScale" type="range" min="0.85" max="1.25" step="0.05" value="${s.uiScale ?? 1}"><output for="uiScale">${percent(s.uiScale ?? 1)}</output></label>${display.map(toggle).join('')}</section>
-<section class="settings-group"><h2>${t('settings.play')}</h2>${toggle({ id: 'orbitTool', label: 'settings.orbitTool', hint: 'settings.orbitToolHint' })}<label class="setting"><span>${t('settings.briefing')}<small>${t('settings.briefingHint')}</small></span><input id="briefingAuto" type="checkbox" ${briefing ? 'checked' : ''}></label></section>
+<section class="settings-group"><h2>${t('settings.play')}</h2>${toggle({ id: 'orbitTool', label: 'settings.orbitTool' })}<label class="setting"><span>${t('settings.briefing')}</span><input id="briefingAuto" type="checkbox" ${briefing ? 'checked' : ''}></label></section>
 <section class="settings-group"><h2>${t('settings.data')}</h2><div class="setting"><span>${t('settings.reset')}<small>${t('settings.resetHint')}</small></span><button id="reset-progress" class="ui-btn danger sm">${t('settings.reset')}</button></div></section>
 <button id="back" class="ui-btn">← ${t('common.back')}</button></main>`;
   const input = (id: string) => app.root.querySelector<HTMLInputElement>('#' + id)!;

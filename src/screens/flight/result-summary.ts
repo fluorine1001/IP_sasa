@@ -109,7 +109,7 @@ export function resultSummary(
       : '';
 
   const share = medals.initial > 0 ? Math.min(1, medals.used / medals.initial) : 0;
-  const stats = `<dl class="result-stats">${options.attempt ? `<div><dt>시도</dt><dd>${options.attempt}번째</dd></div>` : ''}<div><dt>비행 시간</dt><dd>${run.time.toFixed(2)}초</dd></div><div><dt>${stage.rocket ? '연료 사용' : '추진 사용'}</dt><dd>${Math.round(share * 100)}%${run.status === 'won' ? ` <small>(예산 안 기준 90%)</small>` : ''}</dd></div></dl>`;
+  const stats = `<dl class="result-stats">${options.attempt ? `<div><dt>시도</dt><dd>${options.attempt}번째</dd></div>` : ''}<div><dt>비행 시간</dt><dd>${run.time.toFixed(2)}초</dd></div><div><dt>${stage.rocket ? '연료 사용' : '추진 사용'}</dt><dd>${Math.round(share * 100)}%</dd></div></dl>`;
 
   const changes = previous ? planChanges(previous, run.initialPlan ?? run.plan) : [];
   // On a retry, what changed since the last flight; nothing to say on the first.

@@ -24,9 +24,9 @@ export function goalNearest(progress: Run['goals'][string] | undefined) {
   if (!near) return '';
   const m = metrics[near.metric];
   const side = ['gte', 'gt'].includes(near.operator)
-    ? '이상'
+    ? '≥ '
     : ['lte', 'lt'].includes(near.operator)
-      ? '이하'
+      ? '≤ '
       : '';
-  return `${m?.label ?? near.metric} 가장 가까움 ${withUnit(near.value.toFixed(2), m?.unit)} · 필요 ${withUnit(near.target.toFixed(2), m?.unit)} ${side}`;
+  return `${m?.label ?? near.metric} 최근접 ${withUnit(near.value.toFixed(2), m?.unit)} · 기준 ${side}${withUnit(near.target.toFixed(2), m?.unit)}`;
 }

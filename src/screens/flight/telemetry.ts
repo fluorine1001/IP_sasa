@@ -53,7 +53,7 @@ export function orbitHtml(
   const row = (label: string, value: string, tone = '') =>
     `<div class="orbit-row ${tone}"><span>${label}</span><b>${value}</b></div>`;
   return (
-    `<section class="orbit-calc" aria-label="궤도 계산"><header><b>궤도 계산</b><small>${escape(c.body.name)}만의 중력으로 계산</small></header>` +
+    `<section class="orbit-calc" aria-label="궤도 계산"><header><b>궤도 계산</b><small>기준 ${escape(c.body.name)}</small></header>` +
     row(
       '근점 고도',
       c.periapsisPassed
@@ -67,7 +67,7 @@ export function orbitHtml(
     (c.period ? row('한 바퀴', `${c.period.toFixed(1)} 초`) : '') +
     row('원궤도 속력', `${c.circularSpeed.toFixed(3)} u/s`) +
     row(
-      lacking > 0 ? '원궤도까지 옆 속력 부족' : '원궤도보다 옆 속력 초과',
+      lacking > 0 ? '원궤도 옆 속력 부족' : '원궤도 옆 속력 초과',
       `${Math.abs(lacking).toFixed(3)} u/s`,
     ) +
     row('탈출 속력', `${c.escapeSpeed.toFixed(3)} u/s`) +
@@ -92,5 +92,5 @@ export function brakingHtml(stage: Stage, run: Run) {
   const net = a - g;
   const need = net > 0 ? (down * down) / (2 * net) : Infinity;
   const margin = c.altitude - need;
-  return `<section class="orbit-calc braking" aria-label="착륙 계산"><header><b>착륙 계산</b><small>지금 최대 출력으로 수직 감속하면</small></header><div class="orbit-row"><span>멈추는 데 필요한 높이</span><b>${Number.isFinite(need) ? need.toFixed(2) + ' u' : '추력 부족'}</b></div><div class="orbit-row"><span>지금 높이</span><b>${c.altitude.toFixed(2)} u</b></div><div class="orbit-row ${margin < 0 ? 'bad' : ''}"><span>여유</span><b>${Number.isFinite(margin) ? margin.toFixed(2) + ' u' : '—'}</b></div><div class="orbit-row"><span>감속에 걸리는 시간</span><b>${net > 0 ? (down / net).toFixed(2) + ' 초' : '—'}</b></div></section>`;
+  return `<section class="orbit-calc braking" aria-label="착륙 계산"><header><b>착륙 계산</b><small>최대 출력 수직 감속</small></header><div class="orbit-row"><span>정지 높이</span><b>${Number.isFinite(need) ? need.toFixed(2) + ' u' : '추력 부족'}</b></div><div class="orbit-row"><span>지금 높이</span><b>${c.altitude.toFixed(2)} u</b></div><div class="orbit-row ${margin < 0 ? 'bad' : ''}"><span>여유</span><b>${Number.isFinite(margin) ? margin.toFixed(2) + ' u' : '—'}</b></div><div class="orbit-row"><span>감속 시간</span><b>${net > 0 ? (down / net).toFixed(2) + ' 초' : '—'}</b></div></section>`;
 }

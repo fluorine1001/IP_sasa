@@ -210,32 +210,6 @@ dialog.pause-menu {
 }
 
 /* ---------- Title ---------- */
-.title-pitch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-4);
-  margin: var(--sp-3) 0 var(--sp-5);
-  padding: 0;
-  list-style: none;
-  font-size: var(--fs-2);
-  color: var(--c-text-dim);
-}
-.title-pitch li {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-.title-pitch b {
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  font-size: var(--fs-1);
-  color: var(--c-on-accent);
-  background: var(--c-accent);
-  border: var(--stroke-thin) solid var(--c-line);
-  border-radius: var(--r-pill);
-}
 .title-quiet {
   display: flex;
   gap: var(--sp-2);
@@ -248,11 +222,6 @@ dialog.credits {
 }
 dialog.credits ul {
   padding-left: 1.2em;
-}
-#first-flight small {
-  font-size: var(--fs-1);
-  font-weight: var(--fw-medium);
-  color: var(--n-800);
 }
 
 /* ---------- Campaign ---------- */
@@ -360,33 +329,7 @@ body.game-ui .chapter-card.selected .chapter-caption strong {
 
 /* ---------- Tutorial hub ---------- */
 body.game-ui .tutorial-hub .tutorial-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: var(--sp-5);
-  align-items: start;
-}
-.tutorial-guide {
-  padding: var(--sp-5);
-}
-.tutorial-loop {
-  display: grid;
-  gap: var(--sp-3);
-  margin: var(--sp-3) 0;
-  padding-left: 1.4em;
-  font-size: var(--fs-2);
-  line-height: var(--lh-body);
-}
-.tutorial-loop b {
-  display: block;
-  color: var(--c-accent);
-}
-.tutorial-guide .dim {
-  color: var(--c-text-dim);
-}
-@media (max-width: 650px) {
-  body.game-ui .tutorial-hub .tutorial-grid {
-    grid-template-columns: 1fr;
-  }
+  max-width: 640px;
 }
 
 /* ---------- Flight manual ---------- */

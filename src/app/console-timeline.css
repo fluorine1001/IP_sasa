@@ -73,6 +73,32 @@ body.game-ui .flight-deck #flight-timeline .timeline-rail {
   border-radius: var(--r-md);
   background: repeating-linear-gradient(-45deg, var(--n-800) 0 6px, var(--n-750) 6px 12px);
 }
+body.game-ui .flight-deck #flight-timeline #timeline-known {
+  position: absolute;
+  left: 0;
+  top: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + 2px);
+  height: var(--band-h);
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-md) 0 0 var(--r-md);
+  border-right: 2px dashed var(--n-100);
+  background: color-mix(in srgb, var(--n-50) 22%, transparent);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+body.game-ui .flight-deck #flight-timeline #timeline-known[hidden] {
+  display: none;
+}
+body.game-ui .flight-deck #flight-timeline #timeline-known span {
+  padding: 0 6px;
+  font-size: var(--fs-1);
+  font-weight: 800;
+  color: var(--n-50);
+  white-space: nowrap;
+}
 body.game-ui .flight-deck #flight-timeline .timeline-burns {
   display: block;
   pointer-events: none;
@@ -503,4 +529,72 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
 .game-ui #command-popover .dv-field input[type='number'] {
   width: 7ch;
   font-variant-numeric: tabular-nums;
+}
+/* Aiming calculator in the command popover: the one number a correction is tuned by. */
+.game-ui #command-popover .aim-calc {
+  margin: 8px 0 2px;
+  padding: 6px 8px;
+  border: 1px dashed var(--paper-dim);
+  border-radius: var(--r-sm);
+}
+.game-ui #command-popover .aim-calc header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.game-ui #command-popover .aim-calc header b {
+  flex: none;
+  white-space: nowrap;
+  font-size: var(--fs-1);
+  color: var(--paper-ink);
+}
+.game-ui #command-popover .aim-calc header small,
+.game-ui #command-popover .aim-calc p,
+.game-ui #command-popover .aim-calc li small {
+  font-size: var(--fs-1);
+  color: var(--paper-dim);
+}
+.game-ui #command-popover .aim-calc p {
+  margin: 0;
+}
+.game-ui #command-popover .aim-calc ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.game-ui #command-popover .aim-calc li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  padding: 3px 0;
+  border-top: 1px solid color-mix(in srgb, var(--paper-dim) 25%, transparent);
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-ink);
+}
+.game-ui #command-popover .aim-calc li:first-child {
+  border-top: 0;
+}
+.game-ui #command-popover .aim-calc .aim-name {
+  font-size: var(--fs-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.game-ui #command-popover .aim-calc li b {
+  font-size: var(--fs-1);
+  font-weight: 800;
+  text-align: right;
+}
+.game-ui #command-popover .aim-calc li small {
+  grid-column: 1 / -1;
+}
+.game-ui #command-popover .aim-calc li.hit b {
+  color: var(--green-600);
+}
+.game-ui #command-popover .aim-calc .aim-foot {
+  margin-top: 4px;
 }

@@ -2,10 +2,13 @@ import type { RoutePlan } from './types';
 /** First changed input; identifiers are storage details, not control values. */
 export function firstChangeTime(a: RoutePlan, b: RoutePlan): number | undefined {
   if (Math.hypot(a.launch.x - b.launch.x, a.launch.y - b.launch.y) > 1e-8) return 0;
+  // The launch cutoff shapes the flight from lift-off.
+  if (Math.abs((a.launchDv ?? -1) - (b.launchDv ?? -1)) > 1e-12) return 0;
   const events = (p: RoutePlan) =>
     [
       ...p.impulses.map(({ id: _id, ...v }) => ({ kind: 'impulse', ...v })),
       ...(p.engineCommands ?? []).map(({ id: _id, ...v }) => ({ kind: 'engine', ...v })),
+      ...(p.deployments ?? []).map(({ id: _id, ...v }) => ({ event: 'device', ...v })),
     ].sort((x, y) => x.time - y.time);
   const x = events(a),
     y = events(b);

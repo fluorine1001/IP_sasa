@@ -154,13 +154,13 @@
   gap: 8px;
 }
 .direction-dial svg {
-  width: 160px;
+  width: 210px;
   height: 160px;
   cursor: crosshair;
   touch-action: none;
 }
 #command-popover .direction-dial svg {
-  width: 160px;
+  width: 210px;
   height: 160px;
 }
 #command-popover .engine-bench svg,
@@ -174,8 +174,12 @@
 }
 .direction-dial text {
   fill: var(--n-200);
-  font: 9px sans-serif;
+  font-size: 13px;
+  font-weight: 700;
   pointer-events: none;
+}
+#command-popover .direction-dial text {
+  fill: var(--paper-ink);
 }
 #command-popover {
   overflow: auto;

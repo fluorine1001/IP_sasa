@@ -6,7 +6,18 @@ import { toScreen, type Camera } from './camera';
 import { haloText, leaderLabel } from './annotate';
 import { palette } from '../ui/palette';
 
-export type OrbitSketch = { conic: Conic; tone: 'live' | 'plan'; label?: string };
+export type OrbitSketch = {
+  conic: Conic;
+  tone: 'live' | 'plan';
+  label?: string;
+  /** Aiming calculator: the closest point to a target and where the target is then. */
+  approach?: {
+    craft: { x: number; y: number };
+    target: { x: number; y: number };
+    text: string;
+    inside: boolean;
+  };
+};
 
 export function drawOrbitSketches(
   ctx: CanvasRenderingContext2D,
@@ -65,6 +76,26 @@ export function drawOrbitSketches(
     if (label) {
       const at = screen(path[Math.min(path.length - 1, 18)]);
       haloText(ctx, label, { x: at.x + 8, y: at.y - 12 }, color);
+    }
+    const ap = sketches.find((s) => s.conic === c)?.approach;
+    if (ap) {
+      const a = screen(ap.craft),
+        b = screen(ap.target);
+      ctx.strokeStyle = ap.inside ? palette.green400 : color;
+      ctx.lineWidth = 1.25;
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+      ctx.stroke();
+      leaderLabel(ctx, a, ap.text, ap.inside ? palette.green400 : color, b);
     }
     ctx.restore();
   }

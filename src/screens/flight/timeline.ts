@@ -28,6 +28,8 @@ export type TimelineState = {
   applied?: Set<string>;
   scheduled?: RoutePlan;
   recordedEnd?: number;
+  /** Plan phase: the plan repeats the last flight unchanged until this time. */
+  known?: number;
   playing?: boolean;
   ended?: boolean;
   /** Past (and the live) flights to draw in the flight log graph, newest first. */
@@ -64,6 +66,7 @@ export function flightTimeline(
   leaveReplay: () => void,
   signal: AbortSignal,
   action?: (id: string) => void,
+  aim?: (id: string, plan: RoutePlan) => string,
 ) {
   let fingerprint = '',
     logFingerprint = '',
@@ -75,7 +78,7 @@ export function flightTimeline(
   const viewports = new Map<string, number>();
   selectedTime = Math.min(selectedTime, viewDuration);
   root.innerHTML =
-    '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-burns" class="timeline-burns" aria-hidden="true"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
+    '<section id="flight-timeline" class="flight-timeline" aria-label="비행 타임라인"><div class="timeline-heading"><button id="program-toggle">비행 계획 편집</button><b id="timeline-mode"></b><span id="timeline-clock"></span><button id="replay-toggle" hidden>다시보기 일시정지</button><button id="replay-exit" hidden>다시보기 닫기</button></div><div id="timeline-track" class="timeline-track"><div id="timeline-ticks" class="timeline-ticks"></div><div id="timeline-drop" hidden></div><div class="timeline-rail"></div><div id="timeline-known" hidden></div><div id="timeline-burns" class="timeline-burns" aria-hidden="true"></div><div id="timeline-fill"></div><div id="timeline-recorded-end" hidden></div><div id="timeline-markers"></div><div id="timeline-cursor"></div><input id="flight-scrub" aria-label="다시보기 시간 이동" type="range" min="0" max="' +
     timelineDuration(stage) +
     '" step="0.01" value="0"></div><div id="flight-log" class="flight-log" hidden></div><div id="timeline-palette"></div><button id="timeline-extend" hidden>시간선 늘리기 +</button><div class="timeline-caption"><span class="timeline-legend">' +
     (['ignite', 'stop', 'turn', 'separate'] as const)
@@ -404,6 +407,7 @@ export function flightTimeline(
     () => selectedTime,
     selectTime,
     action,
+    aim,
   );
   function drawLog(state: TimelineState, duration: number) {
     const host = el('flight-log'),
@@ -677,6 +681,19 @@ export function flightTimeline(
     slider.setAttribute('aria-valuetext', cursorTime.toFixed(2) + '초');
     el('replay-toggle').hidden = el('replay-exit').hidden = state.phase !== 'replay';
 
+    const known = el('timeline-known');
+    const knownEnd = state.phase === 'plan' ? state.known : undefined;
+    known.hidden = !(knownEnd !== undefined && knownEnd > 0.05);
+    if (!known.hidden) {
+      const size = Math.min(100, (knownEnd! / duration) * 100);
+      known.style.width = size + '%';
+      const text = '지난 비행 그대로 · ' + knownEnd!.toFixed(1) + '초까지';
+      known.innerHTML =
+        (size / 100) * (el('timeline-track').clientWidth || 640) > textWidth(text) + 16
+          ? '<span>' + text + '</span>'
+          : '';
+      known.title = text + ' — 이 구간의 상태는 기록에서 읽습니다';
+    }
     el('timeline-explanation').textContent = '';
     const end = el('timeline-recorded-end');
     end.hidden = state.phase !== 'replay';

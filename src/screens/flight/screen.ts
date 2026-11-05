@@ -4,6 +4,8 @@ import {
   programWarnings,
   launchFraction,
   programEvents,
+  planningTimeLimit,
+  timelineDuration,
 } from '../../world/program';
 import { playbackRates, playbackTempo, savedPlaybackRate, savePlaybackRate } from './playback';
 import { craftCenter } from '../../world/craft-center';
@@ -48,6 +50,14 @@ import { createRun, tick, WORLD_STEP } from '../../world/engine.ts';
 import { FrameClock } from '../../world/frame-clock';
 import type { LogAttempt } from './flight-log';
 import { previewStates } from '../../world/plan-preview';
+import {
+  aimTargets,
+  approachParts,
+  closestApproach,
+  twoBodyPath,
+  type AimState,
+  type Approach,
+} from '../../world/aim';
 import { apsisNames } from '../../world/heading';
 import { firstChangeTime } from '../../world/first-change';
 import { gravity } from '../../world/celestial.ts';
@@ -93,6 +103,85 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
   syncLaunch(stage);
   const director = flightSoundDirector(stage);
   let launchSketch: { key: string; conic?: Conic } = { key: '' };
+  /**
+   * The last flight's state at `time`, usable only up to the first difference between
+   * that flight's plan and this plan (the flight is deterministic up to there).
+   */
+  function recordedState(time: number, p: RoutePlan) {
+    const last = trials.at(-1);
+    if (!last) return undefined;
+    const changed = firstChangeTime(last.scheduledPlan, p) ?? Infinity;
+    if (time > last.duration || changed < time - 1e-9) return undefined;
+    const f = replayAt(last.frames, Math.max(0, time - 1e-3), last.flightPlan);
+    return f && !f.landed && f.rocket?.airborne !== false
+      ? { position: f.position, velocity: f.velocity, time: f.time }
+      : undefined;
+  }
+  /** Until when the current plan repeats the last flight exactly (its record is this plan's past). */
+  function repeatsUntil() {
+    const last = trials.at(-1);
+    if (!last) return undefined;
+    return Math.min(last.duration, firstChangeTime(last.scheduledPlan, plan) ?? Infinity);
+  }
+  /** The state the aiming calculator starts from right after a planned item. */
+  function aimStart(id: string, p: RoutePlan): { state?: AimState; reason?: string } {
+    if (id === 'launch') {
+      if (stage.rocket)
+        return {
+          reason: '로켓 상승은 계산기 범위 밖입니다. 한 번 날린 뒤 수정 연소로 겨냥하세요.',
+        };
+      const start = createRun(stage, p);
+      return { state: { position: start.position, velocity: start.velocity, time: 0 } };
+    }
+    const entry = previewStates(stage, p, (t) => recordedState(t, p)).find(
+      (e) => e.change.id === id,
+    );
+    if (entry) return { state: entry.state };
+    const item =
+      p.impulses.find((m) => m.id === id) ?? p.engineCommands?.find((c) => c.id === id)?.burn;
+    if (item?.at === 'altitude')
+      return { reason: '높이 예약은 겨냥 계산 범위 밖입니다. 착륙 계산의 정지 높이를 보세요.' };
+    if (!trials.length)
+      return { reason: '아직 기록이 없습니다. 한 번 날리면 이 시각의 상태로 계산합니다.' };
+    return {
+      reason:
+        '이 예약보다 앞의 계획이 지난 비행과 달라 이 시각의 상태를 모릅니다. 앞부분을 먼저 날려 보세요.',
+    };
+  }
+  function aimUntil() {
+    return Math.min(planningTimeLimit(stage), timelineDuration(stage) * 4);
+  }
+  const targets = aimTargets(stage);
+  /** Popover lines: where the two-body path from this item passes each target. */
+  function aimHtml(id: string, p: RoutePlan) {
+    if (!targets.length) return '';
+    const { state, reason } = aimStart(id, p);
+    const head =
+      '<header><b>겨냥 계산</b><small>그때 가장 센 천체 중력만 · 이 뒤 예약은 빼고</small></header>';
+    if (!state) return `<section class="aim-calc">${head}<p>${escape(reason ?? '')}</p></section>`;
+    const view = dynamicView(stage, { ...createRun(stage, p), ...state } as Run);
+    const all = targets
+      .map((t) => closestApproach(view, state, t, aimUntil()))
+      .filter((a): a is Approach => !!a);
+    // Targets the path only moves away from are noise; keep them only if nothing else is left.
+    const useful = all.filter((a) => !a.atStart);
+    const shown = (useful.length ? useful : all.slice(0, 1)).sort(
+      (a, b) => Number(b.inside) - Number(a.inside) || gapOf(a) - gapOf(b),
+    );
+    const rows = shown.map((a) => {
+      const q = approachParts(a);
+      return `<li class="${q.hit ? 'hit' : ''}"><span class="aim-name">${escape(q.name)}</span><b>${escape(q.value)}</b><small>${escape(q.detail)}</small></li>`;
+    });
+    const end = all.find((a) => a.impact !== undefined)?.impact;
+    const foot =
+      end !== undefined
+        ? `<p class="aim-foot">${end.toFixed(1)}초에 지면에 닿아 계산이 끝납니다.</p>`
+        : '';
+    return `<section class="aim-calc">${head}${rows.length ? `<ul>${rows.join('')}</ul>` : '<p>이 경로는 목표 쪽으로 계산할 수 없습니다.</p>'}${foot}</section>`;
+  }
+  function gapOf(a: Approach) {
+    return a.distance - (a.target.kind === 'body' ? a.target.radius : 0);
+  }
   /** Orbit calculator: two-body conics of the visible craft and of planned pushes. */
   function orbitSketches(view: Run | FlightFrame | undefined): OrbitSketch[] {
     if (!app.settings.orbitTool) return [];
@@ -105,6 +194,8 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
       return c ? [{ conic: c, tone: 'live' }] : [];
     }
     const out: OrbitSketch[] = [];
+    // The path after the last calculable planned change gets the aiming mark.
+    let finalPlan: { sketch: OrbitSketch; state?: AimState } | undefined;
     // Before launch: a cold-gas launch is itself an instant push from a known state.
     if (!stage.rocket && Math.hypot(plan.launch.x, plan.launch.y) > 1e-9) {
       const key = JSON.stringify(plan.launch);
@@ -112,23 +203,17 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         const start = createRun(stage, plan);
         launchSketch = { key, conic: conicFor(start) };
       }
-      if (launchSketch.conic)
+      if (launchSketch.conic) {
         out.push({ conic: launchSketch.conic, tone: 'plan', label: '발사 직후' });
+        finalPlan = { sketch: out.at(-1)!, state: aimStart('launch', plan).state };
+      }
     }
     const last = trials.at(-1);
     if (last) {
-      const changed = firstChangeTime(last.scheduledPlan, plan) ?? Infinity;
-      // The last flight's state is usable up to the first planned difference.
-      const recorded = (time: number) => {
-        if (time > last.duration || changed < time - 1e-9) return undefined;
-        const f = replayAt(last.frames, Math.max(0, time - 1e-3), last.flightPlan);
-        return f && !f.landed && f.rocket?.airborne !== false
-          ? { position: f.position, velocity: f.velocity, time: f.time }
-          : undefined;
-      };
+      const recorded = (time: number) => recordedState(time, plan);
       for (const { change, state } of previewStates(stage, plan, recorded)) {
         const c = conicFor(state);
-        if (c)
+        if (c) {
           out.push({
             conic: c,
             tone: 'plan',
@@ -136,6 +221,8 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
               ? `${change.label} (${apsisNames[change.at]}) 후`
               : `${change.time.toFixed(1)}초 ${change.label} 후`,
           });
+          finalPlan = { sketch: out.at(-1)!, state };
+        }
       }
       if (replayTime !== undefined && replayTime > 0) {
         const frame = replayAt(last.frames, Math.min(replayTime, last.duration), last.flightPlan);
@@ -143,6 +230,32 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
           const c = conicFor(frame);
           if (c) out.push({ conic: c, tone: 'live' });
         }
+      }
+    }
+    if (finalPlan?.state && targets.length) {
+      const state = finalPlan.state;
+      const view = dynamicView(stage, { ...createRun(stage, plan), ...state } as Run);
+      const near = targets
+        .map((t) => closestApproach(view, state, t, aimUntil()))
+        .filter((a): a is Approach => !!a && !a.atStart)
+        .sort(
+          (a, b) =>
+            Number(b.inside) - Number(a.inside) ||
+            a.distance - a.target.radius - (b.distance - b.target.radius),
+        )[0];
+      if (near) {
+        const path = twoBodyPath(view, state, aimUntil())!;
+        finalPlan.sketch.approach = {
+          craft: path.at(near.time).position,
+          target:
+            near.target.kind === 'body'
+              ? bodyPosition(view, near.target.body, near.time)
+              : objectPosition(view, near.target.object, near.time),
+          text: near.inside
+            ? `${near.target.name} ${near.target.kind === 'body' ? '도달' : '통과'} · ${near.time.toFixed(1)}초`
+            : `${near.target.name}까지 ${(near.distance - (near.target.kind === 'body' ? near.target.radius : 0)).toFixed(3)} u · ${near.time.toFixed(1)}초`,
+          inside: near.inside,
+        };
       }
     }
     return out;
@@ -372,6 +485,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             applied: run?.applied,
             time: run?.time ?? 0,
             ended,
+            known: !run ? repeatsUntil() : undefined,
             log: (
               (!showLog
                 ? []
@@ -411,6 +525,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     leaveReplay,
     signal,
     planAction,
+    aimHtml,
   );
   timelineApi = timeline;
   el('dock-plan').append(el('program-toggle'));

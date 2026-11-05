@@ -42,6 +42,7 @@ export function timelinePlanner(
   selectedTime: () => number,
   selectTime: (time: number) => void,
   action?: (id: string) => void,
+  aim?: (id: string, plan: RoutePlan) => string,
 ) {
   const track = root.querySelector<HTMLElement>('#timeline-track')!;
   const palette = root.querySelector<HTMLElement>('#timeline-palette')!;
@@ -395,6 +396,9 @@ export function timelinePlanner(
       (editable() ? '' : 'disabled') +
       '>' +
       fields +
+      (aim && (c?.burn || impulse || (id === 'launch' && !stage.rocket))
+        ? '<div id="aim-readout" aria-live="polite">' + aim(id, p) + '</div>'
+        : '') +
       (id !== 'launch'
         ? '<div class="popover-actions">' +
           (!discreteOnly &&
@@ -481,6 +485,8 @@ export function timelinePlanner(
                   : '');
       const estimate = popup.querySelector('#burn-estimate');
       if (estimate && c?.burn) estimate.innerHTML = burnEstimate(stage, p, c.id).html;
+      const aimBox = popup.querySelector('#aim-readout');
+      if (aimBox && aim) aimBox.innerHTML = aim(selected, p);
       const diagram = popup.querySelector('.frame-diagram');
       const h = c?.burn?.heading ?? impulse?.heading;
       if (diagram && h) diagram.outerHTML = frameDiagram(h);

@@ -64,7 +64,8 @@ export function dialAngle(x: number, y: number, baseAngle = 0) {
 export function directionDial(degrees: number, baseAngle = 0) {
   const label = (offset: number, text: string) => {
     const a = baseAngle + (offset * Math.PI) / 180;
-    return `<text x="${90 + 75 * Math.cos(a)}" y="${94 - 75 * Math.sin(a)}" text-anchor="middle">${text}</text>`;
+    const k = 78 + 12 * Math.abs(Math.cos(a));
+    return `<text x="${90 + k * Math.cos(a)}" y="${95 - k * Math.sin(a)}" text-anchor="middle">${text}</text>`;
   };
-  return `<div class="direction-dial" role="group" aria-label="지도와 같은 방향"><svg viewBox="0 0 180 180" role="img" aria-label="지도와 같은 방향으로 기체 자세 선택"><circle cx="90" cy="90" r="64" fill="#102631" stroke="#658b8c"/><path d="M90 20v140M20 90h140" stroke="#496b6f" stroke-dasharray="3 6"/>${label(0, '바깥')}${label(90, '왼쪽')}${label(-90, '오른쪽')}${label(180, '행성 쪽')}<g class="dial-pointer" transform="rotate(${dialRotation(degrees, baseAngle)} 90 90)"><path d="M90 92V35" stroke="#edc47d" stroke-width="5"/><path d="M83 45l7-14 7 14" fill="#edc47d"/></g><circle cx="90" cy="90" r="6" fill="#b1cdbf"/></svg></div>`;
+  return `<div class="direction-dial" role="group" aria-label="지도와 같은 방향"><svg viewBox="-28 0 236 180" role="img" aria-label="지도와 같은 방향으로 기체 자세 선택"><circle cx="90" cy="90" r="62" fill="#102631" stroke="#658b8c"/><path d="M90 20v140M20 90h140" stroke="#496b6f" stroke-dasharray="3 6"/>${label(0, '바깥')}${label(90, '왼쪽')}${label(-90, '오른쪽')}${label(180, '행성 쪽')}<g class="dial-pointer" transform="rotate(${dialRotation(degrees, baseAngle)} 90 90)"><path d="M90 92V35" stroke="#edc47d" stroke-width="5"/><path d="M83 45l7-14 7 14" fill="#edc47d"/></g><circle cx="90" cy="90" r="6" fill="#b1cdbf"/></svg></div>`;
 }

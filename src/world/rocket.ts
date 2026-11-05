@@ -4,6 +4,8 @@ import type { Stage, Run } from './types.ts';
 import { bodyPosition, bodyVelocity } from './celestial.ts';
 import { add, sub, length, scale, unit } from '../physics/vector.ts';
 import { burn, engineSetting, hybridFloat, separationReset } from '../physics/hybrid-kernel';
+import { resolveHeading, triggerFired, triggerReading, type Apsis, type Heading } from './heading';
+import { dominantBody } from './conic';
 export type RocketPart = {
   id: string;
   name: string;
@@ -26,6 +28,21 @@ export type PayloadConfig = {
   area: number;
   releaseSpeed: number;
 };
+/** A Δv burn in progress: waits for alignment, then runs until `remaining` is delivered. */
+export type BurnState = {
+  id: string;
+  direction: Vec;
+  remaining: number;
+  throttle: number;
+  lit: boolean;
+  /** Armed for an apsis: track the heading and wait for radial speed to change sign. */
+  at?: Apsis;
+  altitude?: number;
+  heading?: Heading;
+  last?: { radial: number; height: number };
+};
+/** Alignment tolerance before a Δv burn ignites. */
+export const BURN_ALIGN = (0.5 * Math.PI) / 180;
 export type RocketConfig = { payloadMass: number; parts: RocketPart[]; payloads?: PayloadConfig[] };
 export type Detached = {
   payload?: boolean;
@@ -37,6 +54,7 @@ export type Detached = {
   dryMass: number;
   direction: Vec;
   targetDirection?: Vec;
+  burn?: BurnState;
   throttle: number;
   ignitions: number;
   heat: number;
@@ -57,6 +75,7 @@ export type RocketState = {
   throttle: number;
   direction: Vec;
   targetDirection?: Vec;
+  burn?: BurnState;
   heat: number;
   stress: number;
   airborne: boolean;
@@ -170,6 +189,9 @@ export function controlEngine(
   // Touchdown already extinguishes a detached engine. A scheduled cutoff is
   // idempotent, not a failed ignition or an unsupported ground relaunch.
   if (booster?.status === 'landed') return throttle === 0 && !direction;
+  // A manual throttle replaces a Δv burn. A pure turn steers a running burn (a gravity
+  // turn) but cancels one still waiting to align, which could otherwise never light.
+  if (throttle !== undefined || !state.burn?.lit) state.burn = undefined;
   if (direction && length(direction) > 1e-8) state.targetDirection = unit(direction);
   if (throttle !== undefined) {
     const fuel = booster ? booster.fuel : run.rocket.fuel[run.rocket.partIndex],
@@ -189,8 +211,51 @@ export function controlEngine(
   }
   return true;
 }
+/** Schedule a Δv burn: turn toward `direction`, ignite once aligned, stop after `dv`. */
+export function startBurn(
+  run: Run,
+  stage: Stage,
+  actorId: string,
+  id: string,
+  direction: Vec,
+  dv: number,
+  throttle = 1,
+  armed?: { at: Apsis; heading: Heading; altitude?: number },
+): boolean {
+  if (!stage.rocket || !run.rocket || run.status !== 'running') return false;
+  if (!(dv > 0) || !Number.isFinite(dv) || !(throttle > 0)) return false;
+  const booster =
+    actorId === 'craft'
+      ? undefined
+      : run.detached.find((a) => a.id === actorId && a.status === 'flying');
+  if (actorId !== 'craft' && !booster) return false;
+  const state = booster ?? run.rocket;
+  const target = unit(direction);
+  // Armed burns turn once, now: a height trigger brakes on the way down, and an apsis
+  // trigger was aimed at the apsis heading. At the trigger the heading is re-read.
+  // Apsis burns arrive here already aimed at the apsis heading (see scheduleBurn).
+  state.targetDirection = target;
+  const aligned =
+    !armed && angleBetween(state.direction, target) <= BURN_ALIGN && state.throttle > 0;
+  // A running engine pointing the right way keeps burning; otherwise it stops to turn.
+  if (!aligned) state.throttle = 0;
+  state.burn = {
+    id,
+    direction: target,
+    remaining: dv,
+    throttle: Math.min(1, throttle),
+    lit: aligned,
+    ...(armed ? { at: armed.at, heading: armed.heading, altitude: armed.altitude } : {}),
+  };
+  if (aligned) state.throttle = Math.min(1, throttle);
+  return true;
+}
+function angleBetween(a: Vec, b: Vec) {
+  return Math.abs(Math.atan2(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y));
+}
 export function separate(run: Run, stage: Stage): boolean {
   if (!run.rocket || !stage.rocket || run.status !== 'running') return false;
+  run.rocket.burn = undefined;
   const index = run.rocket.partIndex,
     part = stage.rocket.parts[index];
   if (!part) return false;
@@ -241,13 +306,17 @@ export function releasePayload(run: Run, stage: Stage, id: string): boolean {
   if (!(carrierMass > 0)) return false;
   const direction = run.rocket.direction,
     velocity = { ...run.velocity };
-  const position = add(run.position, scale(direction, craftHull(stage, run).length));
+  // The payload leaves ahead of the carrier on the same orbit: the carrier's state turned
+  // about the body by one hull length of arc. A turn about the body keeps energy and
+  // angular momentum, so the payload flies the carrier's orbit wherever the nose points.
+  const ahead = aheadOnOrbit(stage, run, craftHull(stage, run).length);
+  const position = ahead.position;
   run.detached.push({
     id,
     name: payload.name,
     payload: true,
     position,
-    velocity: add(velocity, scale(direction, (payload.releaseSpeed * carrierMass) / total)),
+    velocity: add(ahead.velocity, scale(direction, (payload.releaseSpeed * carrierMass) / total)),
     dryMass: payload.mass,
     fuel: 0,
     direction: { ...direction },
@@ -261,6 +330,24 @@ export function releasePayload(run: Run, stage: Stage, id: string): boolean {
   run.velocity = sub(velocity, scale(direction, (payload.releaseSpeed * payload.mass) / total));
   run.rocket.separatedAt[id] = run.time;
   return true;
+}
+function aheadOnOrbit(stage: Stage, run: Run, arc: number) {
+  const body = dominantBody(stage, run.position, run.time);
+  if (!body)
+    return {
+      position: add(run.position, scale(run.rocket!.direction, arc)),
+      velocity: run.velocity,
+    };
+  const centre = bodyPosition(stage, body, run.time),
+    bodyV = bodyVelocity(stage, body, run.time);
+  const r = sub(run.position, centre),
+    v = sub(run.velocity, bodyV);
+  const sense = r.x * v.y - r.y * v.x < 0 ? -1 : 1;
+  const a = (sense * arc) / Math.max(length(r), 1e-9),
+    c = Math.cos(a),
+    sn = Math.sin(a);
+  const turn = (q: Vec) => ({ x: q.x * c - q.y * sn, y: q.x * sn + q.y * c });
+  return { position: add(centre, turn(r)), velocity: add(bodyV, turn(v)) };
 }
 /** Upper stages have faster attitude controllers; authors can override each part. */
 export function attitudeRate(stage: Stage, index: number, fuel?: number[]) {
@@ -303,12 +390,64 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     else if (run.rocket.airborne)
       run.position = add(run.position, scale(sub(old, state.direction), extent / 2));
   }
+  // Δv burn: ignite once the hull points the planned way (on the pad it already does),
+  // then burn exactly until the planned speed change is delivered.
+  const pending = state.burn;
+  let burnDt = dt;
+  if (pending?.at) {
+    // Armed: wait for the trigger (radial speed changing sign at an apsis, or coming down
+    // to the set height), then aim at the heading of that moment and fire once aligned.
+    // The hull does not track the frame while coasting: every turn pivots the hull, and
+    // turning all orbit long would change the orbit itself.
+    const position = actor?.position ?? run.position,
+      velocity = actor?.velocity ?? run.velocity;
+    const now = triggerReading(stage, position, velocity, run.time);
+    if (triggerFired(pending.at, pending.last, now, pending.altitude)) {
+      pending.at = undefined;
+      pending.direction = resolveHeading(stage, position, velocity, run.time, pending.heading!);
+      state.targetDirection = pending.direction;
+    }
+    pending.last = now;
+  }
+  if (pending && !pending.at) {
+    const fixedOnPad = !actor && !run.rocket.airborne && !!stage.launchBodyId;
+    if (
+      !pending.lit &&
+      (fixedOnPad || angleBetween(state.direction, pending.direction) <= BURN_ALIGN)
+    ) {
+      const fuel = actor ? actor.fuel : run.rocket.fuel[index],
+        ignitions = actor ? actor.ignitions : run.rocket.ignitions[index];
+      const setting = engineSetting(
+        hybridFloat,
+        fuel,
+        state.throttle,
+        ignitions,
+        part.ignitionLimit,
+        pending.throttle,
+      );
+      if (!setting.accepted || setting.throttle <= 0) {
+        state.burn = undefined;
+        return '예약한 연소를 시작하지 못했습니다. 남은 연료와 재점화 횟수를 확인하세요.';
+      }
+      if (actor) actor.ignitions = setting.ignitions;
+      else run.rocket.ignitions[index] = setting.ignitions;
+      state.throttle = setting.throttle;
+      pending.lit = true;
+    }
+    if (pending.lit && state.throttle > 0) {
+      const mass = actor ? actor.dryMass + actor.fuel : rocketMass(stage, run),
+        flow = (part.thrust * state.throttle) / part.exhaustSpeed;
+      // Rocket equation: time for the remaining Δv at the current mass and flow.
+      const needed = (mass * (1 - Math.exp(-pending.remaining / part.exhaustSpeed))) / flow;
+      burnDt = Math.min(dt, needed);
+    }
+  }
   const next = burn(hybridFloat, {
     mass: actor ? actor.dryMass + actor.fuel : rocketMass(stage, run),
     fuel: actor ? actor.fuel : run.rocket.fuel[index],
     thrust: part.thrust,
     throttle: state.throttle,
-    dt,
+    dt: burnDt,
     exhaustSpeed: part.exhaustSpeed,
   });
   if (actor) {
@@ -319,6 +458,13 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     run.velocity = add(run.velocity, scale(state.direction, next.delta));
   }
   state.throttle = next.throttle;
+  if (pending?.lit) {
+    pending.remaining -= next.delta;
+    if (pending.remaining <= 1e-9 || burnDt < dt - 1e-12 || next.throttle <= 0) {
+      state.throttle = 0;
+      state.burn = undefined;
+    }
+  }
   const a = atmosphericState(
     stage,
     actor?.position ?? run.position,

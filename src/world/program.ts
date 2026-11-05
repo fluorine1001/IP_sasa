@@ -1,10 +1,11 @@
 import { length, scale } from '../physics/vector';
+import { apsisNames, headingLabel, type Apsis } from './heading';
 
 import type { Stage, RoutePlan } from './types';
 export type ProgramEvent = {
   id: string;
   time: number;
-  kind: 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'sensor' | 'deploy';
+  kind: 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'sensor' | 'deploy' | 'burn';
   label: string;
   actorId: string;
 };
@@ -31,6 +32,14 @@ export function programEvents(plan: RoutePlan): ProgramEvent[] {
         ];
       if (c.separate)
         return [{ ...base, kind: 'separate' as const, label: '단 분리 · 다음 엔진은 꺼짐' }];
+      if (c.burn)
+        return [
+          {
+            ...base,
+            kind: 'burn' as const,
+            label: `${triggerText(c.burn)}연소 Δv ${c.burn.dv.toFixed(2)} · ${headingLabel(c.burn.heading)}`,
+          },
+        ];
       const labels: ProgramEvent[] = [];
       if (c.throttle !== undefined)
         labels.push({
@@ -54,7 +63,11 @@ export function programEvents(plan: RoutePlan): ProgramEvent[] {
       id: c.id,
       time: c.time,
       kind: 'push' as const,
-      label: '수정 추진 · 속력 변화 ' + length(c.vector).toFixed(2),
+      label:
+        '추진 · 속력 변화 ' +
+        (c.magnitude ?? length(c.vector)).toFixed(2) +
+        (c.heading ? ' · ' + headingLabel(c.heading) : '') +
+        (c.at ? ' · ' + triggerText(c).trim() : ''),
       actorId: 'craft',
     })),
   ].sort((a, b) => a.time - b.time);
@@ -86,7 +99,7 @@ export function launchFraction(stage: Stage, plan: RoutePlan) {
 }
 export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
   const warnings: string[] = planConstraints(stage, plan);
-  if (plan.impulses.reduce((n, c) => n + length(c.vector), 0) > stage.rules.maneuverBudget + 1e-8)
+  if (plan.impulses.reduce((n, c) => n + pushSize(c), 0) > stage.rules.maneuverBudget + 1e-8)
     warnings.push('수정 추진 예약 합계가 장치의 여유를 넘습니다.');
   if (!stage.rocket) return warnings;
   const config = stage.rocket;
@@ -95,9 +108,13 @@ export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
     time = 0;
   const fuel = config.parts.map((p) => p.fuelMass),
     ignitions = config.parts.map((_, i) => (i === 0 && throttle > 0 ? 1 : 0));
-  for (const c of [...(plan.engineCommands ?? [])]
-    .filter((c) => c.actorId === 'craft')
-    .sort((a, b) => a.time - b.time)) {
+  const cutoff = launchCutoffTime(stage, plan);
+  for (const c of [
+    ...(plan.engineCommands ?? []).filter((c) => c.actorId === 'craft'),
+    ...(Number.isFinite(cutoff)
+      ? [{ id: 'launch-cutoff', time: cutoff, actorId: 'craft', throttle: 0 }]
+      : []),
+  ].sort((a, b) => a.time - b.time)) {
     const p = config.parts[index];
     if (p)
       fuel[index] = Math.max(
@@ -113,6 +130,29 @@ export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
           c.time.toFixed(1) + '초: 마지막 추진단까지 버립니다. 이후에는 추진할 수 없습니다.',
         );
       index++;
+      throttle = 0;
+    } else if (c.burn) {
+      const p = config.parts[index];
+      if (!p || fuel[index] <= 1e-8) {
+        warnings.push(c.time.toFixed(1) + '초: 연소할 엔진에 연료가 없습니다.');
+        continue;
+      }
+      if (throttle === 0 && ++ignitions[index] > p.ignitionLimit)
+        warnings.push(c.time.toFixed(1) + '초: 엔진 재점화 한도를 넘습니다.');
+      const mass =
+        config.payloadMass +
+        (config.payloads ?? []).reduce((m, q) => m + q.mass, 0) +
+        config.parts.slice(index).reduce((m, q, i) => m + q.dryMass + fuel[index + i], 0);
+      const spent = mass * (1 - Math.exp(-c.burn.dv / p.exhaustSpeed));
+      if (spent > fuel[index] + 1e-9)
+        warnings.push(
+          c.time.toFixed(1) +
+            '초: 연료가 Δv ' +
+            (p.exhaustSpeed * Math.log(mass / (mass - fuel[index]))).toFixed(2) +
+            ' u/s만큼만 남습니다.',
+        );
+      fuel[index] = Math.max(0, fuel[index] - spent);
+      // A burn ends with the engine off, after a duration the clock above does not model.
       throttle = 0;
     } else if (c.throttle !== undefined) {
       if (c.throttle > 0 && (!config.parts[index] || fuel[index] <= 1e-8))
@@ -141,8 +181,9 @@ export function launchAt(stage: Stage, degrees: number, percent: number) {
   );
 }
 
-export type CommandKind = 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy';
+export type CommandKind = 'burn' | 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy';
 export const commandNames: Record<CommandKind, string> = {
+  burn: '연소',
   ignite: '엔진 출력',
   stop: '엔진 끄기',
   turn: '방향 회전',
@@ -163,10 +204,19 @@ export function planningTimeLimit(stage: Stage) {
   );
 }
 export function commandUsage(plan: RoutePlan): Record<CommandKind, number> {
-  const count = { ignite: 0, stop: 0, turn: 0, separate: 0, push: plan.impulses.length, deploy: 0 };
+  const count = {
+    burn: 0,
+    ignite: 0,
+    stop: 0,
+    turn: 0,
+    separate: 0,
+    push: plan.impulses.length,
+    deploy: 0,
+  };
   for (const c of plan.engineCommands ?? []) {
     if (c.releasePayload) count.deploy++;
     else if (c.separate) count.separate++;
+    else if (c.burn) count.burn++;
     else {
       if (c.throttle !== undefined) count[c.throttle > 0 ? 'ignite' : 'stop']++;
       if (c.direction) count.turn++;
@@ -186,7 +236,8 @@ export function canAddCommand(stage: Stage, plan: RoutePlan, kind: CommandKind) 
   if (kind === 'push' ? !!stage.rocket : !stage.rocket) return false;
   if (kind === 'separate' && commandUsage(plan).separate >= (stage.rocket?.parts.length ?? 0))
     return false;
-  const limit = stage.rules.commandLimits?.[kind];
+  if (kind === 'burn' && !stage.rocket) return false;
+  const limit = burnAwareLimit(stage, kind);
   return limit === undefined || commandUsage(plan)[kind] < limit;
 }
 export function planConstraints(stage: Stage, plan: RoutePlan): string[] {
@@ -208,7 +259,7 @@ export function planConstraints(stage: Stage, plan: RoutePlan): string[] {
     out.push('연료 로켓은 순간 속도 변경을 사용할 수 없습니다. 점화·회전·정지를 예약하세요.');
   const usage = commandUsage(plan);
   for (const kind of Object.keys(usage) as CommandKind[]) {
-    const limit = stage.rules.commandLimits?.[kind];
+    const limit = burnAwareLimit(stage, kind);
     if (limit !== undefined && usage[kind] > limit)
       out.push(commandNames[kind] + ' 예약 한도 ' + limit + '회를 넘습니다.');
   }
@@ -221,4 +272,34 @@ export function planConstraints(stage: Stage, plan: RoutePlan): string[] {
       '조작 시각은 0초부터 타임라인 한도 ' + planningTimeLimit(stage) + '초 안에 지정하세요.',
     );
   return out;
+}
+
+/** Δv burns share the ignition allowance when a stage sets no separate burn limit. */
+function burnAwareLimit(stage: Stage, kind: CommandKind) {
+  const limits = stage.rules.commandLimits as Partial<Record<CommandKind, number>> | undefined;
+  return kind === 'burn' ? (limits?.burn ?? limits?.ignite) : limits?.[kind];
+}
+/** Speed change of a cold-gas push, fixed or relative. */
+export function pushSize(c: { vector: { x: number; y: number }; magnitude?: number }) {
+  return c.magnitude ?? length(c.vector);
+}
+/** Seconds until a powered launch with a Δv cutoff stops (Infinity without one). */
+export function launchCutoffTime(stage: Stage, plan: RoutePlan) {
+  const config = stage.rocket,
+    throttle = Math.min(1, launchFraction(stage, plan));
+  if (!config || plan.launchDv === undefined || throttle <= 0) return Infinity;
+  const p = config.parts[0];
+  const mass =
+    config.payloadMass +
+    (config.payloads ?? []).reduce((m, q) => m + q.mass, 0) +
+    config.parts.reduce((m, q) => m + q.dryMass + q.fuelMass, 0);
+  const spent = Math.min(p.fuelMass, mass * (1 - Math.exp(-plan.launchDv / p.exhaustSpeed)));
+  return spent / ((p.thrust * throttle) / p.exhaustSpeed);
+}
+
+/** "이후 첫 원점에서 ", "높이 0.30 u까지 내려오면 ", or "" for a timed command. */
+export function triggerText(t: { at?: Apsis; altitude?: number }) {
+  if (!t.at) return '';
+  if (t.at === 'altitude') return `높이 ${(t.altitude ?? 0).toFixed(2)} u까지 내려오면 `;
+  return `이후 첫 ${apsisNames[t.at]}에서 `;
 }

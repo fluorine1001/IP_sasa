@@ -323,6 +323,15 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   );
 
   let timelineApi: { selectedTime(): number } | undefined;
+  // The flight log graph is opened from the flight ledger and stays off otherwise.
+  const LOG_KEY = 'apollo-flight-log';
+  let showLog = (() => {
+    try {
+      return localStorage.getItem(LOG_KEY) === '1';
+    } catch {
+      return false;
+    }
+  })();
   const timeline = flightTimeline(
     el('timeline-host'),
     stage,
@@ -341,7 +350,9 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             log: [
               trial,
               trials[replayIndex - 1] ?? trials.find((t) => t !== trial && t === trials.at(-1)),
-            ].filter((t): t is Trial => !!t),
+            ]
+              .filter((t): t is Trial => !!t)
+              .filter(() => showLog),
           }
         : {
             phase: run ? 'flight' : 'plan',
@@ -351,21 +362,23 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             time: run?.time ?? 0,
             ended,
             log: (
-              (run && !ended
-                ? [
-                    {
-                      number: trials.length + 1,
-                      duration: run.time,
-                      frames: run.frames,
-                      series: Object.fromEntries(
-                        Object.entries(run.goals)
-                          .filter(([, p]) => p.series)
-                          .map(([id, p]) => [id, p.series!]),
-                      ),
-                    },
-                    trials.at(-1),
-                  ]
-                : [trials.at(-1), trials.at(-2)]) as (LogAttempt | undefined)[]
+              (!showLog
+                ? []
+                : run && !ended
+                  ? [
+                      {
+                        number: trials.length + 1,
+                        duration: run.time,
+                        frames: run.frames,
+                        series: Object.fromEntries(
+                          Object.entries(run.goals)
+                            .filter(([, p]) => p.series)
+                            .map(([id, p]) => [id, p.series!]),
+                        ),
+                      },
+                      trials.at(-1),
+                    ]
+                  : [trials.at(-1), trials.at(-2)]) as (LogAttempt | undefined)[]
             ).filter((t): t is LogAttempt => !!t),
           };
     },
@@ -596,7 +609,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     );
   }
   function ledgerHtml() {
-    return `<div class="archive-heading"><h2>비행 일지</h2><button id="close-notes" data-close-ledger class="archive-close" aria-label="비행 기록 닫기" title="비행 기록 닫기">${controlIcon('close')}</button></div>${trials.length > 1 ? planComparison() : ''}<div class="trial-grid">${
+    return `<div class="archive-heading"><h2>비행 일지</h2>${trials.length ? `<button id="log-toggle" class="log-toggle" aria-pressed="${showLog}">시간선 그래프</button>` : ''}<button id="close-notes" data-close-ledger class="archive-close" aria-label="비행 기록 닫기" title="비행 기록 닫기">${controlIcon('close')}</button></div>${trials.length > 1 ? planComparison() : ''}<div class="trial-grid">${
       trials
         .map((t, index) => ({ t, index }))
         .reverse()
@@ -711,6 +724,18 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
           updateHud();
         }),
     );
+    const logToggle = app.root.querySelector<HTMLButtonElement>('#log-toggle');
+    if (logToggle)
+      logToggle.onclick = () => {
+        showLog = !showLog;
+        try {
+          localStorage.setItem(LOG_KEY, showLog ? '1' : '0');
+        } catch {
+          /* the choice still holds for this visit */
+        }
+        logToggle.setAttribute('aria-pressed', String(showLog));
+        updateHud();
+      };
     app.root.querySelectorAll<HTMLButtonElement>('[data-trial-replay]').forEach((b) => {
       b.onclick = () => beginReplay(Number(b.dataset.trialReplay));
     });

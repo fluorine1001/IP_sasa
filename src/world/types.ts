@@ -49,9 +49,30 @@ export type Goal = {
   sketch?: import('../stages/goal-sketch').GoalSketch;
   marker?: import('../stages/goal-marker').GoalMarker;
 };
-export type Impulse = { id: string; time: number; vector: Vec };
+export type Impulse = {
+  id: string;
+  time: number;
+  vector: Vec;
+  /** Relative push: resolved in the orbit frame at its time; `vector` is then ignored. */
+  heading?: import('./heading').Heading;
+  magnitude?: number;
+  /** Fire at the next apsis or on coming down to `altitude`, after `time`. */
+  at?: import('./heading').Apsis;
+  altitude?: number;
+};
+/** Engine burn measured in delivered speed change: turn, ignite when aligned, stop at Δv. */
+export type DvBurn = {
+  dv: number;
+  heading: import('./heading').Heading;
+  throttle?: number;
+  /** Fire at the next apoapsis/periapsis, or on coming down to `altitude`, after the command's time. */
+  at?: import('./heading').Apsis;
+  altitude?: number;
+};
 export type RoutePlan = {
   launch: Vec;
+  /** Powered launch: stop the first burn after this speed change (u/s). Unset: burn until told. */
+  launchDv?: number;
   impulses: Impulse[];
   engineCommands?: {
     id: string;
@@ -61,6 +82,7 @@ export type RoutePlan = {
     direction?: Vec;
     separate?: boolean;
     releasePayload?: string;
+    burn?: DvBurn;
   }[];
   deployments?: { id: string; time: number; kind: DeviceKind }[];
 };
@@ -107,7 +129,7 @@ export type Stage = {
     timelineDuration?: number;
     timelineUnlimited?: boolean;
     commandLimits?: Partial<
-      Record<'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy', number>
+      Record<'burn' | 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy', number>
     >;
     worldRadius: number;
     sensorSlots: number;
@@ -158,7 +180,16 @@ export type MeasuredSeries = {
   t: number[];
   v: number[];
 };
+/** A cold-gas push waiting for its trigger (see Impulse.at). */
+export type ArmedPush = {
+  id: string;
+  at: import('./heading').Apsis;
+  altitude?: number;
+  last?: { radial: number; height: number };
+  push: Impulse;
+};
 export type Run = {
+  armedPushes?: ArmedPush[];
   /** Record per-condition value series for the flight log graph. Off for audits and search. */
   recordSeries?: boolean;
   peakLoad?: number;

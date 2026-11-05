@@ -112,18 +112,15 @@ function craftHtml(stage: Stage) {
 
 function controlsHtml(stage: Stage) {
   const kinds: CommandKind[] = stage.rocket
-    ? [
-        'ignite',
-        'stop',
-        'turn',
-        'separate',
-        ...(stage.rocket.payloads?.length ? (['deploy'] as const) : []),
-      ]
+    ? ['burn', 'separate', ...(stage.rocket.payloads?.length ? (['deploy'] as const) : [])]
     : stage.rules.maneuverBudget > 0
       ? ['push']
       : [];
   const limit = (k: CommandKind) => {
-    const n = stage.rules.commandLimits?.[k];
+    const n =
+      k === 'burn'
+        ? (stage.rules.commandLimits?.burn ?? stage.rules.commandLimits?.ignite)
+        : stage.rules.commandLimits?.[k];
     if (k === 'separate') return `${n ?? stage.rocket?.parts.length}회`;
     if (k === 'deploy') return `${stage.rocket?.payloads?.length ?? 0}회`;
     return n === undefined ? '제한 없음' : `${n}회`;

@@ -1316,3 +1316,21 @@ body.game-ui {
     display: none;
   }
 }
+/* Ledger: switch the timeline's flight log graph on or off. */
+.game-ui #notebook .archive-heading .log-toggle {
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 4px 10px;
+  font-size: var(--fs-1);
+  font-weight: 800;
+  color: var(--paper-ink);
+  background: transparent;
+  border: 2px solid var(--paper-dim);
+  border-radius: var(--r-sm);
+  box-shadow: none;
+}
+.game-ui #notebook .archive-heading .log-toggle[aria-pressed='true'] {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}

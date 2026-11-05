@@ -419,6 +419,13 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
         out.push('기준 경로의 발사 추진과 명령을 확인하세요.');
         continue;
       }
+      if (
+        plan.launchDv !== undefined &&
+        (!stage.rocket || !Number.isFinite(plan.launchDv) || plan.launchDv <= 0)
+      ) {
+        out.push('기준 경로의 발사 연소 Δv를 확인하세요.');
+        continue;
+      }
       if (plan.engineCommands !== undefined && !Array.isArray(plan.engineCommands)) {
         out.push('엔진 명령 목록을 확인하세요.');
         continue;
@@ -434,12 +441,17 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
           ids.has(burn.id) ||
           !burn.vector ||
           ![burn.time, burn.vector?.x, burn.vector?.y].every(Number.isFinite) ||
+          !validTrigger(burn) ||
+          (burn.heading !== undefined &&
+            (!validHeading(burn.heading) ||
+              !Number.isFinite(burn.magnitude) ||
+              burn.magnitude! < 0)) ||
           burn.time < 0 ||
           burn.time > missionTimeLimit(stage)
         )
           out.push('기준 경로의 추진 시각·ID·벡터를 확인하세요.');
         ids.add(burn.id);
-        cost += length(burn.vector);
+        cost += burn.magnitude ?? length(burn.vector);
       }
       if (cost > stage.rules.maneuverBudget + 1e-8)
         out.push('기준 경로가 수정 추진 예산을 초과했습니다.');
@@ -468,6 +480,14 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
                   command.throttle > 1)) ||
               (command.direction &&
                 ![command.direction.x, command.direction.y].every(Number.isFinite)) ||
+              (command.burn !== undefined &&
+                (!validHeading(command.burn.heading) ||
+                  !validTrigger(command.burn) ||
+                  !Number.isFinite(command.burn.dv) ||
+                  command.burn.dv <= 0 ||
+                  command.separate ||
+                  command.throttle !== undefined ||
+                  command.direction !== undefined)) ||
               (command.actorId !== 'craft' &&
                 !stage.rocket?.parts.some((p) => p.id === command.actorId))
             )
@@ -572,4 +592,19 @@ export function parseStage(value: unknown, allowIncomplete = false): Stage {
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : '스테이지 형식을 확인하세요.');
   }
+}
+
+function validTrigger(t: { at?: unknown; altitude?: unknown }) {
+  if (t.at === undefined) return t.altitude === undefined;
+  if (!['apoapsis', 'periapsis', 'altitude'].includes(t.at as string)) return false;
+  return t.at !== 'altitude' || (Number.isFinite(t.altitude) && (t.altitude as number) >= 0);
+}
+function validHeading(h: unknown) {
+  const v = h as { frame?: unknown; angle?: unknown } | undefined;
+  return (
+    !!v &&
+    ['prograde', 'retrograde', 'outward', 'inward'].includes(v.frame as string) &&
+    Number.isFinite(v.angle) &&
+    Math.abs(v.angle as number) <= 180
+  );
 }

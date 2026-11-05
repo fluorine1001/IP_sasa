@@ -32,7 +32,8 @@
     "workshop:lan": "node scripts/serve-workshop.mjs --lan",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "check:hosted": "node scripts/check-hosted.mjs",
-    "check:app": "vite build --config vite.workshop.config.ts --logLevel warn && node scripts/check-app.mjs"
+    "check:app": "vite build --config vite.workshop.config.ts --logLevel warn && node scripts/check-app.mjs",
+    "audit:margins": "node scripts/audit-margins.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.9",

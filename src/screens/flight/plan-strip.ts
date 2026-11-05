@@ -1,6 +1,7 @@
-import { launchFraction } from '../../world/program';
+import { launchCutoffTime, launchFraction } from '../../world/program';
 import { length } from '../../physics/vector';
 import { STAGE_COLORS } from '../../render/rocket-sprite';
+import { apsisNames } from '../../world/heading';
 import type { RoutePlan, Stage } from '../../world/types';
 
 export type BurnSpan = {
@@ -46,9 +47,14 @@ export function burnSpans(stage: Stage, plan: RoutePlan, until: number): BurnSpa
     }
     clock = to;
   };
-  const commands = (plan.engineCommands ?? [])
-    .filter((c) => c.actorId === 'craft' && !c.releasePayload)
-    .sort((a, b) => a.time - b.time);
+  const cutoff = launchCutoffTime(stage, plan);
+  const commands = [
+    ...(plan.engineCommands ?? []).filter((c) => c.actorId === 'craft' && !c.releasePayload),
+    // The launch burn's own Δv cutoff behaves like a scheduled stop.
+    ...(Number.isFinite(cutoff)
+      ? [{ id: 'launch-cutoff', time: cutoff, actorId: 'craft', throttle: 0 }]
+      : []),
+  ].sort((a, b) => a.time - b.time);
   for (const c of commands) {
     if (c.time > until) break;
     burn(c.time);
@@ -56,6 +62,39 @@ export function burnSpans(stage: Stage, plan: RoutePlan, until: number): BurnSpa
       if (throttle > 0) close(c.time);
       index++;
       throttle = 0;
+    } else if (c.burn) {
+      // A Δv burn runs at its throttle for the rocket-equation time, then stops.
+      // Turning first can start it a little later; the span shows its length.
+      const p = parts[index];
+      if (throttle > 0) close(c.time);
+      throttle = 0;
+      if (!p || fuel[index] <= 1e-8 || ignitions[index] >= p.ignitionLimit) continue;
+      ignitions[index]++;
+      const mass =
+        config.payloadMass +
+        (config.payloads ?? []).reduce((m, q) => m + q.mass, 0) +
+        parts.slice(index).reduce((m, q, i) => m + q.dryMass + fuel[index + i], 0);
+      const level = Math.min(1, c.burn.throttle ?? 1),
+        rate = (p.thrust * level) / p.exhaustSpeed,
+        spent = Math.min(fuel[index], mass * (1 - Math.exp(-c.burn.dv / p.exhaustSpeed)));
+      // An apsis burn starts when the orbit turns; its moment is unknown before flight.
+      if (c.burn.at) {
+        fuel[index] -= spent;
+        from = clock;
+        continue;
+      }
+      const end = Math.min(until, c.time + spent / rate);
+      spans.push({
+        start: c.time,
+        end,
+        stage: index,
+        throttle: level,
+        fuelOut: spent >= fuel[index] - 1e-9,
+        open: end >= until - 1e-9,
+      });
+      fuel[index] -= spent;
+      clock = c.time + spent / rate;
+      from = clock;
     } else if (c.throttle !== undefined) {
       const p = parts[index];
       if (c.throttle <= 0) {
@@ -79,6 +118,14 @@ export function burnSpans(stage: Stage, plan: RoutePlan, until: number): BurnSpa
   return spans;
 }
 
+/** One-word chip names for the orbit-frame directions. */
+export const headingShort = {
+  prograde: '진행',
+  retrograde: '역진행',
+  outward: '바깥',
+  inward: '안쪽',
+} as const;
+
 export const stageColor = (index: number) => STAGE_COLORS[index % STAGE_COLORS.length];
 
 /** Approximate rendered width of chip text at 14px, for lane packing. */
@@ -101,7 +148,13 @@ export function chipText(
   if (event.id === 'launch') {
     const percent = Math.round(launchFraction(stage, plan) * 100);
     return stage.rocket
-      ? { word: '발사', value: percent + '%' }
+      ? {
+          word: '발사',
+          value:
+            percent +
+            '%' +
+            (plan.launchDv !== undefined ? ' · Δv ' + plan.launchDv.toFixed(2) : ''),
+        }
       : { word: '발사', value: (length(plan.launch) || 0).toFixed(2) };
   }
   const command = plan.engineCommands?.find((c) => c.id === event.id);
@@ -132,9 +185,22 @@ export function chipText(
         .findIndex((c) => c.id === event.id);
       return { word: '분리', value: order >= 0 ? order + 1 + '단' : '', valueFirst: true };
     }
+    case 'burn':
+      return {
+        word:
+          prefix +
+          (command?.burn?.at ? apsisNames[command.burn.at] + ' ' : '') +
+          (command?.burn ? headingShort[command.burn.heading.frame] : '연소'),
+        value: command?.burn ? 'Δv ' + command.burn.dv.toFixed(2) : '',
+      };
     case 'push': {
       const push = plan.impulses.find((c) => c.id === event.id);
-      return { word: '추진', value: push ? length(push.vector).toFixed(2) : '' };
+      return {
+        word:
+          (push?.at ? apsisNames[push.at] + ' ' : '') +
+          (push?.heading ? headingShort[push.heading.frame] : '추진'),
+        value: push ? (push.magnitude ?? length(push.vector)).toFixed(2) : '',
+      };
     }
     case 'deploy':
       return { word: '위성 분리', value: '' };

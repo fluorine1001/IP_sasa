@@ -1,5 +1,7 @@
 import { length } from '../physics/vector';
 import type { RoutePlan } from './types';
+import { headingLabel } from './heading';
+import { pushSize } from './program';
 
 export type PlanChange = { label: string; before: number | string; after: number | string };
 const angle = (v: { x: number; y: number }) => (Math.atan2(v.y, v.x) * 180) / Math.PI;
@@ -46,6 +48,21 @@ export function planChanges(a: RoutePlan, b: RoutePlan): PlanChange[] {
           before: c.throttle ?? '없음',
           after: d.throttle ?? '없음',
         });
+      if (c.burn && d.burn) {
+        number(name + ' Δv', c.burn.dv, d.burn.dv);
+        if (c.burn.heading.frame !== d.burn.heading.frame)
+          changes.push({
+            label: name + ' 기준 방향',
+            before: headingLabel(c.burn.heading),
+            after: headingLabel(d.burn.heading),
+          });
+        else number(name + ' 기울기', c.burn.heading.angle, d.burn.heading.angle);
+      } else if (!!c.burn !== !!d.burn)
+        changes.push({
+          label: name + ' 종류',
+          before: c.burn ? '연소' : '엔진',
+          after: d.burn ? '연소' : '엔진',
+        });
       if (c.direction && d.direction)
         number(name + ' 방향', angle(c.direction), angle(d.direction), true);
       else if (!!c.direction !== !!d.direction)
@@ -62,13 +79,28 @@ export function planChanges(a: RoutePlan, b: RoutePlan): PlanChange[] {
       const d = b.impulses[i],
         name = `수정 추진 ${i + 1}`;
       number(name + ' 시각', c.time, d.time);
-      number(name + ' 세기', length(c.vector), length(d.vector));
-      number(name + ' 방향', angle(c.vector), angle(d.vector), true);
+      number(name + ' 세기', pushSize(c), pushSize(d));
+      if (c.heading && d.heading) {
+        if (c.heading.frame !== d.heading.frame)
+          changes.push({
+            label: name + ' 기준 방향',
+            before: headingLabel(c.heading),
+            after: headingLabel(d.heading),
+          });
+        else number(name + ' 기울기', c.heading.angle, d.heading.angle);
+      } else if (!c.heading && !d.heading)
+        number(name + ' 방향', angle(c.vector), angle(d.vector), true);
+      else
+        changes.push({
+          label: name + ' 기준 방향',
+          before: c.heading ? headingLabel(c.heading) : '지도 기준',
+          after: d.heading ? headingLabel(d.heading) : '지도 기준',
+        });
     });
   return changes;
 }
 
 export function singleVariableChange(a: RoutePlan, b: RoutePlan) {
   const changes = planChanges(a, b);
-  return changes.length === 1 && !/개수|대상|종류|회전/.test(changes[0].label);
+  return changes.length === 1 && !/개수|대상|종류|회전|기준 방향/.test(changes[0].label);
 }

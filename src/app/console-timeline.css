@@ -388,3 +388,107 @@ body.game-ui .flight-deck:not([data-phase='plan']) .dock-status {
     display: none;
   }
 }
+/* Δv burn: the engine colour, it is still the engine firing. */
+body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
+.game-ui .timeline-event.burn {
+  background: var(--f-ignite);
+}
+.game-ui [data-tool='burn'] {
+  --chip: var(--f-ignite);
+}
+/* Manual engine work (throttle, cut-off, free turn) folds behind one toggle. */
+.game-ui #timeline-palette [data-manual] {
+  display: none;
+}
+.game-ui #timeline-palette.show-manual [data-manual] {
+  display: flex;
+}
+.game-ui #timeline-palette .manual-toggle {
+  margin-left: auto;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px dashed var(--n-300);
+}
+.game-ui #timeline-palette .manual-toggle[aria-expanded='true'] {
+  color: var(--text);
+  border-style: solid;
+}
+/* Orbit-frame direction: four segments, one pressed. */
+.game-ui #command-popover .frame-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 4px;
+  margin: 6px 0 2px;
+}
+.game-ui #command-popover .frame-choice button {
+  padding: 6px 4px;
+  font-size: var(--fs-1);
+  font-weight: 800;
+  color: var(--paper-ink);
+  background: transparent;
+  border: 2px solid var(--paper-dim);
+  border-radius: var(--r-sm);
+  box-shadow: none;
+}
+.game-ui #command-popover .frame-choice button[aria-pressed='true'] {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.game-ui #command-popover .burn-figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 4px 0;
+}
+.game-ui #command-popover .burn-figures div {
+  padding: 4px 6px;
+  border: 1px solid var(--paper-dim);
+  border-radius: var(--r-sm);
+}
+.game-ui #command-popover .burn-figures dt {
+  font-size: var(--fs-1);
+  color: var(--paper-dim);
+}
+.game-ui #command-popover .burn-figures dd {
+  margin: 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-ink);
+}
+.game-ui #command-popover .burn-figures .short dd {
+  color: var(--red-600);
+}
+.game-ui #command-popover .frame-diagram {
+  display: block;
+  width: 140px;
+  height: 84px;
+  margin: 4px auto 0;
+}
+.frame-diagram .frame-ground {
+  fill: none;
+  stroke: var(--paper-dim);
+  stroke-width: 2;
+}
+.frame-diagram .frame-axis {
+  fill: none;
+  stroke: var(--paper-dim);
+  stroke-width: 1.25;
+}
+.frame-diagram .frame-axis.dashed {
+  stroke-dasharray: 3 3;
+}
+.frame-diagram .frame-label {
+  font-size: 13px;
+  fill: var(--paper-dim);
+}
+.frame-diagram .frame-burn {
+  fill: none;
+  stroke: var(--f-ignite);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.frame-diagram .frame-craft {
+  fill: var(--paper-ink);
+}

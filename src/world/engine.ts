@@ -15,9 +15,11 @@ import {
   separate,
   releasePayload,
   controlEngine,
+  startBurn,
   rocketMass,
   drag,
 } from './rocket.ts';
+import { apsisFrame, headingIn, resolveHeading, triggerFired, triggerReading } from './heading';
 import { add, dot, length, scale, sub, rotate, type Vec } from '../physics/vector.ts';
 import { segmentHitsCircle } from '../physics/orbit.ts';
 import {
@@ -31,7 +33,7 @@ import { freshProgress, updateGoals, objectiveGoals } from './goals.ts';
 import { dueEvents, nextEventTime } from './event-schedule';
 import { nativeRk4 } from '../physics/nonlinear-native';
 import { flightOutcome, hybridFloat } from '../physics/hybrid-kernel';
-import type { Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
+import type { DvBurn, Impulse, Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
 export const WORLD_STEP = 0.01;
 export function nextPhysicsBoundary(time: number) {
   return (Math.floor((time + 1e-9) / WORLD_STEP) + 1) * WORLD_STEP;
@@ -111,6 +113,15 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
         }
       : undefined,
   };
+  // A launch with a Δv cutoff is the first Δv burn: already lit, pointing where the pad points.
+  if (run.rocket && plan.launchDv !== undefined && run.rocket.throttle > 0)
+    run.rocket.burn = {
+      id: 'launch',
+      direction: { ...run.rocket.direction },
+      remaining: plan.launchDv,
+      throttle: run.rocket.throttle,
+      lit: true,
+    };
   if (!stage.rocket) {
     const pad = surfaceLaunch(stage);
     if (pad)
@@ -138,6 +149,46 @@ function integrate(
   const acceleration = (p: Vec, v: Vec, t: number) =>
     add(gravity(stage, p, t), drag(stage, p, v, t, mass, area));
   return nativeRk4(acceleration, p, v, t, dt);
+}
+/** The push a cold-gas command gives now: fixed on the map, or relative to the orbit. */
+export function impulseVector(run: Run, stage: Stage, m: Impulse): Vec {
+  if (!m.heading || m.magnitude === undefined) return m.vector;
+  return scale(resolveHeading(stage, run.position, run.velocity, run.time, m.heading), m.magnitude);
+}
+function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: DvBurn) {
+  const actor = actorId === 'craft' ? undefined : run.detached.find((a) => a.id === actorId);
+  const position = actor?.position ?? run.position,
+    velocity = actor?.velocity ?? run.velocity;
+  // An apsis burn turns now toward the heading it will need at that apsis.
+  const ahead = b.at ? apsisFrame(stage, position, velocity, run.time, b.at) : undefined;
+  const direction = ahead
+    ? headingIn(ahead, b.heading)
+    : resolveHeading(stage, position, velocity, run.time, b.heading);
+  return startBurn(
+    run,
+    stage,
+    actorId,
+    id,
+    direction,
+    b.dv,
+    b.throttle ?? 1,
+    b.at ? { at: b.at, heading: b.heading, altitude: b.altitude } : undefined,
+  );
+}
+/** Fire cold-gas pushes whose trigger is met; false when one breaks the budget. */
+function fireArmedPushes(run: Run, stage: Stage) {
+  if (!run.armedPushes?.length) return true;
+  for (const armed of [...run.armedPushes]) {
+    const now = triggerReading(stage, run.position, run.velocity, run.time);
+    const fired = triggerFired(armed.at, armed.last, now, armed.altitude);
+    armed.last = now;
+    if (!fired) continue;
+    run.armedPushes = run.armedPushes.filter((a) => a !== armed);
+    // `impulse` skips ids already applied, so it is told under a fired id.
+    if (!impulse(run, stage, impulseVector(run, stage, armed.push), armed.id + ':fired'))
+      return false;
+  }
+  return true;
 }
 export function impulse(run: Run, stage: Stage, vector: Vec, id: string): boolean {
   if (run.status !== 'running' || ![vector.x, vector.y].every(Number.isFinite)) return false;
@@ -219,7 +270,9 @@ export function tick(
             ? releasePayload(run, stage, command.releasePayload)
             : command.separate
               ? separate(run, stage)
-              : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
+              : command.burn
+                ? scheduleBurn(run, stage, command.id, command.actorId, command.burn)
+                : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
           if (!accepted) {
             run.status = 'failed';
             run.reason =
@@ -229,13 +282,27 @@ export function tick(
             return;
           }
           run.applied.add(command.id);
+        } else if (event.value.at) {
+          // Armed push: it fires later, when its trigger is met (see fireArmedPushes).
+          (run.armedPushes ??= []).push({
+            id: command.id,
+            at: event.value.at,
+            altitude: event.value.altitude,
+            push: event.value,
+          });
+          run.applied.add(command.id);
         } else {
-          if (!impulse(run, stage, event.value.vector, command.id)) {
+          if (!impulse(run, stage, impulseVector(run, stage, event.value), command.id)) {
             run.status = 'failed';
             run.reason = '수정 추진의 총량 한도를 넘었습니다.';
             return;
           }
         }
+      }
+      if (!fireArmedPushes(run, stage)) {
+        run.status = 'failed';
+        run.reason = '수정 추진의 총량 한도를 넘었습니다.';
+        return;
       }
       if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
       const nextCommand = nextEventTime(run);

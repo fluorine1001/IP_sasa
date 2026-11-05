@@ -12,9 +12,15 @@ import type { Stage, RoutePlan } from '../../world/types';
 import type { ProgramEvent } from '../../world/program';
 import type { TimelineState } from './timeline';
 import { engineBench, actorDiagram, directionDial, dialRotation, dialAngle } from './engine-bench';
+import { headingNames, type Apsis, type Heading, type HeadingFrame } from '../../world/heading';
+import { burnEstimate, frameDiagram } from './burn-panel';
 
-type Tool = 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy';
+const frames: HeadingFrame[] = ['prograde', 'retrograde', 'outward', 'inward'];
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+type Tool = 'burn' | 'ignite' | 'stop' | 'turn' | 'separate' | 'push' | 'deploy';
 const names: Record<Tool, string> = {
+  burn: '연소',
   ignite: '엔진 출력',
   stop: '엔진 끄기',
   turn: '방향 회전',
@@ -87,11 +93,22 @@ export function timelinePlanner(
     if (!editable() || !canAddCommand(stage, get().plan, kind)) return;
     const p = get().plan,
       id = crypto.randomUUID();
-    if (kind === 'push')
+    if (kind === 'push') {
+      // New pushes are written in the orbit's frame; |vector| keeps the size for budgets.
+      const size = Math.max(0.01, round2(stage.rules.maneuverBudget * 0.25));
       p.impulses.push({
         id,
         time,
-        vector: scale(heading(stage, 0), stage.rules.maneuverBudget * 0.1),
+        vector: scale(heading(stage, 0), size),
+        heading: { frame: 'prograde', angle: 0 },
+        magnitude: size,
+      });
+    } else if (kind === 'burn')
+      (p.engineCommands ??= []).push({
+        id,
+        time,
+        actorId: 'craft',
+        burn: { dv: 0.1, heading: { frame: 'prograde', angle: 0 } },
       });
     else
       (p.engineCommands ??= []).push({
@@ -184,10 +201,10 @@ export function timelinePlanner(
       '" aria-label="' +
       label +
       '"><span class="range-ends">' +
-      min +
+      (step < 1 ? min.toFixed(2) : min) +
       suffix +
       '<span>' +
-      max +
+      (step < 1 ? (Math.floor(max * 100) / 100).toFixed(2) : max) +
       suffix +
       '</span></span></label>'
     );
@@ -203,32 +220,94 @@ export function timelinePlanner(
     }
     const kind: Tool = c?.releasePayload
       ? 'deploy'
-      : c?.separate
-        ? 'separate'
-        : c?.throttle !== undefined
-          ? c.throttle
-            ? 'ignite'
-            : 'stop'
-          : c
-            ? 'turn'
-            : 'push';
+      : c?.burn
+        ? 'burn'
+        : c?.separate
+          ? 'separate'
+          : c?.throttle !== undefined
+            ? c.throttle
+              ? 'ignite'
+              : 'stop'
+            : c
+              ? 'turn'
+              : 'push';
     let fields = '';
     if (id === 'launch')
       fields =
         range('첫 출력', 'launch-power', launchFraction(stage, p) * 100, 0, 100, '%') +
+        (stage.rocket ? launchDvField(p) : '') +
         (stage.rocket ? '' : range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°'));
     else {
       fields =
-        '<label>실행 시각 <input type="number" data-edit="time" min="0" ' +
+        '<label>' +
+        (c?.burn?.at ? '이 시각 이후' : '실행 시각') +
+        ' <input type="number" data-edit="time" min="0" ' +
         (Number.isFinite(planningTimeLimit(stage))
           ? 'max="' + planningTimeLimit(stage) + '" '
           : '') +
         'step=".01" value="' +
         (c ?? impulse)!.time.toFixed(2) +
         '" aria-label="선택 조작 실행 시각"> 초</label>';
+      const relative = c?.burn?.heading ?? impulse?.heading;
+      const trigger = c?.burn ?? (impulse?.heading ? impulse : undefined);
+      if (trigger) {
+        fields +=
+          '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
+          (
+            [
+              ['', '이 시각'],
+              ['apoapsis', '이후 원점'],
+              ['periapsis', '이후 근점'],
+              ['altitude', '높이'],
+            ] as const
+          )
+            .map(
+              ([at, label]) =>
+                `<button type="button" data-at="${at}" aria-pressed="${(trigger.at ?? '') === at}">${label}</button>`,
+            )
+            .join('') +
+          '</div>';
+        if (trigger.at === 'altitude')
+          fields += range(
+            '내려오며 지날 높이',
+            'trigger-height',
+            trigger.altitude ?? 0.3,
+            0,
+            3,
+            ' u',
+            0.01,
+          );
+      }
+      if (c?.burn || impulse) fields += frameButtons(relative, !!impulse);
+      if (relative)
+        fields += range(
+          relative.frame === 'prograde' || relative.frame === 'retrograde'
+            ? '기울기 (+ 바깥 / − 안쪽)'
+            : '기울기 (+ 진행 / − 역진행)',
+          'tilt',
+          relative.angle,
+          -90,
+          90,
+          '°',
+          5,
+        );
+      if (c?.burn) {
+        const estimate = burnEstimate(stage, p, c.id);
+        fields += range(
+          '속력 변화 Δv',
+          'dv',
+          c.burn.dv,
+          0.01,
+          Math.max(0.01, estimate.stageDv),
+          ' u/s',
+          0.01,
+        );
+        fields += '<div id="burn-estimate">' + estimate.html + '</div>';
+      }
+      if (relative) fields += frameDiagram(relative);
       if (c?.throttle !== undefined && c.throttle > 0)
         fields += range('엔진 출력', 'output', c.throttle * 100, 1, 100, '%');
-      if (c?.direction || impulse)
+      if (c?.direction || (impulse && !impulse.heading))
         fields += range(
           '목표 방향',
           'angle',
@@ -239,15 +318,16 @@ export function timelinePlanner(
         );
       if (impulse)
         fields += range(
-          '추진 세기',
+          '속력 변화',
           'push',
-          length(impulse.vector),
+          impulse.magnitude ?? length(impulse.vector),
           0,
           stage.rules.maneuverBudget,
-          '',
-          0.005,
+          ' u/s',
+          0.01,
         );
-      if (c && !c.separate && !c.releasePayload)
+      // Steering a dropped stage only makes sense once a stage can be dropped.
+      if (c && !c.separate && !c.releasePayload && (stage.rocket?.parts.length ?? 0) > 1)
         fields +=
           '<label>조작할 기체 <select data-edit="actor"><option value="craft">본체</option>' +
           // Only stages already dropped by this command's time can be steered on their own.
@@ -284,7 +364,7 @@ export function timelinePlanner(
     else {
       if (id === 'launch' || kind === 'ignite' || kind === 'push')
         fields = '<div id="selected-engine-bench">' + engineBench(stage, p, id) + '</div>' + fields;
-      if (c && !c.separate) {
+      if (c && !c.separate && (!c.burn || (stage.rocket?.parts.length ?? 0) > 1)) {
         const ordered = [...(p.engineCommands ?? [])].sort((a, b) => a.time - b.time);
         const at = ordered.findIndex((other) => other.id === c.id);
         fields += actorDiagram(
@@ -294,7 +374,7 @@ export function timelinePlanner(
             .length,
         );
       }
-      if (c?.direction || impulse || (!stage.rocket && id === 'launch'))
+      if (c?.direction || (impulse && !impulse.heading) || (!stage.rocket && id === 'launch'))
         fields += directionDial(
           degrees(c?.direction ?? impulse?.vector ?? p.launch),
           stage.launchAngle ?? 0,
@@ -351,17 +431,44 @@ export function timelinePlanner(
       if (key === 'angle' && c) c.direction = heading(stage, clamp(value, -180, 180));
       if (key === 'angle' && impulse)
         impulse.vector = scale(heading(stage, clamp(value, -180, 180)), length(impulse.vector));
-      if (key === 'push' && impulse)
-        impulse.vector = scale(
-          heading(stage, degrees(impulse.vector)),
-          clamp(value, 0, stage.rules.maneuverBudget),
-        );
+      if (key === 'push' && impulse) {
+        const size = round2(clamp(value, 0, stage.rules.maneuverBudget));
+        impulse.vector = scale(heading(stage, degrees(impulse.vector)), size);
+        if (impulse.heading) impulse.magnitude = size;
+      }
+      if (key === 'tilt') {
+        const h = c?.burn?.heading ?? impulse?.heading;
+        if (h) h.angle = Math.round(clamp(value, -90, 90) / 5) * 5;
+      }
+      if (key === 'dv' && c?.burn) c.burn.dv = Math.max(0.01, round2(value));
+      if (key === 'launch-dv') p.launchDv = value > 0 ? round2(value) : undefined;
+      if (key === 'trigger-height') {
+        const target = c?.burn ?? impulse;
+        if (target) target.altitude = Math.max(0, round2(value));
+      }
       action?.(key === 'time' ? 'move' : 'edit');
       const output = input.closest('label')?.querySelector('output');
-      if (output)
+      if (output && key === 'launch-dv')
+        output.textContent = value > 0 ? value.toFixed(2) + ' u/s' : '연료 끝까지';
+      else if (output)
         output.textContent =
-          input.value +
-          (key.includes('angle') ? '°' : ['output', 'launch-power'].includes(key) ? '%' : '');
+          (['dv', 'push', 'trigger-height'].includes(key)
+            ? Number(input.value).toFixed(2)
+            : input.value) +
+          (key.includes('angle') || key === 'tilt'
+            ? '°'
+            : ['output', 'launch-power'].includes(key)
+              ? '%'
+              : ['dv', 'push'].includes(key)
+                ? ' u/s'
+                : key === 'trigger-height'
+                  ? ' u'
+                  : '');
+      const estimate = popup.querySelector('#burn-estimate');
+      if (estimate && c?.burn) estimate.innerHTML = burnEstimate(stage, p, c.id).html;
+      const diagram = popup.querySelector('.frame-diagram');
+      const h = c?.burn?.heading ?? impulse?.heading;
+      if (diagram && h) diagram.outerHTML = frameDiagram(h);
       changed();
       update();
       const bench = popup.querySelector('#selected-engine-bench');
@@ -460,6 +567,41 @@ export function timelinePlanner(
       }
       if (!editable()) return;
       const p = get().plan;
+      const at = button.dataset.at;
+      if (at !== undefined) {
+        const c = command(selected),
+          target = c?.burn ?? push(selected);
+        if (target) {
+          target.at = (at || undefined) as Apsis | undefined;
+          target.altitude = at === 'altitude' ? (target.altitude ?? 0.3) : undefined;
+        }
+        action?.('edit');
+        changed();
+        update();
+        open(selected);
+        return;
+      }
+      const frame = button.dataset.frame;
+      if (frame) {
+        const c = command(selected),
+          impulse = push(selected);
+        if (c?.burn) c.burn.heading = { frame: frame as HeadingFrame, angle: 0 };
+        else if (impulse) {
+          const size = impulse.magnitude ?? length(impulse.vector);
+          if (frame === 'map') {
+            impulse.heading = undefined;
+            impulse.magnitude = undefined;
+          } else {
+            impulse.heading = { frame: frame as HeadingFrame, angle: 0 };
+            impulse.magnitude = size;
+          }
+        }
+        action?.('edit');
+        changed();
+        update();
+        open(selected);
+        return;
+      }
       if (button.hasAttribute('data-remove')) {
         p.engineCommands = p.engineCommands?.filter((c) => c.id !== selected);
         p.impulses = p.impulses.filter((c) => c.id !== selected);
@@ -482,23 +624,27 @@ export function timelinePlanner(
     '<label id="timeline-placement">예약 시각 <input id="timeline-time" type="number" min="0" step="0.01" aria-label="새 예약 시각"> 초</label>' +
     // Only tools this craft actually has: a cold-gas craft has no engine or stages.
     [
-      ...(stage.rocket ? ['ignite', 'stop', 'turn'] : []),
+      ...(stage.rocket ? ['burn'] : []),
       ...((stage.rocket?.parts.length ?? 0) > 1 ? ['separate'] : []),
       ...(!stage.rocket && stage.rules.maneuverBudget > 0 && stage.rules.commandLimits?.push !== 0
         ? ['push']
         : []),
       ...(stage.rocket?.payloads?.length ? ['deploy'] : []),
+      // Throttle, cut-off and free turning stay available as manual engine work.
+      ...(stage.rocket ? ['ignite', 'stop', 'turn'] : []),
     ]
       .map(
         (k) =>
           '<button data-tool="' +
           k +
           '"' +
+          (['ignite', 'stop', 'turn'].includes(k) ? ' data-manual' : '') +
           (k === 'ignite' || k === 'separate'
             ? ' id="' + (k === 'ignite' ? 'engine' : 'separate') + '"'
             : '') +
           ' title="' +
           {
+            burn: '연소',
             ignite: '출력',
             stop: '끄기',
             turn: '회전',
@@ -512,6 +658,7 @@ export function timelinePlanner(
           icon(k as Tool) +
           '<span>' +
           {
+            burn: '연소',
             ignite: '출력',
             stop: '끄기',
             turn: '회전',
@@ -521,7 +668,62 @@ export function timelinePlanner(
           }[k] +
           '</span><small class="tool-count"></small></button>',
       )
-      .join('');
+      .join('') +
+    (stage.rocket
+      ? '<button id="manual-tools" class="manual-toggle" aria-expanded="false" title="출력·끄기·회전을 직접 예약">수동 조작</button>'
+      : '');
+  const manualToggle = palette.querySelector<HTMLButtonElement>('#manual-tools');
+  // Tutorials teach the manual controls, and a plan that already uses them keeps them in view.
+  let manual =
+    stage.track === 'tutorial' ||
+    (get().plan.engineCommands ?? []).some((c) => c.throttle !== undefined || c.direction);
+  const showManual = () => {
+    palette.classList.toggle('show-manual', manual);
+    manualToggle?.setAttribute('aria-expanded', String(manual));
+  };
+  showManual();
+  manualToggle?.addEventListener(
+    'click',
+    () => {
+      manual = !manual;
+      showManual();
+    },
+    { signal },
+  );
+  /** The launch burn may stop itself after a set Δv; 0 keeps it burning until told. */
+  function launchDvField(p: RoutePlan) {
+    const part = stage.rocket!.parts[0],
+      config = stage.rocket!;
+    const mass =
+      config.payloadMass +
+      (config.payloads ?? []).reduce((m, q) => m + q.mass, 0) +
+      config.parts.reduce((m, q) => m + q.dryMass + q.fuelMass, 0);
+    const max = part.exhaustSpeed * Math.log(mass / (mass - part.fuelMass));
+    const value = p.launchDv ?? 0;
+    return (
+      '<label>발사 연소 Δv<output>' +
+      (value > 0 ? value.toFixed(2) + ' u/s' : '연료 끝까지') +
+      '</output><input type="range" data-edit="launch-dv" min="0" max="' +
+      (Math.floor(max * 100) / 100).toFixed(2) +
+      '" step="0.01" value="' +
+      value +
+      '" aria-label="발사 연소 Δv"><span class="range-ends">연료 끝까지<span>' +
+      (Math.floor(max * 100) / 100).toFixed(2) +
+      ' u/s</span></span></label>'
+    );
+  }
+  function frameButtons(h: Heading | undefined, allowMap: boolean) {
+    return (
+      '<div class="frame-choice" role="group" aria-label="기준 방향">' +
+      [...frames, ...(allowMap ? (['map'] as const) : [])]
+        .map(
+          (f) =>
+            `<button type="button" data-frame="${f}" aria-pressed="${(h?.frame ?? 'map') === f}">${f === 'map' ? '지도' : headingNames[f]}</button>`,
+        )
+        .join('') +
+      '</div>'
+    );
+  }
   const timeField = palette.querySelector<HTMLInputElement>('#timeline-time')!;
   timeField.addEventListener(
     'input',
@@ -710,7 +912,10 @@ export function timelinePlanner(
     else timeField.removeAttribute('max');
     for (const b of palette.querySelectorAll<HTMLButtonElement>('[data-tool]')) {
       const kind = b.dataset.tool as Tool,
-        limit = stage.rules.commandLimits?.[kind],
+        limit =
+          kind === 'burn'
+            ? (stage.rules.commandLimits?.burn ?? stage.rules.commandLimits?.ignite)
+            : stage.rules.commandLimits?.[kind],
         used = commandUsage(get().plan)[kind];
       const disabled = !editable() || !canAddCommand(stage, get().plan, kind);
       if (b.disabled !== disabled) b.disabled = disabled;

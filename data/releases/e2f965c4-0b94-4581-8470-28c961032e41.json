@@ -29,8 +29,12 @@
       "title": "출발 원궤도",
       "condition": {
         "kind": "quantify",
-        "actorIds": ["craft"],
-        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
+        "actorIds": [
+          "craft"
+        ],
+        "targetIds": [
+          "f319597d-afd0-58f8-87d6-11863fe0d24f"
+        ],
         "mode": "all",
         "child": {
           "kind": "hold",
@@ -247,12 +251,14 @@
         "y": 0
       },
       "startTime": 0,
-      "endTime": 28,
+      "endTime": 40,
       "dependsOn": [],
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": ["craft"],
+        "actorIds": [
+          "craft"
+        ],
         "radius": 1,
         "width": 0.04,
         "minor": 1,
@@ -284,8 +290,12 @@
       "title": "전이 타원의 관성 구간",
       "condition": {
         "kind": "quantify",
-        "actorIds": ["craft"],
-        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
+        "actorIds": [
+          "craft"
+        ],
+        "targetIds": [
+          "f319597d-afd0-58f8-87d6-11863fe0d24f"
+        ],
         "mode": "all",
         "child": {
           "kind": "hold",
@@ -296,108 +306,6 @@
               {
                 "kind": "compare",
                 "left": {
-                  "kind": "calculate",
-                  "operation": "ellipseDistance",
-                  "args": [
-                    {
-                      "kind": "calculate",
-                      "operation": "add",
-                      "args": [
-                        {
-                          "kind": "calculate",
-                          "operation": "multiply",
-                          "args": [
-                            {
-                              "kind": "metric",
-                              "metric": "x",
-                              "actorId": "$actor",
-                              "targetId": "$target"
-                            },
-                            {
-                              "kind": "constant",
-                              "value": 0.5403023058681398
-                            }
-                          ]
-                        },
-                        {
-                          "kind": "calculate",
-                          "operation": "multiply",
-                          "args": [
-                            {
-                              "kind": "metric",
-                              "metric": "y",
-                              "actorId": "$actor",
-                              "targetId": "$target"
-                            },
-                            {
-                              "kind": "constant",
-                              "value": 0.8414709848078965
-                            }
-                          ]
-                        },
-                        {
-                          "kind": "constant",
-                          "value": 0.49999999999999967
-                        }
-                      ]
-                    },
-                    {
-                      "kind": "calculate",
-                      "operation": "add",
-                      "args": [
-                        {
-                          "kind": "calculate",
-                          "operation": "multiply",
-                          "args": [
-                            {
-                              "kind": "metric",
-                              "metric": "x",
-                              "actorId": "$actor",
-                              "targetId": "$target"
-                            },
-                            {
-                              "kind": "constant",
-                              "value": -0.8414709848078965
-                            }
-                          ]
-                        },
-                        {
-                          "kind": "calculate",
-                          "operation": "multiply",
-                          "args": [
-                            {
-                              "kind": "metric",
-                              "metric": "y",
-                              "actorId": "$actor",
-                              "targetId": "$target"
-                            },
-                            {
-                              "kind": "constant",
-                              "value": 0.5403023058681398
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "kind": "constant",
-                      "value": 1.5
-                    },
-                    {
-                      "kind": "constant",
-                      "value": 1.4142135623730951
-                    }
-                  ]
-                },
-                "operator": "lte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.08
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
                   "kind": "metric",
                   "metric": "distance",
                   "actorId": "$actor",
@@ -406,7 +314,7 @@
                 "operator": "gte",
                 "right": {
                   "kind": "constant",
-                  "value": 0.9200000000000005
+                  "value": 0.85
                 }
               },
               {
@@ -420,7 +328,7 @@
                 "operator": "lte",
                 "right": {
                   "kind": "constant",
-                  "value": 2.0799999999999996
+                  "value": 2.25
                 }
               },
               {
@@ -434,7 +342,7 @@
                 "operator": "gte",
                 "right": {
                   "kind": "constant",
-                  "value": 1.42
+                  "value": 1.35
                 }
               },
               {
@@ -448,7 +356,7 @@
                 "operator": "lte",
                 "right": {
                   "kind": "constant",
-                  "value": 1.58
+                  "value": 1.65
                 }
               },
               {
@@ -462,7 +370,7 @@
                 "operator": "gte",
                 "right": {
                   "kind": "constant",
-                  "value": 0.27999999999999975
+                  "value": 0.2
                 }
               },
               {
@@ -476,7 +384,7 @@
                 "operator": "lte",
                 "right": {
                   "kind": "constant",
-                  "value": 0.38666666666666644
+                  "value": 0.45
                 }
               },
               {
@@ -492,66 +400,6 @@
                   "kind": "constant",
                   "value": 0
                 }
-              },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "calculate",
-                  "operation": "abs",
-                  "args": [
-                    {
-                      "kind": "calculate",
-                      "operation": "subtract",
-                      "args": [
-                        {
-                          "kind": "metric",
-                          "metric": "eccentricityX",
-                          "actorId": "$actor",
-                          "targetId": "$target"
-                        },
-                        {
-                          "kind": "constant",
-                          "value": 0.18010076862271313
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "operator": "lte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.05333333333333334
-                }
-              },
-              {
-                "kind": "compare",
-                "left": {
-                  "kind": "calculate",
-                  "operation": "abs",
-                  "args": [
-                    {
-                      "kind": "calculate",
-                      "operation": "subtract",
-                      "args": [
-                        {
-                          "kind": "metric",
-                          "metric": "eccentricityY",
-                          "actorId": "$actor",
-                          "targetId": "$target"
-                        },
-                        {
-                          "kind": "constant",
-                          "value": 0.28049032826929865
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "operator": "lte",
-                "right": {
-                  "kind": "constant",
-                  "value": 0.05333333333333334
-                }
               }
             ]
           }
@@ -562,12 +410,14 @@
         "y": 0
       },
       "startTime": 0,
-      "endTime": 28,
+      "endTime": 40,
       "dependsOn": [],
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": ["craft"],
+        "actorIds": [
+          "craft"
+        ],
         "radius": 1.5,
         "width": 0.08,
         "minor": 1.4142135623730951,
@@ -599,8 +449,12 @@
       "title": "도착 원궤도에서 한 바퀴",
       "condition": {
         "kind": "quantify",
-        "actorIds": ["craft"],
-        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
+        "actorIds": [
+          "craft"
+        ],
+        "targetIds": [
+          "f319597d-afd0-58f8-87d6-11863fe0d24f"
+        ],
         "mode": "all",
         "child": {
           "kind": "sequence",
@@ -707,7 +561,7 @@
                   "operator": "lte",
                   "right": {
                     "kind": "constant",
-                    "value": 0.08
+                    "value": 0.25
                   }
                 },
                 {
@@ -721,7 +575,7 @@
                   "operator": "gte",
                   "right": {
                     "kind": "constant",
-                    "value": 1.92
+                    "value": 1.8
                   }
                 },
                 {
@@ -735,7 +589,7 @@
                   "operator": "lte",
                   "right": {
                     "kind": "constant",
-                    "value": 2.08
+                    "value": 2.2
                   }
                 },
                 {
@@ -749,7 +603,7 @@
                   "operator": "gte",
                   "right": {
                     "kind": "constant",
-                    "value": 1.92
+                    "value": 1.8
                   }
                 },
                 {
@@ -763,7 +617,7 @@
                   "operator": "lte",
                   "right": {
                     "kind": "constant",
-                    "value": 2.08
+                    "value": 2.2
                   }
                 },
                 {
@@ -791,7 +645,7 @@
                   "operator": "lte",
                   "right": {
                     "kind": "constant",
-                    "value": 0.04
+                    "value": 0.08
                   }
                 },
                 {
@@ -915,7 +769,7 @@
                       "operator": "lte",
                       "right": {
                         "kind": "constant",
-                        "value": 0.08
+                        "value": 0.25
                       }
                     },
                     {
@@ -929,7 +783,7 @@
                       "operator": "gte",
                       "right": {
                         "kind": "constant",
-                        "value": 1.92
+                        "value": 1.8
                       }
                     },
                     {
@@ -943,7 +797,7 @@
                       "operator": "lte",
                       "right": {
                         "kind": "constant",
-                        "value": 2.08
+                        "value": 2.2
                       }
                     },
                     {
@@ -957,7 +811,7 @@
                       "operator": "gte",
                       "right": {
                         "kind": "constant",
-                        "value": 1.92
+                        "value": 1.8
                       }
                     },
                     {
@@ -971,7 +825,7 @@
                       "operator": "lte",
                       "right": {
                         "kind": "constant",
-                        "value": 2.08
+                        "value": 2.2
                       }
                     },
                     {
@@ -999,7 +853,7 @@
                       "operator": "lte",
                       "right": {
                         "kind": "constant",
-                        "value": 0.04
+                        "value": 0.08
                       }
                     },
                     {
@@ -1060,7 +914,7 @@
                           "args": [
                             {
                               "kind": "constant",
-                              "value": 0.08
+                              "value": 0.25
                             },
                             {
                               "kind": "calculate",
@@ -1172,7 +1026,7 @@
                               "args": [
                                 {
                                   "kind": "constant",
-                                  "value": 1.92
+                                  "value": 1.8
                                 },
                                 {
                                   "kind": "metric",
@@ -1190,7 +1044,7 @@
                           "args": [
                             {
                               "kind": "constant",
-                              "value": 2.08
+                              "value": 2.2
                             },
                             {
                               "kind": "metric",
@@ -1214,7 +1068,7 @@
                               "args": [
                                 {
                                   "kind": "constant",
-                                  "value": 1.92
+                                  "value": 1.8
                                 },
                                 {
                                   "kind": "metric",
@@ -1232,7 +1086,7 @@
                           "args": [
                             {
                               "kind": "constant",
-                              "value": 2.08
+                              "value": 2.2
                             },
                             {
                               "kind": "metric",
@@ -1274,7 +1128,7 @@
                           "args": [
                             {
                               "kind": "constant",
-                              "value": 0.04
+                              "value": 0.08
                             },
                             {
                               "kind": "metric",
@@ -1344,12 +1198,14 @@
         "y": 0
       },
       "startTime": 0,
-      "endTime": 28,
+      "endTime": 40,
       "dependsOn": [],
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": ["craft"],
+        "actorIds": [
+          "craft"
+        ],
         "radius": 2,
         "width": 0.08,
         "minor": 2,
@@ -1400,7 +1256,7 @@
         "y": 0
       },
       "startTime": 0,
-      "endTime": 28,
+      "endTime": 40,
       "dependsOn": []
     }
   ],
@@ -1419,8 +1275,8 @@
   "rules": {
     "launchLimit": 0,
     "maneuverBudget": 0.4,
-    "maxTime": 28,
-    "timelineDuration": 28,
+    "maxTime": 40,
+    "timelineDuration": 40,
     "commandLimits": {
       "ignite": 0,
       "stop": 0,
@@ -1443,7 +1299,7 @@
     "samples": 16,
     "maxPassRate": 0.01,
     "seed": 31415,
-    "timeLimit": 28
+    "timeLimit": 40
   },
   "published": true
 }

@@ -235,12 +235,36 @@ it('여러 탑재체 분리는 질량과 운동량을 보존하고 실제 중력
   const mass = rocketMass(s, r),
     vx = r.velocity.x,
     vy = r.velocity.y;
+  // Orbit invariants about the body before release.
+  const body = s.bodies[0];
+  const energy = (p: { x: number; y: number }, v: { x: number; y: number }) =>
+    0.5 * (v.x * v.x + v.y * v.y) -
+    body.mu / Math.hypot(p.x - body.position.x, p.y - body.position.y);
+  const spin = (p: { x: number; y: number }, v: { x: number; y: number }) =>
+    (p.x - body.position.x) * v.y - (p.y - body.position.y) * v.x;
+  const e0 = energy(r.position, r.velocity),
+    h0 = spin(r.position, r.velocity);
   expect(releasePayload(r, s, 'payload-a')).toBe(true);
   const a = r.detached[0],
     next = rocketMass(s, r);
   expect(next).toBeCloseTo(mass - 0.4);
-  expect(next * r.velocity.x + 0.4 * a.velocity.x).toBeCloseTo(mass * vx, 9);
-  expect(next * r.velocity.y + 0.4 * a.velocity.y).toBeCloseTo(mass * vy, 9);
+  // The carrier recoils by the spring's push on the payload, in proportion to the masses.
+  const recoil = Math.hypot(r.velocity.x - vx, r.velocity.y - vy);
+  expect(recoil * next).toBeCloseTo((0.02 * 0.4 * next) / mass, 9);
+  // The payload leaves ahead on the carrier's orbit: without the spring it would keep the
+  // carrier's energy and angular momentum about the body.
+  const withoutSpring = blankStage();
+  delete withoutSpring.launchBodyId;
+  withoutSpring.spawn = { ...s.spawn };
+  withoutSpring.rocket!.payloads = [{ ...s.rocket!.payloads[0], releaseSpeed: 0 }];
+  const quiet = createRun(withoutSpring, { launch: { x: 0, y: 0 }, impulses: [] });
+  releasePayload(quiet, withoutSpring, 'payload-a');
+  const q = quiet.detached[0];
+  expect(energy(q.position, q.velocity)).toBeCloseTo(e0, 9);
+  expect(spin(q.position, q.velocity)).toBeCloseTo(h0, 9);
+  expect(
+    Math.hypot(q.position.x - quiet.position.x, q.position.y - quiet.position.y),
+  ).toBeGreaterThan(0);
   expect(releasePayload(r, s, 'payload-a')).toBe(false);
   expect(a.payload).toBe(true);
   const o = {

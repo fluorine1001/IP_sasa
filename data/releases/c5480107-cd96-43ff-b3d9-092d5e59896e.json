@@ -82,7 +82,9 @@
           "a81f4aea-3e17-535b-8e21-fc495fc53fe5",
           "8bffd6ca-ab92-5996-8bd8-2f1700f9f799"
         ],
-        "targetIds": ["70b79833-36fe-5afa-8edf-92411a90b34e"],
+        "targetIds": [
+          "70b79833-36fe-5afa-8edf-92411a90b34e"
+        ],
         "mode": "all",
         "child": {
           "kind": "sequence",
@@ -523,7 +525,7 @@
                   },
                   "right": {
                     "kind": "constant",
-                    "value": 0.999999999
+                    "value": 0.99
                   }
                 },
                 {
@@ -826,7 +828,7 @@
         "y": 0
       },
       "startTime": 0,
-      "endTime": 65,
+      "endTime": 90,
       "dependsOn": [],
       "marker": {
         "kind": "orbit",
@@ -876,8 +878,8 @@
   "rules": {
     "launchLimit": 1,
     "maneuverBudget": 0,
-    "maxTime": 65,
-    "timelineDuration": 65,
+    "maxTime": 90,
+    "timelineDuration": 90,
     "commandLimits": {
       "ignite": 6,
       "stop": 6,
@@ -900,7 +902,7 @@
     "samples": 16,
     "maxPassRate": 0.01,
     "seed": 31415,
-    "timeLimit": 65
+    "timeLimit": 90
   },
   "published": true,
   "launchBodyId": "70b79833-36fe-5afa-8edf-92411a90b34e"

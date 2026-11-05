@@ -1,6 +1,8 @@
 import type { ProgramEvent } from '../world/program';
 const paths: Record<ProgramEvent['kind'], string> = {
   ignite: '<path d="M8 3h8v10H8zM9 16l3 5 3-5M6 8H3m18 0h-3"/>',
+  // Engine with a measured stroke: a burn of a set speed change.
+  burn: '<path d="M8 3h7v9H8zM9 15l2.5 4 2.5-4M18 4v8m-2-2 2 2 2-2"/>',
   stop: '<path d="M8 3h8v10H8zM9 16l3 5 3-5M3 21L21 3"/>',
   turn: '<path d="M4 18V9a5 5 0 0 1 5-5h10m-4-3 4 3-4 4M9 18l3 4 3-4"/>',
   separate: '<path d="M9 1h6v6H9zM8 16h8v7H8zM5 10l-3 2 3 2m14-4 3 2-3 2M12 9v5"/>',

@@ -16,6 +16,8 @@ export type OrbitSketch = {
     target: { x: number; y: number };
     text: string;
     inside: boolean;
+    /** The calculator's path after the body pulling hardest changes (patched conics). */
+    handover?: { x: number; y: number }[];
   };
 };
 
@@ -28,16 +30,17 @@ export function drawOrbitSketches(
 ) {
   const screen = (p: { x: number; y: number }) => toScreen(p, camera, w, h);
   const reach = Math.max(w, h) / camera.zoom + Math.hypot(camera.x, camera.y) + 4;
-  for (const { conic: c, tone, label } of sketches) {
+  for (const { conic: c, tone, label, approach } of sketches) {
     const color = tone === 'plan' ? palette.amber400 : palette.sky400;
-    if (Math.abs(c.h) < 1e-9) continue; // straight up-and-down: no curve to draw
+    if (Math.abs(c.h) < 1e-9 && !approach?.handover) continue; // straight up-and-down
     const path = conicPath(c, Math.max(reach, c.periapsis * 4));
-    if (path.length < 2) continue;
+    if (path.length < 2 && !approach?.handover) continue;
     ctx.save();
     ctx.lineWidth = 1.5;
     ctx.setLineDash(tone === 'plan' ? [8, 5] : [3, 4]);
     ctx.strokeStyle = color;
-    ctx.globalAlpha = 0.85;
+    // After a hand-over this body's conic is not the path; the patched path is drawn below.
+    ctx.globalAlpha = approach?.handover ? 0 : 0.85;
     ctx.beginPath();
     path.forEach((p, i) => {
       const s = screen(p);
@@ -78,6 +81,21 @@ export function drawOrbitSketches(
       haloText(ctx, label, { x: at.x + 8, y: at.y - 12 }, color);
     }
     const ap = sketches.find((s) => s.conic === c)?.approach;
+    if (ap?.handover && ap.handover.length > 1) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 5]);
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ap.handover.forEach((p, i) => {
+        const q = screen(p);
+        if (i) ctx.lineTo(q.x, q.y);
+        else ctx.moveTo(q.x, q.y);
+      });
+      ctx.stroke();
+      ctx.globalAlpha = 0.85;
+      ctx.setLineDash([]);
+    }
     if (ap) {
       const a = screen(ap.craft),
         b = screen(ap.target);

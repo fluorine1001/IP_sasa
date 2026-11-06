@@ -16,7 +16,7 @@
 
 .help-grid b {
   font-size: var(--fs-3);
-  color: var(--p-300);
+  color: var(--c-text);
 }
 
 .help-grid p {
@@ -31,7 +31,7 @@
 .control-card b {
   display: inline-block;
   width: 54px;
-  color: var(--p-300);
+  color: var(--c-text);
 }
 
 @media (max-width: 650px) {

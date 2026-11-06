@@ -4,7 +4,9 @@ import { planChanges } from '../../world/plan-diff';
 import { escape } from '../../app/core';
 import { withUnit } from '../../app/units';
 import { metrics } from '../../world/metrics';
-import { medalBadge } from '../../ui/figures';
+import { medalBadge, missFigure } from '../../ui/figures';
+import { goalGaugesHtml } from './goal-gauges';
+import { missSide, type Miss } from '../../world/miss';
 import type { Stage, Run, RoutePlan } from '../../world/types';
 
 /** Optional recognition: a generous 90% fuel/impulse budget, never part of mission completion. */
@@ -55,7 +57,7 @@ export function resultSummary(
   stage: Stage,
   run: Run,
   previous?: RoutePlan,
-  options: { hasNext?: boolean; attempt?: number } = {},
+  options: { hasNext?: boolean; attempt?: number; miss?: Miss } = {},
 ) {
   const seal = stamp(stage, run);
 
@@ -73,7 +75,7 @@ export function resultSummary(
       : '';
     return {
       done: !!progress?.complete,
-      html: `<li class="${progress?.complete ? 'done' : 'open'}"><span class="goal-check" aria-hidden="true">${progress?.complete ? '✓' : ''}</span><span>${escape(g.title)}${near ? `<small>목표 ${target} · ${['lte', 'lt'].includes(near.operator) ? '최저' : ['gte', 'gt'].includes(near.operator) ? '최고' : '최근접'} <b>${withUnit(near.value.toFixed(2), unit)}</b> (${near.time.toFixed(1)}초)</small>` : ''}</span></li>`,
+      html: `<li class="${progress?.complete ? 'done' : 'open'}"><span class="goal-check" aria-hidden="true">${progress?.complete ? '✓' : ''}</span><span>${escape(g.title)}${progress?.complete ? '' : goalGaugesHtml(stage, g, progress, 'best')}</span></li>`,
     };
   });
 
@@ -94,6 +96,10 @@ export function resultSummary(
     measure = `<div class="result-measure"><span>${isHeat ? '기체 열' : '누적 공기힘'}</span><b>${value.toFixed(2)}<small> / 한계 ${limit.toFixed(2)}</small></b><meter min="0" max="1.5" low="0.99" high="1" optimum="0" value="${Math.min(1.5, value / limit)}"></meter></div>`;
   }
 
+  const m = run.status !== 'won' ? options.miss : undefined;
+  const missBlock = m
+    ? `<div class="result-miss">${missFigure(m.outward, m.ahead, Math.max(m.targetRadius, 1e-3), 88)}<div class="result-miss-text"><span>${escape(m.targetName)} · ${m.time.toFixed(1)}초에 가장 가까움</span><b>${missSide(m)} ${m.gap.toFixed(3)} u</b><button id="result-fix" class="primary" data-fix="${escape(m.cause)}">${escape(m.causeLabel)} 고치기</button></div></div>`
+    : '';
   const medals = flightMedals(stage, run);
   const medalRow =
     run.status === 'won'
@@ -129,5 +135,5 @@ export function resultSummary(
   // A flight stopped by hand has nothing to analyse: stamp and actions only.
   if (run.status === 'aborted')
     return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${actions}`;
-  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${stats}${change ? `<p class="result-change">${escape(change)}</p>` : ''}${actions}`;
+  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}${missBlock}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${stats}${change ? `<p class="result-change">${escape(change)}</p>` : ''}${actions}`;
 }

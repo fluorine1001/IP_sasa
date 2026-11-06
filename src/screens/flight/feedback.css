@@ -107,7 +107,7 @@
   height: 100px;
 }
 .engine-bench text {
-  font: 10px sans-serif;
+  font: 15px sans-serif;
 }
 .engine-bench figcaption,
 .actor-diagram figcaption {
@@ -144,7 +144,7 @@
   height: 45px;
 }
 .actor-diagram text {
-  font: 12px sans-serif;
+  font: 15px sans-serif;
   font-weight: bold;
 }
 .direction-dial {
@@ -174,7 +174,7 @@
 }
 .direction-dial text {
   fill: var(--n-200);
-  font-size: 13px;
+  font-size: var(--fs-1);
   font-weight: 700;
   pointer-events: none;
 }

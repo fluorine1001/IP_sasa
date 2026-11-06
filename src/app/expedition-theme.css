@@ -5,7 +5,7 @@
   --paper: var(--p-300);
   --gold: var(--amber-400);
   --mint: var(--n-200);
-  color: var(--p-200);
+  color: var(--c-text);
   background: var(--n-800);
 }
 #app {
@@ -174,7 +174,7 @@ summary:focus-visible {
   background-color: var(--n-600);
 }
 .editor-top > .badge {
-  color: var(--p-300);
+  color: var(--c-text);
   padding: 0 8px;
 }
 .editor .editor-audit {
@@ -319,7 +319,7 @@ summary:focus-visible {
   color: var(--n-100);
 }
 .landing-instrument.outside > div > small {
-  color: var(--p-300);
+  color: var(--c-text);
 }
 .resources .load-readout {
   margin-top: 12px;
@@ -336,13 +336,13 @@ summary:focus-visible {
   width: 100%;
 }
 .load-readout .caution {
-  color: var(--p-300);
+  color: var(--c-text);
 }
 .goal-explanation {
   line-height: 1.6;
 }
 .result .failure-cause {
-  color: var(--p-200);
+  color: var(--c-text);
   font-size: var(--fs-1);
   line-height: 1.5;
   margin: 5px 0;

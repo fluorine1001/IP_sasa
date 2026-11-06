@@ -97,7 +97,7 @@ body.game-ui {
   border: 1px solid var(--edge);
   border-radius: var(--r-sm);
   background: var(--p-50);
-  color: var(--ink);
+  color: var(--c-text);
   font-style: normal;
   font-size: var(--fs-1);
   font-weight: 900;
@@ -120,16 +120,19 @@ body.game-ui {
 .game-ui .goal-state[data-state='진행 중'],
 .game-ui .goal-state[data-state^='유지'] {
   background: var(--amber);
+  color: var(--n-950);
 }
 .game-ui .goal-state[data-state='완료'] {
   background: var(--ok);
+  color: var(--n-950);
 }
 .game-ui .goal-state[data-state='놓침'] {
-  background: var(--fail);
-  color: var(--p-50);
+  background: var(--red-600);
+  color: var(--c-text);
 }
 .game-ui .goal-state[data-state='잠김'] {
   background: var(--n-200);
+  color: var(--n-950);
 }
 .game-ui .mission-panel .goal-row progress {
   grid-column: 1 / -1;
@@ -245,7 +248,7 @@ body.game-ui {
 }
 .game-ui .program-editor .telemetry-label,
 .game-ui .program-editor .telemetry-value small {
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .resources .resource-row {
   display: grid;
@@ -295,14 +298,14 @@ body.game-ui {
   background: transparent;
   border-style: dashed;
   border-color: var(--n-300);
-  color: var(--n-300);
+  color: var(--n-200);
 }
 /* Nose cone = the payload body: a labelled chip with a pointed end. */
 .game-ui .stack-nose {
   flex: 0 0 auto;
   padding: 2px 14px 2px 7px;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--n-100);
+  color: var(--n-950);
   font-size: var(--fs-xs);
   font-weight: 900;
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
@@ -322,7 +325,7 @@ body.game-ui {
   text-align: left;
 }
 .game-ui #command-popover .stage-stack figcaption {
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 
 /* Preflight list readable at a glance. */
@@ -332,7 +335,7 @@ body.game-ui {
 }
 .game-ui .preflight-list header span {
   font-size: var(--fs-xs);
-  color: var(--ink);
+  color: var(--c-text);
 }
 .game-ui .preflight-list li span {
   font-size: var(--fs-xs);
@@ -664,7 +667,7 @@ body.game-ui #result.result:not([hidden]) {
   column-gap: 14px;
 }
 .game-ui .title-menu .title-main {
-  color: var(--paper);
+  color: var(--c-text);
   font-size: clamp(76px, 9vw, 128px);
   letter-spacing: -0.06em;
 }
@@ -858,7 +861,7 @@ body.game-ui #result.result:not([hidden]) {
   padding: 8px 14px 2px;
   font-size: var(--fs-xs);
   font-weight: 700;
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui #training-current b {
   font-size: var(--fs-lg);
@@ -873,7 +876,7 @@ body.game-ui #result.result:not([hidden]) {
 }
 .game-ui #training-tasks {
   font-size: var(--fs-xs);
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui #training-tasks .complete {
   color: var(--green-600);

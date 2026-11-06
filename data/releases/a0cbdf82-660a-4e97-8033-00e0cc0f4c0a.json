@@ -357,7 +357,8 @@
       "separate": 2,
       "push": 0
     },
-    "timelineDuration": 100
+    "timelineDuration": 100,
+    "craftScale": 0.132
   },
   "camera": {
     "x": 3,

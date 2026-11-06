@@ -16,7 +16,7 @@
   gap: 6px 14px;
   text-align: left;
   padding: 20px;
-  color: var(--paper);
+  color: var(--c-text);
   background: var(--n-700);
   border: 2px solid var(--n-400);
   border-radius: var(--r-lg);
@@ -37,7 +37,7 @@
 .tutorial-number {
   grid-row: span 3;
   font-size: var(--fs-5);
-  color: var(--p-300);
+  color: var(--c-text);
 }
 
 .tutorial-card strong {

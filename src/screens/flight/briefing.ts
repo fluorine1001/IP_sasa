@@ -9,6 +9,7 @@ import { bodyPosition, bodyVelocity } from '../../world/celestial';
 import { commandNames, type CommandKind } from '../../world/program';
 import { missionGoalsHtml } from './goal-guide';
 import { controlIcon } from './controls';
+import { bodyDisc, medalBadge, meter, pips, rocketSide, stageFill } from '../../ui/figures';
 
 const f = (n: number, digits = 2) =>
   !Number.isFinite(n)
@@ -42,6 +43,10 @@ export function stageTable(stage: Stage) {
 }
 
 function bodiesHtml(stage: Stage) {
+  const maxRadius = Math.max(
+    ...stage.bodies.filter((b) => b.kind !== 'barycenter').map((b) => b.radius),
+    1e-9,
+  );
   const rows = stage.bodies
     .filter((b) => b.kind !== 'barycenter')
     .map((b) => {
@@ -64,9 +69,13 @@ function bodiesHtml(stage: Stage) {
       const air =
         b.atmosphere && b.atmosphere.density > 0 ? `높이 ${f(b.atmosphere.height)} u` : '없음';
       const q = (v: number) => (hidden ? '<span class="dim">관측 필요</span>' : f(v, 3));
-      return `<tr><th scope="row"><i class="swatch" style="--swatch:${escape(b.color)}"></i>${escape(b.name)}</th><td class="num">${f(b.radius)}</td><td class="num">${q(facts.surfaceGravity)}</td><td class="num">${q(facts.surfaceOrbitSpeed)}</td><td class="num">${q(facts.escapeSpeed)}</td><td>${air}</td><td>${motion}</td></tr>`;
+      const row = `<tr><th scope="row"><i class="swatch" style="--swatch:${escape(b.color)}"></i>${escape(b.name)}</th><td class="num">${f(b.radius)}</td><td class="num">${q(facts.surfaceGravity)}</td><td class="num">${q(facts.surfaceOrbitSpeed)}</td><td class="num">${q(facts.escapeSpeed)}</td><td>${air}</td><td>${motion}</td></tr>`;
+      const v = (label: string, value: string, unit: string) =>
+        `<div><span>${label}</span><b>${value}${hidden ? '' : `<small>${unit}</small>`}</b></div>`;
+      const card = `<li class="body-card">${bodyDisc(b.color, b.radius / maxRadius, b.atmosphere && b.atmosphere.density > 0 ? b.atmosphere.height / Math.max(b.radius, 1e-9) : 0, 64)}<div class="body-card-text"><b class="body-name">${escape(b.name)}</b><small>${motion}</small><div class="body-facts">${v('반지름', f(b.radius), 'u')}${v('원궤도 속력', q(facts.surfaceOrbitSpeed), 'u/s')}${v('탈출 속력', q(facts.escapeSpeed), 'u/s')}${b.atmosphere && b.atmosphere.density > 0 ? v('대기', f(b.atmosphere.height), 'u') : ''}</div></div></li>`;
+      return { row, card };
     });
-  return `<table class="ui-table briefing-table"><thead><tr><th>천체</th><th class="num">반지름 u</th><th class="num">표면 중력 u/s²</th><th class="num">표면 원궤도 속력 u/s</th><th class="num">탈출 속력 u/s</th><th>대기</th><th>움직임</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  return `<ul class="body-cards">${rows.map((r) => r.card).join('')}</ul><details class="briefing-numbers"><summary>숫자로 보기</summary><table class="ui-table briefing-table"><thead><tr><th>천체</th><th class="num">반지름 u</th><th class="num">표면 중력 u/s²</th><th class="num">표면 원궤도 속력 u/s</th><th class="num">탈출 속력 u/s</th><th>대기</th><th>움직임</th></tr></thead><tbody>${rows.map((r) => r.row).join('')}</tbody></table></details>`;
 }
 
 function craftHtml(stage: Stage) {
@@ -100,14 +109,39 @@ function craftHtml(stage: Stage) {
   const g =
     launchBody && !launchBody.hiddenGravity ? bodyFacts(launchBody).surfaceGravity : undefined;
   const total = rows.reduce((s, r) => s + r.deltaV, 0);
-  return `<table class="ui-table briefing-table"><thead><tr><th>단</th><th class="num">점화 시 질량</th><th class="num">최대 추력</th><th class="num">최대 출력 연소</th><th class="num">진공 Δv</th><th class="num">점화 횟수</th>${g ? '<th class="num">추력 대 무게</th>' : ''}</tr></thead><tbody>${rows
+  const r = stage.rocket;
+  const sizes = r.parts.map((p) => ({ size: p.dryMass + p.fuelMass }));
+  const maxBurn = Math.max(...rows.map((x) => x.burn), 1e-9);
+  const maxAccel = Math.max(...rows.map((x) => x.accel), 1e-9);
+  const maxTwr = g ? Math.max(2, ...rows.map((x) => x.accel / g)) * 1.1 : 0;
+  // The whole craft, then one row per stage: Δv share, burn time, lift-off margin, relights.
+  const budget = `<div class="craft-budget" role="img" aria-label="전체 Δv ${f(total, 3)} u/s">${rows
+    .map(
+      (x, i) =>
+        `<i style="flex:${x.deltaV};background:${stageFill(i)}" title="${escape(x.name)} ${f(x.deltaV, 3)} u/s"></i>`,
+    )
+    .join('')}</div>`;
+  const stageRows = rows
+    .map((x, i) => {
+      const twr = g ? x.accel / g : undefined;
+      return `<li class="craft-stage"><div class="craft-stage-name"><i style="background:${stageFill(i)}"></i><b>${escape(x.name)}</b></div>
+<div class="craft-cell"><span>Δv</span><b>${f(x.deltaV, 3)}<small>u/s</small></b>${meter(x.deltaV, total, { fill: stageFill(i), label: 'Δv' })}</div>
+<div class="craft-cell"><span>연소 시간</span><b>${f(x.burn, 1)}<small>초</small></b>${meter(x.burn, maxBurn, { tone: 'neutral', label: '연소 시간' })}</div>
+${
+        twr !== undefined && i === 0
+          ? `<div class="craft-cell"><span>이륙 추력 대 무게</span><b class="${twr < 1 ? 'low' : ''}">${f(twr, 2)}<small>배</small></b>${meter(twr, maxTwr, { tone: twr < 1 ? 'bad' : 'ok', marks: [{ at: 1, label: '1배 = 뜸' }], label: '추력 대 무게' })}</div>`
+          : `<div class="craft-cell"><span>가속</span><b>${f(x.accel, 3)}<small>u/s²</small></b>${meter(x.accel, maxAccel, { tone: 'neutral', label: '가속' })}</div>`
+      }
+<div class="craft-cell"><span>점화</span>${pips(x.ignitions)}</div></li>`;
+    })
+    .join('');
+  const table = `<table class="ui-table briefing-table"><thead><tr><th>단</th><th class="num">점화 시 질량</th><th class="num">최대 추력</th><th class="num">최대 출력 연소</th><th class="num">진공 Δv</th><th class="num">점화 횟수</th>${g ? '<th class="num">추력 대 무게</th>' : ''}</tr></thead><tbody>${rows
     .map(
       (r, i) =>
         `<tr><th scope="row"><i class="swatch stage-${i + 1}"></i>${escape(r.name)}</th><td class="num">${f(r.mass)}</td><td class="num">${f(r.thrust, 3)}</td><td class="num">${f(r.burn, 1)} 초</td><td class="num">${f(r.deltaV, 3)} u/s</td><td class="num">${r.ignitions}회</td>${g ? `<td class="num">${f(r.accel / g, 2)}배</td>` : ''}</tr>`,
     )
-    .join(
-      '',
-    )}</tbody><tfoot><tr><th scope="row">합계</th><td></td><td></td><td></td><td class="num">${f(total, 3)} u/s</td><td></td>${g ? '<td></td>' : ''}</tr></tfoot></table>`;
+    .join('')}</tbody></table>`;
+  return `<figure class="craft-figure">${rocketSide(sizes, { width: 520, height: 46, payload: !!r.payloads?.length })}<figcaption><span>전체 Δv</span><b>${f(total, 3)}<small>u/s</small></b></figcaption>${budget}</figure><ul class="craft-stages">${stageRows}</ul><details class="briefing-numbers"><summary>숫자로 보기</summary>${table}</details>`;
 }
 
 function controlsHtml(stage: Stage) {
@@ -125,11 +159,19 @@ function controlsHtml(stage: Stage) {
     if (k === 'deploy') return `${stage.rocket?.payloads?.length ?? 0}회`;
     return n === undefined ? '제한 없음' : `${n}회`;
   };
+  const icon: Partial<Record<CommandKind, string>> = {
+    burn: 'engine',
+    separate: 'separate',
+    deploy: 'sensor',
+    push: 'speed',
+  };
   const items = [
     stage.rules.launchLimit > 0
-      ? `<li><b>발사</b><span>${stage.rocket ? '처음 출력' : '방향과 세기'}</span></li>`
+      ? `<li>${controlIcon('rocket')}<b>발사</b><span>${stage.rocket ? '처음 출력' : '방향과 세기'}</span></li>`
       : '',
-    ...kinds.map((k) => `<li><b>${commandNames[k]}</b><span>${limit(k)}</span></li>`),
+    ...kinds.map(
+      (k) => `<li>${controlIcon(icon[k] ?? 'sliders')}<b>${commandNames[k]}</b><span>${limit(k)}</span></li>`,
+    ),
   ];
   return `<ul class="briefing-controls">${items.join('')}</ul>`;
 }
@@ -137,9 +179,9 @@ function controlsHtml(stage: Stage) {
 export function briefingHtml(stage: Stage, eyebrow: string) {
   return `<header class="briefing-head"><span class="ui-eyebrow">${escape(eyebrow)}</span><h2 class="ui-h2">${escape(stage.title)}</h2>${stage.description ? `<p class="ui-body">${escape(stage.description)}</p>` : ''}<button id="goal-close" class="ui-btn ghost sm briefing-close" aria-label="브리핑 닫기">${controlIcon('close')}</button></header>
 <section class="briefing-section"><h3 class="ui-h3">성공 조건</h3>${missionGoalsHtml(stage)}</section>
-<section class="briefing-section"><h3 class="ui-h3">메달</h3><ul class="briefing-medals"><li><i class="medal-dot success"></i><b>성공</b><span>성공 조건 충족</span></li><li><i class="medal-dot budget"></i><b>예산 안</b><span>${stage.rocket ? '연료' : '추진'} 사용 ≤ 90%</span></li><li><i class="medal-dot clean"></i><b>무손상</b><span>예산 안 · 기체 하중 &lt; 한계</span></li></ul></section>
-<section class="briefing-section"><h3 class="ui-h3">주어진 정보 · 기체</h3>${craftHtml(stage)}</section>
-<section class="briefing-section"><h3 class="ui-h3">주어진 정보 · 천체</h3>${bodiesHtml(stage)}</section>
+<section class="briefing-section"><h3 class="ui-h3">메달</h3><ul class="briefing-medals"><li>${medalBadge('success', true, 36)}<b>성공</b><span>성공 조건을 모두 충족</span></li><li>${medalBadge('budget', true, 36)}<b>예산 안</b><span>${stage.rocket ? '연료' : '추진'}를 90% 이하로 사용</span></li><li>${medalBadge('clean', true, 36)}<b>무손상</b><span>예산 안 + 기체 하중이 한계 미만</span></li></ul></section>
+<section class="briefing-section"><h3 class="ui-h3">기체</h3>${craftHtml(stage)}</section>
+<section class="briefing-section"><h3 class="ui-h3">천체</h3>${bodiesHtml(stage)}</section>
 <section class="briefing-section"><h3 class="ui-h3">조작</h3>${controlsHtml(stage)}</section>
 <footer class="briefing-foot"><button id="briefing-ready" class="ui-btn primary lg">계획 세우기</button></footer>`;
 }

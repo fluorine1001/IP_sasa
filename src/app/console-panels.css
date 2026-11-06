@@ -141,7 +141,7 @@ body.game-ui .mission-route .stage-goal b {
   padding: 0 6px;
   border-radius: var(--r-sm);
   background: var(--ink);
-  color: var(--paper);
+  color: var(--c-text);
   font-size: var(--fs-1);
   font-weight: 900;
   line-height: 18px;
@@ -149,7 +149,7 @@ body.game-ui .mission-route .stage-goal b {
 }
 body.game-ui .mission-route .stage-goal em {
   font-style: normal;
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 body.game-ui .stage-medals {
   flex-wrap: wrap;
@@ -165,7 +165,7 @@ body.game-ui .stage-medals i {
   font-style: normal;
   font-weight: 800;
   line-height: 16px;
-  color: var(--p-600);
+  color: var(--n-200);
 }
 body.game-ui .stage-medals i.on {
   color: var(--ink);
@@ -271,7 +271,7 @@ body.game-ui dialog.mission-goals .goal-mode {
   padding: 4px 10px;
   border-radius: var(--r-pill);
   background: var(--ink);
-  color: var(--paper);
+  color: var(--c-text);
   font-size: var(--fs-sm);
   font-weight: 800;
 }
@@ -300,7 +300,7 @@ body.game-ui dialog.mission-goals .goal-window {
   align-items: center;
   gap: 6px;
   margin: 0 0 10px;
-  color: var(--paper-dim);
+  color: var(--n-200);
   font-size: var(--fs-sm);
   font-weight: 700;
 }
@@ -331,12 +331,12 @@ body.game-ui dialog.mission-goals .criterion-list li {
 }
 body.game-ui dialog.mission-goals .criterion-list li > span {
   flex: none;
-  color: var(--p-600);
+  color: var(--n-200);
   font-weight: 900;
 }
 body.game-ui dialog.mission-goals .criterion-list li.criterion-group {
   padding-top: 11px;
-  color: var(--paper-dim);
+  color: var(--n-200);
   font-size: var(--fs-xs);
   font-weight: 900;
   letter-spacing: 0.04em;

@@ -57,10 +57,10 @@
 }
 .reading-value {
   font-variant-numeric: tabular-nums;
-  color: var(--p-300);
+  color: var(--c-text);
 }
 .result .reading-value {
-  color: var(--n-400);
+  color: var(--n-200);
 }
 @media (max-width: 650px) {
   .mission-panel #goal-details {

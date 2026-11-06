@@ -43,7 +43,7 @@ function audit() {
         if (c.a >= 0.99) break;
       }
     }
-    let out = { r: 16, g: 27, b: 32, a: 1 }; // page / canvas space colour
+    let out = { r: 26, g: 31, b: 46, a: 1 }; // page / canvas space colour (--n-900)
     for (const l of layers.reverse()) out = blend(l, out);
     return out;
   }
@@ -96,7 +96,7 @@ function audit() {
       )
       .reverse()
       .join(' > ');
-    if (size < 12.9 || (!disabled && ratio < need))
+    if (size < 14.9 || (!disabled && ratio < need))
       issues.push({
         path,
         text: text.slice(0, 40),

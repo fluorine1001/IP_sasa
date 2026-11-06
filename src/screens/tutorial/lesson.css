@@ -17,7 +17,7 @@
   pointer-events: auto;
   border: 1px solid var(--n-300);
   border-radius: var(--r-lg);
-  color: var(--paper);
+  color: var(--c-text);
   background: color-mix(in srgb, var(--n-850) 96%, transparent);
   box-shadow: 0 8px 30px #0007;
   transition:
@@ -52,7 +52,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 14px;
-  color: var(--p-300);
+  color: var(--c-text);
   border-bottom: 1px solid var(--n-400);
   font-size: var(--fs-1);
   font-weight: 600;

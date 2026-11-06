@@ -121,6 +121,8 @@ export type Stage = {
     gravitationalConstant?: number;
     landingMode?: 'standard' | 'precision';
     surfaceClearance?: number;
+    /** Craft size multiplier (hull, drawing and collision together); default 1. */
+    craftScale?: number;
     launchLimit: number;
     maneuverBudget: number;
     maxTime: number;

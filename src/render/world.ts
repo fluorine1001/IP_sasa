@@ -6,10 +6,11 @@ import { paintRocket } from './rocket-sprite';
 import { paintLaunchPad } from './launch-pad';
 import { paintCraftLocator } from './craft-locator';
 import { paintGoalRegion } from './goal-region';
+import { drawBurnHandles, type BurnHandle } from './burn-handle';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
 import { paintPush, paintPushMarks, recentPushes } from './push-effect';
-import { hullSize } from '../world/hull';
+import { hullSize , craftScale } from '../world/hull';
 import { physicalRadius } from '../world/contact';
 import { impactDirection } from '../world/impact';
 import { surfaceLaunch } from '../world/launch.ts';
@@ -44,8 +45,12 @@ export type DrawState = {
   observations?: import('../world/types').Observation[];
   /** Orbit calculator conics, drawn under the craft. */
   orbits?: OrbitSketch[];
+  /** Planned speed changes the player can drag on the map. */
+  burnHandles?: { handles: BurnHandle[]; pxPerDv: number };
+  /** Last flight's closest pass to a missed target. */
+  miss?: { craft: Vec; target: Vec; text: string };
 };
-const LABEL_FONT = canvasFont(14, 'bold');
+const LABEL_FONT = canvasFont(15, 'bold');
 /** A filled label plate centred on x, top edge at y: names stay legible over any terrain. */
 function nameTag(
   ctx: CanvasRenderingContext2D,
@@ -111,7 +116,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.font = canvasFont(13);
+    ctx.font = canvasFont(15);
     ctx.fillText(`여기서 갈라짐 · ${s.divergence.time.toFixed(1)}초`, p.x + 10, p.y - 10);
     ctx.restore();
   }
@@ -388,7 +393,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       const x = Math.max(40, Math.min(w - 40, p.x)),
         y = Math.max(55, Math.min(h - 180, p.y));
       ctx.fillStyle = '#d7d5a0';
-      ctx.font = canvasFont(13, 'bold');
+      ctx.font = canvasFont(15, 'bold');
       ctx.textAlign = 'center';
       ctx.fillText(`◇ ${b.name}`, x, y);
     }
@@ -450,7 +455,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.moveTo(-4, -r);
       ctx.lineTo(-4, r);
       ctx.stroke();
-      ctx.font = canvasFont(13);
+      ctx.font = canvasFont(15);
       ctx.fillStyle = '#efc370';
       ctx.fillText('회수', 8, 0);
     } else if (o.kind === 'debris') {
@@ -499,6 +504,26 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fillRect(a.x - 2, a.y - 2, 4, 4);
   }
   if (s.orbits?.length && !foreground) drawOrbitSketches(ctx, s.orbits, c, w, h);
+  if (s.miss && !foreground) {
+    const a = screen(s.miss.craft),
+      b = screen(s.miss.target);
+    ctx.save();
+    ctx.strokeStyle = palette.red200;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, 4, 0, Math.PI * 2);
+    ctx.stroke();
+    leaderLabel(ctx, a, s.miss.text, palette.red200, b);
+    ctx.restore();
+  }
+  if (s.burnHandles?.handles.length && !foreground)
+    drawBurnHandles(ctx, s.burnHandles.handles, c, w, h, s.burnHandles.pxPerDv);
   // Incomplete drafts must not paint an implicit spacecraft at the origin.
   if (!visible('spawn') || (s.stage.spawn.placed === false && !s.run)) return { ctx, w, h };
   const surface = surfaceLaunch(s.stage, t);
@@ -506,7 +531,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   ctx.save();
   ctx.translate(pad.x, pad.y);
   ctx.rotate(-(surface?.angle ?? s.stage.launchAngle ?? 0));
-  if (surface) paintLaunchPad(ctx, c.zoom);
+  if (surface) paintLaunchPad(ctx, c.zoom * craftScale(s.stage));
   ctx.restore();
   const sprite = (
     position: Vec,
@@ -518,16 +543,17 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     firstPart = 0,
   ) => {
     const p = screen(position),
-      hull = hullSize(count, booster),
+      hull = hullSize(count, booster, craftScale(s.stage)),
       size = hull.length * c.zoom,
       r = hull.radius * c.zoom;
     ctx.save();
     if (s.replay) ctx.globalAlpha = 0.72;
     ctx.translate(p.x, p.y);
     ctx.rotate(-Math.atan2(direction.y, direction.x));
-    paintCraftLocator(ctx, c.zoom, count, booster, selected);
-    paintExhaust(ctx, flame, c.zoom, t, !!s.reducedMotion);
-    paintRocket(ctx, count, firstPart, booster, c.zoom);
+    const kz = c.zoom * craftScale(s.stage);
+    paintCraftLocator(ctx, kz, count, booster, selected);
+    paintExhaust(ctx, flame, kz, t, !!s.reducedMotion);
+    paintRocket(ctx, count, firstPart, booster, kz);
     if (selected && s.run?.rocket && !booster) {
       const part = s.stage.rocket?.parts[s.run.rocket.partIndex];
       const load = part ? Math.max(s.run.rocket.heat / part.maxHeat, s.run.rocket.stress / 0.2) : 0;
@@ -572,11 +598,11 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     if (actor.status === 'crashed') continue;
     if (actor.payload) {
       const p = screen(actor.position),
-        hull = hullSize(1, true);
+        hull = hullSize(1, true, craftScale(s.stage));
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(-Math.atan2(actor.direction.y, actor.direction.x));
-      paintCraftLocator(ctx, c.zoom, 1, true, actor.id === s.controlledId);
+      paintCraftLocator(ctx, c.zoom * craftScale(s.stage), 1, true, actor.id === s.controlledId);
       ctx.fillStyle = '#78b5d1';
       ctx.beginPath();
       ctx.roundRect(
@@ -606,7 +632,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
         s.stage.rocket?.parts.findIndex((p) => p.id === actor.id) ?? 0,
       );
     const p = screen(actor.position);
-    ctx.font = canvasFont(13, 'bold');
+    ctx.font = canvasFont(15, 'bold');
     ctx.textAlign = 'center';
     nameTag(
       ctx,
@@ -656,7 +682,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   for (const push of recentPushes(s.run, s.stage)) paintPush(ctx, p, push, !!s.reducedMotion);
   for (const actor of s.run?.detached ?? []) {
     if (actor.age > 0.45) continue;
-    const split = screen(add(actor.position, scale(actor.direction, hullSize(1, true).length)));
+    const split = screen(add(actor.position, scale(actor.direction, hullSize(1, true, craftScale(s.stage)).length)));
     ctx.save();
     ctx.globalAlpha = (1 - actor.age / 0.45) * 0.8;
     ctx.strokeStyle = '#f1d58c';

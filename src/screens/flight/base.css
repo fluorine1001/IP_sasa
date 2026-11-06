@@ -81,7 +81,7 @@
   left: 50%;
   transform: translateX(-50%);
   bottom: 168px;
-  color: var(--p-200);
+  color: var(--c-text);
   background: color-mix(in srgb, var(--n-850) 87%, transparent);
   border: 2px solid var(--n-400);
   padding: 10px 20px;
@@ -121,12 +121,12 @@
 
 .overlay p,
 .result p {
-  color: var(--n-500);
+  color: var(--n-200);
 }
 
 .overlay .badge,
 .result .badge {
-  color: var(--n-400);
+  color: var(--n-200);
 }
 
 .overlay article {
@@ -141,7 +141,7 @@
 }
 
 .overlay .muted {
-  color: var(--p-600);
+  color: var(--n-200);
 }
 
 .result h2 {
@@ -295,7 +295,7 @@
 
 .mission-panel .briefing {
   font-size: var(--fs-1);
-  color: var(--p-300);
+  color: var(--c-text);
 }
 
 #experiment-summary button {
@@ -384,7 +384,7 @@
 }
 
 .timeline-heading b {
-  color: var(--p-300);
+  color: var(--c-text);
 }
 
 .timeline-heading button {
@@ -460,7 +460,7 @@
   border: 2px solid var(--cmd-stop);
   box-shadow: 0 2px var(--n-900);
   z-index: 2;
-  color: var(--p-200);
+  color: var(--c-text);
   background: var(--n-700);
   touch-action: none;
 }
@@ -643,7 +643,7 @@
 }
 
 .direction-key {
-  color: var(--p-600);
+  color: var(--n-200);
 }
 
 .add-actions {
@@ -698,7 +698,7 @@
 }
 
 .program-editor .lift-ready {
-  color: var(--n-400);
+  color: var(--n-200);
 }
 
 .lift-low {
@@ -722,7 +722,7 @@
 .initial-output small {
   line-height: 1.5;
   display: block;
-  color: var(--p-300);
+  color: var(--c-text);
 }
 
 .experiment-tools {
@@ -817,7 +817,7 @@
 
 .hardware-deck small {
   font-size: var(--fs-1);
-  color: var(--n-400);
+  color: var(--n-200);
 }
 
 .hardware-deck svg {
@@ -869,5 +869,5 @@
 }
 
 .training-reminder {
-  color: var(--p-300);
+  color: var(--c-text);
 }

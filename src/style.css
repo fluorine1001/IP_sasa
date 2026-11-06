@@ -1,6 +1,6 @@
 :root {
   font-family: var(--font);
-  color: var(--p-100);
+  color: var(--c-text);
   background: var(--n-850);
   font-synthesis: none;
   font-weight: 500;
@@ -28,7 +28,7 @@ textarea {
 
 button {
   cursor: pointer;
-  color: var(--ink);
+  color: var(--c-text);
   background: var(--paper);
   border: 1px solid var(--edge);
   border-radius: var(--r-md);
@@ -162,7 +162,7 @@ small,
 
 .title-menu h1 {
   font-size: clamp(42px, 5.5vw, 78px);
-  color: var(--p-100);
+  color: var(--c-text);
   margin: 25px 0;
 }
 
@@ -307,12 +307,12 @@ input {
 }
 
 .stage-card small {
-  color: var(--n-400);
+  color: var(--n-200);
 }
 
 .stage-number {
   font-size: var(--fs-6);
-  color: var(--p-600);
+  color: var(--n-200);
 }
 
 .stage-orb {

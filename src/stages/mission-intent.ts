@@ -1,6 +1,6 @@
 import { compileOutcome, type Outcome } from './outcomes';
 import { bodyPosition, objectPosition } from '../world/celestial';
-import { hullSize } from '../world/hull';
+import { hullSize , craftScale } from '../world/hull';
 import { length, sub } from '../physics/vector';
 import type { Stage, Goal } from '../world/types';
 
@@ -63,7 +63,7 @@ export function resolveIntent(
                 : best,
             );
   if (!center) throw Error('기준 천체를 먼저 배치하세요.');
-  const hull = hullSize(stage.rocket?.parts.length ?? 1).length;
+  const hull = hullSize(stage.rocket?.parts.length ?? 1, false, craftScale(stage)).length;
   const radius =
     intent.radius ??
     ('mu' in target

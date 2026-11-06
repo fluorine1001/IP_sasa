@@ -92,7 +92,7 @@
 }
 .console-button:hover:not(:disabled),
 .dock-popup > summary:hover {
-  color: var(--p-100);
+  color: var(--c-text);
   background: var(--n-500);
   border-color: var(--p-300);
 }
@@ -112,7 +112,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--n-900);
-  color: var(--p-100);
+  color: var(--c-text);
   border: 1px solid var(--n-300);
   border-radius: var(--r-sm);
   padding: 7px 10px;
@@ -122,7 +122,7 @@
   font-size: var(--fs-1);
 }
 .plan-command {
-  color: var(--p-200);
+  color: var(--c-text);
   border-color: var(--p-400);
 }
 .launch-command {
@@ -178,7 +178,7 @@
   justify-content: flex-start;
 }
 .dock-menu > span {
-  color: var(--p-200);
+  color: var(--c-text);
   font-weight: bold;
 }
 .flight-deck .flight-timeline {
@@ -260,7 +260,7 @@
   margin: 0;
 }
 #dock-phase #timeline-mode {
-  color: var(--p-300);
+  color: var(--c-text);
   font-weight: 500;
 }
 .flight-deck[data-phase='replay'] #pause,
@@ -283,7 +283,7 @@
   box-shadow: 0 3px var(--n-700);
 }
 .mission-exit.console-button:hover {
-  background: var(--red-400);
+  background: var(--red-600);
   color: white;
 }
 .mission-exit.console-button:hover:after {
@@ -367,7 +367,7 @@
   gap: 10px;
 }
 .archive-heading h2 {
-  color: var(--p-200);
+  color: var(--c-text);
   font-size: var(--fs-4);
   margin: 5px 0 0;
 }
@@ -397,7 +397,7 @@
   padding: 11px;
 }
 #notebook .trial-card b {
-  color: var(--p-300);
+  color: var(--c-text);
 }
 .trial-heading {
   display: flex;
@@ -456,7 +456,7 @@
   border: 1px solid var(--green-200);
   border-radius: 50%;
   padding: 6px;
-  color: var(--p-200);
+  color: var(--c-text);
   display: flex;
 }
 .play-badge svg {
@@ -518,7 +518,7 @@
 .archive-empty svg {
   width: 36px;
   height: 36px;
-  color: var(--n-300);
+  color: var(--n-200);
 }
 @media (max-width: 900px) {
   .flight-deck {

@@ -144,12 +144,13 @@ body.game-ui .flight-deck #flight-timeline .burn-out span {
   top: 3px;
   padding: 0 5px;
   border-radius: var(--r-sm);
-  background: var(--red-400);
+  background: var(--red-600);
+  color: var(--c-text);
   font-size: var(--fs-1);
   font-weight: 900;
   line-height: 18px;
   white-space: nowrap;
-  color: var(--p-50);
+  color: var(--c-text);
 }
 
 /* ---------- Command chips ---------- */
@@ -457,7 +458,7 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
   box-shadow: none;
 }
 .game-ui #command-popover .frame-choice button[aria-pressed='true'] {
-  color: var(--paper);
+  color: var(--c-text);
   background: var(--ink);
   border-color: var(--ink);
 }
@@ -474,7 +475,7 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
 }
 .game-ui #command-popover .burn-figures dt {
   font-size: var(--fs-1);
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui #command-popover .burn-figures dd {
   margin: 0;
@@ -505,7 +506,7 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
   stroke-dasharray: 3 3;
 }
 .frame-diagram .frame-label {
-  font-size: 13px;
+  font-size: var(--fs-1);
   fill: var(--paper-dim);
 }
 .frame-diagram .frame-burn {
@@ -556,7 +557,7 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
 .game-ui #command-popover .aim-calc p,
 .game-ui #command-popover .aim-calc li small {
   font-size: var(--fs-1);
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui #command-popover .aim-calc p {
   margin: 0;

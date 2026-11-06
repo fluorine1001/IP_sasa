@@ -1,20 +1,9 @@
 /* Figures (src/ui/figures.ts). Console surfaces by default; documents re-tint below. */
 :root {
   --fig-track: color-mix(in srgb, var(--n-950) 55%, transparent);
-  --fig-line: var(--n-300);
-  --fig-text: var(--c-text-dim);
+  --fig-line: var(--n-400);
+  --fig-text: var(--n-200);
   --fig-strong: var(--c-text);
-}
-.mission-goals,
-#command-popover,
-.result,
-.program-editor,
-.trial-card,
-.ui-doc {
-  --fig-track: color-mix(in srgb, var(--p-900) 12%, transparent);
-  --fig-line: var(--p-600);
-  --fig-text: var(--p-800);
-  --fig-strong: var(--p-900);
 }
 
 .fig-rocket {
@@ -38,7 +27,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 4px;
-  background: var(--fig-strong);
+  background: var(--fig-line);
 }
 .fig-meter.ok .fig-meter-track > i {
   background: var(--green-400);
@@ -60,18 +49,16 @@
   margin-left: -1px;
   background: var(--fig-strong);
 }
-.fig-mark span {
+.fig-mark-label {
   position: absolute;
-  top: 16px;
-  left: 50%;
+  top: 14px;
   transform: translateX(-50%);
   font-size: var(--fs-1);
   font-weight: var(--fw-medium);
   color: var(--fig-text);
   white-space: nowrap;
 }
-.fig-mark:first-of-type:last-of-type span,
-.fig-mark span {
+.fig-mark-label {
   pointer-events: none;
 }
 
@@ -102,14 +89,14 @@
 
 /* Medal: flat line insignia */
 .fig-medal {
-  --medal: var(--yellow-600);
+  --medal: var(--yellow-400);
   flex: none;
 }
 .fig-medal.budget {
-  --medal: var(--sky-600);
+  --medal: var(--sky-400);
 }
 .fig-medal.clean {
-  --medal: var(--green-600);
+  --medal: var(--green-400);
 }
 .fig-medal circle:first-child {
   fill: color-mix(in srgb, var(--medal) 16%, transparent);
@@ -173,7 +160,7 @@
   stroke-dasharray: 2 3;
 }
 .fig-miss .lab {
-  font-size: 11px;
+  font-size: var(--fs-1);
   fill: var(--fig-text);
 }
 .fig-miss .target {
@@ -211,4 +198,111 @@
   font-size: var(--fs-1);
   font-weight: var(--fw-medium);
   color: var(--fig-text);
+}
+
+/* ---------- Goal gauges (src/screens/flight/goal-gauges.ts) ---------- */
+.goal-gauges {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 2px;
+}
+.gg-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon label target'
+    'track track track';
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 4px;
+}
+.gg-hold,
+.gg-event {
+  grid-template-areas:
+    'icon label target'
+    'track track track';
+}
+.gg-icon {
+  grid-area: icon;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--n-200);
+}
+.gg-label {
+  grid-area: label;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  color: var(--c-text);
+}
+.gg-target {
+  grid-area: target;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-heavy);
+  color: var(--yellow-400);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.gg-target small {
+  margin-left: 3px;
+  color: var(--n-200);
+  font-weight: var(--fw-bold);
+}
+.gg-event b {
+  grid-area: target;
+  color: var(--green-400);
+  font-size: var(--fs-3);
+}
+.gg-track {
+  grid-area: track;
+  position: relative;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--panel-sunk);
+  border: 2px solid var(--panel-edge);
+}
+.gg-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--yellow-400) 70%, transparent);
+}
+.gg-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--green-400);
+}
+.gg-needle {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--red-400);
+  box-shadow: 0 0 0 2px var(--panel-edge);
+}
+.gg-needle.ok {
+  background: var(--green-400);
+}
+.gg-needle span {
+  display: none;
+}
+.goal-row .goal-gauges {
+  grid-column: 1 / -1;
+}
+.gg-event {
+  grid-template-areas: 'icon label target';
+}
+.gg-event:not(.ok) .gg-label {
+  color: var(--n-200);
 }

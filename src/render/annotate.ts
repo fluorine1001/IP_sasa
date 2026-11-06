@@ -16,7 +16,7 @@ export function haloText(
   weight: 'normal' | 'bold' = 'normal',
 ) {
   ctx.save();
-  ctx.font = canvasFont(13, weight);
+  ctx.font = canvasFont(15, weight);
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';

@@ -9,7 +9,7 @@
   --slate-1: var(--n-600);
   --slate-2: var(--n-600);
   --slate-3: var(--n-750);
-  --slate-hi: var(--n-400);
+  --slate-hi: var(--n-600);
   --paper: var(--p-200);
   --paper-2: var(--p-300);
   --paper-line: color-mix(in srgb, var(--p-400) 20%, transparent);
@@ -107,7 +107,7 @@ body.game-ui {
 .game-ui .program-editor p,
 .game-ui .program-editor small,
 .game-ui #command-popover small {
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .mission-panel small {
   color: var(--text-dim);
@@ -334,7 +334,7 @@ body.game-ui {
   padding: 0 6px;
   border-radius: var(--r-pill);
   background: var(--paper);
-  color: var(--ink);
+  color: var(--c-text);
   font-weight: 800;
 }
 
@@ -353,7 +353,7 @@ body.game-ui {
   float: right;
   padding: 2px 10px;
   background: var(--paper-2);
-  color: var(--ink);
+  color: var(--c-text);
 }
 .game-ui .result-stamp {
   display: inline-block;
@@ -371,7 +371,7 @@ body.game-ui {
   color: var(--green-600);
 }
 .game-ui .result-stamp.neutral {
-  color: var(--p-600);
+  color: var(--n-200);
 }
 @keyframes result-in {
   from {
@@ -397,7 +397,7 @@ body.game-ui {
 .game-ui .result-measure span {
   font-size: var(--fs-1);
   font-weight: 700;
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .result-measure b {
   font-size: var(--fs-5);
@@ -408,7 +408,7 @@ body.game-ui {
 .game-ui .result-measure b small {
   font-size: var(--fs-1);
   font-weight: 700;
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .result-measure meter {
   width: 100%;
@@ -483,7 +483,7 @@ body.game-ui {
   box-shadow: none;
 }
 .game-ui .medal.off {
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .result-strip {
   display: flex;
@@ -508,7 +508,7 @@ body.game-ui {
 .game-ui .result-strip li small {
   font-size: var(--fs-1);
   font-weight: 500;
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .result-strip li + li::before {
   content: '';
@@ -522,7 +522,7 @@ body.game-ui {
 .game-ui .result-change {
   margin: 8px 0;
   font-size: var(--fs-1);
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .result-actions {
   display: flex;
@@ -532,7 +532,7 @@ body.game-ui {
 .game-ui .result-actions button {
   padding: 7px 12px;
   background-color: var(--paper-2);
-  color: var(--ink);
+  color: var(--c-text);
 }
 .game-ui .result-actions button.primary {
   background-color: var(--amber);
@@ -629,7 +629,7 @@ body.game-ui {
 }
 .game-ui .range-ends,
 .game-ui .range-ends * {
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 
 /* ---------- Pre-launch checklist (right instrument panel) ---------- */
@@ -661,9 +661,10 @@ body.game-ui {
 }
 .game-ui .preflight-list header span.ok {
   background: var(--ok);
+  color: var(--n-950);
 }
 .game-ui .preflight-list header span.bad {
-  background: var(--fail);
+  background: var(--red-600);
   color: var(--text);
 }
 .game-ui .preflight-list ul {
@@ -700,7 +701,7 @@ body.game-ui {
   grid-column: 2;
   font-size: var(--fs-1);
   font-weight: 600;
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 
 /* ---------- Call-outs ---------- */
@@ -834,7 +835,7 @@ body.game-ui {
   margin: -2px 0 4px;
   padding: 10px 8px 3px;
   background: var(--ink);
-  color: var(--paper);
+  color: var(--c-text);
   border-radius: 0 0 6px 6px;
   font-size: var(--fs-2);
   font-weight: 900;
@@ -879,7 +880,7 @@ body.game-ui {
 .game-ui .stage-status {
   font-size: var(--fs-1);
   font-weight: 700;
-  color: var(--paper-dim);
+  color: var(--n-200);
 }
 .game-ui .mission-route .completed {
   border-color: var(--ink);
@@ -945,7 +946,7 @@ body.game-ui {
 }
 .game-ui .title-console button:not(.primary) {
   background-color: var(--paper);
-  color: var(--ink);
+  color: var(--c-text);
 }
 .game-ui .title-console #start {
   font-size: var(--fs-4);
@@ -1177,7 +1178,7 @@ body.game-ui {
 }
 .game-ui #notebook .trial-actions button {
   background: var(--paper-2);
-  color: var(--ink);
+  color: var(--c-text);
 }
 
 /* ---------- Labels never break inside a word ---------- */
@@ -1314,7 +1315,7 @@ body.game-ui {
   box-shadow: none;
 }
 .game-ui #notebook .archive-heading .log-toggle[aria-pressed='true'] {
-  color: var(--paper);
+  color: var(--c-text);
   background: var(--ink);
   border-color: var(--ink);
 }

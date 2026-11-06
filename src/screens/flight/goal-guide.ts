@@ -5,6 +5,7 @@ import type { Condition, Expression } from '../../world/conditions';
 import { metrics } from '../../world/metrics';
 import type { Stage } from '../../world/types';
 import { controlIcon } from './controls';
+import { goalGaugesHtml } from './goal-gauges';
 import type { Goal } from '../../world/types';
 
 // Four significant digits read as a measurement; the judge still uses the exact value.
@@ -333,7 +334,7 @@ export function missionGoalsHtml(stage: Stage) {
   )
     .map(
       (g) =>
-        `<article class="goal-explanation"><h3>${escape(g.title)}</h3><div class="goal-window">${controlIcon('clock')} ${g.startTime}초 ~ ${g.endTimeUnlimited ? '제한 없음' : g.endTime + '초'}${g.dependsOn.length ? ' · 선행 목표 완료 상태' : ''}</div><ul class="criterion-list">${(
+        `<article class="goal-explanation"><canvas class="goal-thumb" data-goal-thumb="${g.id}" aria-hidden="true"></canvas><div class="goal-text"><h3>${escape(g.title)}</h3><div class="goal-window">${controlIcon('clock')} ${g.startTime}초 ~ ${g.endTimeUnlimited ? '제한 없음' : g.endTime + '초'}${g.dependsOn.length ? ' · 선행 목표 완료 상태' : ''}</div>${goalGaugesHtml(stage, g)}<details class="criterion-words"><summary>조건 문장으로 보기</summary><ul class="criterion-list">${(
           markerExplanation(stage, g) ?? goalExplanation(stage, g.condition)
         )
           .split('\n')
@@ -345,7 +346,7 @@ export function missionGoalsHtml(stage: Stage) {
           )
           .join(
             '',
-          )}</ul><button data-goal-focus="${g.id}">${controlIcon('follow')}<span>지도에서 보기</span></button></article>`,
+          )}</ul></details><button data-goal-focus="${g.id}">${controlIcon('follow')}<span>지도에서 보기</span></button></div></article>`,
     )
     .join('')}`;
 }

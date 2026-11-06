@@ -1,3 +1,5 @@
+import '@fontsource/jua/korean-400.css';
+import '@fontsource/jua/latin-400.css';
 import './ui/tokens.css';
 import './style.css';
 import { inertialScroll } from './app/inertial-scroll';

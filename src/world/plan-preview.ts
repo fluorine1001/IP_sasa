@@ -100,8 +100,8 @@ export function previewStates(
   stage: Stage,
   plan: RoutePlan,
   recorded: (time: number) => PreviewState | undefined,
-): { change: PlannedChange; state: PreviewState }[] {
-  const out: { change: PlannedChange; state: PreviewState }[] = [];
+): { change: PlannedChange; state: PreviewState; before: PreviewState }[] {
+  const out: { change: PlannedChange; state: PreviewState; before: PreviewState }[] = [];
   let chain: PreviewState | undefined;
   for (const change of plannedChanges(plan)) {
     let before: PreviewState | undefined;
@@ -115,7 +115,7 @@ export function previewStates(
             ...before,
             velocity: add(before.velocity, scale(headingIn(frame, change.heading), change.dv)),
           };
-          out.push({ change, state: after });
+          out.push({ change, state: after, before });
           chain = after;
           continue;
         }
@@ -126,7 +126,7 @@ export function previewStates(
       continue;
     }
     const after = applyChange(stage, before, change);
-    out.push({ change, state: after });
+    out.push({ change, state: after, before });
     chain = after;
   }
   return out;

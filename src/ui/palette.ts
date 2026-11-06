@@ -2,16 +2,16 @@
  * frame, so the few colours the renderer needs are repeated here with the same names.
  * Keep the two files in step (tests/palette.test.ts checks it). */
 export const palette = {
-  n950: '#0b1418',
-  n900: '#101b20',
-  n700: '#2a3942',
-  n300: '#8b9a9b',
-  n50: '#eef1ea',
-  amber400: '#f2b54a',
-  green400: '#6fbf73',
-  red200: '#f3a091',
-  red400: '#e05a44',
-  yellow400: '#f2cf4a',
-  sky200: '#ade0f7',
-  sky400: '#5eb2e8',
+  n950: '#141824',
+  n900: '#1a1f2e',
+  n700: '#38415c',
+  n300: '#97a0b8',
+  n50: '#ffffff',
+  amber400: '#f6b23c',
+  green400: '#7fd35a',
+  red200: '#ffaaa0',
+  red400: '#f05a4f',
+  yellow400: '#ffd84a',
+  sky200: '#a9ddff',
+  sky400: '#56b4f0',
 } as const;

@@ -4,17 +4,29 @@ import type { Run, Stage } from './types';
 export const ROCKET_SEGMENT_LENGTH = 0.12;
 export const ROCKET_PAYLOAD_LENGTH = 0.1;
 export const ROCKET_RADIUS = 0.035;
-export function hullSize(count = 1, booster = false) {
+/** Mission-wide size of the craft (1 = standard). Small worlds use a smaller craft so
+ * the drawn and colliding hull stays in proportion to the bodies. Render and physics
+ * both read it, so the picture and the collision never disagree. */
+export const craftScale = (stage?: { rules?: { craftScale?: number } }) =>
+  stage?.rules?.craftScale && stage.rules.craftScale > 0 ? stage.rules.craftScale : 1;
+export function hullSize(count = 1, booster = false, k = 1) {
   return {
-    length: booster
-      ? ROCKET_SEGMENT_LENGTH
-      : ROCKET_PAYLOAD_LENGTH + Math.max(0, count) * ROCKET_SEGMENT_LENGTH,
-    radius: ROCKET_RADIUS,
+    length:
+      k *
+      (booster
+        ? ROCKET_SEGMENT_LENGTH
+        : ROCKET_PAYLOAD_LENGTH + Math.max(0, count) * ROCKET_SEGMENT_LENGTH),
+    radius: k * ROCKET_RADIUS,
   };
 }
+/** One stage's length in this mission. */
+export const segmentLength = (stage?: { rules?: { craftScale?: number } }) =>
+  ROCKET_SEGMENT_LENGTH * craftScale(stage);
 export function craftHull(stage: Stage, run?: Run) {
   return hullSize(
     stage.rocket ? Math.max(0, stage.rocket.parts.length - (run?.rocket?.partIndex ?? 0)) : 1,
+    false,
+    craftScale(stage),
   );
 }
 export type Hull = ReturnType<typeof hullSize>;

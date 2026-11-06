@@ -26,7 +26,9 @@ import { altitude, brakingHtml, orbitHtml, telemetryHtml } from './telemetry';
 import { tutorialLesson } from '../tutorial/lesson';
 import { chapterOf } from '../../stages/chapters';
 import { t } from '../../i18n';
-import { briefingHtml, markBriefed, shouldAutoBrief } from './briefing';
+import { briefingHtml, markBriefed, shouldAutoBrief, stageTable } from './briefing';
+import { HANDLE_BASE, handleTip, type BurnHandle } from '../../render/burn-handle';
+import { formatDv } from '../../world/program';
 import { planChanges, singleVariableChange } from '../../world/plan-diff';
 import './mission-info.css';
 import './compact.css';
@@ -50,6 +52,9 @@ import { createRun, tick, WORLD_STEP } from '../../world/engine.ts';
 import { FrameClock } from '../../world/frame-clock';
 import type { LogAttempt } from './flight-log';
 import { previewStates } from '../../world/plan-preview';
+import { craftScale, segmentLength } from '../../world/hull';
+import { flightMisses, missSide, type Miss } from '../../world/miss';
+import { goalGaugesHtml } from './goal-gauges';
 import {
   aimTargets,
   approachParts,
@@ -58,10 +63,12 @@ import {
   type AimState,
   type Approach,
 } from '../../world/aim';
-import { apsisNames } from '../../world/heading';
+import { apsisNames, headingIn, orbitFrame, resolveHeading } from '../../world/heading';
 import { firstChangeTime } from '../../world/first-change';
 import { gravity } from '../../world/celestial.ts';
 import { drawWorld } from '../../render/world.ts';
+import { markerHandles } from '../../render/goal-marker';
+import { referencePosition } from '../../world/actor-reference';
 import { toWorld, toScreen, zoomAt } from '../../render/camera.ts';
 import type { Run, RoutePlan, Observation } from '../../world/types.ts';
 import type { FlightFrame } from '../../world/replay';
@@ -112,7 +119,12 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     if (!last) return undefined;
     const changed = firstChangeTime(last.scheduledPlan, p) ?? Infinity;
     if (time > last.duration || changed < time - 1e-9) return undefined;
-    const f = replayAt(last.frames, Math.max(0, time - 1e-3), last.flightPlan);
+    const f = replayAt(
+      last.frames,
+      Math.max(0, time - 1e-3),
+      last.flightPlan,
+      segmentLength(stage),
+    );
     return f && !f.landed && f.rocket?.airborne !== false
       ? { position: f.position, velocity: f.velocity, time: f.time }
       : undefined;
@@ -182,6 +194,111 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
   function gapOf(a: Approach) {
     return a.distance - (a.target.kind === 'body' ? a.target.radius : 0);
   }
+  /** Map arrows for planned speed changes: drag the head to set size and direction. */
+  const pxPerDv = (() => {
+    const ref = stage.rocket
+      ? Math.max(...stageTable(stage).map((r) => r.deltaV), 1e-3)
+      : Math.max(stage.rules.maneuverBudget, stage.rules.launchLimit * 0.5, 0.02);
+    return 110 / ref;
+  })();
+  let activeHandle: string | undefined;
+  type HandleSource = BurnHandle & { before?: { position: Vec; velocity: Vec; time: number } };
+  function burnHandles(): HandleSource[] {
+    if (run || replayIndex >= 0) return [];
+    const out: HandleSource[] = [];
+    if (!stage.rocket && stage.rules.launchLimit > 0) {
+      const dv = length(plan.launch);
+      out.push({
+        id: 'launch',
+        origin: stage.spawn.position,
+        direction: dv > 1e-9 ? scale(plan.launch, 1 / dv) : { x: 0, y: 1 },
+        dv,
+        label: `발사 ${formatDv(dv)}`,
+        active: activeHandle === 'launch',
+      });
+    }
+    for (const { change, state, before } of previewStates(stage, plan, (t) =>
+      recordedState(t, plan),
+    )) {
+      const d = sub(state.velocity, before.velocity),
+        size = length(d);
+      const direction =
+        size > 1e-9
+          ? scale(d, 1 / size)
+          : change.heading
+            ? resolveHeading(stage, before.position, before.velocity, before.time, change.heading)
+            : { x: 1, y: 0 };
+      out.push({
+        id: change.id,
+        origin: before.position,
+        direction,
+        dv: change.dv,
+        label: `${change.label} ${formatDv(change.dv)}`,
+        active: activeHandle === change.id,
+        fixed: change.heading?.frame === 'match',
+        before,
+      });
+    }
+    return out;
+  }
+  function handleAt(point: Vec) {
+    const r = canvas.getBoundingClientRect();
+    let best: { h: HandleSource; d: number } | undefined;
+    for (const h of burnHandles()) {
+      if (h.fixed) continue;
+      const { tip } = handleTip(h, camera, r.width, r.height, pxPerDv);
+      const d = Math.hypot(tip.x - point.x, tip.y - point.y);
+      if (d < 16 && (!best || d < best.d)) best = { h, d };
+    }
+    return best?.h;
+  }
+  /** Set a planned change from the arrow head under the pointer. */
+  function dragHandleTo(id: string, point: Vec) {
+    const h = burnHandles().find((x) => x.id === id);
+    if (!h) return;
+    const r = canvas.getBoundingClientRect();
+    const { o } = handleTip(h, camera, r.width, r.height, pxPerDv);
+    const v = { x: point.x - o.x, y: -(point.y - o.y) };
+    const len = Math.hypot(v.x, v.y);
+    if (len < 4) return;
+    const dir = scale(v, 1 / len);
+    const round = (x: number) => Math.round(x * 1000) / 1000;
+    let dv = round(Math.max(0, (len - HANDLE_BASE) / pxPerDv));
+    if (id === 'launch') {
+      dv = Math.min(dv, stage.rules.launchLimit);
+      plan.launch = scale(dir, dv);
+      return;
+    }
+    const command = plan.engineCommands?.find((c) => c.id === id && c.burn);
+    const push = plan.impulses.find((m) => m.id === id);
+    const heading = command?.burn?.heading ?? push?.heading;
+    let angle = heading?.angle ?? 0;
+    if (heading && heading.frame !== 'match' && h.before) {
+      const frame = orbitFrame(stage, h.before.position, h.before.velocity, h.before.time);
+      const base = headingIn(frame, { ...heading, angle: 0 }),
+        toward = headingIn(frame, { ...heading, angle: 90 });
+      angle =
+        (Math.atan2(dir.x * toward.x + dir.y * toward.y, dir.x * base.x + dir.y * base.y) * 180) /
+        Math.PI;
+      angle = Math.abs(angle) < 2 ? 0 : Math.round(angle);
+    }
+    if (command?.burn) {
+      command.burn.dv = dv;
+      if (command.burn.heading) command.burn.heading = { ...command.burn.heading, angle };
+    } else if (push) {
+      push.magnitude = dv;
+      if (push.heading) push.heading = { ...push.heading, angle };
+      push.vector = scale(
+        heading
+          ? resolveHeading(stage, h.before!.position, h.before!.velocity, h.before!.time, {
+              ...heading,
+              angle,
+            })
+          : dir,
+        dv,
+      );
+    }
+  }
   /** Orbit calculator: two-body conics of the visible craft and of planned pushes. */
   function orbitSketches(view: Run | FlightFrame | undefined): OrbitSketch[] {
     if (!app.settings.orbitTool) return [];
@@ -225,7 +342,12 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         }
       }
       if (replayTime !== undefined && replayTime > 0) {
-        const frame = replayAt(last.frames, Math.min(replayTime, last.duration), last.flightPlan);
+        const frame = replayAt(
+          last.frames,
+          Math.min(replayTime, last.duration),
+          last.flightPlan,
+          segmentLength(stage),
+        );
         if (frame && !frame.landed && frame.rocket?.airborne !== false) {
           const c = conicFor(frame);
           if (c) out.push({ conic: c, tone: 'live' });
@@ -255,6 +377,19 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
             ? `${near.target.name} ${near.target.kind === 'body' ? '도달' : '통과'} · ${near.time.toFixed(1)}초`
             : `${near.target.name}까지 ${(near.distance - (near.target.kind === 'body' ? near.target.radius : 0)).toFixed(3)} u · ${near.time.toFixed(1)}초`,
           inside: near.inside,
+          // Past the first hand-over the drawn conic is the wrong body's; draw the rest.
+          handover: (() => {
+            const first = path.at(state.time).body.id;
+            const pts: Vec[] = [];
+            let switched = false;
+            const steps = 200;
+            for (let i = 0; i <= steps; i++) {
+              const q = path.at(state.time + ((near.time - state.time) * i) / steps);
+              if (q.body.id !== first) switched = true;
+              pts.push(q.position);
+            }
+            return switched ? pts : undefined;
+          })(),
         };
       }
     }
@@ -291,8 +426,10 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
           point: Vec;
           x: number;
           y: number;
-        },
+        }
+      | { kind: 'burn'; id: string },
     ended = false,
+    lastMiss: Miss | undefined,
     notebook = false,
     hudClock = 0;
   app.root.innerHTML = `<canvas id="world" class="space" tabindex="0" aria-label="궤도 비행 지도"></canvas>
@@ -384,9 +521,56 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     session.changed?.();
   }
   const goalDialog = el('mission-goals') as HTMLDialogElement;
+  /** Briefing thumbnails: the real map, framed on each goal and the launch body. */
+  function drawGoalThumbs() {
+    const home = stage.bodies.find((b) => b.id === stage.launchBodyId) ?? stage.bodies[0];
+    for (const canvas of goalDialog.querySelectorAll<HTMLCanvasElement>('[data-goal-thumb]')) {
+      const goal = stage.goals.find((g) => g.id === canvas.dataset.goalThumb);
+      if (!goal) continue;
+      const body = stage.bodies.find((b) => b.id === goal.display?.targetId);
+      const object = stage.objects.find((o) => o.id === goal.display?.targetId);
+      const p = body
+        ? bodyPosition(stage, body, 0)
+        : object
+          ? objectPosition(stage, object, 0)
+          : goal.position;
+      const size =
+        body?.radius ?? (object && 'radius' in object ? Number(object.radius) || 0.4 : 0.4);
+      const boxes = [{ c: p, r: Math.max(size * 1.15, (goal.display?.max ?? 0) * 1.06) }];
+      // The drawn goal marker (orbit band, passage, landing zone) sets the frame when present.
+      const handles = markerHandles(stage, goal);
+      if (handles.length && goal.marker) {
+        const centre = ['orbit', 'passage'].includes(goal.marker.kind)
+          ? (referencePosition(stage, goal.marker.targetId) ?? goal.position)
+          : goal.position;
+        const reach = Math.max(
+          ...handles.map((h) => Math.hypot(h.position.x - centre.x, h.position.y - centre.y)),
+        );
+        boxes.push({ c: centre, r: reach * 1.05 });
+      }
+      if (home) boxes.push({ c: bodyPosition(stage, home, 0), r: home.radius * 1.1 });
+      const minX = Math.min(...boxes.map((b) => b.c.x - b.r)),
+        maxX = Math.max(...boxes.map((b) => b.c.x + b.r)),
+        minY = Math.min(...boxes.map((b) => b.c.y - b.r)),
+        maxY = Math.max(...boxes.map((b) => b.c.y + b.r));
+      const r = canvas.getBoundingClientRect();
+      if (!r.width) continue;
+      const zoom = Math.min(r.width / (maxX - minX), r.height / (maxY - minY)) * 0.9;
+      drawWorld(canvas, {
+        stage,
+        camera: { x: (minX + maxX) / 2, y: (minY + maxY) / 2, zoom },
+        time: 0,
+        trails: false,
+      });
+    }
+  }
+  const openBriefing = () => {
+    goalDialog.showModal();
+    requestAnimationFrame(drawGoalThumbs);
+  };
   el('goal-details').onclick = () => {
     if (run?.status === 'running') paused = true;
-    goalDialog.showModal();
+    openBriefing();
     lesson?.record('goals');
     updateHud();
   };
@@ -406,7 +590,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   };
   el('pause-briefing').onclick = () => {
     pauseMenu.close();
-    goalDialog.showModal();
+    openBriefing();
   };
   el('pause-exit').onclick = () => {
     pauseMenu.close();
@@ -421,7 +605,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   el('briefing-ready').onclick = () => goalDialog.close();
   goalDialog.addEventListener('close', () => markBriefed(stage.id));
   if (!training && !args.onReturn && !session?.trials.length && shouldAutoBrief(stage.id))
-    queueMicrotask(() => goalDialog.isConnected && !goalDialog.open && goalDialog.showModal());
+    queueMicrotask(() => goalDialog.isConnected && !goalDialog.open && openBriefing());
   goalDialog.addEventListener(
     'click',
     (e) => {
@@ -577,7 +761,12 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     notebook = false;
     drawNotes();
     el('result').hidden = !atEnd;
-    replayView = replayAt(trials[index].frames, replayCursor, trials[index].flightPlan);
+    replayView = replayAt(
+      trials[index].frames,
+      replayCursor,
+      trials[index].flightPlan,
+      segmentLength(stage),
+    );
     toast(trials[index].number + '차 다시보기');
     updateHud();
   }
@@ -768,7 +957,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     const [a, b] = comparedTrials();
     for (const point of b.trail) {
       if (point.time > a.duration) break;
-      const other = replayAt(a.frames, point.time, a.flightPlan);
+      const other = replayAt(a.frames, point.time, a.flightPlan, segmentLength(stage));
       if (other && length(sub(point.position, craftCenter(stage, other))) >= 0.2)
         return { position: point.position, time: point.time };
     }
@@ -796,7 +985,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       .map((t) => {
         if (replayTime > t.duration + 1e-6)
           return `<tr><th>${t.number}차</th><td colspan="4">기록 종료 · 이 시각의 상태 없음</td></tr>`;
-        const frame = replayAt(t.frames, replayTime, t.flightPlan);
+        const frame = replayAt(t.frames, replayTime, t.flightPlan, segmentLength(stage));
         return frame
           ? `<tr><th>${t.number}차</th><td>${(altitude(stage, { position: frame.position, time: replayTime } as Run)?.height ?? 0).toFixed(2)}</td><td>${length(frame.velocity).toFixed(3)}</td><td>${frame.rocket ? Math.round(((frame.rocket.fuel[frame.rocket.partIndex] ?? 0) / Math.max(1e-9, stage.rocket?.parts[frame.rocket.partIndex]?.fuelMass ?? 1)) * 100) + '%' : '—'}</td><td>${frame.rocket ? (frame.rocket.throttle > 0 ? '분사' : '꺼짐') : '—'}</td></tr>`
           : '';
@@ -961,9 +1150,9 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             (replayView?.goals[g.id]?.complete ? '✓' : '') +
             '</i>' +
             escape(g.title) +
-            '</span><progress max="1" value="' +
-            (replayView?.goals[g.id]?.ratio ?? 0) +
-            '"></progress></div>',
+            '</span>' +
+            goalGaugesHtml(stage, g, replayView?.goals[g.id], 'live') +
+            '</div>',
         )
         .join('');
       el('experiment-summary').textContent =
@@ -1061,7 +1250,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       .map((g) => {
         const p = run?.goals[g.id];
         const status = goalStatus(g, run);
-        return `<div class="goal-row ${p?.complete ? 'done' : ''}"><span class="goal-name"><i aria-hidden="true">${p?.complete ? '✓' : ''}</i>${escape(g.title)}</span><em class="goal-state" data-state="${escape(status)}">${escape(status)}</em><progress max="1" value="${p?.ratio ?? 0}" aria-label="${escape(g.title)} 진행"></progress>${run && goalNearest(p) ? `<small class="goal-near">${escape(goalNearest(p))}</small>` : ''}${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
+        return `<div class="goal-row ${p?.complete ? 'done' : ''}"><span class="goal-name"><i aria-hidden="true">${p?.complete ? '✓' : ''}</i>${escape(g.title)}</span><em class="goal-state" data-state="${escape(status)}">${escape(status)}</em>${goalGaugesHtml(stage, g, run ? p : undefined, ended ? 'best' : 'live')}${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
       })
       .join('');
     el('goals')
@@ -1218,9 +1407,12 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       if (!training) args.onSolved?.(structuredClone(run.plan));
     }
     el('result').hidden = false;
+    const lastTrial = trials.at(-1)!;
+    lastMiss = flightMisses(stage, run.goals, lastTrial.frames, lastTrial.scheduledPlan)[0];
     el('result').innerHTML = resultSummary(stage, run, trials.at(-2)?.scheduledPlan, {
       hasNext: !!args.next,
       attempt: trials.length,
+      miss: lastMiss,
     });
     el('result').dataset.outcome = run.status === 'won' ? 'won' : 'failed';
     if (run.status === 'won' && !args.onReturn && !training) {
@@ -1243,6 +1435,13 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       el('result').hidden = true;
       if (replayIndex >= 0) leaveReplay();
     };
+    const fix = app.root.querySelector<HTMLButtonElement>('#result-fix');
+    if (fix)
+      fix.onclick = () => {
+        el('result').hidden = true;
+        if (replayIndex >= 0) leaveReplay();
+        if (!run) requestAnimationFrame(() => timeline.openItem(fix.dataset.fix ?? 'launch'));
+      };
     el('result-moment').onclick = () => {
       const trial = trials.at(-1)!;
       const impact = trial.frames.find(
@@ -1254,7 +1453,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         .sort((a, b) => a.distance - b.distance)[0];
       replayCursor = impact?.time ?? closest?.time ?? trial.duration;
       replayPlaying = false;
-      replayView = replayAt(trial.frames, replayCursor, trial.flightPlan);
+      replayView = replayAt(trial.frames, replayCursor, trial.flightPlan, segmentLength(stage));
       following = true;
       el('result').hidden = true;
       updateHud();
@@ -1341,7 +1540,12 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     'pointerdown',
     (e) => {
       canvas.focus();
-      if (e.button === 0 || e.button === 1) {
+      const grabbed = e.button === 0 && !run && replayIndex < 0 ? handleAt(coords(e)) : undefined;
+      if (grabbed) {
+        e.preventDefault();
+        drag = { kind: 'burn', id: grabbed.id };
+        activeHandle = grabbed.id;
+      } else if (e.button === 0 || e.button === 1) {
         e.preventDefault();
         drag = { kind: 'pan', point: coords(e), x: camera.x, y: camera.y };
         following = false;
@@ -1356,8 +1560,18 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   canvas.addEventListener(
     'pointermove',
     (e) => {
-      if (!drag) return;
+      if (!drag) {
+        if (!run && replayIndex < 0) canvas.style.cursor = handleAt(coords(e)) ? 'grab' : '';
+        return;
+      }
       const point = coords(e);
+      if (drag.kind === 'burn') {
+        canvas.style.cursor = 'grabbing';
+        dragHandleTo(drag.id, point);
+        timeline.refresh();
+        timeline.update();
+        return;
+      }
       camera.x = drag.x - (point.x - drag.point.x) / camera.zoom;
       camera.y = drag.y + (point.y - drag.point.y) / camera.zoom;
     },
@@ -1366,6 +1580,12 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   canvas.addEventListener(
     'pointerup',
     (e) => {
+      if (drag?.kind === 'burn') {
+        activeHandle = undefined;
+        canvas.style.cursor = '';
+        saveSession();
+        updateHud();
+      }
       drag = undefined;
       activePointers.delete(e.pointerId);
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
@@ -1488,7 +1708,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
           );
           if (replayCursor >= trial.duration) replayPlaying = false;
         }
-        replayView = replayAt(trial.frames, replayCursor, trial.flightPlan);
+        replayView = replayAt(trial.frames, replayCursor, trial.flightPlan, segmentLength(stage));
       } else if (run?.status === 'running' && !paused && !document.hidden) {
         const accelerating = run.time < fastUntil;
         const step = Math.min(dt, 0.05) * speed * playbackTempo * (accelerating ? 4 : 1);
@@ -1570,6 +1790,15 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         observations: notes,
         controlledId,
         orbits: orbitSketches(visibleRun),
+        burnHandles: { handles: burnHandles(), pxPerDv },
+        miss:
+          lastMiss && (!run || ended) && trials.length
+            ? {
+                craft: lastMiss.craft,
+                target: lastMiss.target,
+                text: `${lastMiss.causeLabel} 뒤 ${missSide(lastMiss)} ${lastMiss.gap.toFixed(3)} u`,
+              }
+            : undefined,
       });
       const area = canvas.getBoundingClientRect();
       const craft = toScreen(

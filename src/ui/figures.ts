@@ -71,7 +71,7 @@ export function meter(
   )
     .map(
       (m) =>
-        `<b class="fig-mark" style="left:${n(pct(m.at))}%"><span>${escape(m.label)}</span></b>`,
+        `<b class="fig-mark" style="left:${n(pct(m.at))}%"></b><span class="fig-mark-label" style="left:${n(pct(m.at))}%">${escape(m.label)}</span>`,
     )
     .join('')}</div></div>`;
 }
@@ -114,7 +114,8 @@ export function bodyDisc(color: string, scale: number, atmosphere = 0, size = 56
  */
 export function orbitFigure(c: Conic, size = 120) {
   const R = c.body.radius;
-  const far = c.bound ? c.apoapsis : Math.max(c.periapsis * 3, R * 2.4, Math.hypot(c.r.x, c.r.y) * 1.3);
+  const here = Math.hypot(c.r.x, c.r.y);
+  const far = c.bound ? Math.max(c.apoapsis, here) : Math.max(c.periapsis * 3, R * 2.4, here * 1.3);
   const extent = Math.max(R * 1.25, far);
   const s = (size / 2 - 8) / extent;
   const cx = size / 2,
@@ -136,12 +137,27 @@ export function orbitFigure(c: Conic, size = 120) {
     d.push(`${d.length ? 'L' : 'M'}${n(p.x)} ${n(p.y)}`);
   }
   const bad = c.impactNu !== undefined;
-  const craft = pt(c.nu);
+  const radial = Math.abs(c.h) < 1e-9 * Math.max(1, c.mu);
+  if (radial) {
+    // Straight up or down: a line along the radius, not a curve.
+    const r = Math.hypot(c.r.x, c.r.y);
+    const ux = c.r.x / Math.max(r, 1e-12),
+      uy = c.r.y / Math.max(r, 1e-12);
+    const far = c.bound ? c.apoapsis : extent * 1.5;
+    d.length = 0;
+    d.push(`M${n(cx + ux * R * s)} ${n(cy - uy * R * s)}L${n(cx + ux * far * s)} ${n(cy - uy * far * s)}`);
+  }
+  const craft = radial
+    ? {
+        x: cx + (c.r.x / Math.hypot(c.r.x, c.r.y)) * Math.hypot(c.r.x, c.r.y) * s,
+        y: cy - (c.r.y / Math.hypot(c.r.x, c.r.y)) * Math.hypot(c.r.x, c.r.y) * s,
+      }
+    : pt(c.nu);
   const peri = pt(0);
   const apo = c.bound ? pt(Math.PI) : undefined;
   const mark = (p: { x: number; y: number }, cls: string) =>
     `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="2.6" class="${cls}"/>`;
-  return `<svg class="fig-orbit" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><path d="${d.join('')}${c.bound ? 'Z' : ''}" class="path ${bad ? 'bad' : ''}"/><circle cx="${cx}" cy="${cy}" r="${n(R * s)}" fill="${escape(c.body.color)}" class="ground"/>${bad ? '' : mark(peri, 'peri')}${apo ? mark(apo, 'apo') : ''}<circle cx="${n(craft.x)}" cy="${n(craft.y)}" r="4" class="craft"/></svg>`;
+  return `<svg class="fig-orbit" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><path d="${d.join('')}${c.bound && !radial ? 'Z' : ''}" class="path ${bad ? 'bad' : ''}"/><circle cx="${cx}" cy="${cy}" r="${n(Math.max(4, R * s))}" fill="${escape(c.body.color)}" class="ground"/>${bad || radial ? '' : mark(peri, 'peri')}${apo ? mark(apo, 'apo') : ''}<circle cx="${n(craft.x)}" cy="${n(craft.y)}" r="4" class="craft"/></svg>`;
 }
 
 /**
@@ -154,7 +170,7 @@ export function missFigure(outward: number, ahead: number, radius: number, size 
   const c = size / 2;
   const x = c + ahead * s,
     y = c - outward * s;
-  return `<svg class="fig-miss" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><path d="M${c} 6V${size - 6}M6 ${c}H${size - 6}" class="axis"/><text x="${c + 3}" y="13" class="lab">바깥</text><text x="${size - 6}" y="${c - 4}" text-anchor="end" class="lab">앞</text><circle cx="${c}" cy="${c}" r="${n(radius * s)}" class="target"/><path d="M${c} ${c}L${n(x)} ${n(y)}" class="gap"/><circle cx="${n(x)}" cy="${n(y)}" r="4" class="craft"/></svg>`;
+  return `<svg class="fig-miss" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><path d="M${c} 6V${size - 6}M6 ${c}H${size - 6}" class="axis"/><circle cx="${c}" cy="${c}" r="${n(radius * s)}" class="target"/><path d="M${c} ${c}L${n(x)} ${n(y)}" class="gap"/><circle cx="${n(x)}" cy="${n(y)}" r="4" class="craft"/></svg>`;
 }
 
 /** A labelled number with an icon on top of a figure: "Δv 0.48 u/s". */

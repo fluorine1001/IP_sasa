@@ -711,5 +711,7 @@ export function flightTimeline(
     },
     refresh: refreshFields,
     selectedTime: () => selectedTime,
+    /** Open a planned item's popover (e.g. the change a result points to). */
+    openItem: (id: string) => planner.open(id),
   };
 }

@@ -274,7 +274,8 @@
     "maxTime": 65,
     "worldRadius": 24,
     "sensorSlots": 4,
-    "attempts": 5
+    "attempts": 5,
+    "craftScale": 0.341
   },
   "camera": {
     "x": 0,

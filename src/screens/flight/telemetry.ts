@@ -4,6 +4,7 @@ import { escape } from '../../app/core';
 import { length, sub } from '../../physics/vector';
 import { conicOf } from '../../world/conic';
 import { rocketMass } from '../../world/rocket';
+import { meter, orbitFigure } from '../../ui/figures';
 
 /** Height above the nearest solid surface right now: an observation, never a forecast. */
 export function altitude(stage: Stage, run: Run) {
@@ -52,25 +53,29 @@ export function orbitHtml(
   const lacking = c.circularSpeed - sideways;
   const row = (label: string, value: string, tone = '') =>
     `<div class="orbit-row ${tone}"><span>${label}</span><b>${value}</b></div>`;
+  const peri = c.periapsisPassed
+    ? '지나감'
+    : c.impactNu !== undefined || c.periapsis < c.body.radius
+      ? '지면 아래'
+      : `${alt(c.periapsis)} u`;
+  // Speed scale: where the sideways speed sits between "falls" and "escapes".
+  const top = c.escapeSpeed * 1.15;
+  const scale = meter(sideways, top, {
+    tone: c.impactNu !== undefined ? 'bad' : c.bound ? 'info' : 'plan',
+    marks: [
+      { at: c.circularSpeed, label: '원궤도' },
+      { at: c.escapeSpeed, label: '탈출' },
+    ],
+    label: `옆 속력 ${sideways.toFixed(3)} u/s, 원궤도 ${c.circularSpeed.toFixed(3)}, 탈출 ${c.escapeSpeed.toFixed(3)}`,
+  });
   return (
     `<section class="orbit-calc" aria-label="궤도 계산"><header><b>궤도 계산</b><small>기준 ${escape(c.body.name)}</small></header>` +
-    row(
-      '근점 고도',
-      c.periapsisPassed
-        ? '지나감 · 멀어지는 중'
-        : c.impactNu !== undefined
-          ? '지면 아래 · 낙하'
-          : `${alt(c.periapsis)} u`,
-      c.impactNu !== undefined ? 'bad' : '',
-    ) +
-    row('원점 고도', c.bound ? `${alt(c.apoapsis)} u` : '없음 · 탈출 궤도', c.bound ? '' : 'info') +
+    `<div class="orbit-figure">${orbitFigure(c, 96)}<div class="orbit-rows">` +
+    row('근점 고도', peri, c.impactNu !== undefined ? 'bad' : '') +
+    row('원점 고도', c.bound ? `${alt(c.apoapsis)} u` : '탈출', c.bound ? '' : 'info') +
     (c.period ? row('한 바퀴', `${c.period.toFixed(1)} 초`) : '') +
-    row('원궤도 속력', `${c.circularSpeed.toFixed(3)} u/s`) +
-    row(
-      lacking > 0 ? '원궤도 옆 속력 부족' : '원궤도 옆 속력 초과',
-      `${Math.abs(lacking).toFixed(3)} u/s`,
-    ) +
-    row('탈출 속력', `${c.escapeSpeed.toFixed(3)} u/s`) +
+    `</div></div>` +
+    `<div class="orbit-speed"><span>옆 속력 <b>${sideways.toFixed(3)}</b> u/s · ${lacking > 0 ? '원궤도까지' : '원궤도보다'} ${Math.abs(lacking).toFixed(3)} ${lacking > 0 ? '부족' : '초과'}</span>${scale}</div>` +
     `</section>`
   );
 }

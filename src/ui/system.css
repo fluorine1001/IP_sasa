@@ -9,45 +9,61 @@ body.game-ui * {
   text-shadow: none;
 }
 
-/* ---------- 계기: instrument glass ---------- */
+/* ---------- Panels: one material (Oxygen Not Included reference) ---------- */
 body.game-ui .panel,
 body.game-ui .chapter-card,
 body.game-ui .settings-row,
 body.game-ui .help-grid article,
-body.game-ui .control-card {
-  background: var(--c-glass);
-  background-image: none;
-  border: 1px solid var(--edge-light);
-  border-radius: var(--r-md);
-  box-shadow:
-    var(--sh-inset),
-    0 10px 28px #0008;
-  backdrop-filter: blur(6px);
-}
-
-/* ---------- 문서: documents ---------- */
+body.game-ui .control-card,
 body.game-ui .program-editor.panel,
 body.game-ui #command-popover,
 body.game-ui .result,
 body.game-ui dialog.mission-goals,
-body.game-ui .stage-card,
 body.game-ui #notebook {
-  background: var(--c-doc);
+  background: var(--panel);
   background-image: none;
-  color: var(--c-doc-text);
-  border: 1px solid var(--edge);
-  border-radius: var(--r-md);
-  box-shadow: var(--sh-3);
+  color: var(--c-text);
+  border: 2px solid var(--panel-edge);
+  border-radius: var(--r-lg);
+  box-shadow:
+    var(--sh-inset),
+    var(--sh-3);
   backdrop-filter: none;
 }
+body.game-ui .stage-card {
+  background: var(--panel);
+  background-image: none;
+  color: var(--c-text);
+  border: 2px solid var(--panel-edge);
+  border-radius: var(--r-md);
+  box-shadow:
+    var(--sh-inset),
+    var(--sh-2);
+}
 body.game-ui #notebook .trial-card {
-  background: var(--p-50);
-  border: 1px solid color-mix(in srgb, var(--p-900) 14%, transparent);
-  border-radius: var(--r-sm);
-  box-shadow: none;
+  background: var(--panel-raised);
+  border: 2px solid var(--panel-edge);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-inset);
 }
 
-/* ---------- Section labels: quiet text and a hairline, never tape ---------- */
+/* Headings: the rounded display face, white, never decorated. */
+body.game-ui h1,
+body.game-ui h2,
+body.game-ui .ui-h1,
+body.game-ui .ui-h2,
+body.game-ui .result-stamp,
+body.game-ui .title-main {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+body.game-ui h3,
+body.game-ui .ui-h3 {
+  font-weight: var(--fw-heavy);
+}
+
+/* Section labels: amber, bold, plain. */
 body.game-ui .mission-panel .badge,
 body.game-ui .resources #mode,
 body.game-ui .eyebrow,
@@ -59,112 +75,93 @@ body.game-ui .ui-eyebrow {
   transform: none;
   color: var(--amber-400);
   font-size: var(--fs-1);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-heavy);
   letter-spacing: 0.02em;
 }
-body.game-ui dialog.mission-goals .ui-eyebrow,
-body.game-ui .result .ui-eyebrow {
-  color: var(--amber-600);
-}
 
-/* ---------- 조작: controls ---------- */
+/* ---------- Buttons: chunky, rounded, a visible lip ---------- */
 body.game-ui button,
 body.game-ui .ui-btn {
-  border: 1px solid var(--edge-light);
-  border-radius: var(--r-sm);
-  box-shadow: var(--sh-1);
+  border: 2px solid var(--panel-edge);
+  border-radius: var(--r-md);
+  background-color: var(--n-600);
   background-image: none;
-  font-weight: var(--fw-bold);
+  color: var(--c-text);
+  box-shadow: var(--bevel);
+  font-weight: var(--fw-heavy);
   transition:
     background-color var(--t-fast),
-    border-color var(--t-fast),
     transform 60ms;
+}
+body.game-ui button:not(:disabled):hover,
+body.game-ui .ui-btn:not(:disabled):hover {
+  background-color: var(--n-500);
 }
 body.game-ui button:not(:disabled):active,
 body.game-ui .ui-btn:not(:disabled):active {
   transform: translateY(1px);
-  box-shadow: none;
+  box-shadow: inset 0 2px 0 #0003;
 }
 body.game-ui button:disabled {
   box-shadow: none;
-  opacity: 0.4;
+  opacity: 0.45;
 }
 body.game-ui .console-button {
-  background-color: var(--n-700);
+  background-color: var(--n-600);
   color: var(--c-text);
 }
-body.game-ui .console-button:not(:disabled):hover {
-  background-color: var(--n-600);
-}
 body.game-ui .console-button[aria-pressed='true'],
-body.game-ui .console-button.active {
-  background-color: color-mix(in srgb, var(--green-400) 22%, var(--n-700));
-  border-color: var(--green-400);
+body.game-ui .console-button.active,
+body.game-ui button[aria-pressed='true'] {
+  background-color: var(--pink-400);
+  border-color: var(--panel-edge);
   color: var(--c-text);
 }
 body.game-ui button.primary,
 body.game-ui .ui-btn.primary,
 body.game-ui .launch-command {
   background-color: var(--amber-400);
-  border-color: var(--amber-600);
+  border-color: var(--panel-edge);
   color: var(--n-950);
 }
 body.game-ui button.primary:not(:disabled):hover,
+body.game-ui .ui-btn.primary:not(:disabled):hover,
 body.game-ui .launch-command:not(:disabled):hover {
   background-color: var(--amber-200);
 }
-body.game-ui .launch-command {
-  letter-spacing: 0.02em;
-  box-shadow: var(--sh-1);
-}
 body.game-ui .mission-exit,
 body.game-ui .archive-close {
-  background-color: var(--n-700);
+  background-color: var(--n-600);
   color: var(--c-text);
-}
-/* Buttons living on documents are paper buttons. */
-body.game-ui #command-popover button:not(.primary),
-body.game-ui .result button:not(.primary),
-body.game-ui dialog.mission-goals button:not(.primary),
-body.game-ui #notebook button:not(.primary),
-body.game-ui .program-editor button:not(.primary) {
-  background-color: var(--p-50);
-  border-color: color-mix(in srgb, var(--p-900) 22%, transparent);
-  color: var(--p-900);
-}
-body.game-ui #command-popover button:not(.primary):not(:disabled):hover,
-body.game-ui .result button:not(.primary):not(:disabled):hover,
-body.game-ui dialog.mission-goals button:not(.primary):not(:disabled):hover,
-body.game-ui #notebook button:not(.primary):not(:disabled):hover {
-  background-color: var(--p-200);
 }
 body.game-ui kbd {
   border: 1px solid currentColor;
-  border-radius: 3px;
-  opacity: 0.8;
+  border-radius: 4px;
+  opacity: 0.85;
 }
-
-/* ---------- Status tags: thin outline, no fill ---------- */
 body.game-ui #timeline-mode {
-  border: 1px solid var(--edge-light);
-  background: transparent;
+  border: 2px solid var(--panel-edge);
+  background: var(--panel-sunk);
 }
 
-/* ---------- Result header: a heading, not a rubber stamp ---------- */
+/* ---------- Result ---------- */
 body.game-ui .result-stamp {
   display: block;
   margin: 0 0 8px;
-  padding: 0 0 0 12px;
+  padding: 0;
   border: 0;
-  border-left: 4px solid currentColor;
-  border-radius: 0;
-  font-size: var(--fs-5);
-  font-weight: var(--fw-heavy);
-  letter-spacing: -0.01em;
-  line-height: 1.15;
+  font-size: var(--fs-6);
+  line-height: 1.05;
 }
-
-/* ---------- Medals: flat insignia ---------- */
+body.game-ui .result-stamp.good {
+  color: var(--green-400);
+}
+body.game-ui .result-stamp.bad {
+  color: var(--red-400);
+}
+body.game-ui .result-stamp.neutral {
+  color: var(--n-200);
+}
 body.game-ui .result-medals {
   gap: 14px;
 }
@@ -172,20 +169,13 @@ body.game-ui .medal {
   grid-auto-flow: column;
   align-items: center;
   gap: 6px;
-  font-weight: var(--fw-medium);
+  font-weight: var(--fw-bold);
 }
 body.game-ui .medal i {
   display: none;
 }
 body.game-ui .medal.off {
-  opacity: 0.55;
-}
-
-/* ---------- Title wordmark: clean heavy type ---------- */
-body.game-ui .title-menu h1,
-body.game-ui .title-menu .title-main {
-  color: var(--c-text);
-  letter-spacing: -0.04em;
+  opacity: 0.5;
 }
 
 /* ---------- Title ---------- */
@@ -218,7 +208,7 @@ body.game-ui .title-menu .title-sub {
   font-size: var(--fs-3);
   font-weight: var(--fw-medium);
   letter-spacing: 0.04em;
-  color: var(--n-300);
+  color: var(--n-200);
 }
 body.game-ui .title-console {
   display: grid;
@@ -272,10 +262,118 @@ body.game-ui .title-console .quiet {
   min-height: 36px;
   border: 0;
   background: transparent !important;
-  color: var(--n-300) !important;
+  color: var(--n-200) !important;
   font-size: var(--fs-1);
 }
 body.game-ui .title-console .title-quiet button:hover {
   color: var(--c-text) !important;
   box-shadow: none;
+}
+
+/* ---------- Briefing goals: the real map beside the words ---------- */
+body.game-ui dialog.mission-goals .goal-mode {
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--p-900) 25%, transparent);
+  color: var(--p-900);
+}
+body.game-ui dialog.mission-goals .goal-explanation {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: var(--sp-4);
+  padding: var(--sp-3);
+  box-shadow: none;
+  border-color: color-mix(in srgb, var(--p-900) 14%, transparent);
+}
+body.game-ui dialog.mission-goals .goal-thumb {
+  width: 220px;
+  height: 160px;
+  border-radius: var(--r-sm);
+  background: var(--n-900);
+}
+body.game-ui dialog.mission-goals .goal-text {
+  min-width: 0;
+}
+@media (max-width: 620px) {
+  body.game-ui dialog.mission-goals .goal-explanation {
+    grid-template-columns: 1fr;
+  }
+  body.game-ui dialog.mission-goals .goal-thumb {
+    width: 100%;
+  }
+}
+
+/* ---------- Result: where it missed, and the change to revisit ---------- */
+body.game-ui .result-miss {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  margin: 4px 0 10px;
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--n-850);
+  color: var(--c-text);
+  --fig-track: color-mix(in srgb, var(--n-950) 55%, transparent);
+  --fig-line: var(--n-400);
+  --fig-text: var(--n-300);
+  --fig-strong: var(--c-text);
+}
+body.game-ui .result-miss-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+body.game-ui .result-miss-text span {
+  font-size: var(--fs-1);
+  color: var(--n-200);
+}
+body.game-ui .result-miss-text b {
+  font-size: var(--fs-4);
+  font-weight: var(--fw-heavy);
+  color: var(--red-200);
+}
+body.game-ui .result-miss-text button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+/* ---------- Orbit calculator panel ---------- */
+body.game-ui .orbit-calc .orbit-figure {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+body.game-ui .orbit-calc .fig-orbit {
+  flex: none;
+  width: 88px;
+  height: 88px;
+}
+body.game-ui .orbit-calc .orbit-rows {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+}
+body.game-ui .orbit-calc .orbit-row {
+  display: flex;
+  justify-content: space-between;
+}
+body.game-ui .orbit-calc .orbit-speed {
+  display: grid;
+  gap: 4px;
+}
+body.game-ui .orbit-calc .orbit-speed > span {
+  display: block;
+  font-size: var(--fs-1);
+  line-height: 1.4;
+}
+body.game-ui .result-miss .fig-miss {
+  flex: none;
+  width: 88px;
+  height: 88px;
+}
+
+/* ---------- Type floor: nothing under --fs-1 (15px), small print included ---------- */
+body.game-ui small {
+  font-size: var(--fs-1);
 }

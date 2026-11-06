@@ -1,4 +1,4 @@
-import { craftHull, ROCKET_SEGMENT_LENGTH } from './hull';
+import { craftHull, segmentLength } from './hull';
 import type { Vec } from '../physics/vector.ts';
 import type { Stage, Run } from './types.ts';
 import { bodyPosition, bodyVelocity } from './celestial.ts';
@@ -274,7 +274,7 @@ export function separate(run: Run, stage: Stage): boolean {
     run.rocket.direction,
     totalMass,
     detachedMass,
-    ROCKET_SEGMENT_LENGTH,
+    segmentLength(stage),
   );
   run.detached.push({
     id: part.id,
@@ -391,7 +391,7 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
       attitudeRate(stage, index, actor ? undefined : run.rocket.fuel) * dt,
     );
     // Body-centre pivot without linear impulse.
-    const extent = actor ? ROCKET_SEGMENT_LENGTH : craftHull(stage, run).length;
+    const extent = actor ? segmentLength(stage) : craftHull(stage, run).length;
     if (actor) actor.position = add(actor.position, scale(sub(old, state.direction), extent / 2));
     else if (run.rocket.airborne)
       run.position = add(run.position, scale(sub(old, state.direction), extent / 2));

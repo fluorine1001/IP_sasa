@@ -80,6 +80,8 @@ export function replayAt(
   frames: FlightFrame[],
   requested: number,
   plan: RoutePlan,
+  /** One stage's length (craftScale-aware); separations jump by it. */
+  segment = ROCKET_SEGMENT_LENGTH,
 ): Run | undefined {
   if (!frames.length) return undefined;
   const time = Math.max(frames[0].time, Math.min(requested, frames.at(-1)!.time));
@@ -99,10 +101,7 @@ export function replayAt(
     a.rocket && b.rocket && b.rocket.partIndex !== a.rocket.partIndex
       ? sub(
           b.position,
-          scale(
-            a.rocket.direction,
-            (b.rocket.partIndex - a.rocket.partIndex) * ROCKET_SEGMENT_LENGTH,
-          ),
+          scale(a.rocket.direction, (b.rocket.partIndex - a.rocket.partIndex) * segment),
         )
       : b.position;
   state.position = mix(a.position, continuousEnd);

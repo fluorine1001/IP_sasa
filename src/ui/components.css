@@ -90,7 +90,7 @@
 }
 .ui-doc .dim,
 .ui-doc small {
-  color: var(--c-doc-dim);
+  color: var(--n-200);
 }
 
 /* ---------- Text roles ---------- */
@@ -241,7 +241,7 @@ dialog.ui-dialog::backdrop {
   font-size: var(--fs-1);
 }
 .orbit-calc header small {
-  color: var(--c-text-faint);
+  color: var(--n-200);
   font-size: var(--fs-1);
 }
 .orbit-row {
@@ -260,4 +260,30 @@ dialog.ui-dialog::backdrop {
 }
 .orbit-row.info b {
   color: var(--sky-200);
+}
+.orbit-figure {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+}
+.orbit-rows {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.orbit-speed {
+  display: grid;
+  gap: 4px;
+  margin-top: var(--sp-1);
+}
+.orbit-speed > span {
+  font-size: var(--fs-1);
+  color: var(--c-text-dim);
+}
+.orbit-speed > span b {
+  color: var(--c-text);
+}
+.orbit-speed .fig-meter-track {
+  height: 6px;
 }

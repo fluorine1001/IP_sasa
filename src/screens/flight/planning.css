@@ -34,7 +34,7 @@
 }
 .calibration-rocket {
   transform: rotate(90deg);
-  color: var(--p-300);
+  color: var(--c-text);
 }
 .timeline-ticks {
   position: absolute;
@@ -124,14 +124,14 @@
   align-items: center;
   gap: 5px;
   font-size: var(--fs-1);
-  color: var(--p-300);
+  color: var(--c-text);
   white-space: nowrap;
 }
 #timeline-time {
   width: 76px;
   padding: 5px;
   background: var(--n-750);
-  color: var(--p-200);
+  color: var(--c-text);
   border: 1px solid var(--n-300);
   border-radius: var(--r-sm);
   font-variant-numeric: tabular-nums;
@@ -171,7 +171,7 @@
 #timeline-palette button[aria-pressed='true'] {
   border-color: var(--p-300);
   background: var(--p-800);
-  color: var(--p-100);
+  color: var(--c-text);
 }
 #timeline-drop {
   position: absolute;
@@ -192,7 +192,7 @@
   top: 30px;
   left: 4px;
   white-space: nowrap;
-  color: var(--p-300);
+  color: var(--c-text);
   font-size: var(--fs-1);
 }
 .timeline-event[aria-pressed='true'] {
@@ -226,7 +226,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: var(--p-300);
+  color: var(--c-text);
   font-size: var(--fs-2);
 }
 #command-popover svg {
@@ -261,7 +261,7 @@
 #command-popover input[type='number'],
 #command-popover select {
   background: var(--n-750);
-  color: var(--p-200);
+  color: var(--c-text);
   border: 1px solid var(--n-300);
   border-radius: var(--r-sm);
   padding: 5px;
@@ -273,7 +273,7 @@
 #command-popover output {
   float: right;
   font-weight: bold;
-  color: var(--p-300);
+  color: var(--c-text);
 }
 .range-ends {
   display: flex;
@@ -300,12 +300,12 @@
   padding: 5px 8px;
   font-size: var(--fs-1);
   background: var(--n-500);
-  color: var(--p-200);
+  color: var(--c-text);
   border: 1px solid var(--n-300);
   box-shadow: none;
 }
 .popover-actions [data-remove] {
-  color: var(--p-200);
+  color: var(--c-text);
   background: var(--p-800);
 }
 @media (max-width: 650px) {
@@ -334,7 +334,7 @@
   align-items: center;
   gap: 8px;
   font-size: var(--fs-1);
-  color: var(--p-300);
+  color: var(--c-text);
 }
 #timeline-selection button {
   min-width: 28px;

@@ -3,7 +3,7 @@ import { craftCenter } from './craft-center';
 import { landingBounds, landingReading, surfaceVelocity } from './landing';
 import { planConstraints } from './program';
 import { captureFrame } from './replay';
-import { craftHull, hullSize, hullPoseAt, settleHull, ROCKET_SEGMENT_LENGTH } from './hull';
+import { craftHull, craftScale, hullSize, hullPoseAt, segmentLength, settleHull } from './hull';
 import { firstContact } from './contact';
 import { collectEvidence, emptyEvidence } from './evidence';
 import { beginImpact, advanceImpact } from './impact';
@@ -432,7 +432,7 @@ export function tick(
           actor.position = settleHull(
             actor.position,
             actor.direction,
-            hullSize(1, true),
+            hullSize(1, true, craftScale(stage)),
             bodyPosition(stage, body, run.time),
             body.radius,
             surfaceClearance(stage),
@@ -453,7 +453,7 @@ export function tick(
             : stage.rocket!.parts.find((p) => p.id === actor.id)!;
         const middle = actor.payload
           ? { x: 0, y: 0 }
-          : scale(actor.direction, ROCKET_SEGMENT_LENGTH / 2);
+          : scale(actor.direction, segmentLength(stage) / 2);
         const [actorCentre, actorVelocity] = integrate(
           stepWorld,
           add(actor.position, middle),
@@ -472,7 +472,7 @@ export function tick(
             actor.heat + (Math.sqrt(a.density) * a.speed ** 3 * part.area * 0.4 - 0.03) * slice,
           );
         }
-        const hull = hullSize(1, true);
+        const hull = hullSize(1, true, craftScale(stage));
         const hit = firstContact(
           stepWorld,
           stage,

@@ -27,7 +27,7 @@
 }
 .campaign-total b {
   font-size: var(--fs-5);
-  color: var(--p-200);
+  color: var(--c-text);
 }
 .campaign-total b span {
   color: var(--cmd-stop);
@@ -46,7 +46,7 @@
   align-items: center;
   text-align: left;
   background: linear-gradient(140deg, var(--n-500), var(--n-700));
-  color: var(--p-100);
+  color: var(--c-text);
   border-color: var(--n-850);
   padding: 24px;
   position: relative;
@@ -77,7 +77,7 @@
 }
 .chapter-caption strong {
   font-size: var(--fs-4);
-  color: var(--p-100);
+  color: var(--c-text);
 }
 .chapter-caption > span:not(.chapter-progress) {
   color: var(--n-200);
@@ -118,7 +118,7 @@
   text-align: left;
   padding: 22px;
   background: linear-gradient(125deg, var(--n-600), var(--n-700));
-  color: var(--p-100);
+  color: var(--c-text);
   position: relative;
   overflow: hidden;
 }
@@ -138,7 +138,7 @@
   box-shadow: inset -15px -10px 0 color-mix(in srgb, var(--n-850) 53%, transparent);
 }
 .mission-route .stage-number {
-  color: var(--p-300);
+  color: var(--c-text);
   font-size: var(--fs-2);
   position: relative;
 }

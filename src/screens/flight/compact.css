@@ -47,7 +47,7 @@
   align-items: center;
   gap: 7px;
   font-size: var(--fs-2);
-  color: var(--p-300);
+  color: var(--c-text);
 }
 #inventory svg {
   width: 20px;
@@ -159,7 +159,7 @@
   pointer-events: auto;
 }
 .timeline-event.invalid {
-  color: var(--p-200);
+  color: var(--c-text);
   border-color: var(--red-400);
   background-color: var(--p-800);
 }
@@ -216,7 +216,7 @@
   background: var(--n-800);
 }
 .criterion-list li > span {
-  color: var(--p-300);
+  color: var(--c-text);
 }
 .goal-explanation button {
   display: inline-flex;
@@ -323,7 +323,7 @@
   padding: 5px 12px;
   border: 1px solid var(--n-400);
   border-radius: var(--r-sm);
-  font: 12px monospace;
+  font: 15px monospace;
 }
 @media (max-width: 650px) {
   .mission-panel {

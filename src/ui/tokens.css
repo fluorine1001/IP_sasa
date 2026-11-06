@@ -5,51 +5,56 @@
 
 :root {
   /* ---------- Neutrals: cool console slate, darkest = ink ---------- */
-  --n-950: #0b1418;
-  --n-900: #101b20;
-  --n-850: #15232a;
-  --n-800: #1c2a31;
-  --n-750: #22313a;
-  --n-700: #2a3942;
-  --n-600: #344550;
-  --n-500: #415259;
-  --n-400: #5b6e72;
-  --n-300: #8b9a9b;
-  --n-200: #b5c0b8;
-  --n-100: #d9dfd2;
-  --n-50: #eef1ea;
+  --n-950: #141824;
+  --n-900: #1a1f2e;
+  --n-850: #20263a;
+  --n-800: #272e44;
+  --n-750: #2e364f;
+  --n-700: #38415c;
+  --n-600: #454f6c;
+  --n-500: #56617f;
+  --n-400: #6e7895;
+  --n-300: #97a0b8;
+  --n-200: #c3c9da;
+  --n-100: #e2e6f0;
+  --n-50: #ffffff;
 
-  /* ---------- Paper: documents (briefing, report, conditions) ---------- */
-  --p-50: #f8f6f0;
-  --p-100: #f2efe6;
-  --p-200: #ebe7dc;
-  --p-300: #ddd7c8;
-  --p-400: #bfb7a4;
-  --p-600: #7a7363;
-  --p-800: #4d493f;
-  --p-900: #1f211d;
+  /* ---------- Document ramp: 50–400 are panel surfaces (raised → sunk), 600–900 ink ---------- */
+  --p-50: #4a5370;
+  --p-100: #434c68;
+  --p-200: #3c4560;
+  --p-300: #353d56;
+  --p-400: #5a6482;
+  --p-600: #9aa3bb;
+  --p-800: #c9cfe0;
+  --p-900: #ffffff;
 
   /* ---------- Signal colours: each has one meaning ---------- */
   /* amber = the action to take now */
-  --amber-200: #f9d993;
-  --amber-400: #f2b54a;
-  --amber-600: #c4812c;
+  --amber-200: #ffd98a;
+  --amber-400: #f6b23c;
+  --amber-600: #c9831c;
   /* green = satisfied, success */
-  --green-200: #a9dfab;
-  --green-400: #6fbf73;
-  --green-600: #3c8747;
+  --green-200: #b7ec9a;
+  --green-400: #7fd35a;
+  --green-600: #4f9a33;
   /* red = failure, danger */
-  --red-200: #f3a091;
-  --red-400: #e05a44;
-  --red-600: #a8331f;
+  --red-200: #ffaaa0;
+  --red-400: #f05a4f;
+  --red-600: #b8302a;
   /* yellow = the mission target on the map */
-  --yellow-200: #f8e48f;
-  --yellow-400: #f2cf4a;
-  --yellow-600: #b5952a;
+  --yellow-200: #fff09a;
+  --yellow-400: #ffd84a;
+  --yellow-600: #c9a321;
   /* sky = information and calculation tools */
-  --sky-200: #ade0f7;
-  --sky-400: #5eb2e8;
-  --sky-600: #2f7db3;
+  --sky-200: #a9ddff;
+  --sky-400: #56b4f0;
+  --sky-600: #2c7fc0;
+
+  /* pink = selected / current (Klei-style highlight) */
+  --pink-200: #ffa6c6;
+  --pink-400: #c93a72;
+  --pink-600: #9c2657;
 
   /* ---------- Command colours: timeline chips and craft only ---------- */
   --cmd-ignite: #ef8a3c;
@@ -68,7 +73,7 @@
   --c-line: var(--n-950);
   --c-text: var(--n-50);
   --c-text-dim: var(--n-200);
-  --c-text-faint: var(--n-300);
+  --c-text-faint: var(--n-200);
   --c-accent: var(--amber-400);
   --c-accent-strong: var(--amber-600);
   --c-on-accent: var(--n-950);
@@ -79,23 +84,25 @@
   --c-target: var(--yellow-400);
   --c-doc: var(--p-200);
   --c-doc-text: var(--p-900);
-  --c-doc-dim: var(--p-800);
+  --c-doc-dim: var(--n-200);
   --c-focus: var(--sky-200);
 
-  /* ---------- Type: one family, six steps, 13px floor ---------- */
+  /* ---------- Type: six steps, 15px floor (no small print) ---------- */
   --font:
     'Pretendard Variable', Pretendard, 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  --fs-1: calc(13px * var(--ui-scale, 1));
-  --fs-2: calc(15px * var(--ui-scale, 1));
-  --fs-3: calc(17px * var(--ui-scale, 1));
-  --fs-4: calc(21px * var(--ui-scale, 1));
-  --fs-5: calc(28px * var(--ui-scale, 1));
+  /* Rounded heavy display face for titles and big readouts. */
+  --font-display: 'Jua', var(--font);
+  --fs-1: calc(15px * var(--ui-scale, 1));
+  --fs-2: calc(16px * var(--ui-scale, 1));
+  --fs-3: calc(18px * var(--ui-scale, 1));
+  --fs-4: calc(22px * var(--ui-scale, 1));
+  --fs-5: calc(30px * var(--ui-scale, 1));
   --fs-6: calc(44px * var(--ui-scale, 1));
   --fs-display: clamp(64px, 8vw, 120px);
-  --fw-regular: 450;
-  --fw-medium: 560;
+  --fw-regular: 500;
+  --fw-medium: 600;
   --fw-bold: 700;
-  --fw-heavy: 820;
+  --fw-heavy: 800;
   --lh-tight: 1.2;
   --lh-body: 1.5;
 
@@ -110,24 +117,32 @@
   --sp-8: 64px;
 
   /* ---------- Shape ---------- */
-  --r-sm: 4px;
-  --r-md: 6px;
-  --r-lg: 8px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
   --r-pill: 999px;
-  --stroke: 1px;
+  --stroke: 2px;
   --stroke-thin: 1px;
 
-  /* ---------- Edges and depth: hairlines and soft elevation ---------- */
-  --edge: #050b0e8c;
-  --edge-strong: #050b0ed9;
-  --edge-light: #ffffff17;
-  /* Instrument glass: panels floating over the map. */
-  --c-glass: color-mix(in srgb, var(--n-850) 92%, transparent);
-  --c-glass-2: var(--n-750);
-  --sh-1: 0 1px 2px #0006;
-  --sh-2: 0 2px 6px #0005, 0 1px 1px #0004;
-  --sh-3: 0 18px 48px #000a, 0 2px 8px #0006;
-  --sh-inset: inset 0 1px 0 #ffffff12;
+  /* ---------- Panels (one material everywhere) ---------- */
+  --panel: #3c4560;
+  --panel-raised: #4a5370;
+  --panel-sunk: #2b3248;
+  --panel-head: #2a3046;
+  --panel-edge: #1a1f2e;
+  --c-glass: var(--panel);
+  --c-glass-2: var(--panel-raised);
+  --edge: #1a1f2e;
+  --edge-strong: #121620;
+  --edge-light: #ffffff1c;
+
+  /* ---------- Depth: soft, never an offset slab ---------- */
+  --sh-1: 0 1px 2px #0007;
+  --sh-2: 0 4px 10px #0006;
+  --sh-3: 0 14px 36px #000a, 0 2px 6px #0006;
+  --sh-inset: inset 0 1px 0 #ffffff1a;
+  /* Button bevel: a darker lip inside the bottom edge. */
+  --bevel: inset 0 -3px 0 #0003, inset 0 1px 0 #ffffff26;
 
   /* ---------- Motion ---------- */
   --t-fast: 120ms;

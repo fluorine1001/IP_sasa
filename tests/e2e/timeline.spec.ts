@@ -18,7 +18,9 @@ test('발사 전 예약 편집·실시간 진행·비행 중 편집 잠금', asy
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openReference(page);
-  await expect(page.locator('#initial-output [title="추진 가속"]')).toBeVisible();
+  await expect(
+    page.locator('#initial-output [title="추력 대 무게"], #initial-output [title="추진 가속"]'),
+  ).toBeVisible();
   await page.locator('#program-toggle').click();
   await expect(page.locator('.program-command')).toHaveCount(
     powered.referencePlans[0].engineCommands.length,

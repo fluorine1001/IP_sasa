@@ -406,15 +406,32 @@ export function tutorialLesson(root: HTMLElement, steps: Instruction[], signal: 
           keepClear.some(
             (r) => p.x < r.right && p.x + width > r.left && p.y < r.bottom && p.y + height > r.top,
           );
-        const chosen = candidates.find(
-          (p) =>
-            !covers(p) &&
-            Math.hypot(
-              x - Math.max(p.x, Math.min(p.x + width, x)),
-              y - Math.max(p.y, Math.min(p.y + height, y)),
-            ) >=
-              radius + 8,
-        ) ?? { x: 8, y: Math.max(8, maxY) };
+        // Beside the mission card and the instruments too, so a step about them stays clickable.
+        const card = keepClear[0];
+        if (card)
+          candidates.push(
+            { x: Math.min(innerWidth - width - 8, card.right + 16), y: 8 },
+            { x: Math.min(innerWidth - width - 8, card.right + 16), y: Math.max(8, maxY) },
+          );
+        const clearOfTarget = (p: { x: number; y: number }) =>
+          Math.hypot(
+            x - Math.max(p.x, Math.min(p.x + width, x)),
+            y - Math.max(p.y, Math.min(p.y + height, y)),
+          ) >=
+          radius + 8;
+        const overlap = (p: { x: number; y: number }) =>
+          keepClear.reduce(
+            (sum, r) =>
+              sum +
+              Math.max(0, Math.min(p.x + width, r.right) - Math.max(p.x, r.left)) *
+                Math.max(0, Math.min(p.y + height, r.bottom) - Math.max(p.y, r.top)),
+            0,
+          );
+        const chosen = candidates.find((p) => !covers(p) && clearOfTarget(p)) ??
+          candidates.filter(clearOfTarget).sort((a, b) => overlap(a) - overlap(b))[0] ?? {
+            x: 8,
+            y: Math.max(8, maxY),
+          };
         clampPosition(chosen.x, chosen.y);
         origin = { x: parseFloat(panel.style.left), y: parseFloat(panel.style.top) };
         placed = true;

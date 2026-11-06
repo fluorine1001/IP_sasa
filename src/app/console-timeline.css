@@ -1,601 +1,608 @@
-/* Flight plan strip.
+/* Legacy screen styles: layout and specifics. Looks come from src/ui/kit.css. */
+@layer legacy {
+  /* Flight plan strip.
  * Reads top to bottom: a time ruler, one row of labelled command chips per
  * overlap, then the engine band showing when each stage is commanded to burn.
  * Every chip says what it does and its one number, so the plan reads without
  * opening anything. Game only; the workshop keeps the base layout. */
 
-body.game-ui .flight-deck #flight-timeline {
-  --ruler: 22px;
-  --lane-h: 30px;
-  --chip-h: 26px;
-  --band-h: 22px;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-track {
-  height: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + var(--band-h) + 6px);
-  margin: 4px 14px 0;
-  transition: height 0.15s ease;
-}
-
-/* ---------- Ruler and grid ---------- */
-body.game-ui .flight-deck #flight-timeline .timeline-ticks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-ticks i {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  transform: translateX(-50%);
-  font-size: var(--fs-xs);
-  font-weight: 800;
-  font-style: normal;
-  line-height: 16px;
-  color: var(--text-dim);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-ticks i:first-child {
-  transform: none;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-ticks i:last-child:not(:first-child) {
-  transform: translateX(-100%);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-ticks i::before {
-  content: '';
-  position: absolute;
-  top: var(--ruler);
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: auto;
-  margin: 0;
-  border-left: 1px dashed color-mix(in srgb, var(--n-300) 33%, transparent);
-  background: none;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-ticks i:first-child::before {
-  left: 0;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-ticks i:last-child:not(:first-child)::before {
-  left: 100%;
-}
-
-/* ---------- Engine band ---------- */
-body.game-ui .flight-deck #flight-timeline .timeline-rail,
-body.game-ui .flight-deck #flight-timeline .timeline-burns {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + 2px);
-  height: var(--band-h);
-  box-sizing: border-box;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-rail {
-  border: 1px solid var(--edge);
-  border-radius: var(--r-md);
-  background: repeating-linear-gradient(-45deg, var(--n-800) 0 6px, var(--n-750) 6px 12px);
-}
-body.game-ui .flight-deck #flight-timeline #timeline-known {
-  position: absolute;
-  left: 0;
-  top: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + 2px);
-  height: var(--band-h);
-  box-sizing: border-box;
-  border: 1px solid var(--edge);
-  border-radius: var(--r-md) 0 0 var(--r-md);
-  border-right: 2px dashed var(--n-100);
-  background: color-mix(in srgb, var(--n-50) 22%, transparent);
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  overflow: hidden;
-}
-body.game-ui .flight-deck #flight-timeline #timeline-known[hidden] {
-  display: none;
-}
-body.game-ui .flight-deck #flight-timeline #timeline-known span {
-  padding: 0 6px;
-  font-size: var(--fs-1);
-  font-weight: 800;
-  color: var(--n-50);
-  white-space: nowrap;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-burns {
-  display: block;
-  pointer-events: none;
-  z-index: 1;
-}
-body.game-ui .flight-deck #flight-timeline .burn-span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  min-width: 3px;
-  box-sizing: border-box;
-  border: 1px solid var(--edge);
-  border-radius: var(--r-md);
-  background: var(--c);
-  overflow: hidden;
-  font-style: normal;
-}
-body.game-ui .flight-deck #flight-timeline .burn-span.open {
-  border-right: 0;
-  border-radius: 6px 0 0 6px;
-  background: linear-gradient(90deg, var(--c) 70%, transparent);
-}
-body.game-ui .flight-deck #flight-timeline .burn-span span {
-  display: block;
-  padding: 0 6px;
-  font-size: var(--fs-xs);
-  font-weight: 900;
-  line-height: 18px;
-  white-space: nowrap;
-  color: var(--ink);
-}
-body.game-ui .flight-deck #flight-timeline .burn-out {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 0;
-  border-left: 3px solid var(--red-400);
-  font-style: normal;
-}
-body.game-ui .flight-deck #flight-timeline .burn-out span {
-  position: absolute;
-  left: 5px;
-  top: 3px;
-  padding: 0 5px;
-  border-radius: var(--r-sm);
-  background: var(--red-600);
-  color: var(--c-text);
-  font-size: var(--fs-1);
-  font-weight: 900;
-  line-height: 18px;
-  white-space: nowrap;
-  color: var(--c-text);
-}
-
-/* ---------- Command chips ---------- */
-body.game-ui .flight-deck #flight-timeline .timeline-event {
-  position: absolute;
-  top: calc(var(--ruler) + var(--lane) * var(--lane-h));
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: auto;
-  min-width: var(--chip-h);
-  height: var(--chip-h);
-  min-height: 0;
-  padding: 0 9px 0 6px;
-  transform: none;
-  box-sizing: border-box;
-  border: 1px solid var(--edge);
-  border-radius: 0 8px 8px 8px;
-  box-shadow: var(--sh-1);
-  background: var(--slate-hi);
-  color: var(--ink);
-  font-size: var(--fs-sm);
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-  z-index: 2;
-  cursor: grab;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.flip {
-  transform: translateX(-100%);
-  border-radius: 8px 0 8px 8px;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.fixed {
-  cursor: pointer;
-}
-/* A stem from the chip's anchored edge down to the engine band marks the exact time. */
-body.game-ui .flight-deck #flight-timeline .timeline-event::before {
-  content: '';
-  position: absolute;
-  left: -2px;
-  top: calc(100% + 2px);
-  width: 2px;
-  height: calc((var(--lanes, 1) - var(--lane)) * var(--lane-h) - var(--chip-h) + 4px);
-  background: var(--ink);
-  pointer-events: none;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.flip::before {
-  left: auto;
-  right: -2px;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event > svg {
-  flex: none;
-  width: 16px;
-  height: 16px;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text,
-body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text span,
-body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text b {
-  position: static;
-  display: inline;
-  transform: none;
-  font-size: inherit;
-  color: inherit;
-  top: auto;
-  left: auto;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text {
-  display: inline-flex;
-  gap: 5px;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text.value-first {
-  flex-direction: row-reverse;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event .chip-value {
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.ignite {
-  background: var(--f-ignite);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.stop {
-  background: var(--f-stop);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.turn {
-  background: var(--f-turn);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.separate {
-  background: var(--f-separate);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.push {
-  background: var(--f-push);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.deploy {
-  background: var(--f-deploy);
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event:hover,
-body.game-ui .flight-deck #flight-timeline .timeline-event:focus-visible {
-  z-index: 4;
-  outline: 2px solid var(--text);
-  outline-offset: 1px;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event[aria-pressed='true'] {
-  z-index: 5;
-  outline: 3px solid var(--text);
-  outline-offset: 2px;
-}
-/* In flight: done chips stay solid and get a tick, waiting ones fade back. */
-body.game-ui .flight-deck #flight-timeline .timeline-event.pending {
-  opacity: 0.5;
-  box-shadow: none;
-}
-body.game-ui .flight-deck #flight-timeline .timeline-event.executed::after {
-  content: '✓';
-  margin-left: 1px;
-  font-weight: 900;
-}
-body.game-ui .flight-deck #flight-timeline[data-phase='flight'] .timeline-event,
-body.game-ui .flight-deck #flight-timeline[data-phase='replay'] .timeline-event {
-  cursor: pointer;
-}
-
-/* ---------- Playhead ---------- */
-body.game-ui .flight-deck #flight-timeline #flight-scrub {
-  top: 0;
-  height: 100%;
-  z-index: 1;
-}
-body.game-ui .flight-deck #flight-timeline #flight-scrub::-webkit-slider-thumb {
-  opacity: 0;
-}
-body.game-ui .flight-deck #flight-timeline #flight-scrub::-moz-range-thumb {
-  opacity: 0;
-}
-body.game-ui .flight-deck #flight-timeline #timeline-cursor {
-  position: absolute;
-  top: 18px;
-  bottom: -2px;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--text);
-  box-shadow: 0 0 0 1px var(--ink);
-  pointer-events: none;
-  z-index: 3;
-}
-body.game-ui .flight-deck #flight-timeline #timeline-cursor::before {
-  content: attr(data-label);
-  position: absolute;
-  top: -18px;
-  left: -1px;
-  padding: 0 6px;
-  border: 1px solid var(--edge);
-  border-radius: 0 6px 6px 0;
-  background: var(--text);
-  color: var(--ink);
-  font-size: var(--fs-xs);
-  font-weight: 900;
-  line-height: 15px;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-body.game-ui .flight-deck #flight-timeline #timeline-cursor.flip::before {
-  left: auto;
-  right: -1px;
-  border-radius: 6px 0 0 6px;
-}
-body.game-ui .flight-deck #flight-timeline #timeline-cursor::after {
-  display: none;
-}
-/* Planning: the playhead is where the next command lands, in amber. */
-body.game-ui .flight-deck #flight-timeline[data-phase='plan'] #timeline-cursor {
-  background: var(--amber);
-}
-body.game-ui .flight-deck #flight-timeline[data-phase='plan'] #timeline-cursor::before {
-  background: var(--amber);
-}
-body.game-ui .flight-deck #flight-timeline #timeline-fill {
-  top: var(--ruler);
-  bottom: 0;
-  height: auto;
-  border: 0;
-  border-radius: 0;
-  background: color-mix(in srgb, var(--n-50) 12%, transparent);
-  pointer-events: none;
-}
-body.game-ui .flight-deck #flight-timeline[data-phase='plan'] #timeline-fill {
-  display: none;
-}
-body.game-ui .flight-deck #flight-timeline #timeline-recorded-end {
-  top: var(--ruler);
-  bottom: 0;
-  border-left: 2px dashed var(--red-200);
-}
-body.game-ui .flight-deck #flight-timeline #timeline-drop {
-  top: var(--ruler);
-  bottom: 0;
-  border-left: 2px dashed var(--amber);
-}
-body.game-ui .flight-deck #flight-timeline #timeline-drop svg {
-  width: 22px;
-  height: 22px;
-  margin-left: -12px;
-  border: 1px solid var(--edge);
-  border-radius: var(--r-md);
-  background: var(--amber);
-  color: var(--ink);
-}
-body.game-ui .flight-deck #flight-timeline #timeline-drop span {
-  top: 28px;
-  left: 5px;
-  padding: 1px 5px;
-  border-radius: var(--r-sm);
-  background: var(--ink);
-  color: var(--amber);
-  font-size: var(--fs-xs);
-  font-weight: 800;
-}
-
-/* ---------- Phones: icon + number chips ---------- */
-body.game-ui .flight-deck #flight-timeline .compact-chips .timeline-event .chip-text .chip-word {
-  display: none;
-}
-@media (max-width: 650px) {
   body.game-ui .flight-deck #flight-timeline {
-    --ruler: 20px;
+    --ruler: 22px;
     --lane-h: 30px;
-    --chip-h: 27px;
-    --band-h: 18px;
+    --chip-h: 26px;
+    --band-h: 22px;
   }
   body.game-ui .flight-deck #flight-timeline .timeline-track {
-    margin: 2px 8px 0;
+    height: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + var(--band-h) + 6px);
+    margin: 4px 14px 0;
+    transition: height 0.15s ease;
   }
-  body.game-ui .flight-deck #flight-timeline .timeline-event {
-    padding: 0 6px 0 4px;
-    gap: 3px;
-    font-size: var(--fs-xs);
-  }
-  body.game-ui .flight-deck #flight-timeline .burn-span span {
-    line-height: 14px;
-    font-size: var(--fs-1);
-  }
-  body.game-ui .flight-deck #flight-timeline .burn-out span {
-    line-height: 14px;
-  }
-}
 
-/* The clock rides in the toolbar beside the phase lamp; the status row is planning only. */
-body.game-ui .flight-deck .dock-plan-tools #dock-clock {
-  margin-left: 4px;
-  white-space: nowrap;
-}
-body.game-ui .flight-deck .dock-plan-tools #timeline-clock {
-  font-size: var(--fs-sm);
-  font-weight: 800;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-body.game-ui .flight-deck:not([data-phase='plan']) .dock-status {
-  display: none;
-}
-@media (max-width: 650px) {
-  body.game-ui .flight-deck .dock-plan-tools #dock-clock {
+  /* ---------- Ruler and grid ---------- */
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: var(--fs-xs);
+    font-weight: 800;
+    font-style: normal;
+    line-height: 16px;
+    color: var(--text-dim);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks i:first-child {
+    transform: none;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks i:last-child:not(:first-child) {
+    transform: translateX(-100%);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks i::before {
+    content: '';
+    position: absolute;
+    top: var(--ruler);
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: auto;
+    margin: 0;
+    border-left: 1px dashed color-mix(in srgb, var(--n-300) 33%, transparent);
+    background: none;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks i:first-child::before {
+    left: 0;
+  }
+  body.game-ui
+    .flight-deck
+    #flight-timeline
+    .timeline-ticks
+    i:last-child:not(:first-child)::before {
+    left: 100%;
+  }
+
+  /* ---------- Engine band ---------- */
+  body.game-ui .flight-deck #flight-timeline .timeline-rail,
+  body.game-ui .flight-deck #flight-timeline .timeline-burns {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + 2px);
+    height: var(--band-h);
+    box-sizing: border-box;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-rail {
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    background: repeating-linear-gradient(-45deg, var(--n-800) 0 6px, var(--n-750) 6px 12px);
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-known {
+    position: absolute;
+    left: 0;
+    top: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + 2px);
+    height: var(--band-h);
+    box-sizing: border-box;
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md) 0 0 var(--r-md);
+    border-right: 2px dashed var(--n-100);
+    background: color-mix(in srgb, var(--n-50) 22%, transparent);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-known[hidden] {
     display: none;
   }
-}
-/* Δv burn: the engine colour, it is still the engine firing. */
-body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
-.game-ui .timeline-event.burn {
-  background: var(--f-ignite);
-}
-.game-ui [data-tool='burn'] {
-  --chip: var(--f-ignite);
-}
-/* Manual engine work (throttle, cut-off, free turn) folds behind one toggle. */
-.game-ui #timeline-palette [data-manual] {
-  display: none;
-}
-.game-ui #timeline-palette.show-manual [data-manual] {
-  display: flex;
-}
-.game-ui #timeline-palette .manual-toggle {
-  margin-left: auto;
-  background: transparent;
-  color: var(--text-dim);
-  border: 1px dashed var(--n-300);
-}
-.game-ui #timeline-palette .manual-toggle[aria-expanded='true'] {
-  color: var(--text);
-  border-style: solid;
-}
-/* Orbit-frame direction: four segments, one pressed. */
-.game-ui #command-popover .frame-choice {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-  gap: 4px;
-  margin: 6px 0 2px;
-}
-.game-ui #command-popover .frame-choice button {
-  padding: 6px 4px;
-  font-size: var(--fs-1);
-  font-weight: 800;
-  color: var(--paper-ink);
-  background: transparent;
-  border: 2px solid var(--paper-dim);
-  border-radius: var(--r-sm);
-  box-shadow: none;
-}
-.game-ui #command-popover .frame-choice button[aria-pressed='true'] {
-  color: var(--c-text);
-  background: var(--ink);
-  border-color: var(--ink);
-}
-.game-ui #command-popover .burn-figures {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin: 4px 0;
-}
-.game-ui #command-popover .burn-figures div {
-  padding: 4px 6px;
-  border: 1px solid var(--paper-dim);
-  border-radius: var(--r-sm);
-}
-.game-ui #command-popover .burn-figures dt {
-  font-size: var(--fs-1);
-  color: var(--n-200);
-}
-.game-ui #command-popover .burn-figures dd {
-  margin: 0;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--paper-ink);
-}
-.game-ui #command-popover .burn-figures .short dd {
-  color: var(--red-200);
-}
-.game-ui #command-popover .frame-diagram {
-  display: block;
-  width: 140px;
-  height: 84px;
-  margin: 4px auto 0;
-}
-.frame-diagram .frame-ground {
-  fill: none;
-  stroke: var(--paper-dim);
-  stroke-width: 2;
-}
-.frame-diagram .frame-axis {
-  fill: none;
-  stroke: var(--paper-dim);
-  stroke-width: 1.25;
-}
-.frame-diagram .frame-axis.dashed {
-  stroke-dasharray: 3 3;
-}
-.frame-diagram .frame-label {
-  font-size: var(--fs-1);
-  fill: var(--paper-dim);
-}
-.frame-diagram .frame-burn {
-  fill: none;
-  stroke: var(--f-ignite);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.frame-diagram .frame-craft {
-  fill: var(--paper-ink);
-}
-/* Δv: a typed number beside its slider. */
-.game-ui #command-popover .dv-field .dv-entry {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  font-weight: 800;
-}
-.game-ui #command-popover .dv-field input[type='number'] {
-  width: 7ch;
-  font-variant-numeric: tabular-nums;
-}
-/* Aiming calculator in the command popover: the one number a correction is tuned by. */
-.game-ui #command-popover .aim-calc {
-  margin: 8px 0 2px;
-  padding: 6px 8px;
-  border: 1px dashed var(--paper-dim);
-  border-radius: var(--r-sm);
-}
-.game-ui #command-popover .aim-calc header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0 0 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-}
-.game-ui #command-popover .aim-calc header b {
-  flex: none;
-  white-space: nowrap;
-  font-size: var(--fs-1);
-  color: var(--paper-ink);
-}
-.game-ui #command-popover .aim-calc header small,
-.game-ui #command-popover .aim-calc p,
-.game-ui #command-popover .aim-calc li small {
-  font-size: var(--fs-1);
-  color: var(--n-200);
-}
-.game-ui #command-popover .aim-calc p {
-  margin: 0;
-}
-.game-ui #command-popover .aim-calc ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.game-ui #command-popover .aim-calc li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 8px;
-  padding: 3px 0;
-  border-top: 1px solid color-mix(in srgb, var(--paper-dim) 25%, transparent);
-  font-variant-numeric: tabular-nums;
-  color: var(--paper-ink);
-}
-.game-ui #command-popover .aim-calc li:first-child {
-  border-top: 0;
-}
-.game-ui #command-popover .aim-calc .aim-name {
-  font-size: var(--fs-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.game-ui #command-popover .aim-calc li b {
-  font-size: var(--fs-1);
-  font-weight: 800;
-  text-align: right;
-}
-.game-ui #command-popover .aim-calc li small {
-  grid-column: 1 / -1;
-}
-.game-ui #command-popover .aim-calc li.hit b {
-  color: var(--green-400);
-}
-.game-ui #command-popover .aim-calc .aim-foot {
-  margin-top: 4px;
+  body.game-ui .flight-deck #flight-timeline #timeline-known span {
+    padding: 0 6px;
+    font-size: var(--fs-1);
+    font-weight: 800;
+    color: var(--n-50);
+    white-space: nowrap;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-burns {
+    display: block;
+    pointer-events: none;
+    z-index: 1;
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    min-width: 3px;
+    box-sizing: border-box;
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    background: var(--c);
+    overflow: hidden;
+    font-style: normal;
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-span.open {
+    border-right: 0;
+    border-radius: 6px 0 0 6px;
+    background: linear-gradient(90deg, var(--c) 70%, transparent);
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-span span {
+    display: block;
+    padding: 0 6px;
+    font-size: var(--fs-xs);
+    font-weight: 900;
+    line-height: 18px;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-out {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 0;
+    border-left: 3px solid var(--red-400);
+    font-style: normal;
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-out span {
+    position: absolute;
+    left: 5px;
+    top: 3px;
+    padding: 0 5px;
+    border-radius: var(--r-sm);
+    background: var(--red-600);
+    color: var(--c-text);
+    font-size: var(--fs-1);
+    font-weight: 900;
+    line-height: 18px;
+    white-space: nowrap;
+    color: var(--c-text);
+  }
+
+  /* ---------- Command chips ---------- */
+  body.game-ui .flight-deck #flight-timeline .timeline-event {
+    position: absolute;
+    top: calc(var(--ruler) + var(--lane) * var(--lane-h));
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: auto;
+    min-width: var(--chip-h);
+    height: var(--chip-h);
+    min-height: 0;
+    padding: 0 9px 0 6px;
+    transform: none;
+    box-sizing: border-box;
+    border: 1px solid var(--edge);
+    border-radius: 0 8px 8px 8px;
+    box-shadow: var(--sh-1);
+    background: var(--slate-hi);
+    color: var(--ink);
+    font-size: var(--fs-sm);
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    z-index: 2;
+    cursor: grab;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.flip {
+    transform: translateX(-100%);
+    border-radius: 8px 0 8px 8px;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.fixed {
+    cursor: pointer;
+  }
+  /* A stem from the chip's anchored edge down to the engine band marks the exact time. */
+  body.game-ui .flight-deck #flight-timeline .timeline-event::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: calc(100% + 2px);
+    width: 2px;
+    height: calc((var(--lanes, 1) - var(--lane)) * var(--lane-h) - var(--chip-h) + 4px);
+    background: var(--ink);
+    pointer-events: none;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.flip::before {
+    left: auto;
+    right: -2px;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event > svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text,
+  body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text span,
+  body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text b {
+    position: static;
+    display: inline;
+    transform: none;
+    font-size: inherit;
+    color: inherit;
+    top: auto;
+    left: auto;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text {
+    display: inline-flex;
+    gap: 5px;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event .chip-text.value-first {
+    flex-direction: row-reverse;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event .chip-value {
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.ignite {
+    background: var(--f-ignite);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.stop {
+    background: var(--f-stop);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.turn {
+    background: var(--f-turn);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.separate {
+    background: var(--f-separate);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.push {
+    background: var(--f-push);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.deploy {
+    background: var(--f-deploy);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event:hover,
+  body.game-ui .flight-deck #flight-timeline .timeline-event:focus-visible {
+    z-index: 4;
+    outline: 2px solid var(--text);
+    outline-offset: 1px;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event[aria-pressed='true'] {
+    z-index: 5;
+    outline: 3px solid var(--text);
+    outline-offset: 2px;
+  }
+  /* In flight: done chips stay solid and get a tick, waiting ones fade back. */
+  body.game-ui .flight-deck #flight-timeline .timeline-event.pending {
+    opacity: 0.5;
+    box-shadow: none;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-event.executed::after {
+    content: '✓';
+    margin-left: 1px;
+    font-weight: 900;
+  }
+  body.game-ui .flight-deck #flight-timeline[data-phase='flight'] .timeline-event,
+  body.game-ui .flight-deck #flight-timeline[data-phase='replay'] .timeline-event {
+    cursor: pointer;
+  }
+
+  /* ---------- Playhead ---------- */
+  body.game-ui .flight-deck #flight-timeline #flight-scrub {
+    top: 0;
+    height: 100%;
+    z-index: 1;
+  }
+  body.game-ui .flight-deck #flight-timeline #flight-scrub::-webkit-slider-thumb {
+    opacity: 0;
+  }
+  body.game-ui .flight-deck #flight-timeline #flight-scrub::-moz-range-thumb {
+    opacity: 0;
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-cursor {
+    position: absolute;
+    top: 18px;
+    bottom: -2px;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--text);
+    box-shadow: 0 0 0 1px var(--ink);
+    pointer-events: none;
+    z-index: 3;
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-cursor::before {
+    content: attr(data-label);
+    position: absolute;
+    top: -18px;
+    left: -1px;
+    padding: 0 6px;
+    border: 1px solid var(--edge);
+    border-radius: 0 6px 6px 0;
+    background: var(--text);
+    color: var(--ink);
+    font-size: var(--fs-xs);
+    font-weight: 900;
+    line-height: 15px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-cursor.flip::before {
+    left: auto;
+    right: -1px;
+    border-radius: 6px 0 0 6px;
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-cursor::after {
+    display: none;
+  }
+  /* Planning: the playhead is where the next command lands, in amber. */
+  body.game-ui .flight-deck #flight-timeline[data-phase='plan'] #timeline-cursor {
+    background: var(--amber);
+  }
+  body.game-ui .flight-deck #flight-timeline[data-phase='plan'] #timeline-cursor::before {
+    background: var(--amber);
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-fill {
+    top: var(--ruler);
+    bottom: 0;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--n-50) 12%, transparent);
+    pointer-events: none;
+  }
+  body.game-ui .flight-deck #flight-timeline[data-phase='plan'] #timeline-fill {
+    display: none;
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-recorded-end {
+    top: var(--ruler);
+    bottom: 0;
+    border-left: 2px dashed var(--red-200);
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-drop {
+    top: var(--ruler);
+    bottom: 0;
+    border-left: 2px dashed var(--amber);
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-drop svg {
+    width: 22px;
+    height: 22px;
+    margin-left: -12px;
+    border: 1px solid var(--edge);
+    border-radius: var(--r-md);
+    background: var(--amber);
+    color: var(--ink);
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-drop span {
+    top: 28px;
+    left: 5px;
+    padding: 1px 5px;
+    border-radius: var(--r-sm);
+    background: var(--ink);
+    color: var(--amber);
+    font-size: var(--fs-xs);
+    font-weight: 800;
+  }
+
+  /* ---------- Phones: icon + number chips ---------- */
+  body.game-ui .flight-deck #flight-timeline .compact-chips .timeline-event .chip-text .chip-word {
+    display: none;
+  }
+  @media (max-width: 650px) {
+    body.game-ui .flight-deck #flight-timeline {
+      --ruler: 20px;
+      --lane-h: 30px;
+      --chip-h: 27px;
+      --band-h: 18px;
+    }
+    body.game-ui .flight-deck #flight-timeline .timeline-track {
+      margin: 2px 8px 0;
+    }
+    body.game-ui .flight-deck #flight-timeline .timeline-event {
+      padding: 0 6px 0 4px;
+      gap: 3px;
+      font-size: var(--fs-xs);
+    }
+    body.game-ui .flight-deck #flight-timeline .burn-span span {
+      line-height: 14px;
+      font-size: var(--fs-1);
+    }
+    body.game-ui .flight-deck #flight-timeline .burn-out span {
+      line-height: 14px;
+    }
+  }
+
+  /* The clock rides in the toolbar beside the phase lamp; the status row is planning only. */
+  body.game-ui .flight-deck .dock-plan-tools #dock-clock {
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+  body.game-ui .flight-deck .dock-plan-tools #timeline-clock {
+    font-size: var(--fs-sm);
+    font-weight: 800;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  body.game-ui .flight-deck:not([data-phase='plan']) .dock-status {
+    display: none;
+  }
+  @media (max-width: 650px) {
+    body.game-ui .flight-deck .dock-plan-tools #dock-clock {
+      display: none;
+    }
+  }
+  /* Δv burn: the engine colour, it is still the engine firing. */
+  body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
+  .game-ui .timeline-event.burn {
+    background: var(--f-ignite);
+  }
+  .game-ui [data-tool='burn'] {
+    --chip: var(--f-ignite);
+  }
+  /* Manual engine work (throttle, cut-off, free turn) folds behind one toggle. */
+  .game-ui #timeline-palette [data-manual] {
+    display: none;
+  }
+  .game-ui #timeline-palette.show-manual [data-manual] {
+    display: flex;
+  }
+  .game-ui #timeline-palette .manual-toggle {
+    margin-left: auto;
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px dashed var(--n-300);
+  }
+  .game-ui #timeline-palette .manual-toggle[aria-expanded='true'] {
+    color: var(--text);
+    border-style: solid;
+  }
+  /* Orbit-frame direction: four segments, one pressed. */
+  .game-ui #command-popover .frame-choice {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+    gap: 4px;
+    margin: 6px 0 2px;
+  }
+  .game-ui #command-popover .frame-choice button {
+    padding: 6px 4px;
+    font-size: var(--fs-1);
+    font-weight: 800;
+    color: var(--paper-ink);
+    background: transparent;
+    border: 2px solid var(--paper-dim);
+    border-radius: var(--r-sm);
+    box-shadow: none;
+  }
+  .game-ui #command-popover .frame-choice button[aria-pressed='true'] {
+    color: var(--c-text);
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .game-ui #command-popover .burn-figures {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: 4px 0;
+  }
+  .game-ui #command-popover .burn-figures div {
+    padding: 4px 6px;
+    border: 1px solid var(--paper-dim);
+    border-radius: var(--r-sm);
+  }
+  .game-ui #command-popover .burn-figures dt {
+    font-size: var(--fs-1);
+    color: var(--n-200);
+  }
+  .game-ui #command-popover .burn-figures dd {
+    margin: 0;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--paper-ink);
+  }
+  .game-ui #command-popover .burn-figures .short dd {
+    color: var(--red-200);
+  }
+  .game-ui #command-popover .frame-diagram {
+    display: block;
+    width: 140px;
+    height: 84px;
+    margin: 4px auto 0;
+  }
+  .frame-diagram .frame-ground {
+    fill: none;
+    stroke: var(--paper-dim);
+    stroke-width: 2;
+  }
+  .frame-diagram .frame-axis {
+    fill: none;
+    stroke: var(--paper-dim);
+    stroke-width: 1.25;
+  }
+  .frame-diagram .frame-axis.dashed {
+    stroke-dasharray: 3 3;
+  }
+  .frame-diagram .frame-label {
+    font-size: var(--fs-1);
+    fill: var(--paper-dim);
+  }
+  .frame-diagram .frame-burn {
+    fill: none;
+    stroke: var(--f-ignite);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .frame-diagram .frame-craft {
+    fill: var(--paper-ink);
+  }
+  /* Δv: a typed number beside its slider. */
+  .game-ui #command-popover .dv-field .dv-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    font-weight: 800;
+  }
+  .game-ui #command-popover .dv-field input[type='number'] {
+    width: 7ch;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Aiming calculator in the command popover: the one number a correction is tuned by. */
+  .game-ui #command-popover .aim-calc {
+    margin: 8px 0 2px;
+    padding: 6px 8px;
+    border: 1px dashed var(--paper-dim);
+    border-radius: var(--r-sm);
+  }
+  .game-ui #command-popover .aim-calc header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0 0 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .game-ui #command-popover .aim-calc header b {
+    flex: none;
+    white-space: nowrap;
+    font-size: var(--fs-1);
+    color: var(--paper-ink);
+  }
+  .game-ui #command-popover .aim-calc header small,
+  .game-ui #command-popover .aim-calc p,
+  .game-ui #command-popover .aim-calc li small {
+    font-size: var(--fs-1);
+    color: var(--n-200);
+  }
+  .game-ui #command-popover .aim-calc p {
+    margin: 0;
+  }
+  .game-ui #command-popover .aim-calc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .game-ui #command-popover .aim-calc li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px;
+    padding: 3px 0;
+    border-top: 1px solid color-mix(in srgb, var(--paper-dim) 25%, transparent);
+    font-variant-numeric: tabular-nums;
+    color: var(--paper-ink);
+  }
+  .game-ui #command-popover .aim-calc li:first-child {
+    border-top: 0;
+  }
+  .game-ui #command-popover .aim-calc .aim-name {
+    font-size: var(--fs-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .game-ui #command-popover .aim-calc li b {
+    font-size: var(--fs-1);
+    font-weight: 800;
+    text-align: right;
+  }
+  .game-ui #command-popover .aim-calc li small {
+    grid-column: 1 / -1;
+  }
+  .game-ui #command-popover .aim-calc li.hit b {
+    color: var(--green-400);
+  }
+  .game-ui #command-popover .aim-calc .aim-foot {
+    margin-top: 4px;
+  }
 }

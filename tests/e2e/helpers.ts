@@ -36,8 +36,112 @@ async function addRow(page: Page, kind: string) {
   expect(id).toBeTruthy();
   return page.locator('.program-command[data-command="' + id + '"]');
 }
+/** Sets the first matching popover control (a number field before its slider). */
+async function edit(page: Page, key: string, n: number | string) {
+  const box = page.locator('#command-popover');
+  const field = box.locator(`input[type="number"][data-edit="${key}"]`);
+  const target = (await field.count())
+    ? field.first()
+    : box.locator(`[data-edit="${key}"]`).first();
+  await target.evaluate((e: HTMLInputElement | HTMLSelectElement, v) => {
+    if (e instanceof HTMLInputElement) e.step = 'any';
+    e.value = String(v);
+    e.dispatchEvent(
+      new Event(e instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }),
+    );
+    if (e instanceof HTMLSelectElement) e.dispatchEvent(new Event('input', { bubbles: true }));
+  }, n);
+}
+async function press(page: Page, selector: string) {
+  const b = page.locator('#command-popover ' + selector).first();
+  if (await b.count()) await b.click();
+}
+/**
+ * Δv plans (burns, triggers, chains) through the timeline and its item popover, the
+ * way a player builds them: each reservation is placed in the order the plan runs it
+ * and, when it follows another, chained to the one placed just before it.
+ */
+async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
+  const { chainTime } = await import('../../src/world/chain');
+  await page.locator('[data-event="launch"]').click();
+  if (stage.rules.launchLimit > 0)
+    await edit(
+      page,
+      'launch-power',
+      (Math.hypot(plan.launch.x, plan.launch.y) / stage.rules.launchLimit) * 100,
+    );
+  if (plan.launchDv !== undefined) await edit(page, 'launch-dv', plan.launchDv);
+  await press(page, '[data-close]');
+  type Item =
+    | { kind: 'engine'; c: NonNullable<RoutePlan['engineCommands']>[number] }
+    | { kind: 'push'; c: RoutePlan['impulses'][number] };
+  const items: Item[] = [
+    ...(plan.engineCommands ?? []).map((c) => ({ kind: 'engine' as const, c })),
+    ...plan.impulses.map((c) => ({ kind: 'push' as const, c })),
+  ].sort((a, b) => chainTime(plan, a.c.id) - chainTime(plan, b.c.id));
+  let slot = 0.3;
+  for (const item of items) {
+    const c = item.c as Record<string, any>;
+    const trigger = (item.kind === 'engine' ? (c.burn ?? c) : c) as Record<string, any>;
+    const tool =
+      item.kind === 'push'
+        ? 'push'
+        : c.burn
+          ? 'burn'
+          : c.separate
+            ? 'separate'
+            : c.releasePayload
+              ? 'deploy'
+              : c.throttle !== undefined
+                ? c.throttle > 0
+                  ? 'ignite'
+                  : 'stop'
+                : 'turn';
+    // Chained items go in order just after the previous; timed ones at their own time.
+    const time = trigger.ref ? slot : c.time;
+    slot = Math.max(slot, time) + 0.05;
+    await page.locator('#timeline-time').fill(time.toFixed(2));
+    await page.locator('#timeline-time').press('Tab');
+    await page.locator(`[data-tool="${tool}"]`).click();
+    await expect(page.locator('#command-popover')).toBeVisible();
+    if (c.actorId && c.actorId !== 'craft') await edit(page, 'actor', c.actorId);
+    if (c.burn) {
+      await press(page, `[data-frame="${c.burn.heading.frame}"]`);
+      if (c.burn.heading.targetId) await edit(page, 'match-target', c.burn.heading.targetId);
+    } else if (item.kind === 'push' && c.heading) {
+      await press(page, `[data-frame="${c.heading.frame}"]`);
+      if (c.heading.targetId) await edit(page, 'match-target', c.heading.targetId);
+    }
+    await press(page, `[data-at="${trigger.at ?? ''}"]`);
+    if (trigger.at && trigger.at !== 'after') {
+      const chained = await page.locator('#command-popover [data-arm="time"]').count();
+      if (trigger.ref && !chained) await press(page, '[data-arm="ref"]');
+      if (!trigger.ref && chained) await press(page, '[data-arm="time"]');
+    }
+    if (!trigger.ref && (await page.locator('#command-popover [data-edit="time"]').count()))
+      await edit(page, 'time', c.time);
+    if (trigger.at === 'after') await edit(page, 'trigger-delay', trigger.delay ?? 0);
+    if (trigger.phaseTarget) await edit(page, 'phase-target', trigger.phaseTarget);
+    if (trigger.altitude !== undefined) await edit(page, 'trigger-height', trigger.altitude);
+    if (trigger.atAngle !== undefined) await edit(page, 'trigger-angle', trigger.atAngle);
+    const heading = c.burn?.heading ?? c.heading;
+    if (heading && heading.frame !== 'map') await edit(page, 'tilt', heading.angle);
+    if (c.burn) await edit(page, 'dv', c.burn.dv);
+    if (item.kind === 'push')
+      await edit(page, 'push', c.magnitude ?? Math.hypot(c.vector.x, c.vector.y));
+    if (c.throttle) await edit(page, 'output', c.throttle * 100);
+    await press(page, '[data-close]');
+  }
+  await expect(page.locator('#world')).toBeVisible();
+}
+
 /** Test-only entry of author verification inputs through actual UI; no solution button. */
 export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
+  const eventPlan =
+    plan.launchDv !== undefined ||
+    (plan.engineCommands ?? []).some((c) => c.burn || (c as { at?: string }).at) ||
+    plan.impulses.some((m) => m.at || m.heading);
+  if (eventPlan) return enterEventPlan(page, stage, plan);
   await page.locator('#program-toggle').click();
   if (stage.rules.launchLimit > 0)
     await value(

@@ -104,6 +104,21 @@ export function timelinePlanner(
   };
   const command = (id: string) => get().plan.engineCommands?.find((c) => c.id === id);
   const push = (id: string) => get().plan.impulses.find((c) => c.id === id);
+  /** Whatever carries a reservation's trigger: its burn, the push, or a separation itself. */
+  type TriggerHost = {
+    at?: Apsis;
+    ref?: string;
+    delay?: number;
+    altitude?: number;
+    atAngle?: number;
+    phaseTarget?: string;
+  };
+  const hostFor = (id: string): TriggerHost | undefined => {
+    const c = command(id);
+    if (c?.burn) return c.burn;
+    if (c && (c.separate || c.releasePayload)) return c as TriggerHost;
+    return push(id);
+  };
   const timeAt = (x: number) =>
     Math.min(
       span(),
@@ -290,7 +305,7 @@ export function timelinePlanner(
         (stage.rocket ? launchDvField(p) : '') +
         (stage.rocket ? '' : range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°'));
     else {
-      const host = c?.burn ?? impulse;
+      const host = hostFor(id);
       const at = host?.at;
       const armed = !!at && at !== 'after';
       const ref = chainRef(p, id);
@@ -327,6 +342,22 @@ export function timelinePlanner(
         fields += `<p class="chain-followers">이 예약을 따르는 예약 ${followers}개 · 함께 움직임</p>`;
       const relative = c?.burn?.heading ?? impulse?.heading;
       const trigger = c?.burn ?? (impulse?.heading ? impulse : undefined);
+      // A separation or payload release can follow the reservation before it, too.
+      if (!trigger && c && (c.separate || c.releasePayload))
+        fields +=
+          '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
+          (
+            [
+              ['', '시각'],
+              ['after', '앞 예약 뒤'],
+            ] as const
+          )
+            .map(
+              ([v, label]) =>
+                `<button type="button" data-at="${v}" aria-pressed="${(c.at ?? '') === v}">${label}</button>`,
+            )
+            .join('') +
+          '</div>';
       if (trigger) {
         fields +=
           '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
@@ -589,7 +620,7 @@ export function timelinePlanner(
       if (key === 'dv' && c?.burn) c.burn.dv = Math.max(0.001, round3(value));
       if (key === 'launch-dv') p.launchDv = value > 0 ? round2(value) : undefined;
       if (key === 'trigger-delay') {
-        const target = c?.burn ?? impulse;
+        const target = hostFor(selected);
         if (target) target.delay = Math.max(0, round2(value));
       }
       if (key === 'trigger-angle') {
@@ -734,7 +765,7 @@ export function timelinePlanner(
       const p = get().plan;
       const arm = button.dataset.arm;
       if (arm) {
-        const target = command(selected)?.burn ?? push(selected);
+        const target = hostFor(selected);
         if (target) {
           if (arm === 'ref') {
             target.ref = previousOf(p, selected);
@@ -754,7 +785,7 @@ export function timelinePlanner(
       const at = button.dataset.at;
       if (at !== undefined) {
         const c = command(selected),
-          target = c?.burn ?? push(selected);
+          target = hostFor(selected);
         if (target) {
           const was = target.at;
           // Leaving a chain: keep the moment it stood for as a clock time.
@@ -890,7 +921,16 @@ export function timelinePlanner(
       : '');
   const manualToggle = palette.querySelector<HTMLButtonElement>('#manual-tools');
   // Tutorials teach the manual controls, and a plan that already uses them keeps them in view.
+  // The player's last choice is remembered across missions.
+  const remembered = (() => {
+    try {
+      return localStorage.getItem('apollo-manual-tools') === 'true';
+    } catch {
+      return false;
+    }
+  })();
   let manual =
+    remembered ||
     stage.track === 'tutorial' ||
     (get().plan.engineCommands ?? []).some((c) => c.throttle !== undefined || c.direction);
   const showManual = () => {
@@ -902,6 +942,11 @@ export function timelinePlanner(
     'click',
     () => {
       manual = !manual;
+      try {
+        localStorage.setItem('apollo-manual-tools', String(manual));
+      } catch {
+        /* not remembered */
+      }
       showManual();
     },
     { signal },

@@ -27,6 +27,8 @@ export default defineConfig({
             // Mission briefings and first-run onboarding are covered by their own specs.
             { name: 'apollo-briefing-auto', value: 'false' },
             { name: 'apollo-first-run-v1', value: 'true' },
+            // Older specs place throttle/turn commands directly.
+            { name: 'apollo-manual-tools', value: 'true' },
           ],
         },
       ],

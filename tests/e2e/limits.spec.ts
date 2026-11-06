@@ -84,7 +84,7 @@ test('두 무제한 옵션을 저장하고 시간선을 확장하며 표시 시�
   await field('rules.maxTime').press('Tab');
   await field('rules.timelineDuration').fill('0.5');
   await field('rules.timelineDuration').press('Tab');
-  await page.getByText('표시·목표 묶음·검사 설정', { exact: true }).click();
+  await page.getByText('표시·목표 묶음', { exact: true }).click();
   await field('audit.timeLimit').fill('2');
   await field('audit.timeLimit').press('Tab');
   let draft = await page.evaluate(() => JSON.parse(localStorage.getItem('orbit-editor-draft-v2')!));

@@ -1,435 +1,438 @@
-/* Original ink-and-enamel workbench, inspired by illustrated exploration games.
+/* Legacy screen styles: layout and specifics. Looks come from src/ui/kit.css. */
+@layer legacy {
+  /* Original ink-and-enamel workbench, inspired by illustrated exploration games.
  * Static CSS grain: no licensed textures, network fonts or per-frame noise. */
-:root {
-  --ink: var(--n-850);
-  --paper: var(--p-300);
-  --gold: var(--amber-400);
-  --mint: var(--n-200);
-  color: var(--c-text);
-  background: var(--n-800);
-}
-#app {
-  background:
-    radial-gradient(
-      ellipse at 70% 0,
-      color-mix(in srgb, var(--n-400) 33%, transparent),
-      transparent 70%
-    ),
-    var(--n-800);
-}
-button {
-  border-width: 2px;
-  border-radius: var(--r-md);
-  background-image:
-    linear-gradient(#fff3 0 2px, transparent 2px),
-    radial-gradient(color-mix(in srgb, var(--p-800) 4%, transparent) 0.7px, transparent 0.8px);
-  background-size:
-    100% 100%,
-    4px 4px;
-  box-shadow:
-    0 3px 0 var(--n-900),
-    inset 0 0 0 1px #fff2;
-  letter-spacing: 0.01em;
-}
-button:active {
-  transform: translateY(2px);
-}
-.panel {
-  background-color: color-mix(in srgb, var(--n-600) 94%, transparent);
-  background-image:
-    radial-gradient(color-mix(in srgb, var(--n-100) 4%, transparent) 0.8px, transparent 0.9px),
-    linear-gradient(110deg, color-mix(in srgb, var(--n-200) 4%, transparent), transparent 55%);
-  background-size:
-    5px 5px,
-    100% 100%;
-  border-width: 3px;
-  border-radius: var(--r-md);
-  box-shadow:
-    0 5px 0 color-mix(in srgb, var(--n-900) 73%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--n-200) 33%, transparent),
-    inset 0 -2px 0 color-mix(in srgb, var(--n-900) 27%, transparent);
-  backdrop-filter: none;
-}
-dialog {
-  border-color: var(--n-850);
-}
-input:not([type='range']):not([type='checkbox']),
-select,
-textarea {
-  border: 1px solid var(--n-850);
-  border-radius: var(--r-sm);
-  background-color: var(--p-200);
-  color: var(--n-750);
-  min-height: 34px;
-  padding: 7px 9px;
-  box-shadow: inset 0 2px 2px color-mix(in srgb, var(--n-850) 13%, transparent);
-}
-input[type='checkbox'] {
-  accent-color: var(--n-200);
-  width: 17px;
-  height: 17px;
-}
-input[type='range'] {
-  accent-color: var(--p-400);
-}
-details > summary {
-  cursor: pointer;
-}
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-summary:focus-visible {
-  outline: 2px solid var(--amber-400);
-  outline-offset: 3px;
-}
-.title-menu h1 {
-  font-weight: 900;
-  letter-spacing: -0.065em;
-}
-.title-menu h1 span {
-  color: var(--amber-400);
-}
-.title-menu nav {
-  gap: 13px;
-}
-.title-planet .planet-art {
-  box-shadow:
-    inset -35px -18px #10262e44,
-    0 0 0 3px #12232c,
-    0 0 0 15px #adc5a414;
-}
-.flight-deck {
-  background-color: var(--n-600);
-  border-color: var(--n-850);
-}
-.mission-panel {
-  border-top: 4px solid var(--p-400);
-}
-.console-button {
-  border-radius: var(--r-md);
-}
-.result {
-  background: color-mix(in srgb, var(--n-700) 96%, transparent);
-}
-.landing-instrument {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid color-mix(in srgb, var(--cmd-stop) 27%, transparent);
-  display: grid;
-  grid-template-columns: 70px 1fr;
-  gap: 3px 9px;
-}
-.landing-instrument header {
-  grid-column: 1/-1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--fs-1);
-}
-.landing-instrument header small {
-  font-size: var(--fs-1);
-}
-.landing-instrument svg {
-  width: 70px;
-  height: 53px;
-}
-.landing-instrument > div {
-  display: grid;
-  align-content: center;
-  gap: 7px;
-}
-.landing-instrument label {
-  font-size: var(--fs-1);
-  color: var(--n-100);
-}
-.landing-instrument i {
-  display: block;
-  height: 4px;
-  background: var(--n-800);
-  margin-top: 4px;
-  border-radius: var(--r-sm);
-  overflow: hidden;
-}
-.landing-instrument i span {
-  display: block;
-  height: 100%;
-  background: var(--p-400);
-}
-.landing-instrument.outside i span {
-  background: var(--red-200);
-}
-.resources {
-  /* Stop above the console, whatever its height (the flight log makes it taller). */
-  max-height: calc(100dvh - var(--deck-offset, 260px) - 84px);
-  overflow-y: auto;
-}
-/* Keep the current editor's workspace dimensions above older result-dock rules. */
-.editor {
-  grid-template-columns: 230px minmax(300px, 1fr) 360px;
-  grid-template-rows: auto minmax(300px, 1fr) auto;
-  background: var(--n-800);
-}
-.editor-top {
-  background-color: var(--n-600);
-}
-.editor-top > .badge {
-  color: var(--c-text);
-  padding: 0 8px;
-}
-.editor .editor-audit {
-  grid-row: 3;
-}
-.editor-inspector {
-  background-color: var(--n-600);
-}
-.editor button {
-  letter-spacing: 0;
-}
-.rocket-part > summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--amber-200);
-}
-.rocket-part > summary small {
-  margin-left: auto;
-  font-size: var(--fs-1);
-  color: var(--n-200);
-}
-.part-swatch {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 32px;
-  background: var(--p-300);
-  border: 2px solid var(--n-850);
-  border-radius: 7px 7px 3px 3px;
-  color: var(--n-700);
-  font-weight: bold;
-}
-.rocket-part > details {
-  margin-top: 10px;
-}
-.editor .inspector-advanced > summary {
-  color: var(--n-200);
-  font-size: var(--fs-1);
-}
-@media (min-width: 681px) and (max-width: 1100px) {
-  .editor {
-    grid-template-columns: 175px minmax(230px, 1fr) 300px;
+  :root {
+    --ink: var(--n-850);
+    --paper: var(--p-300);
+    --gold: var(--amber-400);
+    --mint: var(--n-200);
+    color: var(--c-text);
+    background: var(--n-800);
   }
-}
-@media (max-width: 680px) {
-  .editor,
-  .editor:has(.marker-placement-dock:not([hidden])) {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(330px, 48dvh) 240px minmax(360px, auto) auto;
-    width: 100%;
-    overflow-y: auto;
+  #app {
+    background:
+      radial-gradient(
+        ellipse at 70% 0,
+        color-mix(in srgb, var(--n-400) 33%, transparent),
+        transparent 70%
+      ),
+      var(--n-800);
   }
-  .editor .editor-audit {
-    grid-row: 5;
+  button {
+    border-width: 2px;
+    border-radius: var(--r-md);
+    background-image:
+      linear-gradient(#fff3 0 2px, transparent 2px),
+      radial-gradient(color-mix(in srgb, var(--p-800) 4%, transparent) 0.7px, transparent 0.8px);
+    background-size:
+      100% 100%,
+      4px 4px;
+    box-shadow:
+      0 3px 0 var(--n-900),
+      inset 0 0 0 1px #fff2;
+    letter-spacing: 0.01em;
   }
-  .editor .editor-palette {
-    grid-row: 3;
-    max-height: 240px;
+  button:active {
+    transform: translateY(2px);
   }
-  .editor .editor-inspector {
-    grid-row: 4;
-    max-height: 65dvh;
+  .panel {
+    background-color: color-mix(in srgb, var(--n-600) 94%, transparent);
+    background-image:
+      radial-gradient(color-mix(in srgb, var(--n-100) 4%, transparent) 0.8px, transparent 0.9px),
+      linear-gradient(110deg, color-mix(in srgb, var(--n-200) 4%, transparent), transparent 55%);
+    background-size:
+      5px 5px,
+      100% 100%;
+    border-width: 3px;
+    border-radius: var(--r-md);
+    box-shadow:
+      0 5px 0 color-mix(in srgb, var(--n-900) 73%, transparent),
+      inset 0 1px 0 color-mix(in srgb, var(--n-200) 33%, transparent),
+      inset 0 -2px 0 color-mix(in srgb, var(--n-900) 27%, transparent);
+    backdrop-filter: none;
   }
-  .editor .editor-top button {
-    font-size: var(--fs-1);
+  dialog {
+    border-color: var(--n-850);
+  }
+  input:not([type='range']):not([type='checkbox']),
+  select,
+  textarea {
+    border: 1px solid var(--n-850);
+    border-radius: var(--r-sm);
+    background-color: var(--p-200);
+    color: var(--n-750);
+    min-height: 34px;
     padding: 7px 9px;
+    box-shadow: inset 0 2px 2px color-mix(in srgb, var(--n-850) 13%, transparent);
+  }
+  input[type='checkbox'] {
+    accent-color: var(--n-200);
+    width: 17px;
+    height: 17px;
+  }
+  input[type='range'] {
+    accent-color: var(--p-400);
+  }
+  details > summary {
+    cursor: pointer;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--amber-400);
+    outline-offset: 3px;
+  }
+  .title-menu h1 {
+    font-weight: 900;
+    letter-spacing: -0.065em;
+  }
+  .title-menu h1 span {
+    color: var(--amber-400);
+  }
+  .title-menu nav {
+    gap: 13px;
+  }
+  .title-planet .planet-art {
+    box-shadow:
+      inset -35px -18px #10262e44,
+      0 0 0 3px #12232c,
+      0 0 0 15px #adc5a414;
+  }
+  .flight-deck {
+    background-color: var(--n-600);
+    border-color: var(--n-850);
+  }
+  .mission-panel {
+    border-top: 4px solid var(--p-400);
+  }
+  .console-button {
+    border-radius: var(--r-md);
+  }
+  .result {
+    background: color-mix(in srgb, var(--n-700) 96%, transparent);
+  }
+  .landing-instrument {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid color-mix(in srgb, var(--cmd-stop) 27%, transparent);
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 3px 9px;
+  }
+  .landing-instrument header {
+    grid-column: 1/-1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--fs-1);
+  }
+  .landing-instrument header small {
+    font-size: var(--fs-1);
+  }
+  .landing-instrument svg {
+    width: 70px;
+    height: 53px;
+  }
+  .landing-instrument > div {
+    display: grid;
+    align-content: center;
+    gap: 7px;
+  }
+  .landing-instrument label {
+    font-size: var(--fs-1);
+    color: var(--n-100);
+  }
+  .landing-instrument i {
+    display: block;
+    height: 4px;
+    background: var(--n-800);
+    margin-top: 4px;
+    border-radius: var(--r-sm);
+    overflow: hidden;
+  }
+  .landing-instrument i span {
+    display: block;
+    height: 100%;
+    background: var(--p-400);
+  }
+  .landing-instrument.outside i span {
+    background: var(--red-200);
   }
   .resources {
-    max-height: 35dvh;
+    /* Stop above the console, whatever its height (the flight log makes it taller). */
+    max-height: calc(100dvh - var(--deck-offset, 260px) - 84px);
+    overflow-y: auto;
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  button {
+  /* Keep the current editor's workspace dimensions above older result-dock rules. */
+  .editor {
+    grid-template-columns: 230px minmax(300px, 1fr) 360px;
+    grid-template-rows: auto minmax(300px, 1fr) auto;
+    background: var(--n-800);
+  }
+  .editor-top {
+    background-color: var(--n-600);
+  }
+  .editor-top > .badge {
+    color: var(--c-text);
+    padding: 0 8px;
+  }
+  .editor .editor-audit {
+    grid-row: 3;
+  }
+  .editor-inspector {
+    background-color: var(--n-600);
+  }
+  .editor button {
+    letter-spacing: 0;
+  }
+  .rocket-part > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--amber-200);
+  }
+  .rocket-part > summary small {
+    margin-left: auto;
+    font-size: var(--fs-1);
+    color: var(--n-200);
+  }
+  .part-swatch {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 32px;
+    background: var(--p-300);
+    border: 2px solid var(--n-850);
+    border-radius: 7px 7px 3px 3px;
+    color: var(--n-700);
+    font-weight: bold;
+  }
+  .rocket-part > details {
+    margin-top: 10px;
+  }
+  .editor .inspector-advanced > summary {
+    color: var(--n-200);
+    font-size: var(--fs-1);
+  }
+  @media (min-width: 681px) and (max-width: 1100px) {
+    .editor {
+      grid-template-columns: 175px minmax(230px, 1fr) 300px;
+    }
+  }
+  @media (max-width: 680px) {
+    .editor,
+    .editor:has(.marker-placement-dock:not([hidden])) {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(330px, 48dvh) 240px minmax(360px, auto) auto;
+      width: 100%;
+      overflow-y: auto;
+    }
+    .editor .editor-audit {
+      grid-row: 5;
+    }
+    .editor .editor-palette {
+      grid-row: 3;
+      max-height: 240px;
+    }
+    .editor .editor-inspector {
+      grid-row: 4;
+      max-height: 65dvh;
+    }
+    .editor .editor-top button {
+      font-size: var(--fs-1);
+      padding: 7px 9px;
+    }
+    .resources {
+      max-height: 35dvh;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button {
+      transition: none;
+    }
+  }
+  .reduced-motion button {
     transition: none;
   }
-}
-.reduced-motion button {
-  transition: none;
-}
 
-/* Reading hierarchy: values and constraints remain legible while decoration
+  /* Reading hierarchy: values and constraints remain legible while decoration
  * stays on panel edges. Replay grain belongs to the scene, below all controls. */
-.mission-panel,
-.resources {
-  z-index: 2;
-  background: color-mix(in srgb, var(--n-600) 98%, transparent);
-}
-.mission-panel {
-  width: 300px;
-}
-.mission-panel .badge,
-.mission-panel .goal-row {
-  font-size: var(--fs-1);
-  line-height: 1.55;
-}
-.mission-panel h2 {
-  font-size: var(--fs-4);
-  line-height: 1.35;
-}
-.resources {
-  width: 240px;
-  padding: 15px;
-}
-.resources #mode {
-  font-size: var(--fs-2);
-}
-.resources .resource-row,
-#pad-reading,
-.calibration-label,
-.flight-readouts {
-  font-size: var(--fs-1);
-}
-.resources :is(small, .calibration-stats) {
-  font-size: var(--fs-1);
-}
-.resources :is(meter, .power-meter) {
-  min-height: 9px;
-}
-.flight-readouts {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.landing-instrument {
-  grid-template-columns: 95px minmax(0, 1fr);
-}
-.landing-instrument header {
-  font-size: var(--fs-2);
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.landing-instrument header small,
-.landing-instrument label {
-  font-size: var(--fs-1);
-}
-.landing-instrument svg {
-  width: 95px;
-  height: 74px;
-}
-.landing-instrument > div > small {
-  font-size: var(--fs-1);
-  color: var(--n-100);
-}
-.landing-instrument.outside > div > small {
-  color: var(--c-text);
-}
-.resources .load-readout {
-  margin-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--cmd-stop) 27%, transparent);
-  padding-top: 10px;
-}
-.resources .load-readout label {
-  grid-template-columns: 1fr auto;
-  font-size: var(--fs-1);
-  gap: 4px;
-}
-.load-readout meter {
-  grid-column: 1 / -1;
-  width: 100%;
-}
-.load-readout .caution {
-  color: var(--c-text);
-}
-.goal-explanation {
-  line-height: 1.6;
-}
-.result .failure-cause {
-  color: var(--c-text);
-  font-size: var(--fs-1);
-  line-height: 1.5;
-  margin: 5px 0;
-}
-.goal-explanation :is(.goal-window, .criterion-list) {
-  font-size: var(--fs-2);
-}
-.goal-explanation .criterion-list li {
-  padding: 10px 12px;
-}
-.editor {
-  font-size: var(--fs-2);
-}
-.editor :is(input, select, textarea) {
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-}
-.editor :is(label, summary, .inspector-hint, .palette-note, .inspector-section h3) {
-  font-size: var(--fs-1);
-  line-height: 1.55;
-}
-.editor :is(.palette-group > summary, #scene-list summary) {
-  font-size: var(--fs-1);
-  letter-spacing: 0;
-}
-.editor #scene-list button {
-  min-height: 36px;
-  font-size: var(--fs-1);
-}
-.editor .editor-inspector > .badge {
-  font-size: var(--fs-3);
-}
-.editor .inspector-advanced > summary {
-  font-size: var(--fs-1);
-}
-.editor :is(.editor-palette, .editor-inspector) {
-  background: var(--n-700);
-}
-.editor :is(.palette-tabs button[aria-pressed='true'], #save-stage) {
-  color: var(--n-800);
-}
-.editor .editor-inspector :is(label, p, summary, small) {
-  overflow-wrap: anywhere;
-}
-.editor :is(.inspector-hint, .palette-note) {
-  color: var(--n-100);
-}
-.editor .editor-inspector :is(button, summary) {
-  min-height: 32px;
-}
-.editor-top button {
-  min-height: 38px;
-}
-@media (max-width: 650px) {
-  .mission-panel {
-    width: calc(54% - 12px);
-    left: 8px;
-    padding: 10px;
+  .mission-panel,
+  .resources {
+    z-index: 2;
+    background: color-mix(in srgb, var(--n-600) 98%, transparent);
   }
-  .mission-panel h2 {
-    font-size: var(--fs-3);
+  .mission-panel {
+    width: 300px;
   }
   .mission-panel .badge,
   .mission-panel .goal-row {
     font-size: var(--fs-1);
+    line-height: 1.55;
+  }
+  .mission-panel h2 {
+    font-size: var(--fs-4);
+    line-height: 1.35;
   }
   .resources {
-    width: calc(46% - 12px);
-    right: 8px;
-    padding: 10px;
+    width: 240px;
+    padding: 15px;
   }
   .resources #mode {
-    font-size: var(--fs-1);
+    font-size: var(--fs-2);
   }
   .resources .resource-row,
   #pad-reading,
-  .calibration-label {
+  .calibration-label,
+  .flight-readouts {
     font-size: var(--fs-1);
+  }
+  .resources :is(small, .calibration-stats) {
+    font-size: var(--fs-1);
+  }
+  .resources :is(meter, .power-meter) {
+    min-height: 9px;
+  }
+  .flight-readouts {
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .landing-instrument {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 95px minmax(0, 1fr);
+  }
+  .landing-instrument header {
+    font-size: var(--fs-2);
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .landing-instrument header small,
+  .landing-instrument label {
+    font-size: var(--fs-1);
   }
   .landing-instrument svg {
-    justify-self: center;
+    width: 95px;
+    height: 74px;
   }
-  .editor .editor-top button {
+  .landing-instrument > div > small {
     font-size: var(--fs-1);
+    color: var(--n-100);
+  }
+  .landing-instrument.outside > div > small {
+    color: var(--c-text);
+  }
+  .resources .load-readout {
+    margin-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--cmd-stop) 27%, transparent);
+    padding-top: 10px;
+  }
+  .resources .load-readout label {
+    grid-template-columns: 1fr auto;
+    font-size: var(--fs-1);
+    gap: 4px;
+  }
+  .load-readout meter {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .load-readout .caution {
+    color: var(--c-text);
+  }
+  .goal-explanation {
+    line-height: 1.6;
+  }
+  .result .failure-cause {
+    color: var(--c-text);
+    font-size: var(--fs-1);
+    line-height: 1.5;
+    margin: 5px 0;
+  }
+  .goal-explanation :is(.goal-window, .criterion-list) {
+    font-size: var(--fs-2);
+  }
+  .goal-explanation .criterion-list li {
+    padding: 10px 12px;
+  }
+  .editor {
+    font-size: var(--fs-2);
+  }
+  .editor :is(input, select, textarea) {
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .editor :is(label, summary, .inspector-hint, .palette-note, .inspector-section h3) {
+    font-size: var(--fs-1);
+    line-height: 1.55;
+  }
+  .editor :is(.palette-group > summary, #scene-list summary) {
+    font-size: var(--fs-1);
+    letter-spacing: 0;
+  }
+  .editor #scene-list button {
+    min-height: 36px;
+    font-size: var(--fs-1);
+  }
+  .editor .editor-inspector > .badge {
+    font-size: var(--fs-3);
+  }
+  .editor .inspector-advanced > summary {
+    font-size: var(--fs-1);
+  }
+  .editor :is(.editor-palette, .editor-inspector) {
+    background: var(--n-700);
+  }
+  .editor :is(.palette-tabs button[aria-pressed='true'], #save-stage) {
+    color: var(--n-800);
+  }
+  .editor .editor-inspector :is(label, p, summary, small) {
+    overflow-wrap: anywhere;
+  }
+  .editor :is(.inspector-hint, .palette-note) {
+    color: var(--n-100);
+  }
+  .editor .editor-inspector :is(button, summary) {
+    min-height: 32px;
+  }
+  .editor-top button {
     min-height: 38px;
+  }
+  @media (max-width: 650px) {
+    .mission-panel {
+      width: calc(54% - 12px);
+      left: 8px;
+      padding: 10px;
+    }
+    .mission-panel h2 {
+      font-size: var(--fs-3);
+    }
+    .mission-panel .badge,
+    .mission-panel .goal-row {
+      font-size: var(--fs-1);
+    }
+    .resources {
+      width: calc(46% - 12px);
+      right: 8px;
+      padding: 10px;
+    }
+    .resources #mode {
+      font-size: var(--fs-1);
+    }
+    .resources .resource-row,
+    #pad-reading,
+    .calibration-label {
+      font-size: var(--fs-1);
+    }
+    .landing-instrument {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .landing-instrument svg {
+      justify-self: center;
+    }
+    .editor .editor-top button {
+      font-size: var(--fs-1);
+      min-height: 38px;
+    }
   }
 }

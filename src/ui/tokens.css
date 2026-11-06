@@ -1,3 +1,7 @@
+/* Cascade order of the game's styles: old screen sheets, the design system, then
+ * component specifics. Specificity no longer decides between them; the layer does. */
+@layer legacy, kit, components;
+
 /* Apollo design tokens: the single source of colour, type, space, shape and motion.
  * Every other stylesheet refers to these names; raw hex values belong only here.
  * See docs/design-system.md for meanings and usage rules. */

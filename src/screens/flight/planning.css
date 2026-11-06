@@ -1,506 +1,509 @@
-/* Direct timeline authoring. Values describe hardware and commands, never a solution. */
-.power-meter {
-  height: 7px;
-  background: var(--n-850);
-  border-radius: var(--r-sm);
-  overflow: hidden;
-  margin: 7px 0;
-}
-.power-meter span {
-  display: block;
-  height: 100%;
-  background: var(--amber-400);
-}
-.engine-calibration {
-  display: flex;
-  align-items: center;
-  height: 24px;
-  margin-top: 8px;
-  gap: 5px;
-}
-.engine-calibration i {
-  display: block;
-  height: 4px;
-  background: var(--green-200);
-  border-radius: var(--r-sm);
-  max-width: calc(100% - 22px);
-}
-.engine-calibration i:after {
-  content: '›';
-  float: right;
-  margin-top: -9px;
-  color: var(--green-200);
-  font-size: var(--fs-4);
-}
-.calibration-rocket {
-  transform: rotate(90deg);
-  color: var(--c-text);
-}
-.timeline-ticks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.timeline-ticks i {
-  position: absolute;
-  top: 74px;
-  font-size: var(--fs-1);
-  color: var(--n-200);
-  font-style: normal;
-  transform: translateX(-50%);
-}
-.timeline-ticks i:before {
-  content: '';
-  display: block;
-  height: 8px;
-  border-left: 1px solid color-mix(in srgb, var(--cmd-stop) 40%, transparent);
-  margin-left: 50%;
-}
-.flight-deck .timeline-track {
-  height: 98px;
-}
-.flight-deck[data-phase='plan'] .timeline-legend {
-  display: none;
-}
-.flight-deck .timeline-event span {
-  display: none;
-}
-.flight-deck #flight-scrub {
-  appearance: none;
-  opacity: 1;
-  pointer-events: auto;
-  top: 42px;
-  left: -8px;
-  right: auto;
-  width: calc(100% + 16px);
-  height: 32px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  cursor: pointer;
-  touch-action: none;
-  z-index: 1;
-}
-.flight-deck #flight-scrub::-webkit-slider-runnable-track {
-  height: 8px;
-  background: transparent;
-}
-.flight-deck #flight-scrub::-webkit-slider-thumb {
-  appearance: none;
-  height: 16px;
-  width: 16px;
-  margin-top: -4px;
-  border-radius: 50%;
-  background: var(--p-200);
-  border: 2px solid var(--n-750);
-}
-.flight-deck #flight-scrub::-moz-range-track {
-  height: 8px;
-  background: transparent;
-}
-.flight-deck #flight-scrub::-moz-range-thumb {
-  height: 12px;
-  width: 12px;
-  border-radius: 50%;
-  background: var(--p-200);
-  border: 2px solid var(--n-750);
-}
-.flight-deck #flight-scrub:focus-visible {
-  opacity: 1;
-  outline: 2px solid var(--p-300);
-  outline-offset: 2px;
-  border-radius: var(--r-md);
-}
-.flight-deck #flight-scrub:disabled {
-  pointer-events: none;
-  cursor: default;
-}
-.flight-deck #timeline-cursor:after {
-  display: none;
-}
-#timeline-placement {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--fs-1);
-  color: var(--c-text);
-  white-space: nowrap;
-}
-#timeline-time {
-  width: 76px;
-  padding: 5px;
-  background: var(--n-750);
-  color: var(--c-text);
-  border: 1px solid var(--n-300);
-  border-radius: var(--r-sm);
-  font-variant-numeric: tabular-nums;
-}
-#timeline-palette {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 4px 0 2px;
-  flex-wrap: wrap;
-}
-#timeline-palette[hidden] {
-  display: none;
-}
-#timeline-palette button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 31px;
-  padding: 4px 9px;
-  font-size: var(--fs-1);
-  color: var(--n-100);
-  background: var(--n-750);
-  border: 1px solid var(--n-300);
-  border-radius: var(--r-sm);
-  touch-action: none;
-}
-#timeline-palette svg {
-  width: 19px;
-  height: 19px;
-}
-#timeline-palette small {
-  color: var(--cmd-stop);
-  font-size: var(--fs-1);
-  margin-left: auto;
-}
-#timeline-palette button[aria-pressed='true'] {
-  border-color: var(--p-300);
-  background: var(--p-800);
-  color: var(--c-text);
-}
-#timeline-drop {
-  position: absolute;
-  top: 2px;
-  bottom: 12px;
-  z-index: 10;
-  border-left: 2px dashed var(--p-300);
-  pointer-events: none;
-}
-#timeline-drop svg {
-  width: 24px;
-  height: 24px;
-  margin-left: -12px;
-  background: var(--n-700);
-}
-#timeline-drop span {
-  position: absolute;
-  top: 30px;
-  left: 4px;
-  white-space: nowrap;
-  color: var(--c-text);
-  font-size: var(--fs-1);
-}
-.timeline-event[aria-pressed='true'] {
-  outline: 2px solid var(--amber-400);
-  z-index: 5;
-}
-#command-popover {
-  position: fixed;
-  width: 310px;
-  max-width: calc(100vw - 24px);
-  max-height: calc(100vh - var(--deck-offset, 225px) - 28px);
-  overflow: auto;
-  z-index: 12;
-  padding: 13px;
-  background: var(--n-700);
-  color: var(--n-100);
-  border: 2px solid var(--cmd-stop);
-  border-radius: var(--r-md);
-  box-shadow: 0 5px 0 color-mix(in srgb, var(--n-900) 67%, transparent);
-}
-#command-popover[hidden] {
-  display: none;
-}
-#command-popover header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-#command-popover header b {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--c-text);
-  font-size: var(--fs-2);
-}
-#command-popover svg {
-  width: 22px;
-  height: 22px;
-}
-#command-popover header button {
-  padding: 1px 8px;
-  font-size: var(--fs-3);
-  background: var(--n-750);
-  color: var(--n-100);
-  border: 1px solid var(--n-300);
-  box-shadow: none;
-}
-#command-popover fieldset {
-  border: 0;
-  padding: 0;
-  margin: 0;
-}
-#command-popover label {
-  display: block;
-  margin: 12px 0;
-  font-size: var(--fs-1);
-}
-#command-popover input[type='range'] {
-  display: block;
-  width: 100%;
-  accent-color: var(--amber-400);
-  margin: 10px 0 4px;
-  cursor: ew-resize;
-}
-#command-popover input[type='number'],
-#command-popover select {
-  background: var(--n-750);
-  color: var(--c-text);
-  border: 1px solid var(--n-300);
-  border-radius: var(--r-sm);
-  padding: 5px;
-  max-width: 100%;
-}
-#command-popover input[type='number'] {
-  width: 74px;
-}
-#command-popover output {
-  float: right;
-  font-weight: bold;
-  color: var(--c-text);
-}
-.range-ends {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-1);
-  color: var(--n-200);
-}
-#command-popover p,
-#command-popover small {
-  line-height: 1.65;
-  font-size: var(--fs-1);
-  color: var(--n-200);
-}
-#command-popover fieldset:disabled {
-  opacity: 0.65;
-}
-.popover-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: space-between;
-  margin-top: 12px;
-}
-.popover-actions button {
-  padding: 5px 8px;
-  font-size: var(--fs-1);
-  background: var(--n-500);
-  color: var(--c-text);
-  border: 1px solid var(--n-300);
-  box-shadow: none;
-}
-.popover-actions [data-remove] {
-  color: var(--c-text);
-  background: var(--p-800);
-}
-@media (max-width: 650px) {
-  #timeline-palette {
+/* Legacy screen styles: layout and specifics. Looks come from src/ui/kit.css. */
+@layer legacy {
+  /* Direct timeline authoring. Values describe hardware and commands, never a solution. */
+  .power-meter {
+    height: 7px;
+    background: var(--n-850);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    margin: 7px 0;
+  }
+  .power-meter span {
+    display: block;
+    height: 100%;
+    background: var(--amber-400);
+  }
+  .engine-calibration {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    margin-top: 8px;
     gap: 5px;
   }
-  #timeline-palette button {
-    font-size: var(--fs-1);
-    padding: 4px 7px;
+  .engine-calibration i {
+    display: block;
+    height: 4px;
+    background: var(--green-200);
+    border-radius: var(--r-sm);
+    max-width: calc(100% - 22px);
   }
-  #timeline-palette small {
-    display: none;
+  .engine-calibration i:after {
+    content: '›';
+    float: right;
+    margin-top: -9px;
+    color: var(--green-200);
+    font-size: var(--fs-4);
+  }
+  .calibration-rocket {
+    transform: rotate(90deg);
+    color: var(--c-text);
+  }
+  .timeline-ticks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .timeline-ticks i {
+    position: absolute;
+    top: 74px;
+    font-size: var(--fs-1);
+    color: var(--n-200);
+    font-style: normal;
+    transform: translateX(-50%);
+  }
+  .timeline-ticks i:before {
+    content: '';
+    display: block;
+    height: 8px;
+    border-left: 1px solid color-mix(in srgb, var(--cmd-stop) 40%, transparent);
+    margin-left: 50%;
   }
   .flight-deck .timeline-track {
-    height: 92px;
+    height: 98px;
   }
-}
+  .flight-deck[data-phase='plan'] .timeline-legend {
+    display: none;
+  }
+  .flight-deck .timeline-event span {
+    display: none;
+  }
+  .flight-deck #flight-scrub {
+    appearance: none;
+    opacity: 1;
+    pointer-events: auto;
+    top: 42px;
+    left: -8px;
+    right: auto;
+    width: calc(100% + 16px);
+    height: 32px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+    touch-action: none;
+    z-index: 1;
+  }
+  .flight-deck #flight-scrub::-webkit-slider-runnable-track {
+    height: 8px;
+    background: transparent;
+  }
+  .flight-deck #flight-scrub::-webkit-slider-thumb {
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: var(--p-200);
+    border: 2px solid var(--n-750);
+  }
+  .flight-deck #flight-scrub::-moz-range-track {
+    height: 8px;
+    background: transparent;
+  }
+  .flight-deck #flight-scrub::-moz-range-thumb {
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    background: var(--p-200);
+    border: 2px solid var(--n-750);
+  }
+  .flight-deck #flight-scrub:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--p-300);
+    outline-offset: 2px;
+    border-radius: var(--r-md);
+  }
+  .flight-deck #flight-scrub:disabled {
+    pointer-events: none;
+    cursor: default;
+  }
+  .flight-deck #timeline-cursor:after {
+    display: none;
+  }
+  #timeline-placement {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-1);
+    color: var(--c-text);
+    white-space: nowrap;
+  }
+  #timeline-time {
+    width: 76px;
+    padding: 5px;
+    background: var(--n-750);
+    color: var(--c-text);
+    border: 1px solid var(--n-300);
+    border-radius: var(--r-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  #timeline-palette {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 4px 0 2px;
+    flex-wrap: wrap;
+  }
+  #timeline-palette[hidden] {
+    display: none;
+  }
+  #timeline-palette button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 31px;
+    padding: 4px 9px;
+    font-size: var(--fs-1);
+    color: var(--n-100);
+    background: var(--n-750);
+    border: 1px solid var(--n-300);
+    border-radius: var(--r-sm);
+    touch-action: none;
+  }
+  #timeline-palette svg {
+    width: 19px;
+    height: 19px;
+  }
+  #timeline-palette small {
+    color: var(--cmd-stop);
+    font-size: var(--fs-1);
+    margin-left: auto;
+  }
+  #timeline-palette button[aria-pressed='true'] {
+    border-color: var(--p-300);
+    background: var(--p-800);
+    color: var(--c-text);
+  }
+  #timeline-drop {
+    position: absolute;
+    top: 2px;
+    bottom: 12px;
+    z-index: 10;
+    border-left: 2px dashed var(--p-300);
+    pointer-events: none;
+  }
+  #timeline-drop svg {
+    width: 24px;
+    height: 24px;
+    margin-left: -12px;
+    background: var(--n-700);
+  }
+  #timeline-drop span {
+    position: absolute;
+    top: 30px;
+    left: 4px;
+    white-space: nowrap;
+    color: var(--c-text);
+    font-size: var(--fs-1);
+  }
+  .timeline-event[aria-pressed='true'] {
+    outline: 2px solid var(--amber-400);
+    z-index: 5;
+  }
+  #command-popover {
+    position: fixed;
+    width: 310px;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - var(--deck-offset, 225px) - 28px);
+    overflow: auto;
+    z-index: 12;
+    padding: 13px;
+    background: var(--n-700);
+    color: var(--n-100);
+    border: 2px solid var(--cmd-stop);
+    border-radius: var(--r-md);
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--n-900) 67%, transparent);
+  }
+  #command-popover[hidden] {
+    display: none;
+  }
+  #command-popover header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  #command-popover header b {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--c-text);
+    font-size: var(--fs-2);
+  }
+  #command-popover svg {
+    width: 22px;
+    height: 22px;
+  }
+  #command-popover header button {
+    padding: 1px 8px;
+    font-size: var(--fs-3);
+    background: var(--n-750);
+    color: var(--n-100);
+    border: 1px solid var(--n-300);
+    box-shadow: none;
+  }
+  #command-popover fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  #command-popover label {
+    display: block;
+    margin: 12px 0;
+    font-size: var(--fs-1);
+  }
+  #command-popover input[type='range'] {
+    display: block;
+    width: 100%;
+    accent-color: var(--amber-400);
+    margin: 10px 0 4px;
+    cursor: ew-resize;
+  }
+  #command-popover input[type='number'],
+  #command-popover select {
+    background: var(--n-750);
+    color: var(--c-text);
+    border: 1px solid var(--n-300);
+    border-radius: var(--r-sm);
+    padding: 5px;
+    max-width: 100%;
+  }
+  #command-popover input[type='number'] {
+    width: 74px;
+  }
+  #command-popover output {
+    float: right;
+    font-weight: bold;
+    color: var(--c-text);
+  }
+  .range-ends {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--fs-1);
+    color: var(--n-200);
+  }
+  #command-popover p,
+  #command-popover small {
+    line-height: 1.65;
+    font-size: var(--fs-1);
+    color: var(--n-200);
+  }
+  #command-popover fieldset:disabled {
+    opacity: 0.65;
+  }
+  .popover-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: space-between;
+    margin-top: 12px;
+  }
+  .popover-actions button {
+    padding: 5px 8px;
+    font-size: var(--fs-1);
+    background: var(--n-500);
+    color: var(--c-text);
+    border: 1px solid var(--n-300);
+    box-shadow: none;
+  }
+  .popover-actions [data-remove] {
+    color: var(--c-text);
+    background: var(--p-800);
+  }
+  @media (max-width: 650px) {
+    #timeline-palette {
+      gap: 5px;
+    }
+    #timeline-palette button {
+      font-size: var(--fs-1);
+      padding: 4px 7px;
+    }
+    #timeline-palette small {
+      display: none;
+    }
+    .flight-deck .timeline-track {
+      height: 92px;
+    }
+  }
 
-.tool-count {
-  font-size: var(--fs-1);
-  color: inherit;
-}
-#timeline-selection {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--fs-1);
-  color: var(--c-text);
-}
-#timeline-selection button {
-  min-width: 28px;
-  padding: 3px 8px;
-  background: var(--red-600);
-  color: white;
-}
-#timeline-selection[hidden] {
-  display: none;
-}
+  .tool-count {
+    font-size: var(--fs-1);
+    color: inherit;
+  }
+  #timeline-selection {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--fs-1);
+    color: var(--c-text);
+  }
+  #timeline-selection button {
+    min-width: 28px;
+    padding: 3px 8px;
+    background: var(--red-600);
+    color: white;
+  }
+  #timeline-selection[hidden] {
+    display: none;
+  }
 
-#timeline-extend {
-  position: absolute;
-  right: 12px;
-  bottom: 45px;
-  padding: 3px 8px;
-  font-size: var(--fs-1);
-  background: var(--n-600);
-  color: var(--n-100);
-}
-#timeline-extend[hidden] {
-  display: none;
-}
-/* The engine band is drawn by the game theme; the workshop keeps the plain rail. */
-.timeline-burns {
-  display: none;
-}
+  #timeline-extend {
+    position: absolute;
+    right: 12px;
+    bottom: 45px;
+    padding: 3px 8px;
+    font-size: var(--fs-1);
+    background: var(--n-600);
+    color: var(--n-100);
+  }
+  #timeline-extend[hidden] {
+    display: none;
+  }
+  /* The engine band is drawn by the game theme; the workshop keeps the plain rail. */
+  .timeline-burns {
+    display: none;
+  }
 
-/* Flight log graph: past measurements on the timeline's time axis. */
-.flight-log {
-  margin: 2px 14px 4px;
-  font-size: var(--fs-1);
-  color: var(--c-text-dim);
-}
-.flight-log[hidden] {
-  display: none;
-}
-.log-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 24px;
-}
-.flight-deck .flight-log .log-metric {
-  min-height: 0;
-  height: auto;
-  min-width: 0;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 2px 8px;
-  font-size: var(--fs-1);
-  color: var(--c-text);
-  background: var(--c-sunken);
-  border: 1px solid var(--n-500);
-  border-radius: var(--r-sm);
-  box-shadow: none;
-}
-.log-metric:hover {
-  border-color: var(--c-text-dim);
-}
-.log-metric small {
-  color: var(--c-text-dim);
-  font-size: var(--fs-1);
-}
-.log-readings {
-  margin-left: auto;
-  display: flex;
-  gap: 12px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  color: var(--c-text-dim);
-}
-.log-reading {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--c-doc);
-}
-.log-reading i {
-  width: 14px;
-  border-top: 2px solid var(--c-doc);
-}
-.log-reading.previous {
-  color: var(--c-text-dim);
-}
-.log-reading.previous i {
-  border-top: 2px dashed var(--c-text-dim);
-}
-.log-plot {
-  position: relative;
-  height: 56px;
-  margin-top: 2px;
-  background: var(--c-sunken);
-  border-radius: var(--r-sm);
-  overflow: hidden;
-}
-.log-plot svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.log-band {
-  fill: color-mix(in srgb, var(--c-target) 14%, transparent);
-}
-.log-threshold {
-  stroke: var(--c-target);
-  stroke-width: 1;
-  stroke-dasharray: 4 3;
-  vector-effect: non-scaling-stroke;
-}
-.log-line {
-  fill: none;
-  stroke: var(--c-doc);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-.log-line.previous {
-  stroke: var(--c-text-dim);
-  stroke-width: 1.5;
-  stroke-dasharray: 5 4;
-}
-.log-mark {
-  position: absolute;
-  left: 6px;
-  transform: translateY(-50%);
-  padding: 0 4px;
-  color: var(--c-target);
-  font-variant-numeric: tabular-nums;
-  background: var(--c-sunken);
-  border-radius: 2px;
-  pointer-events: none;
-}
-.log-cursor {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  border-left: 1px solid var(--c-doc);
-  pointer-events: none;
-}
-@media (max-width: 720px) {
+  /* Flight log graph: past measurements on the timeline's time axis. */
   .flight-log {
-    margin: 0 10px 2px;
+    margin: 2px 14px 4px;
+    font-size: var(--fs-1);
+    color: var(--c-text-dim);
   }
-  .log-plot {
-    height: 36px;
-  }
-  .log-reading.previous {
+  .flight-log[hidden] {
     display: none;
   }
   .log-head {
-    min-height: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 24px;
   }
   .flight-deck .flight-log .log-metric {
-    padding: 1px 6px;
-    max-width: 55%;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    min-height: 0;
+    height: auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 8px;
+    font-size: var(--fs-1);
+    color: var(--c-text);
+    background: var(--c-sunken);
+    border: 1px solid var(--n-500);
+    border-radius: var(--r-sm);
+    box-shadow: none;
   }
-}
+  .log-metric:hover {
+    border-color: var(--c-text-dim);
+  }
+  .log-metric small {
+    color: var(--c-text-dim);
+    font-size: var(--fs-1);
+  }
+  .log-readings {
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--c-text-dim);
+  }
+  .log-reading {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--c-doc);
+  }
+  .log-reading i {
+    width: 14px;
+    border-top: 2px solid var(--c-doc);
+  }
+  .log-reading.previous {
+    color: var(--c-text-dim);
+  }
+  .log-reading.previous i {
+    border-top: 2px dashed var(--c-text-dim);
+  }
+  .log-plot {
+    position: relative;
+    height: 56px;
+    margin-top: 2px;
+    background: var(--c-sunken);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+  }
+  .log-plot svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .log-band {
+    fill: color-mix(in srgb, var(--c-target) 14%, transparent);
+  }
+  .log-threshold {
+    stroke: var(--c-target);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+    vector-effect: non-scaling-stroke;
+  }
+  .log-line {
+    fill: none;
+    stroke: var(--c-doc);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .log-line.previous {
+    stroke: var(--c-text-dim);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+  }
+  .log-mark {
+    position: absolute;
+    left: 6px;
+    transform: translateY(-50%);
+    padding: 0 4px;
+    color: var(--c-target);
+    font-variant-numeric: tabular-nums;
+    background: var(--c-sunken);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  .log-cursor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-left: 1px solid var(--c-doc);
+    pointer-events: none;
+  }
+  @media (max-width: 720px) {
+    .flight-log {
+      margin: 0 10px 2px;
+    }
+    .log-plot {
+      height: 36px;
+    }
+    .log-reading.previous {
+      display: none;
+    }
+    .log-head {
+      min-height: 22px;
+    }
+    .flight-deck .flight-log .log-metric {
+      padding: 1px 6px;
+      max-width: 55%;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
 
-/* Camera controls do nothing before launch; they appear with the flight. */
-.flight-deck[data-phase='plan'] :is(#follow, #vehicle) {
-  display: none;
+  /* Camera controls do nothing before launch; they appear with the flight. */
+  .flight-deck[data-phase='plan'] :is(#follow, #vehicle) {
+    display: none;
+  }
 }

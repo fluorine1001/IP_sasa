@@ -1,41 +1,44 @@
-.help-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  margin: 30px 0;
-}
-
-.help-grid article,
-.control-card {
-  padding: 22px;
-  border: 1px solid var(--edge);
-  background: var(--n-600);
-  border-radius: var(--r-lg);
-  box-shadow: 0 4px 0 var(--n-900);
-}
-
-.help-grid b {
-  font-size: var(--fs-3);
-  color: var(--c-text);
-}
-
-.help-grid p {
-  margin: 12px 0 0;
-}
-
-.control-card {
-  line-height: 2.1;
-  margin-bottom: 20px;
-}
-
-.control-card b {
-  display: inline-block;
-  width: 54px;
-  color: var(--c-text);
-}
-
-@media (max-width: 650px) {
+/* Legacy screen styles: layout and specifics. Looks come from src/ui/kit.css. */
+@layer legacy {
   .help-grid {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 30px 0;
+  }
+
+  .help-grid article,
+  .control-card {
+    padding: 22px;
+    border: 1px solid var(--edge);
+    background: var(--n-600);
+    border-radius: var(--r-lg);
+    box-shadow: 0 4px 0 var(--n-900);
+  }
+
+  .help-grid b {
+    font-size: var(--fs-3);
+    color: var(--c-text);
+  }
+
+  .help-grid p {
+    margin: 12px 0 0;
+  }
+
+  .control-card {
+    line-height: 2.1;
+    margin-bottom: 20px;
+  }
+
+  .control-card b {
+    display: inline-block;
+    width: 54px;
+    color: var(--c-text);
+  }
+
+  @media (max-width: 650px) {
+    .help-grid {
+      grid-template-columns: 1fr;
+    }
   }
 }

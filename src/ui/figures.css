@@ -1,323 +1,326 @@
-/* Figures (src/ui/figures.ts). Console surfaces by default; documents re-tint below. */
-:root {
-  --fig-track: color-mix(in srgb, var(--n-950) 55%, transparent);
-  --fig-line: var(--n-400);
-  --fig-text: var(--n-200);
-  --fig-strong: var(--c-text);
-}
+/* Legacy screen styles: layout and specifics. Looks come from src/ui/kit.css. */
+@layer legacy {
+  /* Figures (src/ui/figures.ts). Console surfaces by default; documents re-tint below. */
+  :root {
+    --fig-track: color-mix(in srgb, var(--n-950) 55%, transparent);
+    --fig-line: var(--n-400);
+    --fig-text: var(--n-200);
+    --fig-strong: var(--c-text);
+  }
 
-.fig-rocket {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
+  .fig-rocket {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
 
-/* Gauge */
-.fig-meter {
-  min-width: 0;
-}
-.fig-meter-track {
-  position: relative;
-  height: 8px;
-  margin-bottom: 18px;
-  border-radius: 4px;
-  background: var(--fig-track);
-}
-.fig-meter-track > i {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 4px;
-  background: var(--fig-line);
-}
-.fig-meter.ok .fig-meter-track > i {
-  background: var(--green-400);
-}
-.fig-meter.bad .fig-meter-track > i {
-  background: var(--red-400);
-}
-.fig-meter.info .fig-meter-track > i {
-  background: var(--sky-400);
-}
-.fig-meter.plan .fig-meter-track > i {
-  background: var(--amber-400);
-}
-.fig-mark {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--fig-strong);
-}
-.fig-mark-label {
-  position: absolute;
-  top: 14px;
-  transform: translateX(-50%);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-medium);
-  color: var(--fig-text);
-  white-space: nowrap;
-}
-.fig-mark-label {
-  pointer-events: none;
-}
+  /* Gauge */
+  .fig-meter {
+    min-width: 0;
+  }
+  .fig-meter-track {
+    position: relative;
+    height: 8px;
+    margin-bottom: 18px;
+    border-radius: 4px;
+    background: var(--fig-track);
+  }
+  .fig-meter-track > i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 4px;
+    background: var(--fig-line);
+  }
+  .fig-meter.ok .fig-meter-track > i {
+    background: var(--green-400);
+  }
+  .fig-meter.bad .fig-meter-track > i {
+    background: var(--red-400);
+  }
+  .fig-meter.info .fig-meter-track > i {
+    background: var(--sky-400);
+  }
+  .fig-meter.plan .fig-meter-track > i {
+    background: var(--amber-400);
+  }
+  .fig-mark {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--fig-strong);
+  }
+  .fig-mark-label {
+    position: absolute;
+    top: 14px;
+    transform: translateX(-50%);
+    font-size: var(--fs-1);
+    font-weight: var(--fw-medium);
+    color: var(--fig-text);
+    white-space: nowrap;
+  }
+  .fig-mark-label {
+    pointer-events: none;
+  }
 
-/* Allowance pips */
-.fig-pips {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  vertical-align: middle;
-}
-.fig-pip {
-  width: 18px;
-  height: 18px;
-  stroke-width: 1.4;
-}
-.fig-pip.on {
-  fill: var(--cmd-ignite);
-  stroke: none;
-}
-.fig-pip.off {
-  fill: none;
-  stroke: var(--fig-line);
-}
-.fig-pips b {
-  margin-left: 2px;
-  font-size: var(--fs-1);
-}
+  /* Allowance pips */
+  .fig-pips {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    vertical-align: middle;
+  }
+  .fig-pip {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.4;
+  }
+  .fig-pip.on {
+    fill: var(--cmd-ignite);
+    stroke: none;
+  }
+  .fig-pip.off {
+    fill: none;
+    stroke: var(--fig-line);
+  }
+  .fig-pips b {
+    margin-left: 2px;
+    font-size: var(--fs-1);
+  }
 
-/* Medal: flat line insignia */
-.fig-medal {
-  --medal: var(--yellow-400);
-  flex: none;
-}
-.fig-medal.budget {
-  --medal: var(--sky-400);
-}
-.fig-medal.clean {
-  --medal: var(--green-400);
-}
-.fig-medal circle:first-child {
-  fill: color-mix(in srgb, var(--medal) 16%, transparent);
-  stroke: var(--medal);
-  stroke-width: 1.6;
-}
-.fig-medal .ring {
-  fill: none;
-  stroke: var(--medal);
-  stroke-width: 0.8;
-  opacity: 0.6;
-}
-.fig-medal .picto {
-  stroke: var(--medal);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.fig-medal.off circle:first-child {
-  fill: none;
-  stroke: var(--fig-line);
-  stroke-dasharray: 3 3;
-}
-.fig-medal.off .ring {
-  display: none;
-}
-.fig-medal.off .picto {
-  stroke: var(--fig-line);
-}
+  /* Medal: flat line insignia */
+  .fig-medal {
+    --medal: var(--yellow-400);
+    flex: none;
+  }
+  .fig-medal.budget {
+    --medal: var(--sky-400);
+  }
+  .fig-medal.clean {
+    --medal: var(--green-400);
+  }
+  .fig-medal circle:first-child {
+    fill: color-mix(in srgb, var(--medal) 16%, transparent);
+    stroke: var(--medal);
+    stroke-width: 1.6;
+  }
+  .fig-medal .ring {
+    fill: none;
+    stroke: var(--medal);
+    stroke-width: 0.8;
+    opacity: 0.6;
+  }
+  .fig-medal .picto {
+    stroke: var(--medal);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .fig-medal.off circle:first-child {
+    fill: none;
+    stroke: var(--fig-line);
+    stroke-dasharray: 3 3;
+  }
+  .fig-medal.off .ring {
+    display: none;
+  }
+  .fig-medal.off .picto {
+    stroke: var(--fig-line);
+  }
 
-/* Orbit sketch */
-.fig-orbit {
-  flex: none;
-}
-.fig-orbit .path {
-  fill: none;
-  stroke: var(--sky-400);
-  stroke-width: 1.6;
-  stroke-dasharray: 4 3;
-}
-.fig-orbit .path.bad {
-  stroke: var(--red-400);
-}
-.fig-orbit .ground {
-  stroke: var(--n-950);
-  stroke-width: 1;
-}
-.fig-orbit .peri,
-.fig-orbit .apo {
-  fill: var(--fig-strong);
-}
-.fig-orbit .craft {
-  fill: var(--amber-400);
-  stroke: var(--n-950);
-  stroke-width: 1.5;
-}
+  /* Orbit sketch */
+  .fig-orbit {
+    flex: none;
+  }
+  .fig-orbit .path {
+    fill: none;
+    stroke: var(--sky-400);
+    stroke-width: 1.6;
+    stroke-dasharray: 4 3;
+  }
+  .fig-orbit .path.bad {
+    stroke: var(--red-400);
+  }
+  .fig-orbit .ground {
+    stroke: var(--n-950);
+    stroke-width: 1;
+  }
+  .fig-orbit .peri,
+  .fig-orbit .apo {
+    fill: var(--fig-strong);
+  }
+  .fig-orbit .craft {
+    fill: var(--amber-400);
+    stroke: var(--n-950);
+    stroke-width: 1.5;
+  }
 
-/* Miss */
-.fig-miss .axis {
-  stroke: var(--fig-line);
-  stroke-width: 1;
-  stroke-dasharray: 2 3;
-}
-.fig-miss .lab {
-  font-size: var(--fs-1);
-  fill: var(--fig-text);
-}
-.fig-miss .target {
-  fill: color-mix(in srgb, var(--yellow-400) 30%, transparent);
-  stroke: var(--yellow-600);
-  stroke-width: 1.5;
-}
-.fig-miss .gap {
-  stroke: var(--red-400);
-  stroke-width: 1.5;
-}
-.fig-miss .craft {
-  fill: var(--amber-400);
-  stroke: var(--n-950);
-  stroke-width: 1.5;
-}
+  /* Miss */
+  .fig-miss .axis {
+    stroke: var(--fig-line);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+  }
+  .fig-miss .lab {
+    font-size: var(--fs-1);
+    fill: var(--fig-text);
+  }
+  .fig-miss .target {
+    fill: color-mix(in srgb, var(--yellow-400) 30%, transparent);
+    stroke: var(--yellow-600);
+    stroke-width: 1.5;
+  }
+  .fig-miss .gap {
+    stroke: var(--red-400);
+    stroke-width: 1.5;
+  }
+  .fig-miss .craft {
+    fill: var(--amber-400);
+    stroke: var(--n-950);
+    stroke-width: 1.5;
+  }
 
-/* Number beside a figure */
-.fig-stat {
-  display: grid;
-  gap: 1px;
-}
-.fig-stat span {
-  font-size: var(--fs-1);
-  color: var(--fig-text);
-}
-.fig-stat b {
-  font-size: var(--fs-3);
-  font-weight: var(--fw-heavy);
-  color: var(--fig-strong);
-  font-variant-numeric: tabular-nums;
-}
-.fig-stat b small {
-  margin-left: 3px;
-  font-size: var(--fs-1);
-  font-weight: var(--fw-medium);
-  color: var(--fig-text);
-}
+  /* Number beside a figure */
+  .fig-stat {
+    display: grid;
+    gap: 1px;
+  }
+  .fig-stat span {
+    font-size: var(--fs-1);
+    color: var(--fig-text);
+  }
+  .fig-stat b {
+    font-size: var(--fs-3);
+    font-weight: var(--fw-heavy);
+    color: var(--fig-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .fig-stat b small {
+    margin-left: 3px;
+    font-size: var(--fs-1);
+    font-weight: var(--fw-medium);
+    color: var(--fig-text);
+  }
 
-/* ---------- Goal gauges (src/screens/flight/goal-gauges.ts) ---------- */
-.goal-gauges {
-  display: grid;
-  gap: 8px;
-  margin: 6px 0 2px;
-}
-.gg-row {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  grid-template-areas:
-    'icon label target'
-    'track track track';
-  align-items: center;
-  column-gap: 6px;
-  row-gap: 4px;
-}
-.gg-hold,
-.gg-event {
-  grid-template-areas:
-    'icon label target'
-    'track track track';
-}
-.gg-icon {
-  grid-area: icon;
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  color: var(--n-200);
-}
-.gg-label {
-  grid-area: label;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--fs-1);
-  font-weight: var(--fw-bold);
-  color: var(--c-text);
-}
-.gg-target {
-  grid-area: target;
-  font-size: var(--fs-1);
-  font-weight: var(--fw-heavy);
-  color: var(--yellow-400);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.gg-target small {
-  display: inline;
-  margin-left: 3px;
-  color: var(--n-200);
-  font-weight: var(--fw-bold);
-}
-.gg-event b {
-  grid-area: target;
-  color: var(--green-400);
-  font-size: var(--fs-3);
-}
-.gg-track {
-  grid-area: track;
-  position: relative;
-  height: 12px;
-  border-radius: 6px;
-  background: var(--panel-sunk);
-  border: 2px solid var(--panel-edge);
-}
-.gg-zone {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--yellow-400) 70%, transparent);
-}
-.gg-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 3px;
-  background: var(--green-400);
-}
-.gg-needle {
-  position: absolute;
-  top: -6px;
-  bottom: -6px;
-  width: 4px;
-  margin-left: -2px;
-  border-radius: 2px;
-  background: var(--red-400);
-  box-shadow: 0 0 0 2px var(--panel-edge);
-}
-.gg-needle.ok {
-  background: var(--green-400);
-}
-.gg-needle span {
-  position: absolute;
-  bottom: calc(100% + 2px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0 4px;
-  border-radius: 4px;
-  background: var(--panel-edge);
-  color: var(--c-text);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-heavy);
-  line-height: 1.3;
-  white-space: nowrap;
-}
-.goal-row .gg-needle span {
-  display: none;
-}
-.goal-row .goal-gauges {
-  grid-column: 1 / -1;
-}
-.gg-event {
-  grid-template-areas: 'icon label target';
-}
-.gg-event:not(.ok) .gg-label {
-  color: var(--c-text);
+  /* ---------- Goal gauges (src/screens/flight/goal-gauges.ts) ---------- */
+  .goal-gauges {
+    display: grid;
+    gap: 8px;
+    margin: 6px 0 2px;
+  }
+  .gg-row {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'icon label target'
+      'track track track';
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 4px;
+  }
+  .gg-hold,
+  .gg-event {
+    grid-template-areas:
+      'icon label target'
+      'track track track';
+  }
+  .gg-icon {
+    grid-area: icon;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color: var(--n-200);
+  }
+  .gg-label {
+    grid-area: label;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--fs-1);
+    font-weight: var(--fw-bold);
+    color: var(--c-text);
+  }
+  .gg-target {
+    grid-area: target;
+    font-size: var(--fs-1);
+    font-weight: var(--fw-heavy);
+    color: var(--yellow-400);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .gg-target small {
+    display: inline;
+    margin-left: 3px;
+    color: var(--n-200);
+    font-weight: var(--fw-bold);
+  }
+  .gg-event b {
+    grid-area: target;
+    color: var(--green-400);
+    font-size: var(--fs-3);
+  }
+  .gg-track {
+    grid-area: track;
+    position: relative;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--panel-sunk);
+    border: 2px solid var(--panel-edge);
+  }
+  .gg-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--yellow-400) 70%, transparent);
+  }
+  .gg-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 3px;
+    background: var(--green-400);
+  }
+  .gg-needle {
+    position: absolute;
+    top: -6px;
+    bottom: -6px;
+    width: 4px;
+    margin-left: -2px;
+    border-radius: 2px;
+    background: var(--red-400);
+    box-shadow: 0 0 0 2px var(--panel-edge);
+  }
+  .gg-needle.ok {
+    background: var(--green-400);
+  }
+  .gg-needle span {
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--panel-edge);
+    color: var(--c-text);
+    font-size: var(--fs-1);
+    font-weight: var(--fw-heavy);
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .goal-row .gg-needle span {
+    display: none;
+  }
+  .goal-row .goal-gauges {
+    grid-column: 1 / -1;
+  }
+  .gg-event {
+    grid-template-areas: 'icon label target';
+  }
+  .gg-event:not(.ok) .gg-label {
+    color: var(--c-text);
+  }
 }

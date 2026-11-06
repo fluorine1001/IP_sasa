@@ -1,56 +1,59 @@
-.tutorial-hub .muted {
-  max-width: 760px;
-}
+/* Legacy screen styles: layout and specifics. Looks come from src/ui/kit.css. */
+@layer legacy {
+  .tutorial-hub .muted {
+    max-width: 760px;
+  }
 
-.tutorial-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 740px;
-  gap: 16px;
-  margin: 28px 0;
-}
-
-.tutorial-card {
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  gap: 6px 14px;
-  text-align: left;
-  padding: 20px;
-  color: var(--c-text);
-  background: var(--n-700);
-  border: 2px solid var(--n-400);
-  border-radius: var(--r-lg);
-  box-shadow: 0 4px 0 var(--n-900);
-  cursor: pointer;
-}
-
-.tutorial-card:hover,
-.tutorial-card:focus-visible {
-  border-color: var(--p-300);
-  transform: translateY(-2px);
-}
-
-.tutorial-card.done {
-  border-color: var(--cmd-turn);
-}
-
-.tutorial-number {
-  grid-row: span 3;
-  font-size: var(--fs-5);
-  color: var(--c-text);
-}
-
-.tutorial-card strong {
-  font-size: var(--fs-3);
-}
-
-.tutorial-card span:not(.tutorial-number),
-.tutorial-card small {
-  color: var(--n-100);
-}
-
-@media (max-width: 650px) {
   .tutorial-grid {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 740px;
+    gap: 16px;
+    margin: 28px 0;
+  }
+
+  .tutorial-card {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 6px 14px;
+    text-align: left;
+    padding: 20px;
+    color: var(--c-text);
+    background: var(--n-700);
+    border: 2px solid var(--n-400);
+    border-radius: var(--r-lg);
+    box-shadow: 0 4px 0 var(--n-900);
+    cursor: pointer;
+  }
+
+  .tutorial-card:hover,
+  .tutorial-card:focus-visible {
+    border-color: var(--p-300);
+    transform: translateY(-2px);
+  }
+
+  .tutorial-card.done {
+    border-color: var(--cmd-turn);
+  }
+
+  .tutorial-number {
+    grid-row: span 3;
+    font-size: var(--fs-5);
+    color: var(--c-text);
+  }
+
+  .tutorial-card strong {
+    font-size: var(--fs-3);
+  }
+
+  .tutorial-card span:not(.tutorial-number),
+  .tutorial-card small {
+    color: var(--n-100);
+  }
+
+  @media (max-width: 650px) {
+    .tutorial-grid {
+      grid-template-columns: 1fr;
+    }
   }
 }

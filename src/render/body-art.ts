@@ -1,215 +1,256 @@
-/* Celestial bodies in the game's illustrated style (Oxygen Not Included reference):
- * a dark ink outline, a lit-from-upper-left gradient, a crescent shadow, surface
- * features seeded by the body id (craters for rock, bands for gas, a corona for
- * stars), and a thin rim light. Drawn at the body's true radius. */
+/* Celestial bodies, painted with the hand-made kit (src/render/ink.ts): a wobbly ink
+ * outline, flat colour fields, a flat shadow crescent, seeded surface features and a
+ * worn grain. Drawn at the body's true radius, centred on the origin. */
 import type { Body } from '../world/types';
+import { PAL, blob, earthy, glow, grime, ink, inkWidth, seeded, shade, wobblyCircle } from './ink';
 
-function hex(c: string) {
-  const m = c.replace('#', '');
-  const v = m.length === 3 ? m.replace(/./g, (x) => x + x) : m.slice(0, 6);
-  const n = parseInt(v, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-/** Mix toward white (t > 0) or black (t < 0). */
-export function shade(c: string, t: number) {
-  const [r, g, b] = hex(c);
-  const k = (x: number) => Math.round(t >= 0 ? x + (255 - x) * t : x * (1 + t));
-  return `rgb(${k(r)},${k(g)},${k(b)})`;
-}
-function seeded(id: string) {
-  let h = 2166136261;
-  for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-  return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 10000) / 10000;
-}
+export { shade };
 
 /** Blue-green planets with air read as ocean worlds. */
 function earthlike(b: Body) {
-  if (b.kind !== 'planet' || !b.atmosphere || !(b.atmosphere.density > 0)) return false;
-  const [r, g, bl] = hex(b.color || '#000');
+  if (b.kind !== 'planet') return false;
+  if (/지구|earth/i.test(b.name)) return true;
+  if (!b.atmosphere || !(b.atmosphere.density > 0)) return false;
+  const m = (b.color || '#000').replace('#', '');
+  const n = parseInt(m.length === 3 ? m.replace(/./g, (x) => x + x) : m.slice(0, 6), 16);
+  const r = (n >> 16) & 255,
+    g = (n >> 8) & 255,
+    bl = n & 255;
   return g >= r && bl >= r * 0.8;
+}
+/** Gas giants: big, light-coloured planets without a hard surface feel. */
+function gassy(b: Body) {
+  return (
+    b.kind === 'planet' && !earthlike(b) && b.radius >= 0.35 && (b.atmosphere?.density ?? 0) > 0
+  );
+}
+
+/** Flat shadow crescent on the lower right, and a painted highlight on the upper left. */
+function lightAndShadow(ctx: CanvasRenderingContext2D, r: number, base: string) {
+  ctx.save();
+  ctx.fillStyle = shade(base, -0.42);
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.rect(-r * 1.2, -r * 1.2, r * 2.4, r * 2.4);
+  ctx.arc(-r * 0.2, -r * 0.24, r * 1.02, 0, Math.PI * 2, true);
+  ctx.fill('evenodd');
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = '#fff6e0';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1.2, r * 0.035);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.84, Math.PI * 1.12, Math.PI * 1.3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.84, Math.PI * 1.36, Math.PI * 1.41);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function oceanWorld(ctx: CanvasRenderingContext2D, r: number, rand: () => number, line: number) {
+  ctx.fillStyle = PAL.water;
+  ctx.fillRect(-r, -r, 2 * r, 2 * r);
+  // Shallows: a lighter band of water around each continent.
+  const lands = Array.from({ length: 4 }, () => ({
+    x: (rand() * 1.4 - 0.7) * r,
+    y: (rand() * 1.1 - 0.55) * r,
+    rx: r * (0.22 + rand() * 0.2),
+    ry: r * (0.16 + rand() * 0.16),
+    s: rand() * 1e6,
+  }));
+  for (const l of lands) {
+    const k = seeded(l.s);
+    ctx.fillStyle = shade(PAL.water, 0.22);
+    blob(ctx, l.x, l.y, l.rx * 1.25, l.ry * 1.3, k);
+    ctx.fill();
+  }
+  for (const l of lands) {
+    const k = seeded(l.s);
+    ctx.fillStyle = PAL.sand;
+    blob(ctx, l.x, l.y, l.rx * 1.06, l.ry * 1.08, k);
+    ctx.fill();
+    const k2 = seeded(l.s);
+    ctx.fillStyle = PAL.moss;
+    blob(ctx, l.x, l.y, l.rx, l.ry, k2);
+    ctx.fill();
+    ink(ctx, line * 0.6, PAL.mossDark);
+    // Forest patches and a ridge line, like ONI's painted biome blocks.
+    ctx.fillStyle = PAL.mossDark;
+    blob(ctx, l.x + l.rx * 0.2, l.y + l.ry * 0.15, l.rx * 0.4, l.ry * 0.35, seeded(l.s + 1));
+    ctx.fill();
+  }
+  // Ice caps.
+  ctx.fillStyle = PAL.ice;
+  blob(ctx, 0, -r * 0.98, r * 0.62, r * 0.24, seeded(rand()), 8, 0.35);
+  ctx.fill();
+  ink(ctx, line * 0.5, '#9fbfc6');
+  blob(ctx, 0, r * 1.0, r * 0.5, r * 0.2, seeded(rand()), 8, 0.35);
+  ctx.fill();
+  ink(ctx, line * 0.5, '#9fbfc6');
+  // Clouds: small puffy clusters, cream with an ink under-edge.
+  for (let i = 0; i < 4; i++) {
+    const cx = (rand() * 1.3 - 0.65) * r,
+      cy = (rand() * 1.3 - 0.65) * r,
+      k = r * (0.05 + rand() * 0.04);
+    const balls = [
+      [0, 0, 1],
+      [-1.3, 0.3, 0.75],
+      [1.3, 0.3, 0.8],
+      [0.6, -0.5, 0.7],
+    ];
+    ctx.fillStyle = 'rgba(43,32,26,.35)';
+    for (const [dx, dy, q] of balls) {
+      ctx.beginPath();
+      ctx.arc(cx + dx * k, cy + dy * k + k * 0.25, q * k * 1.12, 0, 7);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#f7f1e2';
+    for (const [dx, dy, q] of balls) {
+      ctx.beginPath();
+      ctx.arc(cx + dx * k, cy + dy * k, q * k, 0, 7);
+      ctx.fill();
+    }
+  }
+}
+
+function rockWorld(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  base: string,
+  rand: () => number,
+  line: number,
+) {
+  ctx.fillStyle = base;
+  ctx.fillRect(-r, -r, 2 * r, 2 * r);
+  // Strata: soft wavy bands of a darker and a lighter tone.
+  for (let i = 0; i < 4; i++) {
+    const y = (-0.7 + i * 0.45 + rand() * 0.1) * r,
+      h = r * (0.1 + rand() * 0.1);
+    ctx.fillStyle = shade(base, i % 2 ? 0.1 : -0.12);
+    ctx.beginPath();
+    ctx.moveTo(-r, y);
+    for (let x = -r; x <= r; x += r / 6)
+      ctx.lineTo(x, y + Math.sin((x / r) * 4 + i * 2 + rand()) * r * 0.04);
+    for (let x = r; x >= -r; x -= r / 6)
+      ctx.lineTo(x, y + h + Math.sin((x / r) * 3 + i) * r * 0.04);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Craters: a flat dark bowl with a lighter lower lip and an ink rim.
+  for (let i = 0; i < 5; i++) {
+    const cx = (rand() * 1.5 - 0.75) * r,
+      cy = (rand() * 1.5 - 0.75) * r,
+      cr = r * (0.07 + rand() * 0.12);
+    if (Math.hypot(cx, cy) + cr > r * 0.92) continue;
+    ctx.fillStyle = shade(base, -0.28);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, cr, cr * 0.8, 0, 0, 7);
+    ctx.fill();
+    ctx.fillStyle = shade(base, 0.22);
+    ctx.beginPath();
+    ctx.ellipse(cx + cr * 0.15, cy + cr * 0.35, cr * 0.8, cr * 0.35, 0, 0, Math.PI);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, cr, cr * 0.8, 0, 0, 7);
+    ink(ctx, line * 0.55, shade(base, -0.55));
+  }
+  // Boulders.
+  for (let i = 0; i < 6; i++) {
+    const bx = (rand() * 1.6 - 0.8) * r,
+      by = (rand() * 1.6 - 0.8) * r,
+      br = r * (0.025 + rand() * 0.03);
+    ctx.fillStyle = shade(base, -0.18);
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, 7);
+    ctx.fill();
+  }
+}
+
+function gasWorld(ctx: CanvasRenderingContext2D, r: number, base: string, rand: () => number) {
+  ctx.fillStyle = base;
+  ctx.fillRect(-r, -r, 2 * r, 2 * r);
+  for (let i = 0; i < 7; i++) {
+    const y = (-0.9 + i * 0.28) * r,
+      h = r * (0.08 + rand() * 0.08);
+    ctx.fillStyle = shade(base, i % 2 ? -0.16 : 0.14);
+    ctx.beginPath();
+    ctx.moveTo(-r, y);
+    for (let x = -r; x <= r; x += r / 8) ctx.lineTo(x, y + Math.sin((x / r) * 5 + i) * r * 0.03);
+    for (let x = r; x >= -r; x -= r / 8)
+      ctx.lineTo(x, y + h + Math.sin((x / r) * 4 + i * 1.7) * r * 0.03);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // The storm.
+  ctx.fillStyle = shade(base, -0.25);
+  ctx.beginPath();
+  ctx.ellipse(r * 0.25, r * 0.3, r * 0.18, r * 0.1, 0, 0, 7);
+  ctx.fill();
+}
+
+function star(ctx: CanvasRenderingContext2D, r: number, base: string, b: Body, line: number) {
+  const warm = earthy(base, 0.15);
+  glow(ctx, 0, 0, r * 2.4, 'rgba(255,200,90,.35)');
+  // Flame petals around the rim, flat and outlined.
+  const rand = seeded(b.id + 'petal');
+  const n = 14;
+  ctx.beginPath();
+  for (let i = 0; i <= n * 2; i++) {
+    const a = (i / (n * 2)) * Math.PI * 2;
+    const q = i % 2 ? r * 1.04 : r * (1.22 + rand() * 0.12);
+    const x = Math.cos(a) * q,
+      y = Math.sin(a) * q;
+    if (i) ctx.lineTo(x, y);
+    else ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = PAL.ochre;
+  ctx.fill();
+  ink(ctx, line, PAL.rustDark);
+  wobblyCircle(ctx, 0, 0, r, b.id);
+  ctx.fillStyle = warm;
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = PAL.ochreLight;
+  wobblyCircle(ctx, -r * 0.12, -r * 0.14, r * 0.72, b.id + 'core', 0.05);
+  ctx.fill();
+  grime(ctx, r, PAL.ochreLight, b.id, 0.6);
+  ctx.restore();
+  wobblyCircle(ctx, 0, 0, r, b.id);
+  ink(ctx, line, PAL.rustDark);
 }
 
 export function paintBody(ctx: CanvasRenderingContext2D, b: Body, r: number) {
-  const ink = '#14172a';
+  const line = inkWidth(r * 2);
   if (b.kind === 'black-hole') {
-    const g = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 1.6);
-    g.addColorStop(0, '#000000');
-    g.addColorStop(0.62, '#000000');
-    g.addColorStop(0.7, '#5b2a7a88');
-    g.addColorStop(1, '#5b2a7a00');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.6, 0, 7);
+    glow(ctx, 0, 0, r * 1.8, 'rgba(123,90,166,.45)');
+    wobblyCircle(ctx, 0, 0, r, b.id);
+    ctx.fillStyle = '#0b0912';
     ctx.fill();
-    ctx.lineWidth = Math.max(2, r * 0.06);
-    ctx.strokeStyle = '#c9a0ff';
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, 7);
-    ctx.stroke();
+    ink(ctx, Math.max(2, line), PAL.violet);
     return;
   }
-  const base = b.color || '#7f9fa0';
-  if (b.kind === 'star') {
-    const corona = ctx.createRadialGradient(0, 0, r * 0.8, 0, 0, r * 2.2);
-    corona.addColorStop(0, shade(base, 0.2) + '');
-    corona.addColorStop(0.35, base.length === 7 ? base + '55' : base);
-    corona.addColorStop(1, '#00000000');
-    ctx.fillStyle = corona;
+  const base = earthy(b.color || '#8a8f80');
+  if (b.kind === 'star') return star(ctx, r, base, b, line);
+  if (r < 5) {
     ctx.beginPath();
-    ctx.arc(0, 0, r * 2.2, 0, 7);
+    ctx.arc(0, 0, Math.max(1.5, r), 0, 7);
+    ctx.fillStyle = base;
     ctx.fill();
+    ink(ctx, 1);
+    return;
   }
-  // Body: lit from the upper left.
-  const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r * 1.05);
-  g.addColorStop(0, shade(base, b.kind === 'star' ? 0.55 : 0.28));
-  g.addColorStop(0.6, base);
-  g.addColorStop(1, shade(base, b.kind === 'star' ? -0.05 : -0.35));
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, 7);
-  ctx.fill();
-  if (r > 6) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, 7);
-    ctx.clip();
-    const rand = seeded(b.id);
-    if (b.kind === 'star') {
-      // Granulation: soft lighter cells.
-      ctx.fillStyle = shade(base, 0.35);
-      ctx.globalAlpha = 0.25;
-      for (let i = 0; i < 14; i++) {
-        ctx.beginPath();
-        ctx.arc((rand() * 2 - 1) * r, (rand() * 2 - 1) * r, r * (0.08 + rand() * 0.12), 0, 7);
-        ctx.fill();
-      }
-    } else if (earthlike(b)) {
-      // Ocean world: deep water, continents in the body colour, ice caps and clouds.
-      const sea = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r);
-      sea.addColorStop(0, '#5fb0e8');
-      sea.addColorStop(1, '#245d9e');
-      ctx.fillStyle = sea;
-      ctx.fillRect(-r, -r, 2 * r, 2 * r);
-      const land = '#6cc35a';
-      for (let i = 0; i < 4; i++) {
-        const cx = (rand() * 1.4 - 0.7) * r,
-          cy = (rand() * 1.2 - 0.6) * r;
-        ctx.fillStyle = land;
-        ctx.strokeStyle = '#2f6b3a';
-        ctx.lineWidth = Math.max(1, r * 0.02);
-        const n = 8,
-          rr = r * (0.2 + rand() * 0.18);
-        const pts = Array.from({ length: n }, (_, k) => {
-          const a = (k / n) * Math.PI * 2,
-            q = rr * (0.65 + 0.6 * rand());
-          return [cx + Math.cos(a) * q, cy + Math.sin(a) * q * 0.85];
-        });
-        ctx.beginPath();
-        // Smooth closed curve through the midpoints.
-        const mid = (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        const m0 = mid(pts[n - 1], pts[0]);
-        ctx.moveTo(m0[0], m0[1]);
-        for (let k = 0; k < n; k++) {
-          const m = mid(pts[k], pts[(k + 1) % n]);
-          ctx.quadraticCurveTo(pts[k][0], pts[k][1], m[0], m[1]);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = shade(land, 0.22);
-        ctx.beginPath();
-        ctx.ellipse(cx - rr * 0.15, cy - rr * 0.2, rr * 0.4, rr * 0.22, rand() * 3, 0, 7);
-        ctx.fill();
-      }
-      ctx.fillStyle = '#f2f7ff';
-      for (const y of [-r, r]) {
-        ctx.beginPath();
-        ctx.ellipse(0, y, r * 0.55, r * 0.2, 0, 0, 7);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = '#ffffff';
-      for (let i = 0; i < 6; i++) {
-        const cx = (rand() * 1.6 - 0.8) * r,
-          cy = (rand() * 1.6 - 0.8) * r;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, r * (0.18 + rand() * 0.18), r * 0.05, -0.25, 0, 7);
-        ctx.ellipse(cx + r * 0.08, cy + r * 0.06, r * (0.12 + rand() * 0.1), r * 0.04, -0.25, 0, 7);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    } else if (r > 14 && b.radius > 0.7 && b.kind === 'planet' && rand() < 0.35) {
-      // Gas-giant bands.
-      ctx.globalAlpha = 0.28;
-      for (let i = -3; i <= 3; i++) {
-        ctx.fillStyle = i % 2 ? shade(base, -0.25) : shade(base, 0.2);
-        ctx.fillRect(-r, (i / 3.5) * r - r * 0.07, 2 * r, r * (0.1 + rand() * 0.08));
-      }
-    } else {
-      // Rock: craters with a dark floor and a lit lower rim, plus a few mare patches.
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = shade(base, -0.4);
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.ellipse(
-          (rand() * 1.4 - 0.7) * r,
-          (rand() * 1.4 - 0.7) * r,
-          r * (0.25 + rand() * 0.2),
-          r * (0.15 + rand() * 0.12),
-          rand() * 3,
-          0,
-          7,
-        );
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      const craters = Math.min(9, 3 + Math.floor(r / 25));
-      for (let i = 0; i < craters; i++) {
-        const cx = (rand() * 1.6 - 0.8) * r,
-          cy = (rand() * 1.6 - 0.8) * r,
-          cr = r * (0.05 + rand() * 0.09);
-        if (Math.hypot(cx, cy) + cr > r * 0.95) continue;
-        ctx.fillStyle = shade(base, -0.28);
-        ctx.beginPath();
-        ctx.arc(cx, cy, cr, 0, 7);
-        ctx.fill();
-        ctx.strokeStyle = shade(base, 0.3);
-        ctx.lineWidth = Math.max(1, cr * 0.25);
-        ctx.beginPath();
-        ctx.arc(cx, cy, cr, 0.2, Math.PI - 0.2);
-        ctx.stroke();
-      }
-    }
-    // Night side: a crescent shadow toward the lower right.
-    if (b.kind !== 'star') {
-      const night = ctx.createRadialGradient(
-        -r * 0.35,
-        -r * 0.35,
-        r * 0.75,
-        -r * 0.35,
-        -r * 0.35,
-        r * 1.75,
-      );
-      night.addColorStop(0, '#0a0d2400');
-      night.addColorStop(0.55, '#0a0d2455');
-      night.addColorStop(1, '#0a0d24aa');
-      ctx.fillStyle = night;
-      ctx.fillRect(-r, -r, 2 * r, 2 * r);
-    }
-    ctx.restore();
-  }
-  // Rim light and ink outline.
-  ctx.globalAlpha = 1;
-  if (r > 8 && b.kind !== 'star') {
-    ctx.strokeStyle = shade(base, 0.55);
-    ctx.lineWidth = Math.max(1.5, r * 0.025);
-    ctx.beginPath();
-    ctx.arc(0, 0, r - ctx.lineWidth, Math.PI * 1.05, Math.PI * 1.55);
-    ctx.stroke();
-  }
-  ctx.strokeStyle = ink;
-  ctx.lineWidth = Math.max(2, Math.min(4, r * 0.05));
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, 7);
-  ctx.stroke();
+  ctx.save();
+  wobblyCircle(ctx, 0, 0, r, b.id, 0.012);
+  ctx.clip();
+  const rand = seeded(b.id);
+  if (earthlike(b)) oceanWorld(ctx, r, rand, line);
+  else if (gassy(b)) gasWorld(ctx, r, base, rand);
+  else rockWorld(ctx, r, base, rand, line);
+  grime(ctx, r, earthlike(b) ? PAL.water : base, b.id, 0.8);
+  lightAndShadow(ctx, r, earthlike(b) ? PAL.waterDark : base);
+  ctx.restore();
+  wobblyCircle(ctx, 0, 0, r, b.id, 0.012);
+  ink(ctx, line);
 }

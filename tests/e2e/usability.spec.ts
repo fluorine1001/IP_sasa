@@ -115,7 +115,8 @@ test('예약 삭제는 표식 위 팝업에 있고 출력·방향은 그림으�
   expect((await page.locator('.direction-dial svg').boundingBox())!.width).toBeGreaterThan(150);
   await expect(page.locator('[data-direction]')).toHaveCount(0);
   const dial = (await page.locator('.direction-dial svg').boundingBox())!;
-  await page.mouse.click(dial.x + dial.width * 0.8, dial.y + dial.height * 0.8);
+  // Equal screen offsets right and down from the dial's centre: 45° below the right.
+  await page.mouse.click(dial.x + dial.width / 2 + 40, dial.y + dial.height / 2 + 40);
   await expect(page.locator('[data-edit="angle"]')).toHaveValue('-45');
   await expect(page.locator('.dial-pointer')).toHaveAttribute('transform', 'rotate(135 90 90)');
   await page.screenshot({ path: 'test-results/screens/visual-direction-control.png' });

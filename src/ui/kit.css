@@ -1,0 +1,246 @@
+/* ==========================================================================
+   Game design system: the look of every surface and control, defined once.
+   Screens give elements a ROLE (by being a <button>, an <input>, or by being listed
+   in a role's member list below); they do not style looks themselves. To add a new
+   panel, add its selector to the Surface list; a new primary action to the Primary
+   list. Component specifics (layout, a stamp's colour) live in system.css, layout in
+   the screen sheets (layer: legacy). Art direction: hand-made mission control, after
+   Oxygen Not Included's ink-and-paint: dark ink outlines, flat fields with a worn
+   grain, a chunky lip under anything pressable, earthy accents.
+   ========================================================================== */
+@layer kit {
+  body.game-ui {
+    /* Roles' colours. Everything else derives from these. */
+    --k-ink: #14172a;
+    --k-surface: #525d7c;
+    --k-raised: #66729a;
+    --k-sunk: #3a4362;
+    --k-head: #2b2950;
+    --k-text: #f6f3ff;
+    --k-dim: #d3d6ec;
+    --k-accent: #f2b13a;
+    --k-accent-ink: #2a1c05;
+    --k-select: #c93a72;
+    --k-good: #6fcf6a;
+    --k-bad: #ef6c5d;
+    --k-r-panel: 12px;
+    --k-r-ctl: 8px;
+    --k-line: 2px;
+    --k-lip: 0 3px 0 var(--k-ink);
+    --k-drop: 0 4px 0 #0b0d1a, 0 14px 28px #0007;
+    /* Worn paint: a faint hand-made grain over flat fields (no gloss, no gradients). */
+    --k-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .85 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    color: var(--k-text);
+  }
+
+  /* ---- Surface: every panel, sheet, dialog and popover ---- */
+  body.game-ui
+    :is(
+      .panel,
+      .mission-panel,
+      .resources,
+      .flight-deck,
+      #training-panel,
+      #program-editor,
+      #command-popover,
+      #notebook,
+      #result,
+      .result,
+      dialog,
+      .ui-dialog,
+      .menu-sheet,
+      .settings-group,
+      .title-console,
+      .campaign-header,
+      .control-card,
+      .help-grid > *
+    ) {
+    background-color: var(--k-surface);
+    background-image: var(--k-grain);
+    color: var(--k-text);
+    border: var(--k-line) solid var(--k-ink);
+    border-radius: var(--k-r-panel);
+    box-shadow: var(--k-drop);
+  }
+
+  /* ---- Head strip: the title band at the top of a surface ---- */
+  body.game-ui
+    :is(
+      .mission-panel h2,
+      .briefing-head,
+      #training-handle,
+      #command-popover > header,
+      .program-title,
+      .archive-heading,
+      .settings-group > h2,
+      dialog > h2,
+      .ui-dialog > h2
+    ) {
+    margin: 0;
+    padding: 10px 14px;
+    background: var(--k-head);
+    color: var(--k-text);
+    border-bottom: var(--k-line) solid var(--k-ink);
+    border-radius: calc(var(--k-r-panel) - 2px) calc(var(--k-r-panel) - 2px) 0 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+
+  /* ---- Headings and text ---- */
+  body.game-ui :is(h1, h2, h3, .ui-h2, .ui-h3, .title-main) {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--k-text);
+  }
+  body.game-ui :is(small, .ui-dim) {
+    font-size: var(--fs-1);
+    color: var(--k-dim);
+  }
+  body.game-ui :is(.ui-eyebrow, .eyebrow) {
+    color: var(--k-accent);
+    font-weight: 800;
+  }
+
+  /* ---- Button: one shape for everything pressable ---- */
+  body.game-ui
+    :where(button):not(.timeline-event, .stage-card, .tutorial-card, .chain-link, [data-raw]) {
+    min-height: 36px;
+    padding: 0 14px;
+    background: var(--k-raised);
+    color: var(--k-text);
+    border: var(--k-line) solid var(--k-ink);
+    border-radius: var(--k-r-ctl);
+    box-shadow: var(--k-lip);
+    font: 700 var(--fs-2) / 1.1 var(--font-body, inherit);
+    cursor: pointer;
+    transition:
+      transform 0.06s,
+      box-shadow 0.06s,
+      filter 0.12s;
+  }
+  body.game-ui :where(button):not(:disabled, .timeline-event, .stage-card, .tutorial-card):hover {
+    filter: brightness(1.1);
+  }
+  body.game-ui :where(button):not(:disabled, .timeline-event, .stage-card, .tutorial-card):active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--k-ink);
+  }
+  /* Primary: the one action a screen is about. */
+  body.game-ui
+    :is(
+      #launch,
+      #start,
+      #continue,
+      .primary,
+      .launch-command,
+      #training-next,
+      .result-actions .primary,
+      [data-primary]
+    ) {
+    background: var(--k-accent);
+    color: var(--k-accent-ink);
+  }
+  /* Selected: a pressed toggle, the current item, an open menu. */
+  body.game-ui
+    :is(
+      button[aria-pressed='true'],
+      button[aria-current='true'],
+      button[aria-selected='true'],
+      .manual-toggle[aria-expanded='true']
+    ) {
+    background: var(--k-select);
+    color: #fff;
+  }
+  /* Quiet: close, back, secondary links. */
+  body.game-ui :is(button.quiet, button[data-close], .archive-close, #goal-close, .arm-switch) {
+    background: transparent;
+    box-shadow: none;
+    border-color: color-mix(in srgb, var(--k-dim) 55%, transparent);
+  }
+  body.game-ui button:disabled {
+    opacity: 0.45;
+    box-shadow: none;
+    cursor: default;
+    filter: saturate(0.6);
+  }
+  body.game-ui button:focus-visible,
+  body.game-ui :is(input, select, textarea):focus-visible {
+    outline: 3px solid var(--k-accent);
+    outline-offset: 2px;
+  }
+
+  /* ---- Row: an item inside a surface (cards, list entries, tiles) ---- */
+  body.game-ui
+    :is(
+      .stage-card,
+      .tutorial-card,
+      .trial-card,
+      .training-checklist li > button,
+      .briefing-section,
+      .body-card,
+      .craft-cell,
+      .telemetry-tile,
+      .chain-anchor,
+      .orbit-calc,
+      .goal-gauges,
+      .result-miss,
+      .setting
+    ) {
+    background-color: var(--k-sunk);
+    background-image: var(--k-grain);
+    color: var(--k-text);
+    border: var(--k-line) solid color-mix(in srgb, var(--k-ink) 70%, transparent);
+    border-radius: var(--k-r-ctl);
+    box-shadow: none;
+  }
+  body.game-ui :is(.stage-card, .tutorial-card) {
+    box-shadow: var(--k-lip);
+    cursor: pointer;
+  }
+  body.game-ui
+    :is(.stage-card, .tutorial-card, .training-checklist li > button):not(:disabled):hover {
+    filter: brightness(1.12);
+  }
+  body.game-ui
+    :is(
+      .stage-card.recommended,
+      .training-checklist li > button[aria-current='true'],
+      .trial-card.active,
+      .trial-card[aria-current='true']
+    ) {
+    border-color: var(--k-select);
+    background-color: var(--k-sunk);
+    color: var(--k-text);
+  }
+
+  /* ---- Field: anything typed or chosen ---- */
+  body.game-ui :is(input[type='number'], input[type='text'], input:not([type]), select, textarea) {
+    min-height: 34px;
+    padding: 0 8px;
+    background: var(--k-sunk);
+    color: var(--k-text);
+    border: var(--k-line) solid var(--k-ink);
+    border-radius: 6px;
+    font: 700 var(--fs-2) var(--font-body, inherit);
+  }
+  body.game-ui input[type='range'] {
+    accent-color: var(--k-accent);
+  }
+
+  /* ---- Chip: a short label or count ---- */
+  body.game-ui :is(.ui-chip, .badge, .stage-tags > *, kbd, .tool-count) {
+    border-radius: 999px;
+    border: var(--k-line) solid var(--k-ink);
+    background: var(--k-head);
+    color: var(--k-text);
+    font-weight: 800;
+  }
+
+  /* ---- Disclosure ---- */
+  body.game-ui summary {
+    cursor: pointer;
+    font-weight: 800;
+    color: var(--k-dim);
+  }
+}

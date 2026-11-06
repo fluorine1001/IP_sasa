@@ -1,590 +1,464 @@
-/* Materials: the last word on how surfaces, controls and labels look in the game.
- * docs/design-system.md — 계기(instrument glass), 문서(document), 조작(controls).
- * Loaded after every other game stylesheet; selectors are `body.game-ui …` so they
- * win over the older theme layers without !important. */
+@layer components {
+  /* Component specifics on top of the design system (src/ui/kit.css): result stamp,
+ * briefing goals, calculator panel, chains, dials. Generic looks never go here. */
 
-/* ---------- Policy: no outlined or shadowed lettering anywhere ---------- */
-body.game-ui,
-body.game-ui * {
-  text-shadow: none;
-}
+  /* ---------- Policy: no outlined or shadowed lettering anywhere ---------- */
+  body.game-ui,
+  body.game-ui * {
+    text-shadow: none;
+  }
 
-/* ---------- Panels: one material (Oxygen Not Included reference) ---------- */
-body.game-ui .panel,
-body.game-ui .chapter-card,
-body.game-ui .settings-row,
-body.game-ui .help-grid article,
-body.game-ui .control-card,
-body.game-ui .program-editor.panel,
-body.game-ui #command-popover,
-body.game-ui .result,
-body.game-ui dialog.mission-goals,
-body.game-ui #notebook {
-  background: var(--panel);
-  background-image: none;
-  color: var(--c-text);
-  border: 2px solid var(--panel-edge);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-inset), var(--sh-3);
-  backdrop-filter: none;
-}
-body.game-ui .stage-card {
-  background: var(--panel);
-  background-image: none;
-  color: var(--c-text);
-  border: 2px solid var(--panel-edge);
-  border-radius: var(--r-md);
-  box-shadow: var(--sh-inset), var(--sh-2);
-}
-body.game-ui #notebook .trial-card {
-  background: var(--panel-raised);
-  border: 2px solid var(--panel-edge);
-  border-radius: var(--r-md);
-  box-shadow: var(--sh-inset);
-}
+  /* Generic surfaces, headings, buttons and fields: src/ui/kit.css. */
+  body.game-ui #timeline-mode {
+    border: 2px solid var(--panel-edge);
+    background: var(--panel-sunk);
+  }
 
-/* Headings: the rounded display face, white, never decorated. */
-body.game-ui h1,
-body.game-ui h2,
-body.game-ui .ui-h1,
-body.game-ui .ui-h2,
-body.game-ui .result-stamp,
-body.game-ui .title-main {
-  font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: 0;
-}
-body.game-ui h3,
-body.game-ui .ui-h3 {
-  font-weight: var(--fw-heavy);
-}
+  /* ---------- Result ---------- */
+  body.game-ui .result-stamp {
+    display: block;
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+    font-size: var(--fs-6);
+    line-height: 1.05;
+  }
+  body.game-ui .result-stamp.good {
+    color: var(--green-400);
+  }
+  body.game-ui .result-stamp.bad {
+    color: var(--red-400);
+  }
+  body.game-ui .result-stamp.neutral {
+    color: var(--n-200);
+  }
+  body.game-ui .result-medals {
+    gap: 14px;
+  }
+  body.game-ui .medal {
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 6px;
+    font-weight: var(--fw-bold);
+  }
+  body.game-ui .medal i {
+    display: none;
+  }
+  body.game-ui .medal.off {
+    opacity: 0.5;
+  }
 
-/* Section labels: amber, bold, plain. */
-body.game-ui .mission-panel .badge,
-body.game-ui .resources #mode,
-body.game-ui .eyebrow,
-body.game-ui .ui-eyebrow {
-  padding: 0;
-  background: none;
-  border: 0;
-  box-shadow: none;
-  transform: none;
-  color: var(--amber-400);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-heavy);
-  letter-spacing: 0.02em;
-}
+  /* ---------- Title ---------- */
+  body.game-ui .title-art {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+  body.game-ui .title-art svg {
+    width: 100%;
+    height: 100%;
+  }
+  body.game-ui .title-menu {
+    margin-left: clamp(20px, 9vw, 160px);
+    padding-top: clamp(48px, 16vh, 180px);
+    width: min(380px, calc(100vw - 40px));
+  }
+  body.game-ui .title-menu .game-title {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 40px;
+  }
+  body.game-ui .title-menu .title-main {
+    font-size: clamp(64px, 8vw, 112px);
+    font-weight: 400;
+    line-height: 0.95;
+    color: var(--c-text);
+  }
+  body.game-ui .title-menu .title-sub {
+    font-size: var(--fs-4);
+    font-weight: var(--fw-bold);
+    color: var(--amber-400);
+  }
+  body.game-ui .title-console {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+    padding: 18px;
+  }
+  body.game-ui .title-console button {
+    min-height: 52px;
+    padding: 0 18px;
+    font-size: var(--fs-3);
+    text-align: left;
+  }
+  body.game-ui .title-console button.primary {
+    min-height: 64px;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--fs-5);
+  }
+  body.game-ui .title-console .button-pair {
+    gap: 10px;
+  }
+  body.game-ui .title-console .title-quiet {
+    gap: 10px;
+    margin-top: 4px;
+  }
+  body.game-ui .title-console .title-quiet button,
+  body.game-ui .title-console .quiet {
+    min-height: 42px;
+    font-size: var(--fs-2);
+    background-color: var(--panel-sunk) !important;
+    color: var(--c-text) !important;
+  }
 
-/* ---------- Buttons: chunky, rounded, a visible lip ---------- */
-body.game-ui button,
-body.game-ui .ui-btn {
-  border: 2px solid var(--panel-edge);
-  border-radius: var(--r-md);
-  background-color: var(--n-600);
-  background-image: none;
-  color: var(--c-text);
-  box-shadow: var(--bevel);
-  font-weight: var(--fw-heavy);
-  transition:
-    background-color var(--t-fast),
-    transform 60ms;
-}
-body.game-ui button:not(:disabled):hover,
-body.game-ui .ui-btn:not(:disabled):hover {
-  background-color: var(--n-500);
-}
-body.game-ui button:not(:disabled):active,
-body.game-ui .ui-btn:not(:disabled):active {
-  transform: translateY(1px);
-  box-shadow: inset 0 2px 0 #0003;
-}
-body.game-ui button:disabled {
-  box-shadow: none;
-  opacity: 0.45;
-}
-body.game-ui .console-button {
-  background-color: var(--n-600);
-  color: var(--c-text);
-}
-body.game-ui .console-button[aria-pressed='true'],
-body.game-ui .console-button.active,
-body.game-ui button[aria-pressed='true'] {
-  background-color: var(--pink-400);
-  border-color: var(--panel-edge);
-  color: var(--c-text);
-}
-body.game-ui button.primary,
-body.game-ui .ui-btn.primary,
-body.game-ui .launch-command {
-  background-image: none;
-  background-color: var(--amber-400);
-  border-color: var(--panel-edge);
-  color: var(--n-950);
-}
-body.game-ui button.primary:not(:disabled):hover,
-body.game-ui .ui-btn.primary:not(:disabled):hover,
-body.game-ui .launch-command:not(:disabled):hover {
-  background-color: var(--amber-200);
-}
-body.game-ui .mission-exit,
-body.game-ui .archive-close {
-  background-color: var(--n-600);
-  color: var(--c-text);
-}
-body.game-ui kbd {
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  opacity: 0.85;
-}
-body.game-ui #timeline-mode {
-  border: 2px solid var(--panel-edge);
-  background: var(--panel-sunk);
-}
-
-/* ---------- Result ---------- */
-body.game-ui .result-stamp {
-  display: block;
-  margin: 0 0 8px;
-  padding: 0;
-  border: 0;
-  font-size: var(--fs-6);
-  line-height: 1.05;
-}
-body.game-ui .result-stamp.good {
-  color: var(--green-400);
-}
-body.game-ui .result-stamp.bad {
-  color: var(--red-400);
-}
-body.game-ui .result-stamp.neutral {
-  color: var(--n-200);
-}
-body.game-ui .result-medals {
-  gap: 14px;
-}
-body.game-ui .medal {
-  grid-auto-flow: column;
-  align-items: center;
-  gap: 6px;
-  font-weight: var(--fw-bold);
-}
-body.game-ui .medal i {
-  display: none;
-}
-body.game-ui .medal.off {
-  opacity: 0.5;
-}
-
-/* ---------- Title ---------- */
-body.game-ui .title-art {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-body.game-ui .title-art svg {
-  width: 100%;
-  height: 100%;
-}
-body.game-ui .title-menu {
-  margin-left: clamp(20px, 9vw, 160px);
-  padding-top: clamp(48px, 16vh, 180px);
-  width: min(380px, calc(100vw - 40px));
-}
-body.game-ui .title-menu .game-title {
-  display: grid;
-  gap: 10px;
-  margin: 0 0 40px;
-}
-body.game-ui .title-menu .title-main {
-  font-size: clamp(64px, 8vw, 112px);
-  font-weight: 400;
-  line-height: 0.95;
-  color: var(--c-text);
-}
-body.game-ui .title-menu .title-sub {
-  font-size: var(--fs-4);
-  font-weight: var(--fw-bold);
-  color: var(--amber-400);
-}
-body.game-ui .title-console {
-  display: grid;
-  gap: 10px;
-  width: 100%;
-  padding: 18px;
-}
-body.game-ui .title-console button {
-  min-height: 52px;
-  padding: 0 18px;
-  font-size: var(--fs-3);
-  text-align: left;
-}
-body.game-ui .title-console button.primary {
-  min-height: 64px;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: var(--fs-5);
-}
-body.game-ui .title-console .button-pair {
-  gap: 10px;
-}
-body.game-ui .title-console .title-quiet {
-  gap: 10px;
-  margin-top: 4px;
-}
-body.game-ui .title-console .title-quiet button,
-body.game-ui .title-console .quiet {
-  min-height: 42px;
-  font-size: var(--fs-2);
-  background-color: var(--panel-sunk) !important;
-  color: var(--c-text) !important;
-}
-
-/* ---------- Briefing goals: the real map beside the words ---------- */
-body.game-ui dialog.mission-goals .goal-mode {
-  border-radius: var(--r-sm);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--p-900) 25%, transparent);
-  color: var(--p-900);
-}
-body.game-ui dialog.mission-goals .goal-explanation {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: var(--sp-4);
-  padding: var(--sp-3);
-  box-shadow: none;
-  border-color: color-mix(in srgb, var(--p-900) 14%, transparent);
-}
-body.game-ui dialog.mission-goals .goal-thumb {
-  width: 220px;
-  height: 160px;
-  border-radius: var(--r-sm);
-  background: var(--n-900);
-}
-body.game-ui dialog.mission-goals .goal-text {
-  min-width: 0;
-}
-@media (max-width: 620px) {
+  /* ---------- Briefing goals: the real map beside the words ---------- */
+  body.game-ui dialog.mission-goals .goal-mode {
+    border-radius: var(--r-sm);
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--p-900) 25%, transparent);
+    color: var(--p-900);
+  }
   body.game-ui dialog.mission-goals .goal-explanation {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: var(--sp-4);
+    padding: var(--sp-3);
+    box-shadow: none;
+    border-color: color-mix(in srgb, var(--p-900) 14%, transparent);
   }
   body.game-ui dialog.mission-goals .goal-thumb {
-    width: 100%;
+    width: 220px;
+    height: 160px;
+    border-radius: var(--r-sm);
+    background: var(--n-900);
   }
-}
+  body.game-ui dialog.mission-goals .goal-text {
+    min-width: 0;
+  }
+  @media (max-width: 620px) {
+    body.game-ui dialog.mission-goals .goal-explanation {
+      grid-template-columns: 1fr;
+    }
+    body.game-ui dialog.mission-goals .goal-thumb {
+      width: 100%;
+    }
+  }
 
-/* ---------- Result: where it missed, and the change to revisit ---------- */
-body.game-ui .result-miss {
-  display: flex;
-  gap: var(--sp-3);
-  align-items: center;
-  margin: 4px 0 10px;
-  padding: var(--sp-2);
-  border-radius: var(--r-sm);
-  background: var(--n-850);
-  color: var(--c-text);
-  --fig-track: color-mix(in srgb, var(--n-950) 55%, transparent);
-  --fig-line: var(--n-400);
-  --fig-text: var(--n-300);
-  --fig-strong: var(--c-text);
-}
-body.game-ui .result-miss-text {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-body.game-ui .result-miss-text span {
-  font-size: var(--fs-1);
-  color: var(--n-200);
-}
-body.game-ui .result-miss-text b {
-  font-size: var(--fs-4);
-  font-weight: var(--fw-heavy);
-  color: var(--red-200);
-}
-body.game-ui .result-miss-text button {
-  justify-self: start;
-  min-height: 34px;
-  padding: 0 12px;
-}
+  /* ---------- Result: where it missed, and the change to revisit ---------- */
+  body.game-ui .result-miss {
+    display: flex;
+    gap: var(--sp-3);
+    align-items: center;
+    margin: 4px 0 10px;
+    padding: var(--sp-2);
+    border-radius: var(--r-sm);
+    background: var(--n-850);
+    color: var(--c-text);
+    --fig-track: color-mix(in srgb, var(--n-950) 55%, transparent);
+    --fig-line: var(--n-400);
+    --fig-text: var(--n-300);
+    --fig-strong: var(--c-text);
+  }
+  body.game-ui .result-miss-text {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  body.game-ui .result-miss-text span {
+    font-size: var(--fs-1);
+    color: var(--n-200);
+  }
+  body.game-ui .result-miss-text b {
+    font-size: var(--fs-4);
+    font-weight: var(--fw-heavy);
+    color: var(--red-200);
+  }
+  body.game-ui .result-miss-text button {
+    justify-self: start;
+    min-height: 34px;
+    padding: 0 12px;
+  }
 
-/* ---------- Orbit calculator panel ---------- */
-body.game-ui .orbit-calc .orbit-figure {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-}
-body.game-ui .orbit-calc .fig-orbit {
-  flex: none;
-  width: 88px;
-  height: 88px;
-}
-body.game-ui .orbit-calc .orbit-rows {
-  display: grid;
-  flex: 1;
-  gap: 4px;
-}
-body.game-ui .orbit-calc .orbit-row {
-  display: flex;
-  justify-content: space-between;
-}
-body.game-ui .orbit-calc .orbit-speed {
-  display: grid;
-  gap: 4px;
-}
-body.game-ui .orbit-calc .orbit-speed > span {
-  display: block;
-  font-size: var(--fs-1);
-  line-height: 1.4;
-}
-body.game-ui .result-miss .fig-miss {
-  flex: none;
-  width: 88px;
-  height: 88px;
-}
+  /* ---------- Orbit calculator panel ---------- */
+  body.game-ui .orbit-calc .orbit-figure {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+  body.game-ui .orbit-calc .fig-orbit {
+    flex: none;
+    width: 88px;
+    height: 88px;
+  }
+  body.game-ui .orbit-calc .orbit-rows {
+    display: grid;
+    flex: 1;
+    gap: 4px;
+  }
+  body.game-ui .orbit-calc .orbit-row {
+    display: flex;
+    justify-content: space-between;
+  }
+  body.game-ui .orbit-calc .orbit-speed {
+    display: grid;
+    gap: 4px;
+  }
+  body.game-ui .orbit-calc .orbit-speed > span {
+    display: block;
+    font-size: var(--fs-1);
+    line-height: 1.4;
+  }
+  body.game-ui .result-miss .fig-miss {
+    flex: none;
+    width: 88px;
+    height: 88px;
+  }
 
-/* ---------- Type floor: nothing under --fs-1 (15px), small print included ---------- */
-body.game-ui small {
-  font-size: var(--fs-1);
-}
-body.game-ui .result #result-close {
-  position: relative;
-  z-index: 2;
-}
-body.game-ui .result .result-stamp {
-  margin-right: 48px;
-}
+  /* ---------- Type floor: nothing under --fs-1 (15px), small print included ---------- */
+  body.game-ui small {
+    font-size: var(--fs-1);
+  }
+  body.game-ui .result #result-close {
+    position: relative;
+    z-index: 2;
+  }
+  body.game-ui .result .result-stamp {
+    margin-right: 48px;
+  }
 
-/* ---------- Header strips (ONI): a dark indigo title band on every panel ---------- */
-body.game-ui .mission-panel h2 {
-  margin: -14px -16px 12px;
-  padding: 12px 16px 10px;
-  border-bottom: 2px solid var(--panel-edge);
-  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
-  background: var(--panel-head);
-  color: var(--c-text);
-  font-size: var(--fs-4);
-}
-body.game-ui .resources #vehicle-map:not(:empty)::before,
-body.game-ui .resources #initial-output:not([hidden])::before,
-body.game-ui .resources #flight-readouts:not(:empty)::before {
-  margin: 0 -14px 10px;
-  padding: 6px 14px;
-  background: var(--panel-head);
-  border-top: 2px solid var(--panel-edge);
-  border-bottom: 2px solid var(--panel-edge);
-  color: var(--amber-400);
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: var(--fs-2);
-  letter-spacing: 0;
-}
-body.game-ui .resources > :first-child::before,
-body.game-ui .resources #flight-readouts:not(:empty)::before {
-  margin-top: -12px;
-  border-top: 0;
-  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
-}
-body.game-ui dialog.mission-goals .briefing-head {
-  background: var(--panel-head);
-  border-bottom: 2px solid var(--panel-edge);
-}
-body.game-ui dialog.mission-goals .briefing-section h3 {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: var(--fs-4);
-  color: var(--amber-400);
-}
-body.game-ui #notebook .archive-heading {
-  margin: -13px -13px 12px -34px;
-  padding: 10px 13px 10px 34px;
-  background: var(--panel-head);
-  border-bottom: 2px solid var(--panel-edge);
-  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
-}
-body.game-ui .result .result-stamp {
-  margin: -12px 0 10px -12px;
-  padding: 10px 12px;
-  width: calc(100% + 24px);
-  box-sizing: border-box;
-  background: var(--panel-head);
-  border-bottom: 2px solid var(--panel-edge);
-  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
-}
+  /* ---------- Header strips (ONI): a dark indigo title band on every panel ---------- */
+  body.game-ui .mission-panel h2 {
+    margin: -14px -16px 12px;
+    padding: 12px 16px 10px;
+    border-bottom: 2px solid var(--panel-edge);
+    border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+    background: var(--panel-head);
+    color: var(--c-text);
+    font-size: var(--fs-4);
+  }
+  body.game-ui .resources #vehicle-map:not(:empty)::before,
+  body.game-ui .resources #initial-output:not([hidden])::before,
+  body.game-ui .resources #flight-readouts:not(:empty)::before {
+    margin: 0 -14px 10px;
+    padding: 6px 14px;
+    background: var(--panel-head);
+    border-top: 2px solid var(--panel-edge);
+    border-bottom: 2px solid var(--panel-edge);
+    color: var(--amber-400);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--fs-2);
+    letter-spacing: 0;
+  }
+  body.game-ui .resources > :first-child::before,
+  body.game-ui .resources #flight-readouts:not(:empty)::before {
+    margin-top: -12px;
+    border-top: 0;
+    border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+  }
+  body.game-ui dialog.mission-goals .briefing-head {
+    background: var(--panel-head);
+    border-bottom: 2px solid var(--panel-edge);
+  }
+  body.game-ui dialog.mission-goals .briefing-section h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--fs-4);
+    color: var(--amber-400);
+  }
+  body.game-ui #notebook .archive-heading {
+    margin: -13px -13px 12px -34px;
+    padding: 10px 13px 10px 34px;
+    background: var(--panel-head);
+    border-bottom: 2px solid var(--panel-edge);
+    border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+  }
+  body.game-ui .result .result-stamp {
+    margin: -12px 0 10px -12px;
+    padding: 10px 12px;
+    width: calc(100% + 24px);
+    box-sizing: border-box;
+    background: var(--panel-head);
+    border-bottom: 2px solid var(--panel-edge);
+    border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+  }
 
-/* ---------- Form controls (game and workshop) ---------- */
-body.game-ui input:not([type='checkbox']):not([type='radio']):not([type='range']),
-body.game-ui select,
-body.game-ui textarea {
-  min-height: 38px;
-  padding: 6px 10px;
-  border: 2px solid var(--panel-edge);
-  border-radius: var(--r-sm);
-  background: var(--panel-sunk);
-  color: var(--c-text);
-  font: inherit;
-  font-size: var(--fs-2);
-  font-weight: var(--fw-bold);
-  box-shadow: inset 0 2px 0 #0003;
-}
-body.game-ui input::placeholder,
-body.game-ui textarea::placeholder {
-  color: var(--n-200);
-  opacity: 0.85;
-}
-body.game-ui input:focus-visible,
-body.game-ui select:focus-visible,
-body.game-ui textarea:focus-visible {
-  outline: 3px solid var(--amber-400);
-  outline-offset: 1px;
-}
-body.game-ui input[type='checkbox'] {
-  flex: none;
-  margin-inline: 8px;
-  vertical-align: middle;
-}
-body.game-ui input[type='range'] {
-  accent-color: var(--amber-400);
-}
-body.game-ui input[type='checkbox'] {
-  appearance: none;
-  position: relative;
-  box-sizing: border-box;
-  width: 44px;
-  min-width: 44px;
-  height: 24px;
-  padding: 0;
-  border: 2px solid var(--panel-edge);
-  border-radius: 999px;
-  background: var(--panel-sunk);
-  cursor: pointer;
-}
-body.game-ui input[type='checkbox']::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--n-200);
-  transition: transform 120ms;
-}
-body.game-ui input[type='checkbox']:checked {
-  background: var(--green-600);
-}
-body.game-ui input[type='checkbox']:checked::before {
-  transform: translateX(20px);
-  background: var(--c-text);
-}
-body.game-ui .result-miss .miss-pair {
-  display: grid;
-  grid-template-columns: 3.2em auto auto 1fr;
-  align-items: baseline;
-  gap: 8px;
-}
-body.game-ui .result-miss .miss-pair span {
-  color: var(--n-200);
-  font-weight: var(--fw-bold);
-}
-body.game-ui .result-miss .miss-pair b {
-  font-size: var(--fs-4);
-  font-weight: var(--fw-heavy);
-  color: var(--c-text);
-}
-body.game-ui .result-miss .miss-pair i {
-  font-style: normal;
-  font-weight: var(--fw-bold);
-  color: var(--yellow-400);
-}
-body.game-ui .result-miss .miss-pair small {
-  color: var(--n-200);
-}
+  /* ---------- Form controls (game and workshop) ---------- */
+  body.game-ui input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  body.game-ui select,
+  body.game-ui textarea {
+    min-height: 38px;
+    padding: 6px 10px;
+    border: 2px solid var(--panel-edge);
+    border-radius: var(--r-sm);
+    background: var(--panel-sunk);
+    color: var(--c-text);
+    font: inherit;
+    font-size: var(--fs-2);
+    font-weight: var(--fw-bold);
+    box-shadow: inset 0 2px 0 #0003;
+  }
+  body.game-ui input::placeholder,
+  body.game-ui textarea::placeholder {
+    color: var(--n-200);
+    opacity: 0.85;
+  }
+  body.game-ui input:focus-visible,
+  body.game-ui select:focus-visible,
+  body.game-ui textarea:focus-visible {
+    outline: 3px solid var(--amber-400);
+    outline-offset: 1px;
+  }
+  body.game-ui input[type='checkbox'] {
+    flex: none;
+    margin-inline: 8px;
+    vertical-align: middle;
+  }
+  body.game-ui input[type='range'] {
+    accent-color: var(--amber-400);
+  }
+  body.game-ui input[type='checkbox'] {
+    appearance: none;
+    position: relative;
+    box-sizing: border-box;
+    width: 44px;
+    min-width: 44px;
+    height: 24px;
+    padding: 0;
+    border: 2px solid var(--panel-edge);
+    border-radius: 999px;
+    background: var(--panel-sunk);
+    cursor: pointer;
+  }
+  body.game-ui input[type='checkbox']::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--n-200);
+    transition: transform 120ms;
+  }
+  body.game-ui input[type='checkbox']:checked {
+    background: var(--green-600);
+  }
+  body.game-ui input[type='checkbox']:checked::before {
+    transform: translateX(20px);
+    background: var(--c-text);
+  }
+  body.game-ui .result-miss .miss-pair {
+    display: grid;
+    grid-template-columns: 3.2em auto auto 1fr;
+    align-items: baseline;
+    gap: 8px;
+  }
+  body.game-ui .result-miss .miss-pair span {
+    color: var(--n-200);
+    font-weight: var(--fw-bold);
+  }
+  body.game-ui .result-miss .miss-pair b {
+    font-size: var(--fs-4);
+    font-weight: var(--fw-heavy);
+    color: var(--c-text);
+  }
+  body.game-ui .result-miss .miss-pair i {
+    font-style: normal;
+    font-weight: var(--fw-bold);
+    color: var(--yellow-400);
+  }
+  body.game-ui .result-miss .miss-pair small {
+    color: var(--n-200);
+  }
 
-/* ---- Reservation chains: who follows whom ---- */
-.chain-link {
-  position: absolute;
-  top: calc(var(--lane) * 16px);
-  height: 8px;
-  border: 2px solid var(--pink-400);
-  border-bottom: 0;
-  border-radius: 6px 6px 0 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.chain-anchor {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--r-md);
-  background: var(--panel-sunk);
-  font-size: var(--fs-2);
-}
-.chain-anchor svg {
-  width: 40px;
-  height: 12px;
-  fill: none;
-  stroke: var(--pink-400);
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.chain-anchor .chain-from {
-  padding: 2px 8px;
-  border-radius: var(--r-sm);
-  background: var(--panel-raised);
-  font-weight: 700;
-}
-.chain-anchor .chain-to {
-  color: var(--n-100);
-}
-.chain-estimate,
-.chain-followers {
-  margin: 0;
-  font-size: var(--fs-1);
-  color: var(--n-100);
-}
-.chain-followers {
-  color: var(--pink-200, #f6b8cf);
-}
-.angle-dial {
-  display: block;
-  margin: 4px auto;
-}
-.angle-dial .ad-orbit {
-  fill: none;
-  stroke: var(--n-300);
-  stroke-width: 1.6;
-  stroke-dasharray: 3 3;
-}
-.angle-dial .ad-body {
-  fill: var(--sky-400);
-}
-.angle-dial .ad-zero {
-  stroke: var(--n-200);
-  stroke-width: 1.6;
-}
-.angle-dial .ad-arc {
-  fill: none;
-  stroke: var(--amber-400, #f5b13d);
-  stroke-width: 3;
-}
-.angle-dial .ad-craft {
-  fill: var(--c-text);
-  stroke: var(--n-950);
-  stroke-width: 1.5;
-}
-.angle-dial .ad-target {
-  fill: var(--pink-400);
-  stroke: var(--n-950);
-  stroke-width: 1.5;
-}
-#command-popover svg.angle-dial {
-  width: 96px;
-  height: 96px;
-}
-/* Placed by calculation, not by a clock time: a dashed edge says "about here". */
-.timeline-event.estimated {
-  border-style: dashed;
+  /* ---- Reservation chains: who follows whom ---- */
+  .chain-link {
+    position: absolute;
+    top: calc(var(--lane) * 16px);
+    height: 8px;
+    border: 2px solid var(--pink-400);
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .chain-anchor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--r-md);
+    background: var(--panel-sunk);
+    font-size: var(--fs-2);
+  }
+  .chain-anchor svg {
+    width: 40px;
+    height: 12px;
+    fill: none;
+    stroke: var(--pink-400);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .chain-anchor .chain-from {
+    padding: 2px 8px;
+    border-radius: var(--r-sm);
+    background: var(--panel-raised);
+    font-weight: 700;
+  }
+  .chain-anchor .chain-to {
+    color: var(--n-100);
+  }
+  .chain-estimate,
+  .chain-followers {
+    margin: 0;
+    font-size: var(--fs-1);
+    color: var(--n-100);
+  }
+  .chain-followers {
+    color: var(--pink-200, #f6b8cf);
+  }
+  .angle-dial {
+    display: block;
+    margin: 4px auto;
+  }
+  .angle-dial .ad-orbit {
+    fill: none;
+    stroke: var(--n-300);
+    stroke-width: 1.6;
+    stroke-dasharray: 3 3;
+  }
+  .angle-dial .ad-body {
+    fill: var(--sky-400);
+  }
+  .angle-dial .ad-zero {
+    stroke: var(--n-200);
+    stroke-width: 1.6;
+  }
+  .angle-dial .ad-arc {
+    fill: none;
+    stroke: var(--amber-400, #f5b13d);
+    stroke-width: 3;
+  }
+  .angle-dial .ad-craft {
+    fill: var(--c-text);
+    stroke: var(--n-950);
+    stroke-width: 1.5;
+  }
+  .angle-dial .ad-target {
+    fill: var(--pink-400);
+    stroke: var(--n-950);
+    stroke-width: 1.5;
+  }
+  #command-popover svg.angle-dial {
+    width: 96px;
+    height: 96px;
+  }
+  /* Placed by calculation, not by a clock time: a dashed edge says "about here". */
+  .timeline-event.estimated {
+    border-style: dashed;
+  }
 }

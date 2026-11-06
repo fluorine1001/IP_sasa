@@ -7,6 +7,7 @@ import { paintLaunchPad } from './launch-pad';
 import { paintCraftLocator } from './craft-locator';
 import { paintGoalRegion } from './goal-region';
 import { paintBody } from './body-art';
+import { blob, seeded } from './ink';
 import { drawBurnHandles, type BurnHandle } from './burn-handle';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
@@ -83,25 +84,74 @@ export function prepare(canvas: HTMLCanvasElement) {
   ctx.setTransform(d, 0, 0, d, 0, 0);
   return { ctx, w: r.width, h: r.height };
 }
-export function backdrop(ctx: CanvasRenderingContext2D, w: number, h: number, c: Camera) {
-  // Deep, saturated space so the slate panels read as a separate layer above it.
-  ctx.fillStyle = '#0e1430';
-  ctx.fillRect(0, 0, w, h);
-  for (const [gx, gy, gr, col] of [
-    [0.75, 0.25, 0.7, '#3a2a7a40'],
-    [0.15, 0.85, 0.6, '#1d5a7a30'],
-  ] as const) {
-    const glow = ctx.createRadialGradient(w * gx, h * gy, 0, w * gx, h * gy, w * gr);
-    glow.addColorStop(0, col);
-    glow.addColorStop(1, '#0e143000');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, w, h);
+/** The painted sky, rendered once per size: deep indigo, soft cloud banks, grain. */
+let sky: { w: number; h: number; canvas: HTMLCanvasElement } | undefined;
+function skyTexture(w: number, h: number) {
+  if (sky && sky.w === w && sky.h === h) return sky.canvas;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(w));
+  canvas.height = Math.max(1, Math.round(h));
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#121735';
+  g.fillRect(0, 0, w, h);
+  const rand = seeded('sky');
+  // Cloud banks: overlapping flat blobs at low opacity, like brushed paint.
+  for (const [cx, cy, s, col] of [
+    [0.78, 0.22, 0.42, '#3b2b6e'],
+    [0.62, 0.35, 0.3, '#47306f'],
+    [0.14, 0.82, 0.38, '#1f4a66'],
+    [0.3, 0.92, 0.28, '#2a3d6e'],
+  ] as const)
+    for (let i = 0; i < 9; i++) {
+      g.globalAlpha = 0.09;
+      g.fillStyle = col;
+      blob(
+        g,
+        w * (cx + (rand() - 0.5) * s * 0.8),
+        h * (cy + (rand() - 0.5) * s * 0.6),
+        w * s * (0.25 + rand() * 0.3),
+        w * s * (0.15 + rand() * 0.2),
+        rand,
+      );
+      g.fill();
+    }
+  g.globalAlpha = 1;
+  // Fine paper grain, not blotches: tiny specks at a fixed size.
+  for (let i = 0; i < (w * h) / 900; i++) {
+    g.fillStyle = rand() < 0.5 ? '#ffffff' : '#000000';
+    g.globalAlpha = 0.035;
+    g.fillRect(rand() * w, rand() * h, 1.5, 1.5);
   }
+  g.globalAlpha = 1;
+  sky = { w, h, canvas };
+  return canvas;
+}
+export function backdrop(ctx: CanvasRenderingContext2D, w: number, h: number, c: Camera) {
+  ctx.drawImage(skyTexture(w, h), 0, 0, w, h);
   for (let i = 0; i < 170; i++) {
     const x = (((i * 7919.13 - c.x * 3) % w) + w) % w,
       y = (((i * i * 71.73 + c.y * 3) % h) + h) % h;
-    ctx.fillStyle = i % 7 === 0 ? '#cfe6ff' : i % 3 === 0 ? '#7f8fd0' : '#4a5a9a';
-    ctx.fillRect(x, y, i % 7 === 0 ? 3 : 1.5, i % 7 === 0 ? 3 : 1.5);
+    if (i % 9 === 0) {
+      // A few bright stars as small four-point sparkles.
+      const k = 2.6;
+      ctx.fillStyle = '#f3e9c8';
+      ctx.beginPath();
+      ctx.moveTo(x, y - k * 1.6);
+      ctx.lineTo(x + k * 0.35, y - k * 0.35);
+      ctx.lineTo(x + k * 1.6, y);
+      ctx.lineTo(x + k * 0.35, y + k * 0.35);
+      ctx.lineTo(x, y + k * 1.6);
+      ctx.lineTo(x - k * 0.35, y + k * 0.35);
+      ctx.lineTo(x - k * 1.6, y);
+      ctx.lineTo(x - k * 0.35, y - k * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      continue;
+    }
+    ctx.fillStyle = i % 3 === 0 ? '#b8b0d8' : '#5d6198';
+    ctx.beginPath();
+    ctx.arc(x, y, i % 3 === 0 ? 1.2 : 0.9, 0, 7);
+    ctx.fill();
   }
 }
 export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
@@ -329,6 +379,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.arc(0, 0, top, 0, 7);
       ctx.fill();
     }
+    if (b.kind === 'black-hole') {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 1.95, r * 0.55, -0.3, Math.PI, Math.PI * 2);
+      ctx.strokeStyle = '#2b201a';
+      ctx.lineWidth = r * 0.34;
+      ctx.stroke();
+      ctx.strokeStyle = '#b4552f';
+      ctx.lineWidth = r * 0.24;
+      ctx.stroke();
+    }
     paintBody(ctx, b, r);
     if (s.selected?.has(b.id)) {
       ctx.strokeStyle = '#ffce70';
@@ -347,16 +407,22 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     }
     nameTag(ctx, b.name, 0, r + 8, '#2b2950f0', '#ffffff');
     if (b.kind === 'black-hole') {
-      ctx.strokeStyle = '#e49cad';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, r * 1.8, r * 0.55, -0.3, 0, 7);
-      ctx.stroke();
-      ctx.strokeStyle = '#f5c980';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, r * 2.15, r * 0.65, -0.3, 0, 7);
-      ctx.stroke();
+      // Accretion disc: a flat ochre band with an ink edge, its near half over the hole.
+      const disc = (from: number, to: number) => {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 1.95, r * 0.55, -0.3, from, to);
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#2b201a';
+        ctx.lineWidth = r * 0.34;
+        ctx.stroke();
+        ctx.strokeStyle = '#d99b2e';
+        ctx.lineWidth = r * 0.24;
+        ctx.stroke();
+        ctx.strokeStyle = '#f2c766';
+        ctx.lineWidth = r * 0.07;
+        ctx.stroke();
+      };
+      disc(0, Math.PI);
     }
     ctx.restore();
     if (p.x < 35 || p.x > w - 35 || p.y < 35 || p.y > h - 35) {

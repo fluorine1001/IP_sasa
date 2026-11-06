@@ -17,7 +17,7 @@ export function puff(
   x: number,
   y: number,
   r: number,
-  tint = '#e8ecf6',
+  tint = '#efe6d2',
 ) {
   const balls = [
     [0, 0, 1],
@@ -25,7 +25,7 @@ export function puff(
     [0.65, 0.3, 0.65],
     [0.1, -0.55, 0.6],
   ];
-  ctx.fillStyle = '#14172a';
+  ctx.fillStyle = '#2b201a';
   for (const [dx, dy, k] of balls) {
     ctx.beginPath();
     ctx.arc(x + dx * r, y + dy * r, k * r + 1.5, 0, 7);
@@ -66,7 +66,7 @@ export function paintExhaust(
         -L * (0.75 + phase * 1.6),
         Math.sin(i * 2.3 + time * 3) * W * 0.6 * phase,
         W * (0.55 + phase * 1.1),
-        '#c9cfe0',
+        '#d6ccb8',
       );
     }
     ctx.globalAlpha = 1;
@@ -87,7 +87,7 @@ export function paintExhaust(
       ctx.stroke();
     }
   };
-  tongue(L * wob(1), W, '#ff7a2a', '#7a2310');
+  tongue(L * wob(1), W, '#f0742c', '#5a2414');
   tongue(L * 0.72 * wob(2), W * 0.68, '#ffc23d');
   tongue(L * 0.42 * wob(3), W * 0.36, '#fff6d0');
   ctx.restore();

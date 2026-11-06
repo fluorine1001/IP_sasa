@@ -29,6 +29,7 @@ import './app/console-panels.css';
 import './ui/components.css';
 import './ui/screens.css';
 import './ui/figures.css';
+import './ui/kit.css';
 import './ui/system.css';
 // Scopes the illustrated mission-control theme to the game (the workshop keeps its own look).
 document.body.classList.add('game-ui');

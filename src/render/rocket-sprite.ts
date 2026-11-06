@@ -2,7 +2,7 @@ import { hullSize, ROCKET_SEGMENT_LENGTH } from '../world/hull';
 
 /** Stage colours, shared with the title art: first stage orange, then violet, then teal. */
 export const STAGE_COLORS = ['#ef8a3c', '#a084d8', '#3db6a6'];
-const INK = '#0d171c';
+const INK = '#14172a';
 const NOSE = '#f0e3c0';
 
 /**
@@ -50,10 +50,13 @@ export function paintRocket(
   for (let i = 0; i < stages; i++) {
     ctx.fillStyle = STAGE_COLORS[(firstPart + i) % 3];
     ctx.fillRect(i * segment, -r, segment + 1, 2 * r);
-    // A light band reads as a painted stripe at large zoom and vanishes when small.
-    ctx.fillStyle = '#ffffff40';
-    ctx.fillRect(i * segment, -r * 0.62, segment, r * 0.28);
   }
+  // Cylinder shading across the hull: a highlight on top, the shadow underneath.
+  const roll = ctx.createLinearGradient(0, -r, 0, r);
+  roll.addColorStop(0, '#ffffff55');
+  roll.addColorStop(0.3, '#ffffff18');
+  roll.addColorStop(0.6, '#00000000');
+  roll.addColorStop(1, '#0a0d2466');
   if (!booster) {
     ctx.fillStyle = NOSE;
     ctx.fillRect(bodyEnd, -r, size - bodyEnd, 2 * r);
@@ -83,6 +86,8 @@ export function paintRocket(
     ctx.closePath();
     ctx.fill();
   }
+  ctx.fillStyle = roll;
+  ctx.fillRect(0, -r, size, 2 * r);
   ctx.restore();
   // Ink outline, inset by half its width so it stays on the capsule.
   ctx.strokeStyle = INK;

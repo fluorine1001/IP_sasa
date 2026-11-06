@@ -120,8 +120,6 @@ export type Stage = {
   published?: boolean;
   launchBodyId?: string;
   launchAngle?: number;
-  /** 변주 numbers checked solvable by the author tool (scripts/check-variants.mjs). */
-  variants?: number[];
   rocket?: RocketConfig;
   id: string;
   title: string;

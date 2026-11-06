@@ -478,66 +478,6 @@
 
 @layer components {
   /* Own solution records on a win: three numbers to beat, a strip of past solutions. */
-  body.game-ui .solution-tiles {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    margin: 8px 0;
-  }
-  body.game-ui .solution-tile {
-    position: relative;
-    display: grid;
-    gap: 2px;
-    padding: 8px 10px 22px;
-    background-color: var(--k-sunk);
-    border: 2px solid color-mix(in srgb, var(--k-ink) 70%, transparent);
-    border-radius: var(--k-r-ctl);
-  }
-  body.game-ui .solution-tile > span {
-    font-size: var(--fs-1);
-    color: var(--k-dim);
-  }
-  body.game-ui .solution-tile > b {
-    font: 400 var(--fs-4) / 1 var(--font-display);
-  }
-  body.game-ui .solution-tile em {
-    justify-self: start;
-    padding: 1px 8px;
-    border-radius: 999px;
-    background: var(--k-accent);
-    color: var(--k-accent-ink);
-    font-style: normal;
-    font-weight: 800;
-    font-size: var(--fs-1);
-  }
-  body.game-ui .solution-tile.record {
-    border-color: var(--k-accent);
-  }
-  body.game-ui .solution-strip {
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 8px;
-    height: 6px;
-    border-radius: 3px;
-    background: var(--k-ink);
-  }
-  body.game-ui .solution-strip i {
-    position: absolute;
-    top: 50%;
-    width: 8px;
-    height: 8px;
-    margin: -4px 0 0 -4px;
-    border-radius: 50%;
-    background: var(--k-dim);
-  }
-  body.game-ui .solution-strip i.now {
-    width: 12px;
-    height: 12px;
-    margin: -6px 0 0 -6px;
-    background: var(--k-accent);
-    border: 2px solid var(--k-ink);
-  }
   body.game-ui .plan-history {
     display: inline-flex;
     gap: 4px;
@@ -549,16 +489,6 @@
   body.game-ui .plan-history svg {
     width: 18px;
     height: 18px;
-  }
-}
-
-@layer components {
-  body.game-ui .stage-best {
-    display: block;
-    margin-top: 4px;
-    font-size: var(--fs-1);
-    font-weight: 800;
-    color: var(--k-accent);
   }
 }
 

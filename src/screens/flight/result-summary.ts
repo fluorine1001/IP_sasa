@@ -53,49 +53,16 @@ function stamp(stage: Stage, run: Run): { text: string; tone: 'good' | 'bad' | '
 }
 
 /** Observations from an already finished flight, not a forecast. */
-/**
- * A winning flight against the player's own earlier solutions: three numbers to beat,
- * each with a strip of every past solution (lower is better) and a mark on a new best.
- */
-function solutionTiles(
-  past: { fuel: number[]; time: number[]; steps: number[] },
-  now: { fuel: number; time: number; steps: number },
-  fuelWord: string,
-) {
-  const tile = (key: 'fuel' | 'time' | 'steps', label: string, fmt: (v: number) => string) => {
-    const values = past[key];
-    const prior = values.length ? Math.min(...values) : Infinity;
-    const record = now[key] < prior - 1e-9;
-    const all = [...values, now[key]];
-    const lo = Math.min(...all),
-      hi = Math.max(...all);
-    const x = (v: number) => (hi - lo < 1e-12 ? 50 : 6 + ((v - lo) / (hi - lo)) * 88);
-    const dots = values.map((v) => `<i style="left:${x(v).toFixed(1)}%"></i>`).join('');
-    return `<div class="solution-tile ${record ? 'record' : ''}"><span>${label}</span><b>${fmt(now[key])}</b>${
-      record && values.length
-        ? '<em>신기록</em>'
-        : values.length
-          ? `<small>최고 ${fmt(prior)}</small>`
-          : '<small>첫 해법</small>'
-    }<div class="solution-strip" aria-hidden="true">${dots}<i class="now" style="left:${x(now[key]).toFixed(1)}%"></i></div></div>`;
-  };
-  return `<div class="solution-tiles" aria-label="내 해법 기록">${tile('fuel', `${fuelWord} 사용`, (v) => `${Math.round(v * 100)}%`)}${tile('time', '비행 시간', (v) => `${v.toFixed(1)}초`)}${tile('steps', '예약 수', (v) => `${v}개`)}</div>`;
-}
-
 export function resultSummary(
   stage: Stage,
   run: Run,
   previous?: RoutePlan,
   options: {
     hasNext?: boolean;
-    /** The next 변주 number on offer after a win (same world, started earlier). */
-    nextVariant?: number;
     attempt?: number;
     miss?: Miss;
     /** The previous flight's miss, shown beside this one when it is about the same goal. */
     previousMiss?: Miss;
-    /** Earlier winning flights of this mission, when this one won. */
-    solutions?: { fuel: number[]; time: number[]; steps: number[] };
   } = {},
 ) {
   const seal = stamp(stage, run);
@@ -169,20 +136,7 @@ export function resultSummary(
       : '';
 
   const share = medals.initial > 0 ? Math.min(1, medals.used / medals.initial) : 0;
-  const best = options.solutions
-    ? solutionTiles(
-        options.solutions,
-        {
-          fuel: share,
-          time: run.time,
-          steps: (run.plan.engineCommands?.length ?? 0) + run.plan.impulses.length,
-        },
-        stage.rocket ? '연료' : '추진',
-      )
-    : '';
-  const stats =
-    best ||
-    `<dl class="result-stats">${options.attempt ? `<div><dt>시도</dt><dd>${options.attempt}번째</dd></div>` : ''}<div><dt>비행 시간</dt><dd>${run.time.toFixed(2)}초</dd></div><div><dt>${stage.rocket ? '연료 사용' : '추진 사용'}</dt><dd>${Math.round(share * 100)}%</dd></div></dl>`;
+  const stats = `<dl class="result-stats">${options.attempt ? `<div><dt>시도</dt><dd>${options.attempt}번째</dd></div>` : ''}<div><dt>비행 시간</dt><dd>${run.time.toFixed(2)}초</dd></div><div><dt>${stage.rocket ? '연료 사용' : '추진 사용'}</dt><dd>${Math.round(share * 100)}%</dd></div></dl>`;
 
   const changes = previous ? planChanges(previous, run.initialPlan ?? run.plan) : [];
   // On a retry, what changed since the last flight; nothing to say on the first.
@@ -197,7 +151,7 @@ export function resultSummary(
   // The reason line only adds information beyond the stamp.
   const cause = run.status === 'won' || run.reason === '비행 중단' ? '' : run.reason;
 
-  const actions = `<div class="result-actions">${run.status === 'won' && options.hasNext ? '<button id="result-next" class="primary">다음 임무</button>' : ''}${run.status === 'won' && options.nextVariant ? `<button id="result-variant" title="같은 임무를 다른 시작 시점에서: 외운 시각은 맞지 않고, 사건에 묶은 예약은 다시 맞습니다">변주 ${options.nextVariant}</button>` : ''}<button id="result-retry" class="${run.status === 'won' && options.hasNext ? '' : 'primary'}">다시 발사 <kbd>R</kbd></button><button id="result-edit">계획 고치기</button><button id="result-moment">이 순간 보기</button></div>`;
+  const actions = `<div class="result-actions">${run.status === 'won' && options.hasNext ? '<button id="result-next" class="primary">다음 임무</button>' : ''}<button id="result-retry" class="${run.status === 'won' && options.hasNext ? '' : 'primary'}">다시 발사 <kbd>R</kbd></button><button id="result-edit">계획 고치기</button><button id="result-moment">이 순간 보기</button></div>`;
   // A flight stopped by hand has nothing to analyse: stamp and actions only.
   if (run.status === 'aborted')
     return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${actions}`;

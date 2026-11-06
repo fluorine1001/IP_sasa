@@ -382,12 +382,6 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
     stage.camera.zoom <= 0
   )
     out.push('시작 위치와 카메라를 확인하세요.');
-  if (
-    stage.variants !== undefined &&
-    (!Array.isArray(stage.variants) ||
-      stage.variants.some((k) => !Number.isInteger(k) || k < 1 || k > 99))
-  )
-    out.push('변주 번호를 확인하세요.');
   const launch = stage.bodies.find((b) => b.id === stage.launchBodyId);
   if (
     stage.launchBodyId &&

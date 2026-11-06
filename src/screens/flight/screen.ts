@@ -1,4 +1,3 @@
-import { canVary, variantStage } from '../../world/variant';
 import { heldLaunchState, launchWindowTime } from '../../world/launch-window';
 import { objectiveGoals } from '../../world/goals';
 import {
@@ -22,7 +21,7 @@ import { propulsionReadout } from './propulsion';
 import { landingReadout } from './landing-readout';
 import { resultSummary, flightMedals } from './result-summary';
 import { preflightChecklist } from './preflight';
-import { readSolutions, saveSolution, saveMedals } from '../../app/records';
+import { saveMedals } from '../../app/records';
 import { goalNearest, goalStatus } from './goal-status';
 import { loadReadout } from './load-readout';
 import { altitude, brakingHtml, orbitHtml, telemetryHtml } from './telemetry';
@@ -229,13 +228,6 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         })),
     };
     return keepOut.boxes;
-  }
-  /** The 변주 after this one (or the first, on the mission itself), if any. */
-  function nextVariant() {
-    if (args.onReturn || training) return undefined;
-    const base = args.variant?.base ?? stage;
-    if (!canVary(base)) return undefined;
-    return base.variants!.find((k) => k > (args.variant?.index ?? 0));
   }
   /** No usable record of this plan's start yet. */
   const noFlight = () => !trials.length || recordedState(0.01, plan) === undefined;
@@ -1581,33 +1573,17 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     // The last flight's miss stays beside this one: change one thing, see what it did.
     const previousMiss = trials.length >= 2 ? lastMiss : undefined;
     lastMiss = flightMisses(stage, run.goals, lastTrial.frames, lastTrial.scheduledPlan)[0];
-    // A win joins the player's own solution records (read before, so a best shows as new).
-    const counts = run.status === 'won' && !args.onReturn && !training;
-    const solutions = counts ? readSolutions(stage.id) : undefined;
-    if (counts) {
-      const m = flightMedals(stage, run);
-      saveSolution(stage.id, {
-        fuel: m.initial > 0 ? Math.min(1, m.used / m.initial) : 0,
-        time: run.time,
-        steps: (run.plan.engineCommands?.length ?? 0) + run.plan.impulses.length,
-      });
-    }
     el('result').innerHTML = resultSummary(stage, run, trials.at(-2)?.scheduledPlan, {
       hasNext: !!args.next,
       attempt: trials.length,
       miss: lastMiss,
       previousMiss,
-      nextVariant: nextVariant(),
-      solutions,
     });
     el('result').dataset.outcome = run.status === 'won' ? 'won' : 'failed';
     if (run.status === 'won' && !args.onReturn && !training) {
       const earned = flightMedals(stage, run);
       saveMedals(stage.id, earned);
       if (earned.budget) setTimeout(() => eventSound('medal'), 900);
-      // A new personal best on a mission already solved gets its own moment.
-      if (solutions?.fuel.length && app.root.querySelector('.solution-tile.record em'))
-        setTimeout(() => eventSound('medal'), 1300);
     }
     beginReplay(trials.length - 1, true);
     el('result-close').onclick = () => {
@@ -1615,19 +1591,6 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     };
     const next = app.root.querySelector<HTMLButtonElement>('#result-next');
     if (next) next.onclick = () => args.next?.();
-    const variant = app.root.querySelector<HTMLButtonElement>('#result-variant');
-    const k = nextVariant();
-    if (variant && k)
-      variant.onclick = () => {
-        const base = args.variant?.base ?? stage;
-        // The player's own plan comes along: anchored reservations find the moment again.
-        app.go('play', {
-          stage: variantStage(base, k),
-          plan: structuredClone(run?.initialPlan ?? plan),
-          variant: { base, index: k },
-          next: args.next,
-        });
-      };
     el('result-retry').onclick = () => {
       el('result').hidden = true;
       if (replayIndex >= 0) leaveReplay();

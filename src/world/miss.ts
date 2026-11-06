@@ -71,7 +71,9 @@ export function flightMisses(
           (b) => b.id === o.targetId && b.kind !== 'path' && b.kind !== 'hazard',
         );
         const reach = o.metric === 'distance' || o.event === 'collision' || o.event === 'gate';
-        if (isObject || reach) ids.add(o.targetId);
+        // The body you start on is not something you "missed": a distance band around
+        // it is about height, which its gauge already shows.
+        if ((isObject || reach) && o.targetId !== stage.launchBodyId) ids.add(o.targetId);
       }
       Object.values(o).forEach((y) => walk(y, ref));
     };

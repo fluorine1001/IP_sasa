@@ -266,6 +266,7 @@
   .gg-track {
     grid-area: track;
     position: relative;
+    margin-bottom: 22px;
     height: 12px;
     border-radius: 6px;
     background: var(--panel-sunk);
@@ -299,7 +300,8 @@
   }
   .gg-needle span {
     position: absolute;
-    bottom: calc(100% + 2px);
+    /* Below the track: above it would sit on the gauge's own label. */
+    top: calc(100% + 2px);
     left: 50%;
     transform: translateX(-50%);
     padding: 0 4px;
@@ -313,6 +315,10 @@
   }
   .goal-row .gg-needle span {
     display: none;
+  }
+  .goal-row .gg-track,
+  .goal-gauges:not(:has(.gg-needle)) .gg-track {
+    margin-bottom: 0;
   }
   .goal-row .goal-gauges {
     grid-column: 1 / -1;

@@ -76,7 +76,9 @@ export function drawBurnHandles(
     ctx.arc(o.x, o.y, 3.5, 0, Math.PI * 2);
     ctx.fillStyle = palette.amber400;
     ctx.fill();
-    haloText(ctx, h.label, { x: tip.x + 12, y: tip.y - 12 }, palette.amber400, 'left', 'bold');
+    // The size shows while it is being aimed; otherwise the arrow alone (the popover has it).
+    if (h.active)
+      haloText(ctx, h.label, { x: tip.x + 12, y: tip.y - 12 }, palette.amber400, 'left', 'bold');
     ctx.restore();
   }
 }

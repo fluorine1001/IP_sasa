@@ -1,3 +1,4 @@
+import { heldLaunchState, launchWindowTime } from '../../world/launch-window';
 import { objectiveGoals } from '../../world/goals';
 import {
   planConstraints,
@@ -144,6 +145,7 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
    */
   function launchState(p: RoutePlan): AimState | undefined {
     const start = createRun(stage, p);
+    if (!stage.rocket && p.launchHold) return heldLaunchState(stage, p, start.position);
     if (!stage.rocket) return { position: start.position, velocity: start.velocity, time: 0 };
     const dir = length(p.launch) > 1e-9 ? unit(p.launch) : undefined;
     if (!dir) return undefined;
@@ -182,11 +184,40 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
   function planEstimates() {
     const out: Record<string, number> = {};
     try {
+      const held = launchWindowTime(stage, plan);
+      if (held !== undefined) out.launch = held;
       for (const e of preview(plan)) if (e.change.trigger) out[e.change.id] = e.before.time;
     } catch {
       /* the calculator gives no estimate */
     }
     return out;
+  }
+  /** Panels over the map, refreshed a few times a second: map labels stay out of them. */
+  let keepOut: { at: number; boxes: { x0: number; y0: number; x1: number; y1: number }[] } = {
+    at: -1e9,
+    boxes: [],
+  };
+  function labelKeepOut() {
+    const now = performance.now();
+    if (now - keepOut.at < 250) return keepOut.boxes;
+    const c = canvas.getBoundingClientRect();
+    keepOut = {
+      at: now,
+      boxes: [
+        ...app.root.querySelectorAll<HTMLElement>(
+          '.mission-panel, .resources, .flight-deck, #command-popover:not([hidden]), #training-panel, .map-tools, #notebook:not([hidden])',
+        ),
+      ]
+        .map((e) => e.getBoundingClientRect())
+        .filter((r) => r.width && r.height)
+        .map((r) => ({
+          x0: r.left - c.left - 4,
+          y0: r.top - c.top - 4,
+          x1: r.right - c.left + 4,
+          y1: r.bottom - c.top + 4,
+        })),
+    };
+    return keepOut.boxes;
   }
   /** No usable record of this plan's start yet. */
   const noFlight = () => !trials.length || recordedState(0.01, plan) === undefined;
@@ -372,7 +403,7 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         out.push({
           conic: launchSketch.conic,
           tone: 'plan',
-          label: launchIsApprox ? '발사 후 (근사)' : '발사 직후',
+          label: undefined,
         });
         finalPlan = { sketch: out.at(-1)!, state: launchState(plan) };
       }
@@ -423,9 +454,10 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
             near.target.kind === 'body'
               ? bodyPosition(view, near.target.body, near.time)
               : objectPosition(view, near.target.object, near.time),
+          // The map shows only the number; names and times are in the item's 겨냥 계산.
           text: near.inside
-            ? `${near.target.name} ${near.target.kind === 'body' ? '도달' : '통과'} · ${near.time.toFixed(1)}초`
-            : `${near.target.name}까지 ${(near.distance - (near.target.kind === 'body' ? near.target.radius : 0)).toFixed(3)} u · ${near.time.toFixed(1)}초`,
+            ? '✓'
+            : (near.distance - (near.target.kind === 'body' ? near.target.radius : 0)).toFixed(2),
           inside: near.inside,
           // Past the first hand-over the drawn conic is the wrong body's; draw the rest.
           handover: (() => {
@@ -1913,6 +1945,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         camera.y += (focus.y - camera.y) * blend;
       }
       drawWorld(canvas, {
+        labelKeepOut: labelKeepOut(),
         stage: visibleRun ? dynamicView(stage, visibleRun) : stage,
         camera,
         run: visibleRun,
@@ -1937,7 +1970,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             ? {
                 craft: lastMiss.craft,
                 target: lastMiss.target,
-                text: `${lastMiss.causeLabel} 뒤 ${missSide(lastMiss)} ${lastMiss.gap.toFixed(3)} u`,
+                text: `${missSide(lastMiss)} ${lastMiss.gap.toFixed(2)}`,
               }
             : undefined,
       });

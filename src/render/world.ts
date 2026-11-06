@@ -1,4 +1,4 @@
-import { haloText, leaderLabel } from './annotate';
+import { claimLabel, haloText, leaderLabel, resetLabels } from './annotate';
 import { palette } from '../ui/palette';
 import { canvasFont } from './fonts';
 import { drawOrbitSketches, type OrbitSketch } from './orbit-overlay';
@@ -23,6 +23,8 @@ import type { RoutePlan, Run, Stage } from '../world/types.ts';
 import { toScreen, type Camera } from './camera.ts';
 export type DrawState = {
   stage: Stage;
+  /** Screen boxes (CSS px) covered by panels: map labels keep out of them. */
+  labelKeepOut?: { x0: number; y0: number; x1: number; y1: number }[];
   camera: Camera;
   replay?: boolean;
   reducedMotion?: boolean;
@@ -71,6 +73,7 @@ function nameTag(
   ctx.fillStyle = ink;
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(text, x, y + 16);
+  claimLabel(ctx, x - half, y, x + half, y + 22);
 }
 export function prepare(canvas: HTMLCanvasElement) {
   const r = canvas.getBoundingClientRect(),
@@ -163,7 +166,42 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   const foreground = s.layer?.kind === 'only';
   const visible = (id: string) =>
     !s.layer || (s.layer.kind === 'only' ? s.layer.ids.has(id) : !s.layer.ids.has(id));
-  if (!foreground) backdrop(ctx, w, h, c);
+  if (!foreground) {
+    // Labels this frame keep off each other and off every body's disc.
+    const m = ctx.getTransform();
+    resetLabels(
+      s.stage.bodies
+        .filter((b) => b.kind !== 'barycenter')
+        .map((b) => {
+          const p = m.transformPoint(screen(bodyPosition(s.stage, b, t)));
+          return { x: p.x, y: p.y, r: b.radius * c.zoom * m.a + 2 };
+        }),
+      [
+        // The canvas edges and the panels over it.
+        { x0: -1e5, y0: -1e5, x1: 0, y1: 1e5 },
+        { x0: w, y0: -1e5, x1: 1e5, y1: 1e5 },
+        { x0: -1e5, y0: -1e5, x1: 1e5, y1: 0 },
+        { x0: -1e5, y0: h, x1: 1e5, y1: 1e5 },
+        ...(s.labelKeepOut ?? []),
+      ].map((b) => {
+        const a = m.transformPoint({ x: b.x0, y: b.y0 }),
+          z = m.transformPoint({ x: b.x1, y: b.y1 });
+        return { x0: a.x, y0: a.y, x1: z.x, y1: z.y };
+      }),
+    );
+    // Body name plates are drawn later but placed first: reserve them now.
+    ctx.save();
+    ctx.font = LABEL_FONT;
+    for (const b of s.stage.bodies) {
+      if (b.kind === 'barycenter' || !visible(b.id)) continue;
+      const p = screen(bodyPosition(s.stage, b, t)),
+        half = ctx.measureText(b.name).width / 2 + 7,
+        top = p.y + b.radius * c.zoom + 8;
+      claimLabel(ctx, p.x - half, top, p.x + half, top + 22);
+    }
+    ctx.restore();
+    backdrop(ctx, w, h, c);
+  }
   if (s.divergence && !foreground) {
     const p = screen(s.divergence.position);
     ctx.save();
@@ -175,7 +213,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.fill();
     ctx.stroke();
     ctx.font = canvasFont(15);
-    ctx.fillText(`여기서 갈라짐 · ${s.divergence.time.toFixed(1)}초`, p.x + 10, p.y - 10);
+    ctx.fillText('갈라짐', p.x + 10, p.y - 10);
     ctx.restore();
   }
   if (s.grid && !foreground) {
@@ -238,20 +276,9 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     if (spot) {
       ctx.font = LABEL_FONT;
       ctx.textAlign = 'center';
-      // State the band's heights above the surface: the same numbers the briefing uses.
-      // A single ring is a distance from the centre; a band is a height range above the surface.
-      const single = Math.abs(g.display.max - g.display.min) < 1e-6;
-      const surface = single && body && Math.abs(g.display.max - body.radius) < body.radius * 0.02;
-      const range = surface
-        ? ' · 표면'
-        : single
-          ? ` · 중심에서 ${fmtBand(g.display.max)} u`
-          : body
-            ? ` · 높이 ${fmtBand(g.display.min - body.radius)}–${fmtBand(g.display.max - body.radius)} u`
-            : '';
       nameTag(
         ctx,
-        (complete ? '목표 ✓' : '목표') + range,
+        complete ? '목표 ✓' : '목표',
         spot.x,
         spot.y - 26,
         complete ? '#6fbf73' : '#f2cf4a',
@@ -305,19 +332,13 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
             ctx.arc(p.x, p.y, Math.max(6, target.radius * c.zoom), 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
-            haloText(
-              ctx,
-              `${target.name} · 기록 ${sample.time.toFixed(1)}초`,
-              { x: p.x + Math.max(6, target.radius * c.zoom) + 6, y: p.y },
-              palette.n50,
-            );
           }
         // Where the craft was at this moment of a past flight: a plotted point, not a marker.
         const q = screen(sample.position);
         leaderLabel(
           ctx,
           q,
-          `${i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록')} · ${sample.time.toFixed(1)}초`,
+          i === 0 ? (s.historyLabel ?? '선택 기록') : (s.historyLabels?.[i - 1] ?? '기록'),
           i === 0 ? palette.n50 : palette.n300,
           { x: q.x - 1, y: q.y + 1 },
         );
@@ -748,9 +769,4 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
     ctx.restore();
   }
   return { w, h, screen };
-}
-
-function fmtBand(v: number) {
-  const a = Math.abs(v);
-  return a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2);
 }

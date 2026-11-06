@@ -426,6 +426,15 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
         out.push('기준 경로의 발사 연소 Δv를 확인하세요.');
         continue;
       }
+      if (
+        plan.launchHold !== undefined &&
+        (stage.rocket ||
+          !['phase', 'angle'].includes(plan.launchHold.at) ||
+          !Number.isFinite(plan.launchHold.atAngle))
+      ) {
+        out.push('기준 경로의 발사 시점을 확인하세요.');
+        continue;
+      }
       if (plan.engineCommands !== undefined && !Array.isArray(plan.engineCommands)) {
         out.push('엔진 명령 목록을 확인하세요.');
         continue;

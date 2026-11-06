@@ -53,6 +53,8 @@ export function nextPhysicsBoundary(time: number) {
 }
 export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
   const start = surfaceLaunch(stage) ?? stage.spawn;
+  // A held cold-gas launch sits on the pad until its window (see RoutePlan.launchHold).
+  const hold = !stage.rocket && surfaceLaunch(stage) ? plan.launchHold : undefined;
   const error =
     ![plan.launch.x, plan.launch.y].every(Number.isFinite) ||
     length(plan.launch) > stage.rules.launchLimit + 1e-8
@@ -69,7 +71,7 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
     evidence: emptyEvidence(),
     time: 0,
     position: { ...start.position },
-    velocity: stage.rocket ? { ...start.velocity } : add(start.velocity, plan.launch),
+    velocity: stage.rocket || hold ? { ...start.velocity } : add(start.velocity, plan.launch),
     attitude:
       surfaceLaunch(stage)?.normal ??
       (length(plan.launch) ? scale(plan.launch, 1 / length(plan.launch)) : { x: 1, y: 0 }),
@@ -140,7 +142,16 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
       lit: true,
     };
   // A cold-gas launch is an instant push: it is finished at once ('after launch' chains).
-  if (!stage.rocket) run.firedAt = { launch: 0 };
+  if (!stage.rocket) run.firedAt = hold ? {} : { launch: 0 };
+  if (hold)
+    run.armedPushes = [
+      {
+        id: 'launch',
+        trigger: { at: hold.at, atAngle: hold.atAngle, phaseTarget: hold.phaseTarget },
+        push: { id: 'launch', time: 0, vector: { ...plan.launch } },
+        free: true,
+      },
+    ];
   if (!stage.rocket) {
     const pad = surfaceLaunch(stage);
     if (pad)
@@ -232,6 +243,11 @@ function fireArmedPushes(run: Run, stage: Stage) {
     armed.last = now;
     if (!fired) continue;
     run.armedPushes = run.armedPushes.filter((a) => a !== armed);
+    if (armed.free) {
+      run.velocity = add(run.velocity, armed.push.vector);
+      (run.firedAt ??= {})[armed.id] = run.time;
+      continue;
+    }
     // `impulse` skips ids already applied, so it is told under a fired id.
     if (!impulse(run, stage, impulseVector(run, stage, armed.push), armed.id + ':fired'))
       return false;

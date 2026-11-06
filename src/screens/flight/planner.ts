@@ -1,3 +1,4 @@
+import { launchWindowTime } from '../../world/launch-window';
 import {
   planningTimeLimit,
   canAddCommand,
@@ -6,6 +7,7 @@ import {
   launchFraction,
 } from '../../world/program';
 import { escape } from '../../app/core';
+import { surfaceLaunch } from '../../world/launch';
 import { heading, plannedSeparationPart } from '../../world/program';
 import { attitudeRate } from '../../world/rocket';
 import { length, scale } from '../../physics/vector';
@@ -99,7 +101,7 @@ export function timelinePlanner(
             (first.fuelMass * first.exhaustSpeed) /
               (first.thrust * Math.max(0.01, launchFraction(stage, p))),
           )
-        : 0,
+        : (launchWindowTime(stage, p) ?? 0),
     );
     settleChains(p, movedId);
     movedId = undefined;
@@ -337,7 +339,10 @@ export function timelinePlanner(
             `<label class="dv-field">발사 세기<span class="dv-entry"><input type="number" data-edit="launch-power" min="0" max="100" step="0.1" value="${(launchFraction(stage, p) * 100).toFixed(1)}" aria-label="발사 세기 (%)"> %</span>` +
             `<input type="range" data-edit="launch-power" min="0" max="100" step="0.1" value="${launchFraction(stage, p) * 100}" aria-label="발사 세기 조절"><span class="range-ends">0%<span>100%</span></span></label>`) +
         (stage.rocket ? launchDvField(p) : '') +
-        (stage.rocket ? '' : range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°'));
+        (stage.rocket
+          ? ''
+          : range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°')) +
+        launchWindowFields(p);
     else {
       const host = hostFor(id);
       const at = host?.at;
@@ -597,7 +602,7 @@ export function timelinePlanner(
       '<header><b>' +
       icon(id === 'launch' ? 'ignite' : kind) +
       (id === 'launch'
-        ? '0초 · 발사'
+        ? (launchWindowTime(stage, p)?.toFixed(2) ?? '0') + '초 · 발사'
         : names[kind] +
           (c?.separate
             ? ' · ' + escape(plannedSeparationPart(stage, p, c.id)?.name ?? '탑재체')
@@ -636,6 +641,14 @@ export function timelinePlanner(
         changed();
         update();
         open(selected);
+        return;
+      }
+      if (key === 'hold-target') {
+        const h = get().plan.launchHold;
+        if (h) h.phaseTarget = input.value;
+        action?.('edit');
+        changed();
+        update();
         return;
       }
       if (key === 'phase-target') {
@@ -693,6 +706,13 @@ export function timelinePlanner(
         const dial = popup.querySelector('.angle-dial');
         if (dial && target)
           dial.outerHTML = angleDial(target.at as 'angle' | 'phase', target.atAngle ?? 0);
+      }
+      if (key === 'hold-angle' && p.launchHold) {
+        p.launchHold.atAngle = Math.round(clamp(value, -180, 180));
+        const dial = popup.querySelector('.angle-dial');
+        if (dial) dial.outerHTML = angleDial('phase', p.launchHold.atAngle);
+        const note = popup.querySelector('.chain-estimate');
+        if (note) note.textContent = `≈ ${launchWindowTime(stage, p)?.toFixed(2) ?? '—'}초에 발사`;
       }
       if (key === 'time') movedId = selected;
       if (key === 'trigger-height') {
@@ -840,6 +860,18 @@ export function timelinePlanner(
             target.delay = undefined;
           }
         }
+        action?.('edit');
+        changed();
+        update();
+        open(selected);
+        return;
+      }
+      const hold = button.dataset.hold;
+      if (hold !== undefined) {
+        const p = get().plan;
+        p.launchHold = hold
+          ? { at: 'phase', atAngle: p.launchHold?.atAngle ?? 0, phaseTarget: matchTargets()[0]?.id }
+          : undefined;
         action?.('edit');
         changed();
         update();
@@ -1035,6 +1067,33 @@ export function timelinePlanner(
       '" aria-label="발사 연소 Δv"><span class="range-ends">연료 끝까지<span>' +
       (Math.floor(max * 100) / 100).toFixed(2) +
       ' u/s</span></span></label>'
+    );
+  }
+  /**
+   * A cold-gas pad launch can wait for its window: leave when a moving target is a set
+   * angle ahead of the pad. The wait costs mission time, not the push budget.
+   */
+  function launchWindowFields(p: RoutePlan) {
+    if (stage.rocket || !surfaceLaunch(stage) || !matchTargets().length) return '';
+    const hold = p.launchHold;
+    return (
+      '<div class="frame-choice when-choice" role="group" aria-label="발사 시점">' +
+      `<button type="button" data-hold="" aria-pressed="${!hold}">바로</button>` +
+      `<button type="button" data-hold="phase" aria-pressed="${!!hold}">목표 각도</button>` +
+      '</div>' +
+      (hold
+        ? '<label>기준 대상 <select data-edit="hold-target" aria-label="발사 시점을 잴 대상">' +
+          matchTargets()
+            .map(
+              (t) =>
+                `<option value="${escape(t.id)}"${t.id === hold.phaseTarget ? ' selected' : ''}>${escape(t.name)}</option>`,
+            )
+            .join('') +
+          '</select></label>' +
+          angleDial('phase', hold.atAngle) +
+          range('목표가 앞선 각도', 'hold-angle', hold.atAngle, -180, 180, '°', 1) +
+          `<p class="chain-estimate">≈ ${launchWindowTime(stage, p)?.toFixed(2) ?? '—'}초에 발사</p>`
+        : '')
     );
   }
   /**

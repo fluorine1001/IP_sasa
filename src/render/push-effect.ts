@@ -58,7 +58,7 @@ export function paintPush(
   hairArrow(ctx, { x: at.x + ux * 10, y: at.y + uy * 10 }, tip, palette.n50);
   haloText(
     ctx,
-    `${push.launch ? '발사' : '추진'} Δv ${size.toFixed(2)} u/s`,
+    size.toFixed(2),
     { x: tip.x + (ux >= 0 ? 8 : -8), y: tip.y + (uy >= 0 ? 10 : -10) },
     palette.n50,
     ux >= 0 ? 'left' : 'right',

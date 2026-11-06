@@ -73,6 +73,19 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
       (Math.hypot(plan.launch.x, plan.launch.y) / stage.rules.launchLimit) * 100,
     );
   if (plan.launchDv !== undefined) await edit(page, 'launch-dv', plan.launchDv);
+  if (!stage.rocket && stage.rules.launchLimit > 0) {
+    const a = Math.atan2(plan.launch.y, plan.launch.x) - (stage.launchAngle ?? 0);
+    await edit(
+      page,
+      'launch-angle',
+      Math.round((Math.atan2(Math.sin(a), Math.cos(a)) * 180) / Math.PI),
+    );
+  }
+  if (plan.launchHold) {
+    await press(page, '[data-hold="phase"]');
+    if (plan.launchHold.phaseTarget) await edit(page, 'hold-target', plan.launchHold.phaseTarget);
+    await edit(page, 'hold-angle', plan.launchHold.atAngle);
+  }
   await press(page, '[data-close]');
   type Item =
     | { kind: 'engine'; c: NonNullable<RoutePlan['engineCommands']>[number] }
@@ -156,6 +169,7 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
 export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
   const eventPlan =
     plan.launchDv !== undefined ||
+    !!plan.launchHold ||
     (plan.engineCommands ?? []).some((c) => c.burn || (c as { at?: string }).at) ||
     plan.impulses.some((m) => m.at || m.heading);
   if (eventPlan) return enterEventPlan(page, stage, plan);

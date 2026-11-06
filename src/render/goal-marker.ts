@@ -1,3 +1,4 @@
+import { haloText } from './annotate';
 import { canvasFont } from './fonts';
 import { referencePosition } from '../world/actor-reference';
 import { ellipseFocusOffset } from '../physics/ellipse';
@@ -119,9 +120,7 @@ export function paintMarker(
       ctx.arc(p.x, p.y, radius * zoom, 0, Math.PI * 2);
       ctx.stroke();
     }
-    ctx.font = canvasFont(15);
-    ctx.fillStyle = '#eed290';
-    ctx.fillText('접근 → 최근접 → 이탈', p.x + 10, p.y - 12);
+    haloText(ctx, '접근 → 최근접 → 이탈', { x: p.x + 10, y: p.y - 16 }, '#eed290');
   } else if (m.kind === 'orbit') {
     const e = Math.sqrt(Math.max(0, 1 - (m.minor / m.radius) ** 2));
     const angle = m.angle ?? 0;
@@ -179,9 +178,7 @@ export function paintMarker(
     ctx.arc(tip.x, tip.y, m.width * zoom, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.font = canvasFont(15);
-    ctx.fillStyle = '#eed290';
-    ctx.fillText('속도·방향 허용 원', tip.x + 10, tip.y - 10);
+    haloText(ctx, '속도·방향 허용 원', { x: tip.x + 10, y: tip.y - 14 }, '#eed290');
   } else {
     ctx.setLineDash([]);
     ctx.fillRect(p.x - 22, p.y - 15, 44, 30);

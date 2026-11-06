@@ -299,7 +299,8 @@
     background: var(--text);
     box-shadow: 0 0 0 1px var(--ink);
     pointer-events: none;
-    z-index: 3;
+    /* Under the chips: a chip's words are never crossed by the line. */
+    z-index: 1;
   }
   body.game-ui .flight-deck #flight-timeline #timeline-cursor::before {
     content: attr(data-label);

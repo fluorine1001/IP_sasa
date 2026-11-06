@@ -85,6 +85,9 @@ export type RoutePlan = {
   launch: Vec;
   /** Powered launch: stop the first burn after this speed change (u/s). Unset: burn until told. */
   launchDv?: number;
+  /** Cold-gas launch window: wait on the pad until this angle is reached, then launch.
+   * The wait costs mission time, not the maneuver budget. */
+  launchHold?: { at: 'phase' | 'angle'; atAngle: number; phaseTarget?: string };
   impulses: Impulse[];
   engineCommands?: {
     id: string;
@@ -204,6 +207,8 @@ export type ArmedPush = {
   trigger: import('./heading').TriggerSpec;
   last?: import('./heading').TriggerReading;
   push: Impulse;
+  /** The held launch: given by the launcher, outside the maneuver budget. */
+  free?: boolean;
 };
 export type Run = {
   /** When each reservation finished (burn delivered, push given, separation done). */

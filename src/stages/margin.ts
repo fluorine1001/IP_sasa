@@ -1,5 +1,6 @@
 import { execute } from '../world/engine';
 import { length } from '../physics/vector';
+import { surfaceLaunch } from '../world/launch';
 import { chainTime } from '../world/chain';
 import type { RoutePlan, Stage } from '../world/types';
 
@@ -65,10 +66,21 @@ export function nudges(
       });
       if (!stage.rocket)
         variant('발사 방향', `${sign > 0 ? '+' : '−'}${MARGIN.launchAngle}°`, (p) => {
+          // Straight up or level with the pad is set exactly, like full power.
+          const n = surfaceLaunch(stage)?.normal;
+          if (n) {
+            const c = (n.x * plan.launch.x + n.y * plan.launch.y) / launch;
+            if (Math.abs(c) < 1e-6 || Math.abs(Math.abs(c) - 1) < 1e-6) return false;
+          }
           p.launch = rotate(p.launch, sign * MARGIN.launchAngle);
         });
     }
   }
+  if (plan.launchHold)
+    for (const sign of [1, -1])
+      variant('발사 시점 각도', `${sign > 0 ? '+' : '−'}1°`, (p) => {
+        p.launchHold!.atAngle += sign;
+      });
   if (plan.launchDv !== undefined)
     for (const sign of [1, -1])
       variant(
@@ -270,6 +282,32 @@ function reaim(stage: Stage, nudged: RoutePlan, knob: string): boolean {
     return false;
   };
   if (tryLast(nudged, [0, 5, -5, 10, -10, 20, -20, 30, -30], 10)) return true;
+  // A narrow window the coarse grid steps over: the UI's own 0.001 steps, straight on.
+  {
+    const base = sizeOf(nudged, last);
+    for (let k = -30; k <= 30; k++) {
+      const size = base + k * 0.001;
+      if (k === 0 || Math.abs(size) < 0.001) continue;
+      const p = structuredClone(nudged);
+      setChange(p, last, size, 0);
+      if (wins(stage, p)) return true;
+    }
+  }
+  // A held launch: the window angle is re-aimed with it (arrive when the target is there).
+  if (nudged.launchHold && !knob.startsWith('발사 시점'))
+    for (let d = 1; d <= 8; d++)
+      for (const sign of [1, -1]) {
+        const held = structuredClone(nudged);
+        held.launchHold!.atAngle += sign * d;
+        const base = sizeOf(held, last);
+        for (let k = -30; k <= 30; k++) {
+          const size = base + k * 0.001;
+          if (Math.abs(size) < 0.001) continue;
+          const p = structuredClone(held);
+          setChange(p, last, size, 0);
+          if (wins(stage, p)) return true;
+        }
+      }
   const before = list.at(-2);
   if (!before || knob.startsWith(changeName(before))) return false;
   const base = sizeOf(nudged, before);

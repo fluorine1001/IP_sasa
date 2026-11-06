@@ -596,7 +596,8 @@ export function flightTimeline(
         .map((e) => {
           const ref = chainRef(plan, e.id);
           const from = ref
-            ? (placed.get(ref) ?? (ref === 'launch' ? { time: 0, row: 0 } : undefined))
+            ? (placed.get(ref) ??
+              (ref === 'launch' ? { time: state.estimates?.launch ?? 0, row: 0 } : undefined))
             : undefined;
           const to = placed.get(e.id);
           if (!from || !to) return '';
@@ -639,10 +640,7 @@ export function flightTimeline(
               ? '<i class="burn-out" style="left:' +
                 (left + size) +
                 '%">' +
-                // The tag only where the next burn leaves room for it; the red line always.
-                ((spans[i + 1]?.start ?? Infinity) - span.end > (62 / width) * duration
-                  ? '<span>연료 끝</span>'
-                  : '') +
+                // A red line only: words on the bar collide with the chips and playhead.
                 '</i>'
               : '')
           );
@@ -657,6 +655,20 @@ export function flightTimeline(
     el('timeline-cursor').dataset.label =
       (editable() ? '' : 'T+ ') + cursorTime.toFixed(editable() ? 2 : 1) + '초';
     el('timeline-cursor').classList.toggle('flip', percent > 88);
+    // A ruler number under the playhead's tag is hidden rather than overlapped.
+    {
+      const track = el('timeline-ticks').getBoundingClientRect();
+      const at = track.left + (percent / 100) * track.width;
+      const flip = percent > 88;
+      el('timeline-ticks')
+        .querySelectorAll<HTMLElement>('i')
+        .forEach((tick) => {
+          const r = tick.getBoundingClientRect();
+          const tagL = flip ? at - 62 : at - 2,
+            tagR = flip ? at + 2 : at + 62;
+          tick.style.visibility = r.right > tagL && r.left < tagR ? 'hidden' : '';
+        });
+    }
     el('flight-timeline').dataset.phase = state.phase;
     el('timeline-clock').textContent =
       state.time.toFixed(2) +

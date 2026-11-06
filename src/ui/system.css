@@ -25,9 +25,7 @@ body.game-ui #notebook {
   color: var(--c-text);
   border: 2px solid var(--panel-edge);
   border-radius: var(--r-lg);
-  box-shadow:
-    var(--sh-inset),
-    var(--sh-3);
+  box-shadow: var(--sh-inset), var(--sh-3);
   backdrop-filter: none;
 }
 body.game-ui .stage-card {
@@ -36,9 +34,7 @@ body.game-ui .stage-card {
   color: var(--c-text);
   border: 2px solid var(--panel-edge);
   border-radius: var(--r-md);
-  box-shadow:
-    var(--sh-inset),
-    var(--sh-2);
+  box-shadow: var(--sh-inset), var(--sh-2);
 }
 body.game-ui #notebook .trial-card {
   background: var(--panel-raised);
@@ -356,4 +352,61 @@ body.game-ui .result #result-close {
 }
 body.game-ui .result .result-stamp {
   margin-right: 48px;
+}
+
+/* ---------- Header strips (ONI): a dark indigo title band on every panel ---------- */
+body.game-ui .mission-panel h2 {
+  margin: -14px -16px 12px;
+  padding: 12px 16px 10px;
+  border-bottom: 2px solid var(--panel-edge);
+  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+  background: var(--panel-head);
+  color: var(--c-text);
+  font-size: var(--fs-4);
+}
+body.game-ui .resources #vehicle-map:not(:empty)::before,
+body.game-ui .resources #initial-output:not([hidden])::before,
+body.game-ui .resources #flight-readouts:not(:empty)::before {
+  margin: 0 -14px 10px;
+  padding: 6px 14px;
+  background: var(--panel-head);
+  border-top: 2px solid var(--panel-edge);
+  border-bottom: 2px solid var(--panel-edge);
+  color: var(--amber-400);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-2);
+  letter-spacing: 0;
+}
+body.game-ui .resources > :first-child::before,
+body.game-ui .resources #flight-readouts:not(:empty)::before {
+  margin-top: -12px;
+  border-top: 0;
+  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+}
+body.game-ui dialog.mission-goals .briefing-head {
+  background: var(--panel-head);
+  border-bottom: 2px solid var(--panel-edge);
+}
+body.game-ui dialog.mission-goals .briefing-section h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-4);
+  color: var(--amber-400);
+}
+body.game-ui #notebook .archive-heading {
+  margin: -13px -13px 12px -34px;
+  padding: 10px 13px 10px 34px;
+  background: var(--panel-head);
+  border-bottom: 2px solid var(--panel-edge);
+  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
+}
+body.game-ui .result .result-stamp {
+  margin: -12px 0 10px -12px;
+  padding: 10px 12px;
+  width: calc(100% + 24px);
+  box-sizing: border-box;
+  background: var(--panel-head);
+  border-bottom: 2px solid var(--panel-edge);
+  border-radius: calc(var(--r-lg) - 2px) calc(var(--r-lg) - 2px) 0 0;
 }

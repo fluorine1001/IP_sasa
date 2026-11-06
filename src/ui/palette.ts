@@ -2,8 +2,8 @@
  * frame, so the few colours the renderer needs are repeated here with the same names.
  * Keep the two files in step (tests/palette.test.ts checks it). */
 export const palette = {
-  n950: '#141824',
-  n900: '#1a1f2e',
+  n950: '#090d20',
+  n900: '#0e1430',
   n700: '#38415c',
   n300: '#97a0b8',
   n50: '#ffffff',

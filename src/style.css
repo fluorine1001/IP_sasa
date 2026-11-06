@@ -1,7 +1,7 @@
 :root {
   font-family: var(--font);
   color: var(--c-text);
-  background: var(--n-850);
+  background: var(--n-900);
   font-synthesis: none;
   font-weight: 500;
   --ink: var(--n-900);

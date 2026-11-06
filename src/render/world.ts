@@ -6,11 +6,12 @@ import { paintRocket } from './rocket-sprite';
 import { paintLaunchPad } from './launch-pad';
 import { paintCraftLocator } from './craft-locator';
 import { paintGoalRegion } from './goal-region';
+import { paintBody } from './body-art';
 import { drawBurnHandles, type BurnHandle } from './burn-handle';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
 import { paintPush, paintPushMarks, recentPushes } from './push-effect';
-import { hullSize , craftScale } from '../world/hull';
+import { hullSize, craftScale } from '../world/hull';
 import { physicalRadius } from '../world/contact';
 import { impactDirection } from '../world/impact';
 import { surfaceLaunch } from '../world/launch.ts';
@@ -83,19 +84,25 @@ export function prepare(canvas: HTMLCanvasElement) {
   return { ctx, w: r.width, h: r.height };
 }
 export function backdrop(ctx: CanvasRenderingContext2D, w: number, h: number, c: Camera) {
-  ctx.fillStyle = '#142332';
+  // Deep, saturated space so the slate panels read as a separate layer above it.
+  ctx.fillStyle = '#0e1430';
   ctx.fillRect(0, 0, w, h);
+  for (const [gx, gy, gr, col] of [
+    [0.75, 0.25, 0.7, '#3a2a7a40'],
+    [0.15, 0.85, 0.6, '#1d5a7a30'],
+  ] as const) {
+    const glow = ctx.createRadialGradient(w * gx, h * gy, 0, w * gx, h * gy, w * gr);
+    glow.addColorStop(0, col);
+    glow.addColorStop(1, '#0e143000');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h);
+  }
   for (let i = 0; i < 170; i++) {
     const x = (((i * 7919.13 - c.x * 3) % w) + w) % w,
       y = (((i * i * 71.73 + c.y * 3) % h) + h) % h;
-    ctx.fillStyle = i % 7 === 0 ? '#9bcad8' : '#4b667a';
+    ctx.fillStyle = i % 7 === 0 ? '#cfe6ff' : i % 3 === 0 ? '#7f8fd0' : '#4a5a9a';
     ctx.fillRect(x, y, i % 7 === 0 ? 3 : 1.5, i % 7 === 0 ? 3 : 1.5);
   }
-  const glow = ctx.createRadialGradient(w * 0.7, h * 0.3, 0, w * 0.7, h * 0.3, w * 0.65);
-  glow.addColorStop(0, '#32576333');
-  glow.addColorStop(1, '#14233200');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
 }
 export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   const { ctx, w, h } = prepare(canvas),
@@ -310,10 +317,6 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       r = b.radius * c.zoom;
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.fillStyle = '#0b1721';
-    ctx.beginPath();
-    ctx.arc(3, 6, r + 4, 0, 7);
-    ctx.fill();
     if (b.atmosphere) {
       // Thinning haze: densest at the ground, gone at the top of the atmosphere.
       const top = (b.radius + b.atmosphere.height) * c.zoom;
@@ -326,40 +329,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.arc(0, 0, top, 0, 7);
       ctx.fill();
     }
-    ctx.fillStyle = b.kind === 'black-hole' ? '#060a13' : b.color;
-    ctx.strokeStyle = '#091823';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, 7);
-    ctx.fill();
-    ctx.stroke();
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(0, 0, r - 2, 0, 7);
-    ctx.clip();
-    ctx.globalAlpha = 0.2;
-    ctx.fillStyle = '#10212c';
-    for (let i = 0; i < 7; i++) {
-      ctx.beginPath();
-      ctx.ellipse(
-        Math.sin(i * 7) * r * 0.7,
-        Math.cos(i * 3) * r * 0.75,
-        r * (0.13 + i * 0.023),
-        r * 0.13,
-        i,
-        0,
-        7,
-      );
-      ctx.fill();
-    }
-    const sh = ctx.createLinearGradient(-r, -r, r, r);
-    sh.addColorStop(0, '#ffffff44');
-    sh.addColorStop(0.45, '#ffffff00');
-    sh.addColorStop(1, '#071321bb');
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = sh;
-    ctx.fillRect(-r, -r, 2 * r, 2 * r);
-    ctx.restore();
+    paintBody(ctx, b, r);
     if (s.selected?.has(b.id)) {
       ctx.strokeStyle = '#ffce70';
       ctx.lineWidth = 3;
@@ -375,7 +345,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.roundRect(-half, r + 8, half * 2, 21, 4);
       ctx.fill();
     }
-    nameTag(ctx, b.name, 0, r + 8, '#0d171cd9', '#f4ecd5');
+    nameTag(ctx, b.name, 0, r + 8, '#2b2950f0', '#ffffff');
     if (b.kind === 'black-hole') {
       ctx.strokeStyle = '#e49cad';
       ctx.lineWidth = 4;
@@ -682,7 +652,9 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
   for (const push of recentPushes(s.run, s.stage)) paintPush(ctx, p, push, !!s.reducedMotion);
   for (const actor of s.run?.detached ?? []) {
     if (actor.age > 0.45) continue;
-    const split = screen(add(actor.position, scale(actor.direction, hullSize(1, true, craftScale(s.stage)).length)));
+    const split = screen(
+      add(actor.position, scale(actor.direction, hullSize(1, true, craftScale(s.stage)).length)),
+    );
     ctx.save();
     ctx.globalAlpha = (1 - actor.age / 0.45) * 0.8;
     ctx.strokeStyle = '#f1d58c';

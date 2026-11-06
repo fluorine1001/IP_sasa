@@ -5,8 +5,8 @@
 
 :root {
   /* ---------- Neutrals: cool console slate, darkest = ink ---------- */
-  --n-950: #141824;
-  --n-900: #1a1f2e;
+  --n-950: #090d20;
+  --n-900: #0e1430;
   --n-850: #20263a;
   --n-800: #272e44;
   --n-750: #2e364f;
@@ -15,16 +15,16 @@
   --n-500: #56617f;
   --n-400: #6e7895;
   --n-300: #97a0b8;
-  --n-200: #c3c9da;
-  --n-100: #e2e6f0;
+  --n-200: #dde2ee;
+  --n-100: #eef1f7;
   --n-50: #ffffff;
 
   /* ---------- Document ramp: 50–400 are panel surfaces (raised → sunk), 600–900 ink ---------- */
-  --p-50: #4a5370;
-  --p-100: #434c68;
-  --p-200: #3c4560;
-  --p-300: #353d56;
-  --p-400: #5a6482;
+  --p-50: #606c8c;
+  --p-100: #59658a;
+  --p-200: #525d7c;
+  --p-300: #3a4362;
+  --p-400: #6c7898;
   --p-600: #9aa3bb;
   --p-800: #c9cfe0;
   --p-900: #ffffff;
@@ -125,11 +125,11 @@
   --stroke-thin: 1px;
 
   /* ---------- Panels (one material everywhere) ---------- */
-  --panel: #3c4560;
-  --panel-raised: #4a5370;
-  --panel-sunk: #2b3248;
-  --panel-head: #2a3046;
-  --panel-edge: #1a1f2e;
+  --panel: #525d7c;
+  --panel-raised: #606c8c;
+  --panel-sunk: #3a4362;
+  --panel-head: #2b2950;
+  --panel-edge: #14172a;
   --c-glass: var(--panel);
   --c-glass-2: var(--panel-raised);
   --edge: #1a1f2e;

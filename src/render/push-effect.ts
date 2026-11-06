@@ -1,4 +1,5 @@
 import { hairArrow, haloText } from './annotate';
+import { puff } from './exhaust';
 import { palette } from '../ui/palette';
 import { length, type Vec } from '../physics/vector';
 import type { Run, Stage } from '../world/types';
@@ -42,16 +43,13 @@ export function paintPush(
   const fade = 1 - push.age / PUSH_SHOW;
   const spread = reduced ? 0.5 : push.age / PUSH_SHOW;
   ctx.save();
-  // Puffs: three expanding clouds behind the craft.
+  // Cold gas: cartoon puffs leaving opposite to the push, growing and fading.
   for (let i = 0; i < 3; i++) {
     const d = 12 + (16 + i * 11) * (0.4 + spread),
-      r = 4 + i * 2.2 + 9 * spread;
-    const side = (i - 1) * 4 * (0.5 + spread);
-    ctx.globalAlpha = Math.max(0, 0.55 * fade - i * 0.12);
-    ctx.fillStyle = i === 0 ? palette.n50 : palette.n300;
-    ctx.beginPath();
-    ctx.arc(at.x - ux * d - uy * side, at.y - uy * d + ux * side, r, 0, Math.PI * 2);
-    ctx.fill();
+      r = 4 + i * 2 + 7 * spread;
+    const side = (i - 1) * 5 * (0.5 + spread);
+    ctx.globalAlpha = Math.max(0, 0.9 * fade - i * 0.15);
+    puff(ctx, at.x - ux * d - uy * side, at.y - uy * d + ux * side, r, '#eaf4ff');
   }
   // Hairline arrow: which way the push changed the velocity, labelled with its size.
   const len = Math.max(30, Math.min(80, 30 + size * 180));

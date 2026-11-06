@@ -22,6 +22,13 @@ function seeded(id: string) {
   return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 10000) / 10000;
 }
 
+/** Blue-green planets with air read as ocean worlds. */
+function earthlike(b: Body) {
+  if (b.kind !== 'planet' || !b.atmosphere || !(b.atmosphere.density > 0)) return false;
+  const [r, g, bl] = hex(b.color || '#000');
+  return g >= r && bl >= r * 0.8;
+}
+
 export function paintBody(ctx: CanvasRenderingContext2D, b: Body, r: number) {
   const ink = '#14172a';
   if (b.kind === 'black-hole') {
@@ -76,6 +83,61 @@ export function paintBody(ctx: CanvasRenderingContext2D, b: Body, r: number) {
         ctx.arc((rand() * 2 - 1) * r, (rand() * 2 - 1) * r, r * (0.08 + rand() * 0.12), 0, 7);
         ctx.fill();
       }
+    } else if (earthlike(b)) {
+      // Ocean world: deep water, continents in the body colour, ice caps and clouds.
+      const sea = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r);
+      sea.addColorStop(0, '#5fb0e8');
+      sea.addColorStop(1, '#245d9e');
+      ctx.fillStyle = sea;
+      ctx.fillRect(-r, -r, 2 * r, 2 * r);
+      const land = '#6cc35a';
+      for (let i = 0; i < 4; i++) {
+        const cx = (rand() * 1.4 - 0.7) * r,
+          cy = (rand() * 1.2 - 0.6) * r;
+        ctx.fillStyle = land;
+        ctx.strokeStyle = '#2f6b3a';
+        ctx.lineWidth = Math.max(1, r * 0.02);
+        const n = 8,
+          rr = r * (0.2 + rand() * 0.18);
+        const pts = Array.from({ length: n }, (_, k) => {
+          const a = (k / n) * Math.PI * 2,
+            q = rr * (0.65 + 0.6 * rand());
+          return [cx + Math.cos(a) * q, cy + Math.sin(a) * q * 0.85];
+        });
+        ctx.beginPath();
+        // Smooth closed curve through the midpoints.
+        const mid = (a: number[], b: number[]) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const m0 = mid(pts[n - 1], pts[0]);
+        ctx.moveTo(m0[0], m0[1]);
+        for (let k = 0; k < n; k++) {
+          const m = mid(pts[k], pts[(k + 1) % n]);
+          ctx.quadraticCurveTo(pts[k][0], pts[k][1], m[0], m[1]);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = shade(land, 0.22);
+        ctx.beginPath();
+        ctx.ellipse(cx - rr * 0.15, cy - rr * 0.2, rr * 0.4, rr * 0.22, rand() * 3, 0, 7);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#f2f7ff';
+      for (const y of [-r, r]) {
+        ctx.beginPath();
+        ctx.ellipse(0, y, r * 0.55, r * 0.2, 0, 0, 7);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 6; i++) {
+        const cx = (rand() * 1.6 - 0.8) * r,
+          cy = (rand() * 1.6 - 0.8) * r;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, r * (0.18 + rand() * 0.18), r * 0.05, -0.25, 0, 7);
+        ctx.ellipse(cx + r * 0.08, cy + r * 0.06, r * (0.12 + rand() * 0.1), r * 0.04, -0.25, 0, 7);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
     } else if (r > 14 && b.radius > 0.7 && b.kind === 'planet' && rand() < 0.35) {
       // Gas-giant bands.
       ctx.globalAlpha = 0.28;
@@ -120,12 +182,19 @@ export function paintBody(ctx: CanvasRenderingContext2D, b: Body, r: number) {
     }
     // Night side: a crescent shadow toward the lower right.
     if (b.kind !== 'star') {
-      ctx.globalAlpha = 0.45;
-      ctx.fillStyle = '#0a0d24';
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, 7);
-      ctx.arc(-r * 0.32, -r * 0.32, r * 1.08, 0, 7, true);
-      ctx.fill('evenodd');
+      const night = ctx.createRadialGradient(
+        -r * 0.35,
+        -r * 0.35,
+        r * 0.75,
+        -r * 0.35,
+        -r * 0.35,
+        r * 1.75,
+      );
+      night.addColorStop(0, '#0a0d2400');
+      night.addColorStop(0.55, '#0a0d2455');
+      night.addColorStop(1, '#0a0d24aa');
+      ctx.fillStyle = night;
+      ctx.fillRect(-r, -r, 2 * r, 2 * r);
     }
     ctx.restore();
   }

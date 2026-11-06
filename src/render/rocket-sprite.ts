@@ -1,13 +1,15 @@
 import { hullSize, ROCKET_SEGMENT_LENGTH } from '../world/hull';
 
 /** Stage colours, shared with the title art: first stage orange, then violet, then teal. */
-export const STAGE_COLORS = ['#ef8a3c', '#a084d8', '#3db6a6'];
+export const STAGE_COLORS = ['#f0843a', '#9b7fe0', '#2fb8a6'];
 const INK = '#14172a';
-const NOSE = '#f0e3c0';
+const NOSE = '#f4f1e6';
 
 /**
  * Every stroke is drawn inside the collision capsule: the visible silhouette is the
  * capsule itself, so what touches on screen is what touches in the physics.
+ * Illustrated style: ink outline, cylinder shading, painted stage bands, a nozzle bell
+ * at the tail, fins on the lowest stage, interstage rings and a porthole in the nose.
  */
 export function paintRocket(
   ctx: CanvasRenderingContext2D,
@@ -23,23 +25,17 @@ export function paintRocket(
   const hull = hullSize(count, booster),
     size = hull.length * zoom,
     r = hull.radius * zoom,
-    ink = Math.max(1, Math.min(r * 0.32, 3.2)),
-    half = ink / 2;
+    ink = Math.max(1, Math.min(r * 0.28, 3)),
+    half = ink / 2,
+    detail = r > 4; // small on screen: silhouette and colours only
   if (flame) {
-    ctx.fillStyle = '#f2b54a';
+    ctx.fillStyle = '#ffb43a';
     ctx.beginPath();
     ctx.moveTo(r * 0.5, -r * 0.45);
     ctx.lineTo(-r * 3.2, 0);
     ctx.lineTo(r * 0.5, r * 0.45);
     ctx.fill();
-    ctx.fillStyle = '#fff1c9';
-    ctx.beginPath();
-    ctx.moveTo(r * 0.5, -r * 0.22);
-    ctx.lineTo(-r * 1.6, 0);
-    ctx.lineTo(r * 0.5, r * 0.22);
-    ctx.fill();
   }
-  // Capsule body, clipped so nothing paints outside the collision outline.
   ctx.beginPath();
   ctx.roundRect(0, -r, size, 2 * r, r);
   ctx.save();
@@ -48,24 +44,76 @@ export function paintRocket(
     stages = booster ? 1 : count,
     bodyEnd = stages * segment;
   for (let i = 0; i < stages; i++) {
-    ctx.fillStyle = STAGE_COLORS[(firstPart + i) % 3];
+    const color = STAGE_COLORS[(firstPart + i) % 3];
+    ctx.fillStyle = color;
     ctx.fillRect(i * segment, -r, segment + 1, 2 * r);
+    if (detail) {
+      // Painted band near the top of each stage, and a darker skirt at its base.
+      ctx.fillStyle = '#f4f1e6';
+      ctx.fillRect(i * segment + segment * 0.62, -r, segment * 0.14, 2 * r);
+      ctx.fillStyle = '#00000030';
+      ctx.fillRect(i * segment, -r, segment * 0.12, 2 * r);
+    }
   }
-  // Cylinder shading across the hull: a highlight on top, the shadow underneath.
-  const roll = ctx.createLinearGradient(0, -r, 0, r);
-  roll.addColorStop(0, '#ffffff55');
-  roll.addColorStop(0.3, '#ffffff18');
-  roll.addColorStop(0.6, '#00000000');
-  roll.addColorStop(1, '#0a0d2466');
   if (!booster) {
+    // Nose: cream cone section with a porthole.
     ctx.fillStyle = NOSE;
     ctx.fillRect(bodyEnd, -r, size - bodyEnd, 2 * r);
-    ctx.fillStyle = '#5eb2e8';
-    ctx.beginPath();
-    ctx.arc(bodyEnd + r * 0.75, 0, r * 0.32, 0, Math.PI * 2);
-    ctx.fill();
+    if (detail) {
+      const wx = bodyEnd + Math.min(r * 0.9, (size - bodyEnd) * 0.4);
+      ctx.fillStyle = '#2c4a7a';
+      ctx.beginPath();
+      ctx.arc(wx, 0, r * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#7fc8f5';
+      ctx.beginPath();
+      ctx.arc(wx, 0, r * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffffcc';
+      ctx.beginPath();
+      ctx.arc(wx - r * 0.1, -r * 0.1, r * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = Math.max(1, ink * 0.6);
+      ctx.beginPath();
+      ctx.arc(wx, 0, r * 0.42, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
-  // Seams between stages.
+  // Nozzle bell at the tail: dark metal with a lit lip.
+  if (detail) {
+    const bell = Math.min(r * 0.9, segment * 0.3);
+    ctx.fillStyle = '#3a4058';
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.62);
+    ctx.lineTo(bell, -r * 0.38);
+    ctx.lineTo(bell, r * 0.38);
+    ctx.lineTo(0, r * 0.62);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#8c93ad';
+    ctx.fillRect(0, -r * 0.62, Math.max(1, bell * 0.18), r * 1.24);
+    // Fins on the lowest stage.
+    ctx.fillStyle = '#00000040';
+    for (const sign of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(r * 2.2, sign * r * 0.62);
+      ctx.lineTo(r * 1.1, sign * r);
+      ctx.lineTo(bell, sign * r);
+      ctx.lineTo(bell + r * 0.25, sign * r * 0.55);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  // Cylinder shading across the hull.
+  const roll = ctx.createLinearGradient(0, -r, 0, r);
+  roll.addColorStop(0, '#ffffff66');
+  roll.addColorStop(0.28, '#ffffff1c');
+  roll.addColorStop(0.55, '#00000000');
+  roll.addColorStop(1, '#0a0d2470');
+  ctx.fillStyle = roll;
+  ctx.fillRect(0, -r, size, 2 * r);
+  // Interstage rings.
   ctx.strokeStyle = INK;
   ctx.lineWidth = Math.max(1, ink * 0.8);
   for (let i = 1; i <= stages; i++) {
@@ -75,19 +123,6 @@ export function paintRocket(
     ctx.lineTo(i * segment, r);
     ctx.stroke();
   }
-  // Fins on the lowest stage, inside the capsule.
-  ctx.fillStyle = '#3c4b51';
-  for (const sign of [-1, 1]) {
-    ctx.beginPath();
-    ctx.moveTo(r * 2.1, sign * r * 0.55);
-    ctx.lineTo(r * 0.9, sign * r);
-    ctx.lineTo(r * 0.5, sign * r);
-    ctx.lineTo(r * 0.7, sign * r * 0.45);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.fillStyle = roll;
-  ctx.fillRect(0, -r, size, 2 * r);
   ctx.restore();
   // Ink outline, inset by half its width so it stays on the capsule.
   ctx.strokeStyle = INK;

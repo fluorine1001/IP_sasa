@@ -109,11 +109,16 @@ textarea:focus-visible {
 }
 
 .badge {
-  color: #b5d4ca;
+  color: #ffffff; /* 글자색을 깔끔한 흰색으로 변경 */
   letter-spacing: 2px;
   font-size: 12px;
   font-weight: 900;
+  background: rgba(255, 255, 255, 0.15); /* 반투명한 흰색 유리창 느낌 배경 추가 */
+  padding: 4px 8px; /* 배지 글자 주변에 여백 주기 */
+  border-radius: 4px; /* 모서리를 살짝 둥글게 */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* 은은한 테두리선 추가 */
 }
+
 
 h1,
 h2,

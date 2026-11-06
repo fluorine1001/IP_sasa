@@ -1,3 +1,4 @@
+import { isChained } from './event-schedule';
 import { length, scale } from '../physics/vector';
 import { apsisNames, headingLabel, type Apsis } from './heading';
 
@@ -144,7 +145,8 @@ export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
         (config.payloads ?? []).reduce((m, q) => m + q.mass, 0) +
         config.parts.slice(index).reduce((m, q, i) => m + q.dryMass + fuel[index + i], 0);
       const spent = mass * (1 - Math.exp(-c.burn.dv / p.exhaustSpeed));
-      if (spent > fuel[index] + 1e-9)
+      // A matching burn stops by itself once matched: its Δv is a ceiling, not a need.
+      if (spent > fuel[index] + 1e-9 && c.burn.heading.frame !== 'match')
         warnings.push(
           c.time.toFixed(1) +
             '초: 연료가 Δv ' +
@@ -265,7 +267,11 @@ export function planConstraints(stage: Stage, plan: RoutePlan): string[] {
   }
   if (
     [...plan.impulses, ...(plan.engineCommands ?? [])].some(
-      (c) => !Number.isFinite(c.time) || c.time < 0 || c.time > planningTimeLimit(stage),
+      (c) =>
+        !Number.isFinite(c.time) ||
+        c.time < 0 ||
+        // A chained reservation's time is only an estimate for drawing; it runs on its chain.
+        (c.time > planningTimeLimit(stage) && !isChained(c)),
     )
   )
     out.push(

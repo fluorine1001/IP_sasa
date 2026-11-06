@@ -9,13 +9,17 @@ export function launchPadShape(zoom: number) {
  * Launch pad, painted like a built tile: a cream concrete deck with block seams and a
  * hazard stripe on its edge, and a rust gantry with a ladder beside the rocket.
  */
-export function paintLaunchPad(ctx: CanvasRenderingContext2D, zoom: number) {
+export function paintLaunchPad(ctx: CanvasRenderingContext2D, zoom: number, tower = false) {
   const { halfSpan, depth, front } = launchPadShape(zoom);
   ctx.save();
   ctx.lineJoin = 'round';
   const deck = Math.max(depth, 3);
   const line = Math.max(1.2, Math.min(2.5, deck * 0.3));
-  // Deck (below the contact line: x <= 0).
+  // Deck (below the contact line: x <= 0). Nothing of it, ink included, crosses that line.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(front - deck - 20, -halfSpan - 20, deck + 20, halfSpan * 2 + 40);
+  ctx.clip();
   wobblyPoly(
     ctx,
     [
@@ -48,11 +52,12 @@ export function paintLaunchPad(ctx: CanvasRenderingContext2D, zoom: number) {
   grime(ctx, halfSpan, PAL.cream, 'pad', 1.5);
   ctx.restore();
   ink(ctx, line);
+  ctx.restore();
   // Gantry: rust tower with a ladder, only when it is big enough to read.
   const H = zoom * 0.34,
     Wt = Math.max(3, zoom * 0.035),
     off = zoom * 0.07;
-  if (H > 18) {
+  if (tower && H > 18) {
     const y0 = halfSpan * 0.55 + off * 0.2;
     ctx.fillStyle = PAL.rust;
     wobblyPoly(

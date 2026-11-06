@@ -61,7 +61,7 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
             (b) =>
               ![b.time, b.vector.x, b.vector.y].every(Number.isFinite) ||
               b.time < 0 ||
-              b.time > missionTimeLimit(stage),
+              (b.time > missionTimeLimit(stage) && !isChained(b)),
           )
         ? '추진 계획이 유효하지 않습니다.'
         : (planConstraints(stage, plan)[0] ?? '');

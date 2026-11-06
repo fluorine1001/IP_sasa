@@ -164,6 +164,7 @@ export function orbitFigure(c: Conic, size = 120) {
         y: cy - (c.r.y / Math.hypot(c.r.x, c.r.y)) * Math.hypot(c.r.x, c.r.y) * s,
       }
     : pt(c.nu);
+  if (![craft.x, craft.y].every(Number.isFinite)) return '';
   const peri = pt(0);
   const apo = c.bound ? pt(Math.PI) : undefined;
   const mark = (p: { x: number; y: number }, cls: string) =>

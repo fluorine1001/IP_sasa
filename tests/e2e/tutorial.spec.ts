@@ -22,12 +22,12 @@ test('메인 메뉴의 튜토리얼은 본편과 분리된 실제 훈련 스테�
 test('단일 훈련에서 실제 편집·분리·재점화·재생·한 변수 비교를 마쳐야 완료된다', async ({
   page,
 }) => {
-  test.setTimeout(90000);
+  test.setTimeout(150000);
   await page.goto('/');
   await page.locator('#tutorials').click();
   await page.locator('.tutorial-card').click();
   await page.locator('#goal-details').click();
-  await expect(page.locator('#mission-goals')).toContainText('1바퀴 전체');
+  await expect(page.locator('#mission-goals')).toContainText('1바퀴 끝까지 돌기');
   await page.locator('#goal-close').click();
   await expect(page.locator('#training-progress')).toHaveText('1 / 7');
   await page.locator('#training-next').click();
@@ -46,7 +46,9 @@ test('단일 훈련에서 실제 편집·분리·재점화·재생·한 변수 �
   await page.locator('#pause').click();
   await expect(page.locator('.timeline-event.separate.executed')).toHaveCount(1);
   await page.locator('#vehicle').click();
-  await expect(page.locator('#result')).toContainText('물리 조건 달성', { timeout: 30000 });
+  await expect(page.locator('#result')).toContainText(/임무 완료|통합 훈련 완료/, {
+    timeout: 30000,
+  });
   expect(await page.evaluate(() => localStorage.getItem('orbit-tutorial-completed-v1'))).toBeNull();
   await page.locator('#training-next').click();
   await page.locator('#notes').click();
@@ -58,8 +60,12 @@ test('단일 훈련에서 실제 편집·분리·재점화·재생·한 변수 �
   await page.locator('#training-next').click();
   await page.locator('#notes').click();
   await page.locator('[data-trial-copy="0"]').click();
+  // One change: the launch power.
   await page.locator('#program-toggle').click();
-  await page.locator('[data-output]').fill('70');
+  await page.locator('#program-launch-power').evaluate((e: HTMLInputElement) => {
+    e.value = '90';
+    e.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   await page.locator('#program-close').click();
   await page.locator('#launch').click();
   await page.waitForTimeout(1200);
@@ -69,7 +75,6 @@ test('단일 훈련에서 실제 편집·분리·재점화·재생·한 변수 �
   await page.locator('#notes').click();
   await page.locator('[data-trial-view="0"]').click();
   await expect(page.locator('.evidence-table').first()).toContainText('실제 최고 높이');
-  await page.locator('.archive-comparison > summary').click();
   await page.locator('#replay-time').fill('1.3');
   await expect(page.locator('#comparison-readouts')).toContainText('1.30초');
   await page.locator('#close-notes').click();

@@ -462,3 +462,16 @@
     border-style: dashed;
   }
 }
+
+/* Phones: the guide fits between the mission card and the timeline, scrolling inside. */
+@layer components {
+  @media (max-width: 480px) {
+    body.game-ui #training-panel {
+      max-height: 200px;
+    }
+    body.game-ui #training-panel #training-details {
+      max-height: 150px;
+      overflow: auto;
+    }
+  }
+}

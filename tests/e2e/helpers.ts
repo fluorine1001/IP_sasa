@@ -40,9 +40,10 @@ async function addRow(page: Page, kind: string) {
 async function edit(page: Page, key: string, n: number | string) {
   const box = page.locator('#command-popover');
   const field = box.locator(`input[type="number"][data-edit="${key}"]`);
-  const target = (await field.count())
-    ? field.first()
-    : box.locator(`[data-edit="${key}"]`).first();
+  const any = box.locator(`[data-edit="${key}"]`);
+  // A control the item does not have (a separation has no delay slider at 0 s).
+  if (!(await any.count())) return;
+  const target = (await field.count()) ? field.first() : any.first();
   await target.evaluate((e: HTMLInputElement | HTMLSelectElement, v) => {
     if (e instanceof HTMLInputElement) e.step = 'any';
     e.value = String(v);
@@ -54,7 +55,8 @@ async function edit(page: Page, key: string, n: number | string) {
 }
 async function press(page: Page, selector: string) {
   const b = page.locator('#command-popover ' + selector).first();
-  if (await b.count()) await b.click();
+  // A long item editor scrolls; the button is pressed where it is.
+  if (await b.count()) await b.evaluate((e: HTMLElement) => e.click());
 }
 /**
  * Δv plans (burns, triggers, chains) through the timeline and its item popover, the
@@ -79,7 +81,9 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
     ...(plan.engineCommands ?? []).map((c) => ({ kind: 'engine' as const, c })),
     ...plan.impulses.map((c) => ({ kind: 'push' as const, c })),
   ].sort((a, b) => chainTime(plan, a.c.id) - chainTime(plan, b.c.id));
-  let slot = 0.3;
+  const ids = new Map<string, string>();
+  // Chained items are dropped after the launch burn could end, in run order.
+  let slot = 3;
   for (const item of items) {
     const c = item.c as Record<string, any>;
     const trigger = (item.kind === 'engine' ? (c.burn ?? c) : c) as Record<string, any>;
@@ -104,6 +108,13 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
     await page.locator('#timeline-time').press('Tab');
     await page.locator(`[data-tool="${tool}"]`).click();
     await expect(page.locator('#command-popover')).toBeVisible();
+    // The game names new reservations itself: remember which one stands for this item.
+    const made = await page
+      .locator('.timeline-event[aria-pressed="true"], .timeline-event.selected')
+      .first()
+      .getAttribute('data-event')
+      .catch(() => null);
+    if (made) ids.set(c.id, made);
     if (c.actorId && c.actorId !== 'craft') await edit(page, 'actor', c.actorId);
     if (c.burn) {
       await press(page, `[data-frame="${c.burn.heading.frame}"]`);
@@ -120,6 +131,12 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
     }
     if (!trigger.ref && (await page.locator('#command-popover [data-edit="time"]').count()))
       await edit(page, 'time', c.time);
+    if (trigger.ref)
+      await edit(
+        page,
+        'chain-ref',
+        trigger.ref === 'launch' ? 'launch' : (ids.get(trigger.ref) ?? trigger.ref),
+      );
     if (trigger.at === 'after') await edit(page, 'trigger-delay', trigger.delay ?? 0);
     if (trigger.phaseTarget) await edit(page, 'phase-target', trigger.phaseTarget);
     if (trigger.altitude !== undefined) await edit(page, 'trigger-height', trigger.altitude);

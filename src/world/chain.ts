@@ -35,15 +35,21 @@ export function chainRef(plan: RoutePlan, id: string) {
   return t?.at && t.ref ? t.ref : undefined;
 }
 /** Estimated start of a reservation for ordering: its own time, or ref's + delay. */
+/** When the launch burn is expected to end (set by the planner from the craft's data). */
+let launchEnd = 0;
+export function setLaunchEnd(t: number) {
+  launchEnd = Number.isFinite(t) && t > 0 ? t : 0;
+}
 export function chainTime(plan: RoutePlan, id: string, seen = new Set<string>()): number {
-  if (id === 'launch') return 0;
+  if (id === 'launch') return launchEnd;
   const all = items(plan);
   const it = all.find((x) => x.id === id);
   if (!it) return 0;
   const t = triggerHost(plan, id);
   if (!t?.at || !t.ref || seen.has(id)) return it.owner.time;
   seen.add(id);
-  return chainTime(plan, t.ref, seen) + (t.delay ?? 0);
+  // A hair after the one it follows, so equal estimates still sort in chain order.
+  return chainTime(plan, t.ref, seen) + (t.delay ?? 0) + 0.001;
 }
 /**
  * After an edit: a chained item that was moved by hand keeps its new place by changing

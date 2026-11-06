@@ -2,6 +2,7 @@ import {
   planningTimeLimit,
   canAddCommand,
   commandUsage,
+  launchCutoffTime,
   launchFraction,
 } from '../../world/program';
 import { escape } from '../../app/core';
@@ -20,6 +21,7 @@ import {
   dependents,
   detachChain,
   previousOf,
+  setLaunchEnd,
   settleChains,
 } from '../../world/chain';
 import { plannedChanges } from '../../world/plan-preview';
@@ -87,7 +89,19 @@ export function timelinePlanner(
   let movedId: string | undefined;
   const notify = changed;
   changed = () => {
-    settleChains(get().plan, movedId);
+    const p = get().plan;
+    // Chains that follow the launch are drawn from when its burn should end.
+    const first = stage.rocket?.parts[0];
+    setLaunchEnd(
+      first
+        ? Math.min(
+            launchCutoffTime(stage, p),
+            (first.fuelMass * first.exhaustSpeed) /
+              (first.thrust * Math.max(0.01, launchFraction(stage, p))),
+          )
+        : 0,
+    );
+    settleChains(p, movedId);
     movedId = undefined;
     notify();
   };
@@ -98,6 +112,23 @@ export function timelinePlanner(
     if (c?.separate) return '단 분리';
     if (c?.releasePayload) return '탑재체 분리';
     return plannedChanges(get().plan).find((x) => x.id === id)?.label ?? '앞 예약';
+  };
+  /** Which reservation this one follows: any earlier one that does not wait for it. */
+  const refPicker = (id: string, ref: string) => {
+    const p = get().plan;
+    const blocked = new Set([id, ...dependents(p, id)]);
+    const options = [
+      'launch',
+      ...[...(p.engineCommands ?? []).map((c) => c.id), ...p.impulses.map((m) => m.id)]
+        .filter((x) => !blocked.has(x))
+        .sort((a, b) => chainTime(p, a) - chainTime(p, b)),
+    ];
+    return `<select class="chain-from" data-edit="chain-ref" aria-label="따라갈 예약">${options
+      .map(
+        (o) =>
+          `<option value="${escape(o)}"${o === ref ? ' selected' : ''}>${escape(itemName(o))}</option>`,
+      )
+      .join('')}</select>`;
   };
   /** 'launch' can be followed only when its end is a planned moment. */
   const launchEnds = () => true; // the launch ends when the main engine first goes quiet
@@ -313,7 +344,7 @@ export function timelinePlanner(
       const armed = !!at && at !== 'after';
       const ref = chainRef(p, id);
       const anchor = (to: string) =>
-        `<div class="chain-anchor" role="note"><span class="chain-from">${escape(itemName(ref ?? 'launch'))}</span><svg viewBox="0 0 40 12" aria-hidden="true"><path d="M2 6h32M30 2l5 4-5 4"/></svg><span class="chain-to">${escape(to)}</span></div>`;
+        `<div class="chain-anchor" role="note">${refPicker(id, ref ?? 'launch')}<svg viewBox="0 0 40 12" aria-hidden="true"><path d="M2 6h32M30 2l5 4-5 4"/></svg><span class="chain-to">${escape(to)}</span></div>`;
       const timeInput =
         '<label>' +
         (armed ? '이 시각 이후' : '실행 시각') +
@@ -521,8 +552,29 @@ export function timelinePlanner(
     const discreteOnly = id !== 'launch' && (kind === 'separate' || kind === 'stop');
     if (c?.releasePayload)
       fields = `<label>분리할 위성<select data-edit="payload">${(stage.rocket?.payloads ?? []).map((payload) => `<option value="${payload.id}" ${payload.id === c.releasePayload ? 'selected' : ''}>${escape(payload.name)}</option>`).join('')}</select></label>`;
-    if (discreteOnly) fields = '';
-    else {
+    if (discreteOnly) {
+      // A separation keeps only its timing: "at its time" or "after the one before".
+      const sep = c?.separate ? c : undefined;
+      fields = sep
+        ? (sep.at === 'after'
+            ? `<div class="chain-anchor" role="note">${refPicker(sep.id, sep.ref ?? 'launch')}<svg viewBox="0 0 40 12" aria-hidden="true"><path d="M2 6h32M30 2l5 4-5 4"/></svg><span class="chain-to">분리</span></div>` +
+              range('끝난 뒤 간격', 'trigger-delay', sep.delay ?? 0, 0, 30, '초', 0.01)
+            : '') +
+          '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
+          (
+            [
+              ['', '시각'],
+              ['after', '앞 예약 뒤'],
+            ] as const
+          )
+            .map(
+              ([v, label]) =>
+                `<button type="button" data-at="${v}" aria-pressed="${(sep.at ?? '') === v}">${label}</button>`,
+            )
+            .join('') +
+          '</div>'
+        : '';
+    } else {
       if (id === 'launch' || kind === 'ignite' || kind === 'push')
         fields = '<div id="selected-engine-bench">' + engineBench(stage, p, id) + '</div>' + fields;
       if (c && !c.separate && (!c.burn || (stage.rocket?.parts.length ?? 0) > 1)) {
@@ -577,6 +629,15 @@ export function timelinePlanner(
       const input = e.target as HTMLInputElement,
         key = input.dataset.edit;
       if (!key || key === 'actor') return;
+      if (key === 'chain-ref') {
+        const t = hostFor(selected);
+        if (t) t.ref = input.value;
+        action?.('edit');
+        changed();
+        update();
+        open(selected);
+        return;
+      }
       if (key === 'phase-target') {
         const t = command(selected)?.burn ?? push(selected);
         if (t) t.phaseTarget = input.value;

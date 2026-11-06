@@ -473,7 +473,6 @@ test('재시도는 같은 환경·실험 기록·조작을 보존하고 세기�
   await expect(page.locator('.trial-card')).toHaveCount(2);
   await expect(page.locator('#trial-comparison')).toHaveCount(0);
   await expect(page.locator('.evidence-table').first()).toContainText('1차 / 2차');
-  await page.locator('.archive-comparison > summary').click();
   await expect(page.locator('#replay-time')).toBeVisible();
   await page.locator('#close-notes').click();
 });
@@ -491,7 +490,7 @@ test('충돌 화면에서 자세는 한 번의 감쇠 회전만 보이고 실패
   await testAuthorPlan(page);
   await page.locator('#launch').click();
   // The engine regression checks the angle; this exercises the actual animation lifecycle.
-  await expect(page.locator('#result')).toContainText('접촉 과속');
+  await expect(page.locator('#result')).toContainText('추락');
   await expect(page.locator('#exit')).toBeVisible();
 });
 
@@ -535,8 +534,9 @@ test('유한 연소의 실제 관측으로 낮음과 지나침을 구분하고 �
   page.on('pageerror', (e) => errors.push(e.message));
   await openGame(page);
   await page.keyboard.press('Digit4');
-  const low = structuredClone(baseline.referencePlans[0]);
-  low.engineCommands[0].time = 0.5;
+  // Launch cut-offs only: each flight comes back down, so it ends with a result.
+  const low = { ...structuredClone(baseline.referencePlans[0]), engineCommands: [] };
+  low.launchDv = 0.3;
   await enterPlan(page, baseline, low);
   await page.locator('#launch').click();
   await expect(page.locator('#result')).toBeVisible({ timeout: 20000 });
@@ -548,8 +548,8 @@ test('유한 연소의 실제 관측으로 낮음과 지나침을 구분하고 �
   while (await page.locator('[data-delete]').count())
     await page.locator('[data-delete]').first().click();
   await page.locator('#program-close').click();
-  const high = structuredClone(baseline.referencePlans[0]);
-  high.engineCommands[0].time = 1.1;
+  const high = { ...structuredClone(baseline.referencePlans[0]), engineCommands: [] };
+  high.launchDv = 0.38;
   await enterPlan(page, baseline, high);
   await page.locator('#launch').click();
   await expect(page.locator('#result')).toBeVisible({ timeout: 20000 });

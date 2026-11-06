@@ -50,7 +50,8 @@ test('축소·확대와 표면 회전에서도 발사대와 로켓을 구분하�
       probe.height = 200;
       const p = probe.getContext('2d')!;
       p.translate(100, 100);
-      paintLaunchPad(p, zoom);
+      // The deck alone: the service tower stands beside the rocket by design.
+      paintLaunchPad(p, zoom, false);
       const pixels = p.getImageData(0, 0, 200, 200).data;
       let minY = 200,
         maxY = 0,

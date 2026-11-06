@@ -238,6 +238,10 @@ export function tutorialLesson(root: HTMLElement, steps: Instruction[], signal: 
     const destination = dockPosition();
     clampPosition(destination.x, destination.y);
   }
+  // Start docked, never over the mission card the first step points at.
+  requestAnimationFrame(() => {
+    if (!placed && !panel.classList.contains('training-shelf')) dock();
+  });
   function highlight() {
     focusStarted = performance.now();
     placed = false;
@@ -384,6 +388,20 @@ export function tutorialLesson(root: HTMLElement, steps: Instruction[], signal: 
       );
     }
     if (!pinned && !dragging && !shelf) {
+      // The cards it must not cover can still be growing on the first frames (goal
+      // gauges render late): place again if the card grew under the guide.
+      if (placed && elapsed < 900) {
+        const me = panel.getBoundingClientRect();
+        const card = root.querySelector('.mission-panel')?.getBoundingClientRect();
+        if (
+          card &&
+          me.left < card.right &&
+          me.right > card.left &&
+          me.top < card.bottom &&
+          me.bottom > card.top
+        )
+          placed = false;
+      }
       if (!placed) {
         const width = panel.offsetWidth,
           height = panel.offsetHeight;
@@ -428,10 +446,9 @@ export function tutorialLesson(root: HTMLElement, steps: Instruction[], signal: 
             0,
           );
         const chosen = candidates.find((p) => !covers(p) && clearOfTarget(p)) ??
-          candidates.filter(clearOfTarget).sort((a, b) => overlap(a) - overlap(b))[0] ?? {
-            x: 8,
-            y: Math.max(8, maxY),
-          };
+          (candidates.some(clearOfTarget) ? candidates.filter(clearOfTarget) : candidates).sort(
+            (a, b) => overlap(a) - overlap(b),
+          )[0] ?? { x: 8, y: Math.max(8, maxY) };
         clampPosition(chosen.x, chosen.y);
         origin = { x: parseFloat(panel.style.left), y: parseFloat(panel.style.top) };
         placed = true;

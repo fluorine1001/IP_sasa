@@ -790,3 +790,10 @@
     width: 92px;
   }
 }
+@layer components {
+  body.game-ui .result-miss .miss-before {
+    display: block;
+    color: var(--k-dim);
+    font-weight: 600;
+  }
+}

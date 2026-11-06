@@ -1,4 +1,3 @@
-import { untilDv, type BurnUntil } from './burn-until';
 /* The orbit calculator's view of planned speed changes (AGENTS.md exception): the
  * previous flight's recorded state at a command's time, plus the planned Δv, as a
  * two-body orbit. An apsis-triggered burn is applied at that orbit's Kepler apsis.
@@ -31,8 +30,6 @@ export type PlannedChange = {
   vector?: Vec;
   at?: Apsis;
   trigger?: TriggerSpec;
-  /** Sized by the orbit it leaves; `dv` is then the ceiling. */
-  until?: BurnUntil;
   label: string;
 };
 
@@ -44,7 +41,6 @@ export function plannedChanges(plan: RoutePlan): PlannedChange[] {
       id: c.id,
       time: c.time,
       dv: c.burn!.dv,
-      until: c.burn!.until,
       heading: c.burn!.heading,
       at: c.burn!.at,
       trigger: triggerOf(c.burn!),
@@ -54,7 +50,6 @@ export function plannedChanges(plan: RoutePlan): PlannedChange[] {
     id: m.id,
     time: m.time,
     dv: m.magnitude ?? length(m.vector),
-    until: m.heading ? m.until : undefined,
     heading: m.heading,
     vector: m.heading ? undefined : m.vector,
     at: m.at,
@@ -106,10 +101,7 @@ export function applyChange(stage: Stage, s: PreviewState, change: PlannedChange
     : change.heading
       ? resolveHeading(stage, s.position, s.velocity, s.time, change.heading)
       : { x: 0, y: 0 };
-  const dv = change.until
-    ? untilDv(stage, s.position, s.velocity, s.time, direction, change.until, change.dv)
-    : change.dv;
-  return { ...s, velocity: add(s.velocity, scale(direction, dv)) };
+  return { ...s, velocity: add(s.velocity, scale(direction, change.dv)) };
 }
 
 /**
@@ -149,19 +141,10 @@ export function previewStates(
       if (before && change.heading && change.heading.frame !== 'match') {
         const frame = apsisFrame(stage, from!.position, from!.velocity, from!.time, change.at);
         if (frame) {
-          const dir = headingIn(frame, change.heading);
-          const dv = change.until
-            ? untilDv(
-                stage,
-                before.position,
-                before.velocity,
-                before.time,
-                dir,
-                change.until,
-                change.dv,
-              )
-            : change.dv;
-          const after = { ...before, velocity: add(before.velocity, scale(dir, dv)) };
+          const after = {
+            ...before,
+            velocity: add(before.velocity, scale(headingIn(frame, change.heading), change.dv)),
+          };
           out.push({ change, state: after, before });
           chain = after;
           continue;

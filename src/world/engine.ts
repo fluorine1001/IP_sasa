@@ -1,4 +1,3 @@
-import { untilDv } from './burn-until';
 import { missionTimeLimit, launchFraction } from './program';
 import { craftCenter } from './craft-center';
 import { landingBounds, landingReading, surfaceVelocity } from './landing';
@@ -55,7 +54,8 @@ export function nextPhysicsBoundary(time: number) {
 export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
   const start = surfaceLaunch(stage) ?? stage.spawn;
   // A held cold-gas launch sits on the pad until its window (see RoutePlan.launchHold).
-  const hold = !stage.rocket && surfaceLaunch(stage) ? plan.launchHold : undefined;
+  // Rockets hold too: the engine stays cold on the pad until the window opens.
+  const hold = surfaceLaunch(stage) ? plan.launchHold : undefined;
   const error =
     ![plan.launch.x, plan.launch.y].every(Number.isFinite) ||
     length(plan.launch) > stage.rules.launchLimit + 1e-8
@@ -116,12 +116,14 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
       ? {
           partIndex: 0,
           fuel: stage.rocket.parts.map((p) => p.fuelMass),
-          ignitions: stage.rocket.parts.map((_, i) => (i === 0 && length(plan.launch) > 0 ? 1 : 0)),
+          ignitions: stage.rocket.parts.map((_, i) =>
+            i === 0 && length(plan.launch) > 0 && !hold ? 1 : 0,
+          ),
           direction: surfaceLaunch(stage)?.normal ?? {
             x: Math.cos(stage.launchAngle ?? 0),
             y: Math.sin(stage.launchAngle ?? 0),
           },
-          throttle: Math.min(1, launchFraction(stage, plan)),
+          throttle: hold ? 0 : Math.min(1, launchFraction(stage, plan)),
           heat: 0,
           stress: 0,
           airborne: !surfaceLaunch(stage),
@@ -147,7 +149,8 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
   if (hold)
     run.armedPushes = [
       {
-        id: 'launch',
+        // A rocket's launch is finished when its engine first goes quiet, not at ignition.
+        id: stage.rocket ? 'launch:hold' : 'launch',
         trigger: { at: hold.at, atAngle: hold.atAngle, phaseTarget: hold.phaseTarget },
         push: { id: 'launch', time: 0, vector: { ...plan.launch } },
         free: true,
@@ -184,11 +187,7 @@ function integrate(
 /** The push a cold-gas command gives now: fixed on the map, or relative to the orbit. */
 export function impulseVector(run: Run, stage: Stage, m: Impulse): Vec {
   if (!m.heading || m.magnitude === undefined) return m.vector;
-  const dir = resolveHeading(stage, run.position, run.velocity, run.time, m.heading);
-  const size = m.until
-    ? untilDv(stage, run.position, run.velocity, run.time, dir, m.until, m.magnitude)
-    : m.magnitude;
-  return scale(dir, size);
+  return scale(resolveHeading(stage, run.position, run.velocity, run.time, m.heading), m.magnitude);
 }
 function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: DvBurn) {
   const actor = actorId === 'craft' ? undefined : run.detached.find((a) => a.id === actorId);
@@ -211,7 +210,6 @@ function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: Dv
     b.dv,
     b.throttle ?? 1,
     b.at ? { trigger: triggerOf(b)!, heading: b.heading } : undefined,
-    b.until,
   );
 }
 function triggerAt(v: object) {
@@ -250,7 +248,28 @@ function fireArmedPushes(run: Run, stage: Stage) {
     if (!fired) continue;
     run.armedPushes = run.armedPushes.filter((a) => a !== armed);
     if (armed.free) {
-      run.velocity = add(run.velocity, armed.push.vector);
+      if (run.rocket && stage.rocket) {
+        // The held rocket lights its first stage now, exactly as an immediate launch would.
+        const plan = run.initialPlan ?? run.plan;
+        run.rocket.throttle = Math.min(1, launchFraction(stage, plan));
+        run.rocket.ignitions[0] = 1;
+        if (plan.launchDv !== undefined && run.rocket.throttle > 0)
+          run.rocket.burn = {
+            id: 'launch',
+            direction: { ...run.rocket.direction },
+            remaining: plan.launchDv,
+            throttle: run.rocket.throttle,
+            lit: true,
+          };
+      } else {
+        // The launcher throws the craft off the pad, even level with the ground.
+        run.velocity = add(run.velocity, armed.push.vector);
+        delete run.landed;
+        delete run.touchdownSpeed;
+        delete run.touchdownNormalSpeed;
+        delete run.touchdownTangentialSpeed;
+        delete run.touchdownTilt;
+      }
       (run.firedAt ??= {})[armed.id] = run.time;
       continue;
     }
@@ -513,6 +532,7 @@ export function tick(
         run.rocket &&
         run.firedAt?.launch === undefined &&
         run.time > 0 &&
+        !run.armedPushes?.some((a) => a.free) &&
         run.rocket.throttle <= 0 &&
         !run.rocket.burn
       )

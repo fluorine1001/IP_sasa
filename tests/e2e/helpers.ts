@@ -53,6 +53,11 @@ async function edit(page: Page, key: string, n: number | string) {
     if (e instanceof HTMLSelectElement) e.dispatchEvent(new Event('input', { bubbles: true }));
   }, n);
 }
+/** Choose an answer in one of the editor's labelled choices (언제 · 방향 · 발사). */
+async function choose(page: Page, kind: string, value: string) {
+  const select = page.locator(`#command-popover select[data-pick="${kind}"]`);
+  if (await select.count()) await select.selectOption(value);
+}
 async function press(page: Page, selector: string) {
   const b = page.locator('#command-popover ' + selector).first();
   // A long item editor scrolls; the button is pressed where it is.
@@ -82,7 +87,7 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
     );
   }
   if (plan.launchHold) {
-    await press(page, '[data-hold="phase"]');
+    await choose(page, 'hold', 'phase');
     if (plan.launchHold.phaseTarget) await edit(page, 'hold-target', plan.launchHold.phaseTarget);
     await edit(page, 'hold-angle', plan.launchHold.atAngle);
   }
@@ -130,13 +135,13 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
     if (made) ids.set(c.id, made);
     if (c.actorId && c.actorId !== 'craft') await edit(page, 'actor', c.actorId);
     if (c.burn) {
-      await press(page, `[data-frame="${c.burn.heading.frame}"]`);
+      await choose(page, 'frame', c.burn.heading.frame);
       if (c.burn.heading.targetId) await edit(page, 'match-target', c.burn.heading.targetId);
     } else if (item.kind === 'push' && c.heading) {
-      await press(page, `[data-frame="${c.heading.frame}"]`);
+      await choose(page, 'frame', c.heading.frame);
       if (c.heading.targetId) await edit(page, 'match-target', c.heading.targetId);
     }
-    await press(page, `[data-at="${trigger.at ?? ''}"]`);
+    await choose(page, 'at', trigger.at ?? '');
     if (trigger.at && trigger.at !== 'after') {
       const chained = await page.locator('#command-popover [data-arm="time"]').count();
       if (trigger.ref && !chained) await press(page, '[data-arm="ref"]');

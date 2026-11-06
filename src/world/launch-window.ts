@@ -9,7 +9,7 @@ import type { RoutePlan, Stage } from './types';
 /** When a held launch leaves the pad (undefined when not held or never within `until`). */
 export function launchWindowTime(stage: Stage, plan: RoutePlan, until = 400): number | undefined {
   const hold = plan.launchHold;
-  if (!hold || stage.rocket || !surfaceLaunch(stage)) return undefined;
+  if (!hold || !surfaceLaunch(stage)) return undefined;
   const spec = { at: hold.at, atAngle: hold.atAngle, phaseTarget: hold.phaseTarget };
   let last: TriggerReading | undefined;
   for (let t = 0; t <= until; t += 0.01) {

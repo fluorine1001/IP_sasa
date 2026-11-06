@@ -23,6 +23,8 @@ export type PlayArgs = {
   onSolved?: (plan: RoutePlan) => void;
   /** Campaign only: opens the following mission from the result card. */
   next?: () => void;
+  /** Playing 변주 `index` of `base` (src/world/variant.ts). */
+  variant?: { base: Stage; index: number };
 };
 export type ScreenName = 'title' | 'help' | 'settings' | 'stages' | 'tutorials' | 'play' | 'editor';
 export interface Screen {

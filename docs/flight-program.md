@@ -67,4 +67,4 @@ flight/screen.ts는 세션, timeline.ts는 바/목록, planner.ts는 직접 조�
 
 ### 발사 창
 
-냉가스 패드 발사는 `launchHold: { at: 'phase', atAngle, phaseTarget }`로 기다릴 수 있다. 기체는 패드에 머물고(접지 상태), 목표가 패드보다 `atAngle`만큼 앞서는 순간 발사 추진을 받는다. 이 추진은 발사 장치 몫이라 수정 추진 한도에 넣지 않고, 기다림은 임무 시간을 쓴다. `firedAt.launch`는 떠난 시각이며 '발사 뒤' 사슬은 그때부터 잰다. 발사 시각은 레일 위 천체만으로 정해지므로(`src/world/launch-window.ts`) 계획 화면에 미리 보여도 미래 경로 예측이 아니다. 로켓 임무는 아직 쓰지 않는다.
+냉가스 패드 발사는 `launchHold: { at: 'phase', atAngle, phaseTarget }`로 기다릴 수 있다. 기체는 패드에 머물고(접지 상태), 목표가 패드보다 `atAngle`만큼 앞서는 순간 발사 추진을 받는다. 이 추진은 발사 장치 몫이라 수정 추진 한도에 넣지 않고, 기다림은 임무 시간을 쓴다. `firedAt.launch`는 떠난 시각이며 '발사 뒤' 사슬은 그때부터 잰다. 발사 시각은 레일 위 천체만으로 정해지므로(`src/world/launch-window.ts`) 계획 화면에 미리 보여도 미래 경로 예측이 아니다. 로켓도 같다: 엔진은 창이 열릴 때까지 꺼져 있고, 그때 점화한다(`firedAt["launch:hold"]`). 로켓의 발사 완료는 여전히 엔진이 처음 꺼질 때다.

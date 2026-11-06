@@ -29,3 +29,25 @@ describe('held launch (launch window)', () => {
     expect(run.status).toBe('won');
   });
 });
+
+describe('held rocket launch', () => {
+  it('stays cold on the pad until the window, then flies the same launch', () => {
+    const dir = 'data/stages/';
+    const rocketStage = parseStage(
+      JSON.parse(readFileSync(dir + '87a30e7d-7ffe-4c70-8d9a-258882d5e7cc.json', 'utf8')),
+    );
+    const target =
+      rocketStage.bodies.find((b) => b.motion)?.id ?? rocketStage.objects.find((o) => o.motion)!.id;
+    const plan = {
+      ...structuredClone(rocketStage.referencePlans![0]),
+      launchHold: { at: 'phase' as const, atAngle: 30, phaseTarget: target },
+    };
+    const t = launchWindowTime(rocketStage, plan)!;
+    expect(t).toBeGreaterThan(0.5);
+    const run = execute(rocketStage, plan, true);
+    const early = (run.frames ?? []).filter((f) => f.time < t - 0.1);
+    expect(early.every((f) => (f.rocket?.throttle ?? 0) === 0)).toBe(true);
+    expect(run.firedAt?.['launch:hold']).toBeCloseTo(t, 1);
+    expect(run.firedAt?.launch).toBeGreaterThan(t);
+  });
+});

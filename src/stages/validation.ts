@@ -382,6 +382,12 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
     stage.camera.zoom <= 0
   )
     out.push('시작 위치와 카메라를 확인하세요.');
+  if (
+    stage.variants !== undefined &&
+    (!Array.isArray(stage.variants) ||
+      stage.variants.some((k) => !Number.isInteger(k) || k < 1 || k > 99))
+  )
+    out.push('변주 번호를 확인하세요.');
   const launch = stage.bodies.find((b) => b.id === stage.launchBodyId);
   if (
     stage.launchBodyId &&
@@ -428,8 +434,7 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
       }
       if (
         plan.launchHold !== undefined &&
-        (stage.rocket ||
-          !['phase', 'angle'].includes(plan.launchHold.at) ||
+        (!['phase', 'angle'].includes(plan.launchHold.at) ||
           !Number.isFinite(plan.launchHold.atAngle))
       ) {
         out.push('기준 경로의 발사 시점을 확인하세요.');
@@ -605,18 +610,7 @@ export function parseStage(value: unknown, allowIncomplete = false): Stage {
   }
 }
 
-/** A burn/push sized by the orbit it leaves (burn-until.ts). */
-function validUntil(u: unknown) {
-  if (u === undefined) return true;
-  const v = u as { apsis?: unknown; height?: unknown };
-  return (
-    ['apoapsis', 'periapsis'].includes(v.apsis as string) &&
-    Number.isFinite(v.height) &&
-    (v.height as number) >= 0
-  );
-}
 function validTrigger(t: {
-  until?: unknown;
   at?: unknown;
   altitude?: unknown;
   // 'near' stores its distance in `altitude` and its target in `phaseTarget`.
@@ -625,7 +619,6 @@ function validTrigger(t: {
   atAngle?: unknown;
   phaseTarget?: unknown;
 }) {
-  if (!validUntil(t.until)) return false;
   if (t.at === undefined) return t.altitude === undefined;
   if (
     !['apoapsis', 'periapsis', 'altitude', 'after', 'angle', 'phase', 'near'].includes(

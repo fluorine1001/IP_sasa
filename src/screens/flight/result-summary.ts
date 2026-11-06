@@ -88,8 +88,12 @@ export function resultSummary(
   previous?: RoutePlan,
   options: {
     hasNext?: boolean;
+    /** The next 변주 number on offer after a win (same world, started earlier). */
+    nextVariant?: number;
     attempt?: number;
     miss?: Miss;
+    /** The previous flight's miss, shown beside this one when it is about the same goal. */
+    previousMiss?: Miss;
     /** Earlier winning flights of this mission, when this one won. */
     solutions?: { fuel: number[]; time: number[]; steps: number[] };
   } = {},
@@ -134,11 +138,15 @@ export function resultSummary(
   const m = run.status !== 'won' ? options.miss : undefined;
   const pair = (label: string, mine: number, theirs: number, unit: string) =>
     `<div class="miss-pair"><span>${label}</span><b>${mine.toFixed(mine < 10 ? 3 : 2)}</b><i>목표 ${theirs.toFixed(theirs < 10 ? 3 : 2)}</i><small>${unit}</small></div>`;
+  const before =
+    m && options.previousMiss && options.previousMiss.targetName === m.targetName
+      ? options.previousMiss
+      : undefined;
   const missBlock = m
     ? `<div class="result-miss">${missFigure(m.outward, m.ahead, Math.max(m.targetRadius, 1e-3), 88)}<div class="result-miss-text"><span>${escape(m.targetName)}에 가장 가까웠던 ${m.time.toFixed(1)}초${m.centreName ? ` · ${escape(m.centreName)} 기준` : ''}</span>${
         m.craftHeight !== undefined && m.targetHeight !== undefined
           ? pair('높이', m.craftHeight, m.targetHeight, 'u')
-          : `<b class="miss-gap">${m.gap.toFixed(3)} u</b>`
+          : `<b class="miss-gap">${m.gap.toFixed(3)} u</b>${before ? `<small class="miss-before">직전 ${before.gap.toFixed(3)} u</small>` : ''}`
       }${m.craftSpeed !== undefined && m.targetSpeed !== undefined && m.targetSpeed > 1e-6 ? pair('속력', m.craftSpeed, m.targetSpeed, 'u/s') : ''}${
         m.late !== undefined
           ? `<div class="miss-pair"><span>도착</span><b>${Math.abs(m.late).toFixed(1)}초 ${m.late > 0 ? '늦음' : '이름'}</b></div>`
@@ -189,7 +197,7 @@ export function resultSummary(
   // The reason line only adds information beyond the stamp.
   const cause = run.status === 'won' || run.reason === '비행 중단' ? '' : run.reason;
 
-  const actions = `<div class="result-actions">${run.status === 'won' && options.hasNext ? '<button id="result-next" class="primary">다음 임무</button>' : ''}<button id="result-retry" class="${run.status === 'won' && options.hasNext ? '' : 'primary'}">다시 발사 <kbd>R</kbd></button><button id="result-edit">계획 고치기</button><button id="result-moment">이 순간 보기</button></div>`;
+  const actions = `<div class="result-actions">${run.status === 'won' && options.hasNext ? '<button id="result-next" class="primary">다음 임무</button>' : ''}${run.status === 'won' && options.nextVariant ? `<button id="result-variant" title="같은 임무를 다른 시작 시점에서: 외운 시각은 맞지 않고, 사건에 묶은 예약은 다시 맞습니다">변주 ${options.nextVariant}</button>` : ''}<button id="result-retry" class="${run.status === 'won' && options.hasNext ? '' : 'primary'}">다시 발사 <kbd>R</kbd></button><button id="result-edit">계획 고치기</button><button id="result-moment">이 순간 보기</button></div>`;
   // A flight stopped by hand has nothing to analyse: stamp and actions only.
   if (run.status === 'aborted')
     return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${actions}`;

@@ -1,3 +1,4 @@
+import { canVary, variantStage } from '../../world/variant';
 import { heldLaunchState, launchWindowTime } from '../../world/launch-window';
 import { objectiveGoals } from '../../world/goals';
 import {
@@ -150,10 +151,20 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     const dir = length(p.launch) > 1e-9 ? unit(p.launch) : undefined;
     if (!dir) return undefined;
     const dv = p.launchDv ?? stageTable(stage)[0]?.deltaV ?? 0;
+    // A held rocket leaves from where the pad is at its window.
+    const held = p.launchHold ? heldLaunchState(stage, p, craftCenterOf(start)) : undefined;
+    if (p.launchHold && !held) return undefined;
+    const from = held
+      ? {
+          position: held.position,
+          velocity: { x: held.velocity.x - p.launch.x, y: held.velocity.y - p.launch.y },
+          time: held.time,
+        }
+      : { position: craftCenterOf(start), velocity: start.velocity, time: 0 };
     return {
-      position: craftCenterOf(start),
-      velocity: { x: start.velocity.x + dir.x * dv, y: start.velocity.y + dir.y * dv },
-      time: 0,
+      position: from.position,
+      velocity: { x: from.velocity.x + dir.x * dv, y: from.velocity.y + dir.y * dv },
+      time: from.time,
     };
   }
   function craftCenterOf(r: Run) {
@@ -218,6 +229,13 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         })),
     };
     return keepOut.boxes;
+  }
+  /** The 변주 after this one (or the first, on the mission itself), if any. */
+  function nextVariant() {
+    if (args.onReturn || training) return undefined;
+    const base = args.variant?.base ?? stage;
+    if (!canVary(base)) return undefined;
+    return base.variants!.find((k) => k > (args.variant?.index ?? 0));
   }
   /** No usable record of this plan's start yet. */
   const noFlight = () => !trials.length || recordedState(0.01, plan) === undefined;
@@ -1560,6 +1578,8 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     }
     el('result').hidden = false;
     const lastTrial = trials.at(-1)!;
+    // The last flight's miss stays beside this one: change one thing, see what it did.
+    const previousMiss = trials.length >= 2 ? lastMiss : undefined;
     lastMiss = flightMisses(stage, run.goals, lastTrial.frames, lastTrial.scheduledPlan)[0];
     // A win joins the player's own solution records (read before, so a best shows as new).
     const counts = run.status === 'won' && !args.onReturn && !training;
@@ -1576,6 +1596,8 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       hasNext: !!args.next,
       attempt: trials.length,
       miss: lastMiss,
+      previousMiss,
+      nextVariant: nextVariant(),
       solutions,
     });
     el('result').dataset.outcome = run.status === 'won' ? 'won' : 'failed';
@@ -1593,6 +1615,19 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     };
     const next = app.root.querySelector<HTMLButtonElement>('#result-next');
     if (next) next.onclick = () => args.next?.();
+    const variant = app.root.querySelector<HTMLButtonElement>('#result-variant');
+    const k = nextVariant();
+    if (variant && k)
+      variant.onclick = () => {
+        const base = args.variant?.base ?? stage;
+        // The player's own plan comes along: anchored reservations find the moment again.
+        app.go('play', {
+          stage: variantStage(base, k),
+          plan: structuredClone(run?.initialPlan ?? plan),
+          variant: { base, index: k },
+          next: args.next,
+        });
+      };
     el('result-retry').onclick = () => {
       el('result').hidden = true;
       if (replayIndex >= 0) leaveReplay();

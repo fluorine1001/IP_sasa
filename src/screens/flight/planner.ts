@@ -1,4 +1,3 @@
-import type { BurnUntil } from '../../world/burn-until';
 import { launchWindowTime } from '../../world/launch-window';
 import {
   planningTimeLimit,
@@ -118,14 +117,16 @@ export function timelinePlanner(
     const p = get().plan;
     // Chains that follow the launch are drawn from when its burn should end.
     const first = stage.rocket?.parts[0];
+    // A held launch starts at its window; a rocket's burn then runs on from there.
     setLaunchEnd(
-      first
-        ? Math.min(
-            launchCutoffTime(stage, p),
-            (first.fuelMass * first.exhaustSpeed) /
-              (first.thrust * Math.max(0.01, launchFraction(stage, p))),
-          )
-        : (launchWindowTime(stage, p) ?? 0),
+      (launchWindowTime(stage, p) ?? 0) +
+        (first
+          ? Math.min(
+              launchCutoffTime(stage, p),
+              (first.fuelMass * first.exhaustSpeed) /
+                (first.thrust * Math.max(0.01, launchFraction(stage, p))),
+            )
+          : 0),
     );
     settleChains(p, movedId);
     movedId = undefined;
@@ -332,29 +333,6 @@ export function timelinePlanner(
       '</span></span></label>'
     );
   }
-  /**
-   * Size by result: stop when the apoapsis or periapsis reaches a height. The engine
-   * reads it from the craft's own state when it acts, so earlier errors do not carry on.
-   */
-  function sizeFields(until: BurnUntil | undefined) {
-    const top = Math.max(5, Math.round(stage.rules.worldRadius ?? 20));
-    return (
-      pick(
-        'size',
-        '크기',
-        [
-          ['', '속력 변화(Δv)로'],
-          ['apoapsis', '원점 높이가 될 때까지'],
-          ['periapsis', '근점 높이가 될 때까지'],
-        ],
-        until?.apsis ?? '',
-      ) +
-      (until
-        ? `<label class="dv-field">${until.apsis === 'apoapsis' ? '원점' : '근점'} 높이<span class="dv-entry"><input type="number" data-edit="until-height" min="0" max="${top}" step="0.01" value="${until.height.toFixed(2)}" aria-label="목표 높이 (u)"> u</span>` +
-          `<input type="range" data-edit="until-height" min="0" max="${top}" step="0.01" value="${until.height}" aria-label="목표 높이 조절"><span class="range-ends">0<span>${top} u</span></span></label>`
-        : '')
-    );
-  }
   /** The wait after the reservation it follows: typed to 0.01 s, or dragged. */
   function delayField(value: number) {
     const top = Math.max(30, Math.ceil(Math.min(planningTimeLimit(stage), 600)));
@@ -528,18 +506,9 @@ export function timelinePlanner(
               ? '+ 바깥 / − 안쪽'
               : '+ 진행 / − 역진행'
         }</small></label>`;
-      // How big: a Δv, or "until the orbit is right" (the Δv becomes a ceiling).
-      const sized = c?.burn ?? (impulse?.heading ? impulse : undefined);
-      if (sized && relative && relative.frame !== 'match') fields += sizeFields(sized.until);
       if (c?.burn) {
         const estimate = burnEstimate(stage, p, c.id);
-        fields += dvField(
-          c.burn.until ? 'Δv 상한' : '속력 변화 Δv',
-          'dv',
-          c.burn.dv,
-          Math.max(0.01, estimate.stageDv),
-          !!c.burn.until,
-        );
+        fields += dvField('속력 변화 Δv', 'dv', c.burn.dv, Math.max(0.01, estimate.stageDv));
         fields += '<div id="burn-estimate">' + estimate.html + '</div>';
       }
       if (relative) fields += frameDiagram(relative);
@@ -556,11 +525,10 @@ export function timelinePlanner(
         );
       if (impulse)
         fields += dvField(
-          impulse.until ? '추진 상한' : '속력 변화',
+          '속력 변화',
           'push',
           impulse.magnitude ?? length(impulse.vector),
           stage.rules.maneuverBudget,
-          !!(impulse.until && impulse.heading),
         );
       // Steering a dropped stage only makes sense once a stage can be dropped.
       if (c && !c.separate && !c.releasePayload && (stage.rocket?.parts.length ?? 0) > 1)
@@ -733,10 +701,6 @@ export function timelinePlanner(
         if (dial && target)
           dial.outerHTML = angleDial(target.at as 'angle' | 'phase', target.atAngle ?? 0);
       }
-      if (key === 'until-height') {
-        const t = c?.burn ?? impulse;
-        if (t?.until) t.until.height = Math.max(0, round2(value));
-      }
       if (key === 'hold-angle' && p.launchHold) {
         p.launchHold.atAngle = Math.round(clamp(value, -180, 180));
         const dial = popup.querySelector('.angle-dial');
@@ -906,22 +870,6 @@ export function timelinePlanner(
             target.delay = undefined;
           }
         }
-        action?.('edit');
-        changed();
-        update();
-        open(selected);
-        return;
-      }
-      const size = button.dataset.size;
-      if (size !== undefined) {
-        const t = command(selected)?.burn ?? push(selected);
-        if (t)
-          t.until = size
-            ? {
-                apsis: size as BurnUntil['apsis'],
-                height: t.until?.height ?? 1,
-              }
-            : undefined;
         action?.('edit');
         changed();
         update();
@@ -1131,7 +1079,7 @@ export function timelinePlanner(
    * angle ahead of the pad. The wait costs mission time, not the push budget.
    */
   function launchWindowFields(p: RoutePlan) {
-    if (stage.rocket || !surfaceLaunch(stage) || !matchTargets().length) return '';
+    if (!surfaceLaunch(stage) || !matchTargets().length) return '';
     const hold = p.launchHold;
     return (
       pick(

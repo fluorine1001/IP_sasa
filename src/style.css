@@ -480,14 +480,17 @@ button:disabled {
 }
 
 
-/* 코드 */
-header .badge, 
-.dock-toolbar .badge, 
-.flight-deck .badge,
-[class*="badge"] {
-  color: #ffffff !important; /* 글자색 흰색 고정 */
-  background: rgba(255, 255, 255, 0.15) !important; /* 반투명 유리창 배경 고정 */
-  padding: 4px 8px !important; /* 이쁜 여백 */
-  border-radius: 4px !important; /* 둥근 모서리 */
-  border: 1px solid rgba(255, 255, 255, 0.2) !important; /* 은은한 테두리 */
+/* 덮어쓰rl 코드 */
+header div, 
+header span, 
+.dock-toolbar div, 
+.dock-toolbar span, 
+[class*="badge"],
+header div[style*="background"],
+span[style*="background"] {
+  background-color: rgba(255, 255, 255, 0.15) !important; /* 반투명 배경 무조건 강제 */
+  color: #ffffff !important; /* 글자색 흰색 */
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }

@@ -665,7 +665,7 @@
 }
 
 .program-warning {
-  color: var(--red-600);
+  color: var(--red-200);
   border-left: 4px solid var(--amber-600);
   padding-left: 8px;
 }
@@ -706,7 +706,7 @@
 }
 
 .program-editor .lift-low {
-  color: var(--red-600);
+  color: var(--red-200);
 }
 
 .initial-output {

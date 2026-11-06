@@ -368,7 +368,7 @@ body.game-ui {
   animation: result-in 200ms ease-out both;
 }
 .game-ui .result-stamp.good {
-  color: var(--green-600);
+  color: var(--green-400);
 }
 .game-ui .result-stamp.neutral {
   color: var(--n-200);
@@ -436,7 +436,7 @@ body.game-ui {
   border: 1px solid var(--edge);
   border-radius: var(--r-sm);
   background: var(--p-50);
-  color: var(--green-600);
+  color: var(--green-400);
   font-weight: 900;
 }
 .game-ui .result-goals small {
@@ -688,10 +688,10 @@ body.game-ui {
   text-align: center;
 }
 .game-ui .preflight-list li.ok i {
-  color: var(--green-600);
+  color: var(--green-400);
 }
 .game-ui .preflight-list li.warn i {
-  color: var(--amber-600);
+  color: var(--amber-400);
 }
 .game-ui .preflight-list li.bad,
 .game-ui .preflight-list li.bad i {
@@ -886,7 +886,7 @@ body.game-ui {
   border-color: var(--ink);
 }
 .game-ui .mission-route .completed .stage-status {
-  color: var(--green-600);
+  color: var(--green-400);
 }
 
 @media (max-width: 680px) {
@@ -1054,7 +1054,7 @@ body.game-ui {
   padding: 0 10px;
   border: 1px solid var(--green-600);
   border-radius: var(--r-sm);
-  color: var(--green-600);
+  color: var(--green-400);
   font-size: var(--fs-1);
   font-weight: 700;
 }
@@ -1093,7 +1093,7 @@ body.game-ui {
   max-width: 760px;
 }
 .game-ui .tutorial-drills li span {
-  color: var(--ink);
+  color: var(--c-text);
 }
 
 /* ---------- Flight log ---------- */
@@ -1169,8 +1169,8 @@ body.game-ui {
   font-weight: 700;
 }
 .game-ui #notebook .trial-outcome.won {
-  border-color: var(--green-600);
-  color: var(--green-600);
+  border-color: var(--green-400);
+  color: var(--green-400);
 }
 .game-ui #notebook .trial-preview {
   background: var(--slate-3);

@@ -54,10 +54,10 @@ body.game-ui .briefing-close {
   font-size: var(--fs-1);
 }
 .briefing-section b.info {
-  color: var(--sky-600);
+  color: var(--sky-200);
 }
 .briefing-section b.plan {
-  color: var(--amber-600);
+  color: var(--amber-400);
 }
 .briefing-table {
   color: var(--c-doc-text);
@@ -230,7 +230,7 @@ body.game-ui .briefing-close {
   font-variant-numeric: tabular-nums;
 }
 .craft-cell > b.low {
-  color: var(--red-600);
+  color: var(--red-200);
 }
 .craft-cell > b small {
   margin-left: 2px;
@@ -468,11 +468,11 @@ body.game-ui .orbit-calc header small {
   color: var(--c-text-dim);
 }
 body.game-ui .result-stamp.bad {
-  color: var(--red-600);
+  color: var(--red-200);
   border-color: var(--red-600);
 }
 body.game-ui #notebook .trial-outcome:not(.won) {
-  color: var(--red-600);
+  color: var(--red-200);
   border-color: var(--red-600);
 }
 body.game-ui #notebook .trial-readings,

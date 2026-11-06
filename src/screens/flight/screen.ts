@@ -1250,7 +1250,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       .map((g) => {
         const p = run?.goals[g.id];
         const status = goalStatus(g, run);
-        return `<div class="goal-row ${p?.complete ? 'done' : ''}"><span class="goal-name"><i aria-hidden="true">${p?.complete ? '✓' : ''}</i>${escape(g.title)}</span><em class="goal-state" data-state="${escape(status)}">${escape(status)}</em>${goalGaugesHtml(stage, g, run ? p : undefined, ended ? 'best' : 'live')}${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
+        return `<div class="goal-row ${p?.complete ? 'done' : ''}"><span class="goal-name"><i aria-hidden="true">${p?.complete ? '✓' : ''}</i>${escape(g.title)}</span><em class="goal-state" data-state="${escape(status)}">${escape(status)}</em>${goalGaugesHtml(stage, g, run ? p : undefined, !run ? 'brief' : ended ? 'best' : 'live')}${status === '놓침' && run?.status === 'running' ? '<button data-finish-missed>여기서 끝내고 비교</button>' : ''}</div>`;
       })
       .join('');
     el('goals')

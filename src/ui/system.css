@@ -377,3 +377,10 @@ body.game-ui .result-miss .fig-miss {
 body.game-ui small {
   font-size: var(--fs-1);
 }
+body.game-ui .result #result-close {
+  position: relative;
+  z-index: 2;
+}
+body.game-ui .result .result-stamp {
+  margin-right: 48px;
+}

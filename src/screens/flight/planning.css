@@ -326,7 +326,7 @@
 
 .tool-count {
   font-size: var(--fs-1);
-  color: var(--n-200);
+  color: inherit;
 }
 #timeline-selection {
   margin-left: auto;

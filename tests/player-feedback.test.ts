@@ -23,7 +23,7 @@ it('실제 관측된 목표 접근값을 기록하고 성공 판정은 바꾸지
   tick(run, s, 0.1);
   expect(run.goals[g.id].complete).toBe(false);
   expect(run.goals[g.id].closest?.root.value).toBeCloseTo(0.1);
-  expect(resultSummary(s, run)).toMatch(/최고 <b>0\.10/);
+  expect(resultSummary(s, run)).toMatch(/gg-needle off[^>]*><span>0\.100</);
 });
 it('선행 조건, 시간 창, 유지 시간 상태를 구분한다', () => {
   const s = emptyStage(),

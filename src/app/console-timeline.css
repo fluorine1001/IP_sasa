@@ -484,7 +484,7 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
   color: var(--paper-ink);
 }
 .game-ui #command-popover .burn-figures .short dd {
-  color: var(--red-600);
+  color: var(--red-200);
 }
 .game-ui #command-popover .frame-diagram {
   display: block;
@@ -594,7 +594,7 @@ body.game-ui .flight-deck #flight-timeline .timeline-event.burn,
   grid-column: 1 / -1;
 }
 .game-ui #command-popover .aim-calc li.hit b {
-  color: var(--green-600);
+  color: var(--green-400);
 }
 .game-ui #command-popover .aim-calc .aim-foot {
   margin-top: 4px;

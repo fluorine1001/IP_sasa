@@ -575,7 +575,7 @@ body.game-ui #result.result:not([hidden]) {
   padding: 4px 12px;
   font-size: var(--fs-sm);
   background: var(--n-100);
-  color: var(--red-600);
+  color: var(--red-200);
 }
 
 /* ---------- Flight log ---------- */
@@ -847,7 +847,7 @@ body.game-ui #result.result:not([hidden]) {
 .game-ui #training-handle {
   padding: 9px 14px;
   border-bottom: 1px solid var(--edge);
-  background: var(--slate-1);
+  background: var(--panel-head);
   color: var(--text);
   font-size: var(--fs-sm);
   font-weight: 800;
@@ -879,7 +879,7 @@ body.game-ui #result.result:not([hidden]) {
   color: var(--n-200);
 }
 .game-ui #training-tasks .complete {
-  color: var(--green-600);
+  color: var(--green-400);
   font-weight: 800;
 }
 .game-ui #training-panel button {
@@ -917,14 +917,14 @@ body.game-ui #result.result:not([hidden]) {
   color: var(--amber-deep);
 }
 .game-ui #training-panel .training-checklist button.complete {
-  color: var(--green-600) !important;
+  color: var(--green-400) !important;
 }
 .game-ui #training-panel .training-checklist button[aria-current='true'] {
   border-color: var(--amber-deep) !important;
   background: var(--p-200);
 }
 .game-ui #training-finish {
-  color: var(--green-600);
+  color: var(--green-400);
   font-size: var(--fs-sm);
 }
 .game-ui .resources #vehicle-map {
@@ -934,7 +934,7 @@ body.game-ui #result.result:not([hidden]) {
   font-size: var(--fs-sm);
 }
 .game-ui .result-goals small b {
-  color: var(--red-600);
+  color: var(--red-200);
 }
 .game-ui .result #result-moment {
   margin-top: 0;

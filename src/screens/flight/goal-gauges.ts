@@ -180,7 +180,9 @@ export function goalGaugesHtml(
       }
       if (part.kind === 'hold') {
         const held = p?.complete ? part.duration : (p?.conditionMemory?.[part.path]?.hold ?? 0);
-        return `<div class="gg-row gg-hold">${icon('time')}<span class="gg-label">${num(part.duration)}초 유지</span><div class="gg-track"><i class="gg-fill" style="width:${pct(held, part.duration)}%"></i></div></div>`;
+        if (mode === 'brief')
+          return `<div class="gg-row gg-event">${icon('time')}<span class="gg-label">아래 상태로 ${num(part.duration)}초 버티기</span></div>`;
+        return `<div class="gg-row gg-hold">${icon('time')}<span class="gg-label">${num(part.duration)}초 유지</span><b class="gg-target">${num(Math.min(held, part.duration))} / ${num(part.duration)}<small>초</small></b><div class="gg-track"><i class="gg-fill" style="width:${pct(held, part.duration)}%"></i></div></div>`;
       }
       const lo = part.min ?? 0,
         hi = part.max ?? part.scale;

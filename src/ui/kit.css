@@ -243,4 +243,37 @@
     font-weight: 800;
     color: var(--k-dim);
   }
+
+  /* ---- Page: menus float on the same painted sky as the flight map ---- */
+  body.game-ui {
+    background-color: #121735;
+    background-image:
+      var(--k-grain), radial-gradient(60% 50% at 80% 20%, #3b2b6e66, transparent 70%),
+      radial-gradient(50% 45% at 12% 85%, #1f4a6655, transparent 70%);
+    background-attachment: fixed;
+  }
+  body.game-ui .menu-sheet {
+    height: auto;
+    min-height: 0;
+    max-height: calc(100dvh - 48px);
+    margin: 24px auto;
+    overflow: auto;
+    padding: 20px 24px 24px;
+  }
+
+  /* ---- Choice group: a row of mutually exclusive buttons (a segmented control) ---- */
+  body.game-ui :is(.frame-choice, .when-choice) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+  body.game-ui :is(.frame-choice, .when-choice) > button {
+    min-height: 34px;
+    padding: 2px 4px;
+    font-size: var(--fs-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: none;
+  }
 }

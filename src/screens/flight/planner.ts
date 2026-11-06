@@ -12,13 +12,7 @@ import type { Stage, RoutePlan } from '../../world/types';
 import type { ProgramEvent } from '../../world/program';
 import type { TimelineState } from './timeline';
 import { engineBench, actorDiagram, directionDial, dialRotation, dialAngle } from './engine-bench';
-import {
-  apsisNames,
-  headingNames,
-  type Apsis,
-  type Heading,
-  type HeadingFrame,
-} from '../../world/heading';
+import { apsisNames, type Apsis, type Heading, type HeadingFrame } from '../../world/heading';
 import { burnEstimate, frameDiagram } from './burn-panel';
 import {
   chainRef,
@@ -31,6 +25,15 @@ import {
 import { plannedChanges } from '../../world/plan-preview';
 
 const frames: HeadingFrame[] = ['prograde', 'retrograde', 'outward', 'inward'];
+/** Button words, short enough for a three-across choice group (full names in the diagram). */
+const frameShort: Record<HeadingFrame | 'map', string> = {
+  prograde: '진행',
+  retrograde: '역진행',
+  outward: '바깥',
+  inward: '안쪽',
+  match: '맞추기',
+  map: '지도',
+};
 const round2 = (n: number) => Math.round(n * 100) / 100,
   round3 = (n: number) => Math.round(n * 1000) / 1000;
 
@@ -97,7 +100,7 @@ export function timelinePlanner(
     return plannedChanges(get().plan).find((x) => x.id === id)?.label ?? '앞 예약';
   };
   /** 'launch' can be followed only when its end is a planned moment. */
-  const launchEnds = () => !stage.rocket || get().plan.launchDv !== undefined;
+  const launchEnds = () => true; // the launch ends when the main engine first goes quiet
   const degrees = (v: { x: number; y: number }) => {
     const a = Math.atan2(v.y, v.x) - (stage.launchAngle ?? 0);
     return Math.round((Math.atan2(Math.sin(a), Math.cos(a)) * 180) / Math.PI);
@@ -1027,7 +1030,7 @@ export function timelinePlanner(
       ]
         .map(
           (f) =>
-            `<button type="button" data-frame="${f}" aria-pressed="${(h?.frame ?? 'map') === f}">${f === 'map' ? '지도' : headingNames[f]}</button>`,
+            `<button type="button" data-frame="${f}" aria-pressed="${(h?.frame ?? 'map') === f}">${frameShort[f]}</button>`,
         )
         .join('') +
       '</div>'

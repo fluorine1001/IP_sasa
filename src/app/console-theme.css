@@ -30,7 +30,7 @@
   --caution: var(--yellow-400);
   --danger: var(--c-danger);
   --fail: var(--red-400);
-  --rivet: radial-gradient(circle, var(--n-300) 0 2px, var(--ink) 2.4px 3.2px, transparent 3.6px);
+  --rivet: linear-gradient(transparent, transparent);
 }
 
 body.game-ui {
@@ -65,10 +65,10 @@ body.game-ui {
     0 0,
     0 0;
   background-repeat: no-repeat;
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-lg);
   box-shadow:
-    0 5px 0 var(--ink),
+    var(--sh-2),
     inset 0 2px 0 #ffffff1c;
   color: var(--text);
 }
@@ -87,9 +87,9 @@ body.game-ui {
   background-position: -1px -1px;
   background-repeat: repeat;
   color: var(--paper-ink);
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
-  box-shadow: 0 5px 0 var(--ink);
+  box-shadow: var(--sh-2);
 }
 .game-ui .program-editor h2,
 .game-ui .program-editor b,
@@ -121,13 +121,12 @@ body.game-ui {
   padding: 2px 9px;
   background: var(--amber);
   color: var(--ink);
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-sm);
-  box-shadow: 0 2px 0 var(--ink);
+  box-shadow: var(--sh-1);
   font-size: var(--fs-1);
   font-weight: 800;
   letter-spacing: 0.04em;
-  transform: rotate(-1.2deg);
 }
 .game-ui .resources #mode {
   background: var(--paper);
@@ -136,9 +135,9 @@ body.game-ui {
 
 /* ---------- Buttons ---------- */
 .game-ui button {
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
-  box-shadow: 0 4px 0 var(--ink);
+  box-shadow: var(--sh-2);
   font-weight: 700;
   transition:
     transform 60ms,
@@ -146,10 +145,10 @@ body.game-ui {
 }
 .game-ui button:not(:disabled):active {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 var(--ink);
+  box-shadow: var(--sh-1);
 }
 .game-ui button:disabled {
-  box-shadow: 0 2px 0 var(--ink);
+  box-shadow: var(--sh-1);
   opacity: 0.45;
 }
 .game-ui button.primary,
@@ -175,7 +174,7 @@ body.game-ui {
   padding-inline: 18px;
   /* Hazard edge: the one striped control on screen. */
   box-shadow:
-    0 4px 0 var(--ink),
+    var(--sh-2),
     inset 0 -6px 0 var(--amber-deep);
 }
 .game-ui .mission-exit,
@@ -199,12 +198,7 @@ body.game-ui {
 .game-ui .menu-sheet h1,
 .game-ui .result-stamp {
   font-weight: 900;
-  text-shadow:
-    -1px -1px 0 var(--ink),
-    1px -1px 0 var(--ink),
-    -1px 1px 0 var(--ink),
-    1px 1px 0 var(--ink),
-    3px 4px 0 var(--ink);
+  text-shadow: none;
 }
 
 /* ---------- Readable minimums (no player text under 12px) ---------- */
@@ -236,7 +230,7 @@ body.game-ui {
 .game-ui #timeline-mode {
   font-size: var(--fs-1);
   padding: 1px 8px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-pill);
   background: var(--slate-3);
   color: var(--text);
@@ -250,7 +244,7 @@ body.game-ui {
 .game-ui #timeline-fill {
   top: 64px;
   height: 10px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   box-sizing: content-box;
 }
 .game-ui .timeline-rail {
@@ -263,9 +257,9 @@ body.game-ui {
   top: calc(4px + var(--lane) * 22px);
   width: 32px;
   height: 32px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: var(--sh-1);
   color: var(--ink);
   background: var(--slate-hi);
 }
@@ -369,10 +363,9 @@ body.game-ui {
   border-radius: var(--r-md);
   font-size: var(--fs-5);
   letter-spacing: 0.08em;
-  transform: rotate(-4deg);
   color: var(--fail);
   text-shadow: none;
-  animation: stamp-in 220ms ease-out both;
+  animation: result-in 200ms ease-out both;
 }
 .game-ui .result-stamp.good {
   color: var(--green-600);
@@ -380,14 +373,10 @@ body.game-ui {
 .game-ui .result-stamp.neutral {
   color: var(--p-600);
 }
-@keyframes stamp-in {
+@keyframes result-in {
   from {
-    transform: rotate(-4deg) scale(1.7);
     opacity: 0;
-  }
-  to {
-    transform: rotate(-4deg) scale(1);
-    opacity: 1;
+    transform: translateY(4px);
   }
 }
 .game-ui .result-cause {
@@ -402,7 +391,7 @@ body.game-ui {
   margin: 6px 0 10px;
   padding: 8px 10px;
   background: var(--p-50);
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
 }
 .game-ui .result-measure span {
@@ -444,7 +433,7 @@ body.game-ui {
   place-items: center;
   width: 20px;
   height: 20px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-sm);
   background: var(--p-50);
   color: var(--green-600);
@@ -476,17 +465,17 @@ body.game-ui {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 3px solid var(--ink);
-  box-shadow: 0 3px 0 var(--ink);
+  border: 1px solid var(--edge);
+  box-shadow: var(--sh-1);
 }
 .game-ui .medal.on:nth-child(1) i {
-  background: radial-gradient(circle at 35% 35%, var(--p-100), var(--amber-400));
+  background: var(--yellow-400);
 }
 .game-ui .medal.on:nth-child(2) i {
-  background: radial-gradient(circle at 35% 35%, var(--p-50), var(--cmd-stop));
+  background: var(--sky-400);
 }
 .game-ui .medal.on:nth-child(3) i {
-  background: radial-gradient(circle at 35% 35%, var(--n-50), var(--green-600));
+  background: var(--green-400);
 }
 .game-ui .medal.off i {
   background: transparent;
@@ -509,7 +498,7 @@ body.game-ui {
 .game-ui .result-strip li {
   display: grid;
   padding: 3px 7px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
   background: var(--p-50);
   font-size: var(--fs-1);
@@ -555,7 +544,7 @@ body.game-ui {
   position: relative;
   width: 46px;
   height: 26px;
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-pill);
   background: var(--slate-3);
   cursor: pointer;
@@ -568,7 +557,7 @@ body.game-ui {
   left: 2px;
   width: 16px;
   height: 16px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: 50%;
   background: var(--text-dim);
   transition: transform 120ms;
@@ -612,7 +601,7 @@ body.game-ui {
 .game-ui #command-popover select {
   background: var(--p-50);
   color: var(--paper-ink);
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-sm);
   box-shadow: inset 0 2px 0 #00000014;
 }
@@ -649,9 +638,9 @@ body.game-ui {
   padding: 10px;
   background: var(--paper);
   color: var(--paper-ink);
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: var(--sh-1);
 }
 .game-ui .preflight-list[hidden] {
   display: none;
@@ -665,7 +654,7 @@ body.game-ui {
 }
 .game-ui .preflight-list header span {
   padding: 1px 8px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-pill);
   font-size: var(--fs-1);
   font-weight: 800;
@@ -785,13 +774,13 @@ body.game-ui {
   outline: none;
   background-color: var(--slate-hi);
   box-shadow:
-    0 5px 0 var(--ink),
+    var(--sh-2),
     inset 0 0 0 4px var(--chapter-accent);
 }
 .game-ui .chapter-planet {
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   box-shadow:
-    0 4px 0 var(--ink),
+    var(--sh-2),
     inset -8px -6px 0 #00000033;
   color: var(--ink);
   font-size: var(--fs-5);
@@ -804,7 +793,7 @@ body.game-ui {
 }
 .game-ui .chapter-progress {
   height: 8px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   box-sizing: content-box;
 }
 .game-ui .chapter-missions > header {
@@ -834,11 +823,11 @@ body.game-ui {
   color: var(--paper-ink);
   overflow: visible;
   box-shadow:
-    0 5px 0 var(--ink),
+    var(--sh-2),
     inset 0 8px 0 var(--chapter-accent);
 }
 .game-ui .mission-route .stage-card:hover {
-  transform: translateY(-2px) rotate(-0.5deg);
+  transform: translateY(-1px);
 }
 .game-ui .mission-route .stage-number {
   justify-self: start;
@@ -858,7 +847,7 @@ body.game-ui {
 .game-ui .stage-vehicle {
   justify-self: start;
   padding: 1px 8px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-pill);
   font-size: var(--fs-1);
   font-weight: 700;
@@ -876,7 +865,7 @@ body.game-ui {
   border: 2px dashed var(--p-600);
 }
 .game-ui .stage-medals i.on {
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
 }
 .game-ui .stage-medals i.on:nth-child(1) {
   background: var(--amber-400);
@@ -942,13 +931,12 @@ body.game-ui {
   padding: 2px 12px;
   background: var(--amber);
   color: var(--ink);
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-sm);
-  box-shadow: 0 2px 0 var(--ink);
+  box-shadow: var(--sh-1);
   font-size: var(--fs-1);
   font-weight: 900;
-  letter-spacing: 0.08em;
-  transform: rotate(-2deg);
+  letter-spacing: 0.02em;
 }
 .game-ui .title-console button {
   padding: 11px 14px;
@@ -980,7 +968,7 @@ body.game-ui {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   background: var(--ok);
   box-shadow: 0 0 8px var(--ok);
 }
@@ -995,7 +983,6 @@ body.game-ui {
   width: 8%;
   left: 47%;
   top: -4.5%;
-  filter: drop-shadow(3px 4px 0 color-mix(in srgb, var(--n-900) 53%, transparent));
 }
 .game-ui .title-orbit {
   position: absolute;
@@ -1004,7 +991,6 @@ body.game-ui {
   height: 100%;
   overflow: visible;
   pointer-events: none;
-  filter: drop-shadow(2px 3px 0 color-mix(in srgb, var(--n-900) 67%, transparent));
 }
 .game-ui .title-planet::after {
   display: none;
@@ -1050,7 +1036,7 @@ body.game-ui {
   place-items: center;
   width: 22px;
   height: 22px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: 50%;
   background: var(--p-50);
   font-size: var(--fs-1);
@@ -1065,12 +1051,11 @@ body.game-ui {
   right: 18px;
   top: 14px;
   padding: 0 10px;
-  border: 4px double var(--green-600);
-  border-radius: var(--r-md);
+  border: 1px solid var(--green-600);
+  border-radius: var(--r-sm);
   color: var(--green-600);
-  font-size: var(--fs-4);
-  font-weight: 900;
-  transform: rotate(-8deg);
+  font-size: var(--fs-1);
+  font-weight: 700;
 }
 .game-ui .help-grid article b,
 .game-ui .control-card b {
@@ -1087,9 +1072,9 @@ body.game-ui {
 }
 .game-ui .setting {
   background-color: var(--slate-1);
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-lg);
-  box-shadow: 0 5px 0 var(--ink);
+  box-shadow: var(--sh-2);
 }
 .game-ui .setting > span {
   display: grid;
@@ -1148,9 +1133,9 @@ body.game-ui {
   margin: 0 0 12px;
   padding: 10px 12px;
   background: var(--p-50);
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
-  box-shadow: 0 4px 0 var(--ink);
+  box-shadow: var(--sh-2);
 }
 .game-ui .plan-comparison b {
   display: block;
@@ -1172,16 +1157,15 @@ body.game-ui {
 }
 .game-ui #notebook .trial-card {
   background: var(--p-50);
-  border: 2px solid var(--ink);
-  box-shadow: 0 3px 0 var(--ink);
+  border: 1px solid var(--edge);
+  box-shadow: var(--sh-1);
 }
 .game-ui #notebook .trial-outcome {
   padding: 0 6px;
-  border: 2px solid var(--fail);
+  border: 1px solid var(--fail);
   border-radius: var(--r-sm);
   color: var(--fail);
-  font-weight: 800;
-  transform: rotate(-3deg);
+  font-weight: 700;
 }
 .game-ui #notebook .trial-outcome.won {
   border-color: var(--green-600);

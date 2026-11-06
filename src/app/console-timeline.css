@@ -69,7 +69,7 @@ body.game-ui .flight-deck #flight-timeline .timeline-burns {
   box-sizing: border-box;
 }
 body.game-ui .flight-deck #flight-timeline .timeline-rail {
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
   background: repeating-linear-gradient(-45deg, var(--n-800) 0 6px, var(--n-750) 6px 12px);
 }
@@ -79,7 +79,7 @@ body.game-ui .flight-deck #flight-timeline #timeline-known {
   top: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + 2px);
   height: var(--band-h);
   box-sizing: border-box;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md) 0 0 var(--r-md);
   border-right: 2px dashed var(--n-100);
   background: color-mix(in srgb, var(--n-50) 22%, transparent);
@@ -110,7 +110,7 @@ body.game-ui .flight-deck #flight-timeline .burn-span {
   bottom: 0;
   min-width: 3px;
   box-sizing: border-box;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
   background: var(--c);
   overflow: hidden;
@@ -166,9 +166,9 @@ body.game-ui .flight-deck #flight-timeline .timeline-event {
   padding: 0 9px 0 6px;
   transform: none;
   box-sizing: border-box;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: 0 8px 8px 8px;
-  box-shadow: 0 2px 0 var(--ink);
+  box-shadow: var(--sh-1);
   background: var(--slate-hi);
   color: var(--ink);
   font-size: var(--fs-sm);
@@ -300,7 +300,7 @@ body.game-ui .flight-deck #flight-timeline #timeline-cursor::before {
   top: -18px;
   left: -1px;
   padding: 0 6px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: 0 6px 6px 0;
   background: var(--text);
   color: var(--ink);
@@ -351,7 +351,7 @@ body.game-ui .flight-deck #flight-timeline #timeline-drop svg {
   width: 22px;
   height: 22px;
   margin-left: -12px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
   background: var(--amber);
   color: var(--ink);

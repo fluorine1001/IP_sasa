@@ -4,6 +4,7 @@ import { planChanges } from '../../world/plan-diff';
 import { escape } from '../../app/core';
 import { withUnit } from '../../app/units';
 import { metrics } from '../../world/metrics';
+import { medalBadge } from '../../ui/figures';
 import type { Stage, Run, RoutePlan } from '../../world/types';
 
 /** Optional recognition: a generous 90% fuel/impulse budget, never part of mission completion. */
@@ -102,8 +103,8 @@ export function resultSummary(
           ['무손상', medals.clean],
         ]
           .map(
-            ([label, on]) =>
-              `<span class="medal ${on ? 'on' : 'off'}"><i aria-hidden="true"></i>${label}</span>`,
+            ([label, on], i) =>
+              `<span class="medal ${on ? 'on' : 'off'}">${medalBadge((['success', 'budget', 'clean'] as const)[i], !!on, 26)}${label}</span>`,
           )
           .join('')}</div>`
       : '';

@@ -73,7 +73,7 @@ body.game-ui .briefing-close {
   height: 10px;
   margin-right: 6px;
   vertical-align: 0;
-  border: 2px solid var(--c-line);
+  border: 1px solid var(--edge);
   border-radius: var(--r-pill);
   background: var(--swatch, var(--n-300));
 }
@@ -120,7 +120,7 @@ body.game-ui .briefing-close {
   flex: none;
   width: 12px;
   height: 12px;
-  border: 2px solid var(--c-line);
+  border: 1px solid var(--edge);
   border-radius: var(--r-pill);
   transform: translateY(1px);
 }

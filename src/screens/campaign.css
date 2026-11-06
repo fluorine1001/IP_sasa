@@ -63,14 +63,11 @@
   place-items: center;
   border-radius: 50%;
   color: var(--n-750);
-  background: radial-gradient(circle at 30% 25%, #fff6, transparent 60%), var(--chapter-accent);
-  box-shadow:
-    inset -9px -7px 0 color-mix(in srgb, var(--n-850) 33%, transparent),
-    0 0 0 7px color-mix(in srgb, var(--n-900) 30%, transparent),
-    0 0 0 8px color-mix(in srgb, var(--n-200) 13%, transparent);
+  background: transparent;
+  border: 1.5px solid var(--chapter-accent);
+  color: var(--chapter-accent);
   font-size: var(--fs-5);
-  font-weight: 900;
-  transform: rotate(-8deg);
+  font-weight: 700;
 }
 .chapter-caption {
   display: grid;

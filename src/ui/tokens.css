@@ -17,17 +17,17 @@
   --n-300: #8b9a9b;
   --n-200: #b5c0b8;
   --n-100: #d9dfd2;
-  --n-50: #f4ecd5;
+  --n-50: #eef1ea;
 
   /* ---------- Paper: documents (briefing, report, conditions) ---------- */
-  --p-50: #fbf4df;
-  --p-100: #f5eacb;
-  --p-200: #efe2be;
-  --p-300: #e2d1a5;
-  --p-400: #c9b688;
-  --p-600: #8a7c5a;
-  --p-800: #5b5747;
-  --p-900: #26271f;
+  --p-50: #f8f6f0;
+  --p-100: #f2efe6;
+  --p-200: #ebe7dc;
+  --p-300: #ddd7c8;
+  --p-400: #bfb7a4;
+  --p-600: #7a7363;
+  --p-800: #4d493f;
+  --p-900: #1f211d;
 
   /* ---------- Signal colours: each has one meaning ---------- */
   /* amber = the action to take now */
@@ -111,17 +111,23 @@
 
   /* ---------- Shape ---------- */
   --r-sm: 4px;
-  --r-md: 8px;
-  --r-lg: 12px;
+  --r-md: 6px;
+  --r-lg: 8px;
   --r-pill: 999px;
-  --stroke: 3px;
-  --stroke-thin: 2px;
+  --stroke: 1px;
+  --stroke-thin: 1px;
 
-  /* ---------- Depth: hard ink drop shadows ---------- */
-  --sh-1: 0 2px 0 var(--c-line);
-  --sh-2: 0 4px 0 var(--c-line);
-  --sh-3: 0 6px 0 var(--c-line), 0 18px 40px #0008;
-  --sh-inset: inset 0 2px 0 #ffffff1c;
+  /* ---------- Edges and depth: hairlines and soft elevation ---------- */
+  --edge: #050b0e8c;
+  --edge-strong: #050b0ed9;
+  --edge-light: #ffffff17;
+  /* Instrument glass: panels floating over the map. */
+  --c-glass: color-mix(in srgb, var(--n-850) 92%, transparent);
+  --c-glass-2: var(--n-750);
+  --sh-1: 0 1px 2px #0006;
+  --sh-2: 0 2px 6px #0005, 0 1px 1px #0004;
+  --sh-3: 0 18px 48px #000a, 0 2px 8px #0006;
+  --sh-inset: inset 0 1px 0 #ffffff12;
 
   /* ---------- Motion ---------- */
   --t-fast: 120ms;

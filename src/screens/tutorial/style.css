@@ -8,7 +8,7 @@
 .help-grid article,
 .control-card {
   padding: 22px;
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   background: var(--n-600);
   border-radius: var(--r-lg);
   box-shadow: 0 4px 0 var(--n-900);

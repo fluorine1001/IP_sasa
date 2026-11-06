@@ -6,7 +6,7 @@ export const palette = {
   n900: '#101b20',
   n700: '#2a3942',
   n300: '#8b9a9b',
-  n50: '#f4ecd5',
+  n50: '#eef1ea',
   amber400: '#f2b54a',
   green400: '#6fbf73',
   red200: '#f3a091',

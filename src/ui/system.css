@@ -1,0 +1,281 @@
+/* Materials: the last word on how surfaces, controls and labels look in the game.
+ * docs/design-system.md — 계기(instrument glass), 문서(document), 조작(controls).
+ * Loaded after every other game stylesheet; selectors are `body.game-ui …` so they
+ * win over the older theme layers without !important. */
+
+/* ---------- Policy: no outlined or shadowed lettering anywhere ---------- */
+body.game-ui,
+body.game-ui * {
+  text-shadow: none;
+}
+
+/* ---------- 계기: instrument glass ---------- */
+body.game-ui .panel,
+body.game-ui .chapter-card,
+body.game-ui .settings-row,
+body.game-ui .help-grid article,
+body.game-ui .control-card {
+  background: var(--c-glass);
+  background-image: none;
+  border: 1px solid var(--edge-light);
+  border-radius: var(--r-md);
+  box-shadow:
+    var(--sh-inset),
+    0 10px 28px #0008;
+  backdrop-filter: blur(6px);
+}
+
+/* ---------- 문서: documents ---------- */
+body.game-ui .program-editor.panel,
+body.game-ui #command-popover,
+body.game-ui .result,
+body.game-ui dialog.mission-goals,
+body.game-ui .stage-card,
+body.game-ui #notebook {
+  background: var(--c-doc);
+  background-image: none;
+  color: var(--c-doc-text);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-3);
+  backdrop-filter: none;
+}
+body.game-ui #notebook .trial-card {
+  background: var(--p-50);
+  border: 1px solid color-mix(in srgb, var(--p-900) 14%, transparent);
+  border-radius: var(--r-sm);
+  box-shadow: none;
+}
+
+/* ---------- Section labels: quiet text and a hairline, never tape ---------- */
+body.game-ui .mission-panel .badge,
+body.game-ui .resources #mode,
+body.game-ui .eyebrow,
+body.game-ui .ui-eyebrow {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  transform: none;
+  color: var(--amber-400);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.02em;
+}
+body.game-ui dialog.mission-goals .ui-eyebrow,
+body.game-ui .result .ui-eyebrow {
+  color: var(--amber-600);
+}
+
+/* ---------- 조작: controls ---------- */
+body.game-ui button,
+body.game-ui .ui-btn {
+  border: 1px solid var(--edge-light);
+  border-radius: var(--r-sm);
+  box-shadow: var(--sh-1);
+  background-image: none;
+  font-weight: var(--fw-bold);
+  transition:
+    background-color var(--t-fast),
+    border-color var(--t-fast),
+    transform 60ms;
+}
+body.game-ui button:not(:disabled):active,
+body.game-ui .ui-btn:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+body.game-ui button:disabled {
+  box-shadow: none;
+  opacity: 0.4;
+}
+body.game-ui .console-button {
+  background-color: var(--n-700);
+  color: var(--c-text);
+}
+body.game-ui .console-button:not(:disabled):hover {
+  background-color: var(--n-600);
+}
+body.game-ui .console-button[aria-pressed='true'],
+body.game-ui .console-button.active {
+  background-color: color-mix(in srgb, var(--green-400) 22%, var(--n-700));
+  border-color: var(--green-400);
+  color: var(--c-text);
+}
+body.game-ui button.primary,
+body.game-ui .ui-btn.primary,
+body.game-ui .launch-command {
+  background-color: var(--amber-400);
+  border-color: var(--amber-600);
+  color: var(--n-950);
+}
+body.game-ui button.primary:not(:disabled):hover,
+body.game-ui .launch-command:not(:disabled):hover {
+  background-color: var(--amber-200);
+}
+body.game-ui .launch-command {
+  letter-spacing: 0.02em;
+  box-shadow: var(--sh-1);
+}
+body.game-ui .mission-exit,
+body.game-ui .archive-close {
+  background-color: var(--n-700);
+  color: var(--c-text);
+}
+/* Buttons living on documents are paper buttons. */
+body.game-ui #command-popover button:not(.primary),
+body.game-ui .result button:not(.primary),
+body.game-ui dialog.mission-goals button:not(.primary),
+body.game-ui #notebook button:not(.primary),
+body.game-ui .program-editor button:not(.primary) {
+  background-color: var(--p-50);
+  border-color: color-mix(in srgb, var(--p-900) 22%, transparent);
+  color: var(--p-900);
+}
+body.game-ui #command-popover button:not(.primary):not(:disabled):hover,
+body.game-ui .result button:not(.primary):not(:disabled):hover,
+body.game-ui dialog.mission-goals button:not(.primary):not(:disabled):hover,
+body.game-ui #notebook button:not(.primary):not(:disabled):hover {
+  background-color: var(--p-200);
+}
+body.game-ui kbd {
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.8;
+}
+
+/* ---------- Status tags: thin outline, no fill ---------- */
+body.game-ui #timeline-mode {
+  border: 1px solid var(--edge-light);
+  background: transparent;
+}
+
+/* ---------- Result header: a heading, not a rubber stamp ---------- */
+body.game-ui .result-stamp {
+  display: block;
+  margin: 0 0 8px;
+  padding: 0 0 0 12px;
+  border: 0;
+  border-left: 4px solid currentColor;
+  border-radius: 0;
+  font-size: var(--fs-5);
+  font-weight: var(--fw-heavy);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+/* ---------- Medals: flat insignia ---------- */
+body.game-ui .result-medals {
+  gap: 14px;
+}
+body.game-ui .medal {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--fw-medium);
+}
+body.game-ui .medal i {
+  display: none;
+}
+body.game-ui .medal.off {
+  opacity: 0.55;
+}
+
+/* ---------- Title wordmark: clean heavy type ---------- */
+body.game-ui .title-menu h1,
+body.game-ui .title-menu .title-main {
+  color: var(--c-text);
+  letter-spacing: -0.04em;
+}
+
+/* ---------- Title ---------- */
+body.game-ui .title-art {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+body.game-ui .title-art svg {
+  width: 100%;
+  height: 100%;
+}
+body.game-ui .title-menu {
+  margin-left: clamp(20px, 9vw, 160px);
+  padding-top: clamp(48px, 16vh, 180px);
+  width: min(380px, calc(100vw - 40px));
+}
+body.game-ui .title-menu .game-title {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 40px;
+}
+body.game-ui .title-menu .title-main {
+  font-size: clamp(64px, 8vw, 112px);
+  font-weight: 800;
+  line-height: 0.95;
+  color: var(--c-text);
+}
+body.game-ui .title-menu .title-sub {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.04em;
+  color: var(--n-300);
+}
+body.game-ui .title-console {
+  display: grid;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body.game-ui .title-console button:not(.primary) {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--edge-light);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--fs-3);
+  font-weight: var(--fw-medium);
+  text-align: left;
+}
+body.game-ui .title-console button:not(.primary):hover {
+  background: color-mix(in srgb, var(--n-50) 6%, transparent);
+  box-shadow: inset 3px 0 0 var(--amber-400);
+}
+body.game-ui .title-console button.primary {
+  min-height: 56px;
+  margin-bottom: 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--amber-400);
+  color: var(--n-950);
+  font-size: var(--fs-4);
+  font-weight: var(--fw-heavy);
+}
+body.game-ui .title-console .button-pair {
+  gap: 0;
+}
+body.game-ui .title-console .button-pair button + button {
+  border-left: 1px solid var(--edge-light);
+}
+body.game-ui .title-console .title-quiet {
+  gap: 0;
+  margin-top: 14px;
+}
+body.game-ui .title-console .title-quiet button,
+body.game-ui .title-console .quiet {
+  min-height: 36px;
+  border: 0;
+  background: transparent !important;
+  color: var(--n-300) !important;
+  font-size: var(--fs-1);
+}
+body.game-ui .title-console .title-quiet button:hover {
+  color: var(--c-text) !important;
+  box-shadow: none;
+}

@@ -30,12 +30,12 @@ button {
   cursor: pointer;
   color: var(--ink);
   background: var(--paper);
-  border: 3px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
   padding: 10px 17px;
   font-weight: 800;
   box-shadow:
-    0 4px 0 var(--ink),
+    var(--sh-2),
     inset 0 2px 0 #fff7;
   transition:
     transform 0.08s,
@@ -49,7 +49,7 @@ button:hover {
 
 button:active {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 var(--ink);
+  box-shadow: var(--sh-1);
 }
 
 button:disabled {
@@ -163,7 +163,6 @@ small,
 .title-menu h1 {
   font-size: clamp(42px, 5.5vw, 78px);
   color: var(--p-100);
-  text-shadow: 4px 5px 0 var(--n-900);
   margin: 25px 0;
 }
 
@@ -213,11 +212,8 @@ small,
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 8px solid #0a1c25;
-  box-shadow:
-    12px 20px 0 #0b172166,
-    inset -70px -30px 0 #365754,
-    inset 18px 10px 0 #a1be9d;
+  border: 0;
+  box-shadow: inset -60px -30px 80px #0b1418aa;
   background:
     radial-gradient(ellipse at 34% 24%, #bfd0a5 0 8%, transparent 8.5%),
     radial-gradient(ellipse at 60% 50%, #507c65 0 18%, transparent 18.5%),
@@ -228,7 +224,7 @@ small,
   content: '';
   position: absolute;
   inset: -18%;
-  border: 3px dashed color-mix(in srgb, var(--p-400) 50%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--n-200) 45%, transparent);
   border-radius: 50%;
   transform: scaleY(0.55) rotate(30deg);
 }
@@ -241,8 +237,6 @@ small,
   color: var(--amber-200);
   font-size: var(--fs-6);
   transform: rotate(-30deg);
-  text-shadow: 5px 5px 0 var(--n-900);
-  animation: float 4s ease-in-out infinite;
 }
 
 .planet-tag {

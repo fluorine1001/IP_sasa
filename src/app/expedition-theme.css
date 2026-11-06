@@ -85,7 +85,6 @@ summary:focus-visible {
 }
 .title-menu h1 {
   font-weight: 900;
-  text-shadow: 3px 4px var(--n-850);
   letter-spacing: -0.065em;
 }
 .title-menu h1 span {

@@ -283,10 +283,10 @@ body.game-ui dialog.mission-goals .goal-mode svg {
 body.game-ui dialog.mission-goals .goal-explanation {
   margin: 0 0 12px;
   padding: 14px 16px 14px;
-  border: 2px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
   background: var(--p-50);
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: var(--sh-1);
 }
 body.game-ui dialog.mission-goals .goal-explanation h3 {
   margin: 0 0 6px;

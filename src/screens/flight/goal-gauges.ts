@@ -169,6 +169,7 @@ export function goalGaugesHtml(
   const parts = goalParts(stage, goal);
   if (!parts.length) return '';
   return `<div class="goal-gauges">${parts
+    .filter((part) => !(part.kind === 'event' && part.label.trim() === goal.title.trim()))
     .map((part) => {
       if (part.kind === 'event') {
         const last = p?.series?.[part.path]?.v.at(-1);
@@ -181,8 +182,8 @@ export function goalGaugesHtml(
       if (part.kind === 'hold') {
         const held = p?.complete ? part.duration : (p?.conditionMemory?.[part.path]?.hold ?? 0);
         if (mode === 'brief')
-          return `<div class="gg-row gg-event">${icon('time')}<span class="gg-label">아래 상태로 ${num(part.duration)}초 버티기</span></div>`;
-        return `<div class="gg-row gg-hold">${icon('time')}<span class="gg-label">${num(part.duration)}초 유지</span><b class="gg-target">${num(Math.min(held, part.duration))} / ${num(part.duration)}<small>초</small></b><div class="gg-track"><i class="gg-fill" style="width:${pct(held, part.duration)}%"></i></div></div>`;
+          return `<div class="gg-row gg-event">${icon('time')}<span class="gg-label">아래 상태로 ${part.duration.toFixed(1)}초 버티기</span></div>`;
+        return `<div class="gg-row gg-hold">${icon('time')}<span class="gg-label">버티기</span><b class="gg-target">${Math.min(held, part.duration).toFixed(1)} / ${part.duration.toFixed(1)}<small>초</small></b><div class="gg-track"><i class="gg-fill" style="width:${pct(held, part.duration)}%"></i></div></div>`;
       }
       const lo = part.min ?? 0,
         hi = part.max ?? part.scale;

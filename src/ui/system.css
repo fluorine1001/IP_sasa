@@ -120,6 +120,7 @@ body.game-ui button[aria-pressed='true'] {
 body.game-ui button.primary,
 body.game-ui .ui-btn.primary,
 body.game-ui .launch-command {
+  background-image: none;
   background-color: var(--amber-400);
   border-color: var(--panel-edge);
   color: var(--n-950);
@@ -200,74 +201,46 @@ body.game-ui .title-menu .game-title {
 }
 body.game-ui .title-menu .title-main {
   font-size: clamp(64px, 8vw, 112px);
-  font-weight: 800;
+  font-weight: 400;
   line-height: 0.95;
   color: var(--c-text);
 }
 body.game-ui .title-menu .title-sub {
-  font-size: var(--fs-3);
-  font-weight: var(--fw-medium);
-  letter-spacing: 0.04em;
-  color: var(--n-200);
+  font-size: var(--fs-4);
+  font-weight: var(--fw-bold);
+  color: var(--amber-400);
 }
 body.game-ui .title-console {
   display: grid;
-  gap: 0;
+  gap: 10px;
   width: 100%;
-  padding: 0;
-  background: none;
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
+  padding: 18px;
 }
-body.game-ui .title-console button:not(.primary) {
-  min-height: 48px;
-  padding: 0 16px;
-  border: 0;
-  border-bottom: 1px solid var(--edge-light);
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent;
-  color: var(--c-text);
+body.game-ui .title-console button {
+  min-height: 52px;
+  padding: 0 18px;
   font-size: var(--fs-3);
-  font-weight: var(--fw-medium);
   text-align: left;
 }
-body.game-ui .title-console button:not(.primary):hover {
-  background: color-mix(in srgb, var(--n-50) 6%, transparent);
-  box-shadow: inset 3px 0 0 var(--amber-400);
-}
 body.game-ui .title-console button.primary {
-  min-height: 56px;
-  margin-bottom: 8px;
-  border: 0;
-  border-radius: var(--r-sm);
-  background: var(--amber-400);
-  color: var(--n-950);
-  font-size: var(--fs-4);
-  font-weight: var(--fw-heavy);
+  min-height: 64px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-5);
 }
 body.game-ui .title-console .button-pair {
-  gap: 0;
-}
-body.game-ui .title-console .button-pair button + button {
-  border-left: 1px solid var(--edge-light);
+  gap: 10px;
 }
 body.game-ui .title-console .title-quiet {
-  gap: 0;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 4px;
 }
 body.game-ui .title-console .title-quiet button,
 body.game-ui .title-console .quiet {
-  min-height: 36px;
-  border: 0;
-  background: transparent !important;
-  color: var(--n-200) !important;
-  font-size: var(--fs-1);
-}
-body.game-ui .title-console .title-quiet button:hover {
+  min-height: 42px;
+  font-size: var(--fs-2);
+  background-color: var(--panel-sunk) !important;
   color: var(--c-text) !important;
-  box-shadow: none;
 }
 
 /* ---------- Briefing goals: the real map beside the words ---------- */

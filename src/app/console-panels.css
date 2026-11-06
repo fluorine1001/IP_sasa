@@ -155,20 +155,9 @@ body.game-ui .stage-medals {
   flex-wrap: wrap;
   gap: 4px;
 }
-body.game-ui .stage-medals i {
-  width: auto;
-  height: auto;
-  padding: 1px 7px;
-  border-radius: var(--r-pill);
-  border: 2px dashed var(--n-300);
-  font-size: var(--fs-1);
-  font-style: normal;
-  font-weight: 800;
-  line-height: 16px;
-  color: var(--n-200);
-}
-body.game-ui .stage-medals i.on {
-  color: var(--ink);
+body.game-ui .stage-medals {
+  display: flex;
+  gap: 6px;
 }
 
 /* ---------- Less on screen ----------

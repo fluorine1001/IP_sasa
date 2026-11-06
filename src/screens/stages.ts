@@ -1,3 +1,4 @@
+import { medalBadge } from '../ui/figures';
 import { controls, escape, readSaved, writeSaved, type App, type Screen } from '../app/core.ts';
 import { campaignChapters, chapterOf } from '../stages/chapters';
 import './campaign.css';
@@ -78,11 +79,11 @@ export function stagesScreen(app: App): Screen {
         .map((tag, k) => `<span class="${k ? 'tag' : 'stage-vehicle'}">${escape(tag)}</span>`)
         .join(
           '',
-        )}</span><span class="stage-medals" aria-label="${status}"><i class="${done ? 'on' : ''}">성공</i><i class="${m?.budget ? 'on' : ''}">예산 안</i><i class="${m?.clean ? 'on' : ''}">무손상</i></span><small class="stage-status">${status}</small></button>`;
+        )}</span><span class="stage-medals" aria-label="메달: 성공 ${done ? '받음' : '없음'}, 예산 안 ${m?.budget ? '받음' : '없음'}, 무손상 ${m?.clean ? '받음' : '없음'}">${medalBadge('success', done, 30)}${medalBadge('budget', !!m?.budget, 30)}${medalBadge('clean', !!m?.clean, 30)}</span><small class="stage-status">${status}</small></button>`;
     };
     app.root.innerHTML = `<main class="campaign menu-sheet wide"><header class="campaign-header"><div><span class="eyebrow">항해 지도</span><h1>탐사 임무</h1></div><div class="campaign-total"><b>${done}<span> / ${total}</span></b><small>완료한 임무</small></div><button id="back" class="quiet">← 처음 화면</button></header>
       <nav class="chapter-map" aria-label="챕터 선택">${chapters.map((c, i) => `<button data-chapter="${escape(c.id)}" class="chapter-card ${c.id === visibleChapter ? 'selected' : ''}" aria-pressed="${c.id === visibleChapter}" style="--chapter-accent:${c.color}"><span class="chapter-planet" aria-hidden="true">${i + 1}</span><span class="chapter-caption"><small>${i + 1}장</small><strong>${escape(c.title)}</strong><span>${escape(c.subtitle)}</span><span class="chapter-progress"><i style="width:${(c.completed / Math.max(1, c.stages.length)) * 100}%"></i></span><small>${c.completed} / ${c.stages.length} 완료</small></span></button>`).join('')}</nav>
-      ${chapters.map((c) => `<section class="chapter-missions" ${c.id !== visibleChapter ? 'hidden' : ''} style="--chapter-accent:${c.color}"><header><h2>${escape(c.title)}</h2>${CHAPTER_QUESTION[c.id] ? `<p class="chapter-question">${escape(CHAPTER_QUESTION[c.id])}</p>` : ''}<p class="medal-legend"><span><i class="medal-dot success"></i>성공</span><span><i class="medal-dot budget"></i>예산 안 · 사용 ≤ 90%</span><span><i class="medal-dot clean"></i>무손상 · 하중 &lt; 한계</span></p></header><div class="stage-grid mission-route">${c.stages.map(missionCard).join('')}</div></section>`).join('')}
+      ${chapters.map((c) => `<section class="chapter-missions" ${c.id !== visibleChapter ? 'hidden' : ''} style="--chapter-accent:${c.color}"><header><h2>${escape(c.title)}</h2>${CHAPTER_QUESTION[c.id] ? `<p class="chapter-question">${escape(CHAPTER_QUESTION[c.id])}</p>` : ''}<p class="medal-legend"><span>${medalBadge('success', true, 24)}성공</span><span>${medalBadge('budget', true, 24)}연료 90% 이하</span><span>${medalBadge('clean', true, 24)}하중 한계 미만</span></p></header><div class="stage-grid mission-route">${c.stages.map(missionCard).join('')}</div></section>`).join('')}
       ${!chapters.length ? '<p>공개된 임무가 아직 없습니다.</p>' : ''}</main>`;
     controls(app.root, { back: () => app.go('title') }, abort.signal);
     app.root.querySelectorAll<HTMLButtonElement>('[data-chapter]').forEach((b) =>

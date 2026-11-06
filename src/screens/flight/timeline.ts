@@ -35,6 +35,8 @@ export type TimelineState = {
   ended?: boolean;
   /** Past (and the live) flights to draw in the flight log graph, newest first. */
   log?: LogAttempt[];
+  /** Clock times of event-anchored reservations (calculated before a flight, actual in it). */
+  estimates?: Record<string, number>;
 };
 import { eventIcon } from '../../render/program-icons';
 import { burnSpans, chipText, stageColor, textWidth } from './plan-strip';
@@ -481,6 +483,7 @@ export function flightTimeline(
       duration,
       [...(state.applied ?? [])],
       state.scheduled,
+      state.estimates,
       state.phase === 'replay' ? programEvents(plan).map((e) => e.time <= state.time + 1e-8) : [],
     ]);
     if (key !== fingerprint) {
@@ -513,7 +516,8 @@ export function flightTimeline(
             (text.value ? textWidth(text.value) + (compact ? 0 : 5) : 0) +
             // Room for the tick a performed command gets in flight and replay.
             (state.phase === 'plan' ? 0 : 12);
-          const x = Math.min(1, e.time / duration) * width,
+          const at = state.estimates?.[e.id] ?? e.time;
+          const x = Math.min(1, at / duration) * width,
             flip = x + chipWidth > width;
           const a = flip ? x - chipWidth : x,
             b = flip ? x : x + chipWidth;
@@ -521,7 +525,7 @@ export function flightTimeline(
           if (row < 0) row = lanes.length < maxLanes ? lanes.length : maxLanes - 1;
           (lanes[row] ??= []).push([a, b]);
           usedLanes = Math.max(usedLanes, row + 1);
-          placed.set(e.id, { time: e.time, row });
+          placed.set(e.id, { time: at, row });
           const id = e.id.replace(':turn', ''),
             performed = e.id === 'launch' || state.applied?.has(id),
             applied = performed && e.time <= state.time + 1e-8;
@@ -567,8 +571,9 @@ export function flightTimeline(
             (flip ? ' flip' : '') +
             (e.id === 'launch' ? ' fixed' : '') +
             (state.phase !== 'plan' ? (applied ? ' executed' : ' pending') : '') +
+            (state.estimates?.[e.id] !== undefined && state.phase === 'plan' ? ' estimated' : '') +
             '" style="left:' +
-            Math.min(100, (e.time / duration) * 100) +
+            Math.min(100, (at / duration) * 100) +
             '%;--lane:' +
             row +
             '" aria-label="' +

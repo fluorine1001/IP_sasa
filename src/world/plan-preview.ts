@@ -127,6 +127,17 @@ export function previewStates(
     if (change.at === 'apoapsis' || change.at === 'periapsis') {
       const from = chain ?? recorded(change.time);
       before = from && keplerApsis(stage, from, change.at);
+      // Its moment, for drawing on the clock: coast the same two-body orbit to it.
+      if (before && from) {
+        const timed = coastUntil(
+          stage,
+          from,
+          { at: change.at },
+          undefined,
+          change.trigger?.ref ? undefined : change.time,
+        );
+        if (timed) before = { ...before, time: timed.time };
+      }
       if (before && change.heading && change.heading.frame !== 'match') {
         const frame = apsisFrame(stage, from!.position, from!.velocity, from!.time, change.at);
         if (frame) {
@@ -141,17 +152,23 @@ export function previewStates(
       }
     } else if (
       change.trigger &&
-      (change.at === 'after' || change.at === 'angle' || change.at === 'phase')
+      (change.at === 'after' ||
+        change.at === 'angle' ||
+        change.at === 'phase' ||
+        change.at === 'near')
     ) {
       // Coast on the two-body orbit until the trigger: from the state right after the
       // previous change ('after' measures from it), or from the record at the arming time.
       const from =
         change.at === 'after'
-          ? prior && change.trigger.ref === prior.id
+          ? (prior && change.trigger.ref === prior.id) ||
+            (!prior && change.trigger.ref === 'launch')
             ? chain
             : undefined
           : (chain ?? recorded(change.time));
-      before = from && coastUntil(stage, from, change.trigger, prior?.id);
+      // A trigger armed by its own time (not chained) only starts waiting then.
+      const armedAt = change.trigger.ref ? undefined : change.time;
+      before = from && coastUntil(stage, from, change.trigger, prior?.id, armedAt);
     } else if (!chain && change.at !== 'altitude') before = recorded(change.time);
     if (!before) {
       chain = undefined;
@@ -174,6 +191,8 @@ export function coastUntil(
   from: PreviewState,
   trigger: TriggerSpec,
   refId?: string,
+  /** Start waiting only from this time (an item armed by its own clock time). */
+  armedAt?: number,
 ): PreviewState | undefined {
   const body = dominantBody(stage, from.position, from.time);
   if (!body || !(body.mu > 0)) return;
@@ -199,8 +218,9 @@ export function coastUntil(
       refId ? { [refId]: from.time } : undefined,
     );
   const step = 0.05;
-  let prev = at(0);
-  for (let dt = step; dt <= 600; dt += step) {
+  const first = Math.max(0, (armedAt ?? from.time) - from.time);
+  let prev = at(first);
+  for (let dt = first + step; dt <= first + 600; dt += step) {
     const next = at(dt);
     if (fired(prev, next)) {
       let lo = dt - step,

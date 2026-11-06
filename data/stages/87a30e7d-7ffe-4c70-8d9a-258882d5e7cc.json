@@ -147,7 +147,7 @@
           "time": 0.5,
           "actorId": "craft",
           "burn": {
-            "dv": 0.394,
+            "dv": 0.397,
             "heading": {
               "frame": "prograde",
               "angle": -7
@@ -162,10 +162,10 @@
           "time": 1,
           "actorId": "craft",
           "burn": {
-            "dv": 0.094,
+            "dv": 0.087,
             "heading": {
               "frame": "outward",
-              "angle": 15
+              "angle": 17
             },
             "at": "after",
             "ref": "c1",
@@ -187,11 +187,11 @@
             "ref": "c2",
             "delay": 0,
             "phaseTarget": "d8c96f5a-3681-4963-b530-0bb4835bde8d",
-            "altitude": 0.06
+            "altitude": 0.05
           }
         }
       ],
-      "launchDv": 1.48
+      "launchDv": 1.484
     }
   ],
   "audit": {

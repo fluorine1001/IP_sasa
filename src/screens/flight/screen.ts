@@ -63,7 +63,7 @@ import {
   type AimState,
   type Approach,
 } from '../../world/aim';
-import { apsisNames, headingIn, orbitFrame, resolveHeading } from '../../world/heading';
+import { headingIn, orbitFrame, resolveHeading } from '../../world/heading';
 import { firstChangeTime } from '../../world/first-change';
 import { gravity } from '../../world/celestial.ts';
 import { drawWorld } from '../../render/world.ts';
@@ -172,6 +172,20 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         ),
       };
     return previewMemo.value;
+  }
+  /**
+   * Where event-anchored reservations land on the clock, for drawing them on the
+   * timeline: the calculator's moment for each one it can follow (labelled as an
+   * estimate by its dashed chip), nothing for the rest.
+   */
+  function planEstimates() {
+    const out: Record<string, number> = {};
+    try {
+      for (const e of preview(plan)) if (e.change.trigger) out[e.change.id] = e.before.time;
+    } catch {
+      /* the calculator gives no estimate */
+    }
+    return out;
   }
   /** No usable record of this plan's start yet. */
   const noFlight = () => !trials.length || recordedState(0.01, plan) === undefined;
@@ -370,9 +384,8 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
           out.push({
             conic: c,
             tone: 'plan',
-            label: change.at
-              ? `${change.label} (${apsisNames[change.at]}) 후`
-              : `${change.time.toFixed(1)}초 ${change.label} 후`,
+            // The burn handle at its start already names the change.
+            label: undefined,
           });
           finalPlan = { sketch: out.at(-1)!, state };
         }
@@ -706,6 +719,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             time: run?.time ?? 0,
             ended,
             known: !run ? repeatsUntil() : undefined,
+            estimates: run ? { ...run.firedAt } : planEstimates(),
             log: (
               (!showLog
                 ? []

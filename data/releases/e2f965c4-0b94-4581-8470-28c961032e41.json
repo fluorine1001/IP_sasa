@@ -29,8 +29,12 @@
       "title": "출발 원궤도",
       "condition": {
         "kind": "quantify",
-        "actorIds": ["craft"],
-        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
+        "actorIds": [
+          "craft"
+        ],
+        "targetIds": [
+          "f319597d-afd0-58f8-87d6-11863fe0d24f"
+        ],
         "mode": "all",
         "child": {
           "kind": "hold",
@@ -252,7 +256,9 @@
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": ["craft"],
+        "actorIds": [
+          "craft"
+        ],
         "radius": 1,
         "width": 0.04,
         "minor": 1,
@@ -284,8 +290,12 @@
       "title": "전이 타원의 관성 구간",
       "condition": {
         "kind": "quantify",
-        "actorIds": ["craft"],
-        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
+        "actorIds": [
+          "craft"
+        ],
+        "targetIds": [
+          "f319597d-afd0-58f8-87d6-11863fe0d24f"
+        ],
         "mode": "all",
         "child": {
           "kind": "hold",
@@ -567,7 +577,9 @@
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": ["craft"],
+        "actorIds": [
+          "craft"
+        ],
         "radius": 1.5,
         "width": 0.08,
         "minor": 1.4142135623730951,
@@ -599,8 +611,12 @@
       "title": "도착 원궤도에서 한 바퀴",
       "condition": {
         "kind": "quantify",
-        "actorIds": ["craft"],
-        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
+        "actorIds": [
+          "craft"
+        ],
+        "targetIds": [
+          "f319597d-afd0-58f8-87d6-11863fe0d24f"
+        ],
         "mode": "all",
         "child": {
           "kind": "sequence",
@@ -1349,7 +1365,9 @@
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": ["craft"],
+        "actorIds": [
+          "craft"
+        ],
         "radius": 2,
         "width": 0.08,
         "minor": 2,

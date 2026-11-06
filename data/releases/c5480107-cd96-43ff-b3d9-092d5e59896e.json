@@ -82,7 +82,9 @@
           "a81f4aea-3e17-535b-8e21-fc495fc53fe5",
           "8bffd6ca-ab92-5996-8bd8-2f1700f9f799"
         ],
-        "targetIds": ["70b79833-36fe-5afa-8edf-92411a90b34e"],
+        "targetIds": [
+          "70b79833-36fe-5afa-8edf-92411a90b34e"
+        ],
         "mode": "all",
         "child": {
           "kind": "sequence",

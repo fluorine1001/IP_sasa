@@ -337,7 +337,12 @@ export function timelinePlanner(
               ['periapsis', '근점'],
               ['apoapsis', '원점'],
               ['angle', '위치각'],
-              ...(matchTargets().length ? ([['phase', '목표 각도']] as const) : []),
+              ...(matchTargets().length
+                ? ([
+                    ['phase', '목표 각도'],
+                    ['near', '목표 접근'],
+                  ] as const)
+                : []),
               ['altitude', '높이'],
             ] as const
           )
@@ -368,6 +373,25 @@ export function timelinePlanner(
               180,
               '°',
               1,
+            );
+        if (trigger.at === 'near')
+          fields +=
+            '<label>기준 대상 <select data-edit="phase-target" aria-label="다가갈 대상">' +
+            matchTargets()
+              .map(
+                (t) =>
+                  `<option value="${escape(t.id)}"${t.id === trigger.phaseTarget ? ' selected' : ''}>${escape(t.name)}</option>`,
+              )
+              .join('') +
+            '</select></label>' +
+            range(
+              '이 거리 안에 들면',
+              'trigger-height',
+              trigger.altitude ?? 0.3,
+              0.01,
+              2,
+              ' u',
+              0.01,
             );
         if (trigger.at === 'altitude')
           fields += range(
@@ -578,7 +602,7 @@ export function timelinePlanner(
       if (key === 'time') movedId = selected;
       if (key === 'trigger-height') {
         const target = c?.burn ?? impulse;
-        if (target) target.altitude = Math.max(0, round2(value));
+        if (target) target.altitude = Math.max(target.at === 'near' ? 0.01 : 0, round2(value));
       }
       action?.(key === 'time' ? 'move' : 'edit');
       // A typed value and its slider show the same number.
@@ -736,7 +760,8 @@ export function timelinePlanner(
           // Leaving a chain: keep the moment it stood for as a clock time.
           if (was && target.ref && !at) (c ?? push(selected))!.time = chainTime(p, selected);
           target.at = (at || undefined) as Apsis | undefined;
-          target.altitude = at === 'altitude' ? (target.altitude ?? 0.3) : undefined;
+          target.altitude =
+            at === 'altitude' || at === 'near' ? (target.altitude ?? 0.3) : undefined;
           if (at === 'after') {
             const ref = previousOf(p, selected);
             target.ref = ref;
@@ -751,7 +776,9 @@ export function timelinePlanner(
           if (at === 'angle' || at === 'phase') target.atAngle ??= 0;
           else target.atAngle = undefined;
           target.phaseTarget =
-            at === 'phase' ? (target.phaseTarget ?? matchTargets()[0]?.id) : undefined;
+            at === 'phase' || at === 'near'
+              ? (target.phaseTarget ?? matchTargets()[0]?.id)
+              : undefined;
         }
         action?.('edit');
         changed();

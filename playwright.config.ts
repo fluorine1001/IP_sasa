@@ -31,6 +31,10 @@ export default defineConfig({
         },
       ],
     },
+    // A machine whose preinstalled browser differs from the pinned build can point at it.
+    ...(process.env.PW_CHROMIUM
+      ? { launchOptions: { executablePath: process.env.PW_CHROMIUM } }
+      : {}),
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

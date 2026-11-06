@@ -584,3 +584,7 @@ body.game-ui .result-miss .miss-pair small {
   width: 96px;
   height: 96px;
 }
+/* Placed by calculation, not by a clock time: a dashed edge says "about here". */
+.timeline-event.estimated {
+  border-style: dashed;
+}

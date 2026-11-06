@@ -3,7 +3,8 @@ import { length } from '../../physics/vector';
 import { STAGE_COLORS } from '../../render/rocket-sprite';
 import { apsisNames, type Apsis } from '../../world/heading';
 /** A trigger in a chip: "근점", "↳ 2.0초", "90°", "목표 30°". */
-function triggerShort(t: { at?: Apsis; delay?: number; atAngle?: number }) {
+function triggerShort(t: { at?: Apsis; delay?: number; atAngle?: number; altitude?: number }) {
+  if (t.at === 'near') return `접근 ${(t.altitude ?? 0).toFixed(2)}`;
   if (t.at === 'after') return `↳${(t.delay ?? 0).toFixed(1)}초`;
   if (t.at === 'angle') return `${Math.round(t.atAngle ?? 0)}°`;
   if (t.at === 'phase') return `목표 ${Math.round(t.atAngle ?? 0)}°`;

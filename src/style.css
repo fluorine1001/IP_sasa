@@ -481,16 +481,14 @@ button:disabled {
 
 
 /* 덮어쓰rl 코드 */
-header div, 
-header span, 
-.dock-toolbar div, 
-.dock-toolbar span, 
-[class*="badge"],
-header div[style*="background"],
-span[style*="background"] {
-  background-color: rgba(255, 255, 255, 0.15) !important; /* 반투명 배경 무조건 강제 */
-  color: #ffffff !important; /* 글자색 흰색 */
-  padding: 4px 8px !important;
-  border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-}
+  header div,
+  header span,
+  .dock-toolbar div,
+  .dock-toolbar span,
+  [class*="badge"] {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }

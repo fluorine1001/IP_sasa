@@ -95,7 +95,7 @@ export function playScreen(app: App, args: PlayArgs): Screen {
   app.root.innerHTML = `<canvas id="world" class="space" tabindex="0" aria-label="궤도 비행 지도"></canvas>
 <header class="mission-panel panel"><div class="badge">${args.onReturn ? '제작 중 시험' : '탐사 임무'}</div><h2>${escape(stage.title)}</h2><div id="goals"></div>
 <details class="mission-brief"><summary>임무 브리핑</summary><p>${escape(stage.description)}</p><p class="briefing">${escape(design.briefing)}</p></details><div id="experiment-summary"></div></header>
-${controlButton('exit', 'close', '임무 나가기', 'mission-exit')}
+${controlButton('exit', 'close', 'X', 'mission-exit')}
 <aside class="resources panel"><div class="console-eyebrow">기체 상태</div><div id="mode"></div><div id="initial-output" class="initial-output"></div><label><span id="fuel-label">수정 추진</span><meter id="fuel" min="0" max="${stage.rules.maneuverBudget}" value="${stage.rules.maneuverBudget}"></meter></label><div id="inventory"></div><label id="pad-reading"><span>발사대 중력계</span><meter id="pad-gravity" min="0" max="1" aria-label="현재 발사대의 끌림, 길수록 강함"></meter></label></aside>
 <div id="toast" class="toast"></div>
 <footer class="flight-deck panel" aria-label="지상 관제석">

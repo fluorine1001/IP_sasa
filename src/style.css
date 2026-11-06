@@ -478,3 +478,16 @@ button:disabled {
 [hidden] {
   display: none !important;
 }
+
+
+/* 코드 */
+header .badge, 
+.dock-toolbar .badge, 
+.flight-deck .badge,
+[class*="badge"] {
+  color: #ffffff !important; /* 글자색 흰색 고정 */
+  background: rgba(255, 255, 255, 0.15) !important; /* 반투명 유리창 배경 고정 */
+  padding: 4px 8px !important; /* 이쁜 여백 */
+  border-radius: 4px !important; /* 둥근 모서리 */
+  border: 1px solid rgba(255, 255, 255, 0.2) !important; /* 은은한 테두리 */
+}

@@ -72,6 +72,32 @@ export function goalParts(stage: Stage, goal: Goal): GoalPart[] {
     if (depth > 6) return;
     if (c.kind === 'compare') {
       if (c.right.kind !== 'constant') return;
+      // Engine off: a state, not a scale.
+      if (c.left.kind === 'metric' && c.left.metric === 'throttle' && c.right.value <= 1e-9) {
+        out.push({ kind: 'event', path, label: '엔진 끈 채로' });
+        return;
+      }
+      // Observed over a stretch (a lap, some seconds): say the stretch, not the statistic.
+      if (c.left.kind === 'window') {
+        const w = c.left.width.kind === 'constant' ? c.left.width.value : NaN;
+        const d = c.left.domain.kind === 'metric' ? c.left.domain.metric : '';
+        const period =
+          d === 'angularTravel'
+            ? `${Number((w / (2 * Math.PI)).toFixed(2))}바퀴`
+            : d === 'orbitTurns'
+              ? `${w}바퀴`
+              : d === 'time'
+                ? `${w}초`
+                : '구간';
+        if (!out.some((x) => x.kind === 'event' && x.label.startsWith(period)))
+          out.push({
+            kind: 'event',
+            path,
+            label: c.left.operation === 'coverage' ? `${period} 끝까지 돌기` : `${period} 내내 유지`,
+          });
+        return;
+      }
+      if (c.left.kind !== 'metric') return;
       // Sign conditions read as a state, not a scale.
       if (
         c.left.kind === 'metric' &&
@@ -170,6 +196,11 @@ export function goalGaugesHtml(
   if (!parts.length) return '';
   return `<div class="goal-gauges">${parts
     .filter((part) => !(part.kind === 'event' && part.label.trim() === goal.title.trim()))
+    .filter(
+      (part, i, all) =>
+        part.kind !== 'event' ||
+        all.findIndex((x) => x.kind === 'event' && x.label === part.label) === i,
+    )
     .map((part) => {
       if (part.kind === 'event') {
         const last = p?.series?.[part.path]?.v.at(-1);
@@ -177,7 +208,7 @@ export function goalGaugesHtml(
           !!p?.complete ||
           !!p?.conditionMemory?.[part.path]?.latched ||
           (part.sign !== undefined && last !== undefined && last * part.sign > 0);
-        return `<div class="gg-row gg-event ${done ? 'ok' : ''}">${icon(part.sign ? 'radialSpeed' : 'distance')}<span class="gg-label">${escape(part.label)}</span><b>${done ? '✓' : ''}</b></div>`;
+        return `<div class="gg-row gg-event ${done ? 'ok' : ''}">${icon(part.sign ? 'radialSpeed' : part.label.startsWith('엔진') ? 'fuel' : part.label.includes('바퀴') ? 'speed' : 'distance')}<span class="gg-label">${escape(part.label)}</span><b>${done ? '✓' : ''}</b></div>`;
       }
       if (part.kind === 'hold') {
         const held = p?.complete ? part.duration : (p?.conditionMemory?.[part.path]?.hold ?? 0);

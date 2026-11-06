@@ -4,7 +4,7 @@ import { campaignChapters, chapterOf } from '../stages/chapters';
 import './campaign.css';
 import { catalog } from '../stages/catalog.ts';
 import { liveCatalog } from '../stages/live-catalog';
-import { readMedals } from '../app/records';
+import { readMedals, readSolutions } from '../app/records';
 import type { Stage } from '../world/types';
 import { objectiveGoals } from '../world/goals';
 
@@ -79,7 +79,7 @@ export function stagesScreen(app: App): Screen {
         .map((tag, k) => `<span class="${k ? 'tag' : 'stage-vehicle'}">${escape(tag)}</span>`)
         .join(
           '',
-        )}</span><span class="stage-medals" aria-label="메달: 성공 ${done ? '받음' : '없음'}, 예산 안 ${m?.budget ? '받음' : '없음'}, 무손상 ${m?.clean ? '받음' : '없음'}">${medalBadge('success', done, 30)}${medalBadge('budget', !!m?.budget, 30)}${medalBadge('clean', !!m?.clean, 30)}</span><small class="stage-status">${status}</small></button>`;
+        )}</span><span class="stage-medals" aria-label="메달: 성공 ${done ? '받음' : '없음'}, 예산 안 ${m?.budget ? '받음' : '없음'}, 무손상 ${m?.clean ? '받음' : '없음'}">${medalBadge('success', done, 30)}${medalBadge('budget', !!m?.budget, 30)}${medalBadge('clean', !!m?.clean, 30)}</span><small class="stage-status">${status}</small>${bestLine(s)}</button>`;
     };
     app.root.innerHTML = `<main class="campaign menu-sheet wide"><header class="campaign-header"><div><span class="eyebrow">항해 지도</span><h1>탐사 임무</h1></div><div class="campaign-total"><b>${done}<span> / ${total}</span></b><small>완료한 임무</small></div><button id="back" class="quiet">← 처음 화면</button></header>
       <nav class="chapter-map" aria-label="챕터 선택">${chapters.map((c, i) => `<button data-chapter="${escape(c.id)}" class="chapter-card ${c.id === visibleChapter ? 'selected' : ''}" aria-pressed="${c.id === visibleChapter}" style="--chapter-accent:${c.color}"><span class="chapter-planet" aria-hidden="true">${i + 1}</span><span class="chapter-caption"><small>${i + 1}장</small><strong>${escape(c.title)}</strong><span>${escape(c.subtitle)}</span><span class="chapter-progress"><i style="width:${(c.completed / Math.max(1, c.stages.length)) * 100}%"></i></span><small>${c.completed} / ${c.stages.length} 완료</small></span></button>`).join('')}</nav>
@@ -130,4 +130,11 @@ export function stagesScreen(app: App): Screen {
     }
   });
   return { dispose: () => abort.abort() };
+}
+
+/** A solved mission's best numbers: something to beat on the way back. */
+function bestLine(stage: { id: string; rocket?: unknown }) {
+  const s = readSolutions(stage.id);
+  if (!s.fuel.length) return '';
+  return `<span class="stage-best" aria-label="내 최고 기록">${stage.rocket ? '연료' : '추진'} ${Math.round(Math.min(...s.fuel) * 100)}% · ${Math.min(...s.time).toFixed(1)}초 · 예약 ${Math.min(...s.steps)}개</span>`;
 }

@@ -5,6 +5,7 @@ import {
   launchFraction,
   programEvents,
   planningTimeLimit,
+  missionTimeLimit,
   timelineDuration,
 } from '../../world/program';
 import { playbackRates, playbackTempo, savedPlaybackRate, savePlaybackRate } from './playback';
@@ -19,7 +20,7 @@ import { propulsionReadout } from './propulsion';
 import { landingReadout } from './landing-readout';
 import { resultSummary, flightMedals } from './result-summary';
 import { preflightChecklist } from './preflight';
-import { saveMedals } from '../../app/records';
+import { readSolutions, saveSolution, saveMedals } from '../../app/records';
 import { goalNearest, goalStatus } from './goal-status';
 import { loadReadout } from './load-readout';
 import { altitude, brakingHtml, orbitHtml, telemetryHtml } from './telemetry';
@@ -490,7 +491,7 @@ ${controlButton('exit', 'back', '임무 나가기', 'mission-exit with-label')}
 <div id="replay-monitor" hidden aria-hidden="true"><div class="monitor-noise"></div><div class="monitor-label">● REC <span id="monitor-time"></span></div></div>
 <footer class="flight-deck panel" aria-label="지상 관제석"><div class="dock-toolbar">
 <div class="dock-plan-tools"><div id="dock-plan"></div></div>
-<div class="dock-transport"><div id="dock-replay"></div>${controlButton('pause', 'pause', '시간 정지')}<button id="rate" class="console-button rate-button" title="시간 배속">${speed}×</button>${controlButton('follow', 'follow', '로켓 따라가기')}${controlButton('vehicle', 'vehicle', '비행체 추적 전환')}</div>
+<div class="dock-transport"><div id="dock-replay"></div>${controlButton('pause', 'pause', '시간 정지')}${controlButton('skip', 'skip', '끝까지 바로 비행 (E)')}<button id="rate" class="console-button rate-button" title="시간 배속">${speed}×</button>${controlButton('follow', 'follow', '로켓 따라가기')}${controlButton('vehicle', 'vehicle', '비행체 추적 전환')}</div>
 <div class="dock-flight-actions"><button id="notes" class="console-button with-label" aria-label="비행 기록" title="비행 기록">${controlIcon('records')}<span class="control-label">기록</span><span id="trial-count" class="count-badge">0</span><span class="sr-only"> · 관측 <span id="note-count">0</span>개</span></button>
 ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
 <button id="launch" class="primary console-button with-label launch-command" aria-label="발사">${controlIcon('rocket')}<span class="control-label">발사</span></button></div></div>
@@ -552,6 +553,44 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   let vehicleViewKey = '';
   const lesson = training ? tutorialLesson(app.root, training.steps, signal) : undefined;
   let lastPlan = JSON.stringify(plan);
+  /* Undo / redo for the plan. Each change is a step; changes within half a second (a
+   * slider drag, a handle drag) merge into one, so a step is what the player meant. */
+  const undoStack: string[] = [],
+    redoStack: string[] = [];
+  let historyNow = lastPlan,
+    historyAt = 0;
+  function recordPlanHistory() {
+    if (run || replayIndex >= 0) return;
+    const now = JSON.stringify(plan);
+    if (now === historyNow) return;
+    const stamp = performance.now();
+    if (stamp - historyAt > 500 || !undoStack.length) undoStack.push(historyNow);
+    if (undoStack.length > 100) undoStack.shift();
+    historyNow = now;
+    historyAt = stamp;
+    redoStack.length = 0;
+    showHistoryButtons();
+  }
+  function stepHistory(back: boolean) {
+    if (run || replayIndex >= 0) return;
+    const from = back ? undoStack : redoStack,
+      to = back ? redoStack : undoStack;
+    const target = from.pop();
+    if (target === undefined) return;
+    to.push(historyNow);
+    historyNow = target;
+    historyAt = 0;
+    plan = JSON.parse(target);
+    app.root.querySelector<HTMLButtonElement>('#command-popover [data-close]')?.click();
+    showHistoryButtons();
+    updateHud();
+  }
+  function showHistoryButtons() {
+    const undo = app.root.querySelector<HTMLButtonElement>('#plan-undo'),
+      redo = app.root.querySelector<HTMLButtonElement>('#plan-redo');
+    if (undo) undo.disabled = !undoStack.length || !!run;
+    if (redo) redo.disabled = !redoStack.length || !!run;
+  }
   function planAction(id: string) {
     const next = JSON.stringify(plan);
     if (id === 'choose-time' || next !== lastPlan) lesson?.record(id);
@@ -626,7 +665,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   el('goal-close').onclick = () => goalDialog.close();
   app.root.insertAdjacentHTML(
     'beforeend',
-    `<dialog id="pause-menu" class="ui-dialog ui-panel pause-menu" aria-label="${t('pause.title')}"><h2 class="ui-h2">${t('pause.title')}</h2><div class="pause-actions"><button id="pause-resume" class="ui-btn primary lg">${t('pause.resume')}</button><button id="pause-briefing" class="ui-btn">${t('pause.briefing')}</button><button id="pause-exit" class="ui-btn">${t('pause.exit')}</button></div><label class="pause-row"><span>${t('settings.master')}</span><input id="pause-volume" type="range" min="0" max="1" step=".05" value="${app.settings.volume}"></label><label class="pause-row"><span>${t('settings.orbitTool')}</span><input id="pause-orbit" type="checkbox" ${app.settings.orbitTool ? 'checked' : ''}></label><h3 class="ui-h3">${t('pause.keys')}</h3><dl class="pause-keys"><dt><kbd>Space</kbd></dt><dd>발사 · 일시정지</dd><dt><kbd>R</kbd></dt><dd>다시 발사</dd><dt><kbd>C</kbd></dt><dd>로켓 따라가기</dd><dt><kbd>Tab</kbd></dt><dd>분리된 단 선택</dd><dt><kbd>1</kbd> <kbd>4</kbd></dt><dd>1배속 · 4배속</dd><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · 휠</dt><dd>지도 이동 · 확대</dd><dt><kbd>Esc</kbd></dt><dd>이 메뉴</dd></dl></dialog>`,
+    `<dialog id="pause-menu" class="ui-dialog ui-panel pause-menu" aria-label="${t('pause.title')}"><h2 class="ui-h2">${t('pause.title')}</h2><div class="pause-actions"><button id="pause-resume" class="ui-btn primary lg">${t('pause.resume')}</button><button id="pause-briefing" class="ui-btn">${t('pause.briefing')}</button><button id="pause-exit" class="ui-btn">${t('pause.exit')}</button></div><label class="pause-row"><span>${t('settings.master')}</span><input id="pause-volume" type="range" min="0" max="1" step=".05" value="${app.settings.volume}"></label><label class="pause-row"><span>${t('settings.orbitTool')}</span><input id="pause-orbit" type="checkbox" ${app.settings.orbitTool ? 'checked' : ''}></label><h3 class="ui-h3">${t('pause.keys')}</h3><dl class="pause-keys"><dt><kbd>Space</kbd></dt><dd>발사 · 일시정지</dd><dt><kbd>R</kbd></dt><dd>다시 발사</dd><dt><kbd>E</kbd></dt><dd>끝까지 바로 비행</dd><dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>계획 되돌리기</dd><dt><kbd>C</kbd></dt><dd>로켓 따라가기</dd><dt><kbd>Tab</kbd></dt><dd>분리된 단 선택</dd><dt><kbd>1</kbd> <kbd>4</kbd></dt><dd>1배속 · 4배속</dd><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · 휠</dt><dd>지도 이동 · 확대</dd><dt><kbd>Esc</kbd></dt><dd>이 메뉴</dd></dl></dialog>`,
   );
   const pauseMenu = el('pause-menu') as HTMLDialogElement;
   function openPause() {
@@ -741,7 +780,10 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             ).filter((t): t is LogAttempt => !!t),
           };
     },
-    () => updateHud(),
+    () => {
+      recordPlanHistory();
+      updateHud();
+    },
     (time) => {
       if (replayIndex < 0) return;
       if (Math.abs(time - replayCursor) > 0.05) lesson?.record('seek');
@@ -763,6 +805,17 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   );
   timelineApi = timeline;
   el('dock-plan').append(el('program-toggle'));
+  {
+    const undo = document.createElement('div');
+    undo.className = 'plan-history';
+    undo.innerHTML =
+      controlButton('plan-undo', 'undo', '되돌리기 (Ctrl+Z)') +
+      controlButton('plan-redo', 'redo', '다시 하기 (Ctrl+Shift+Z)');
+    el('dock-plan').append(undo);
+    el('plan-undo').addEventListener('click', () => stepHistory(true), { signal });
+    el('plan-redo').addEventListener('click', () => stepHistory(false), { signal });
+    showHistoryButtons();
+  }
   el('dock-replay').append(el('replay-toggle'), el('replay-exit'));
   el('dock-phase').append(el('timeline-mode'));
   el('dock-clock').append(el('timeline-clock'));
@@ -1141,6 +1194,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     canvas.dataset.phase = replayIndex >= 0 ? 'replay' : run ? 'flight' : 'plan';
     app.root.dataset.phase = canvas.dataset.phase;
     (el('pause') as HTMLButtonElement).hidden = replayIndex >= 0 || !run || ended;
+    (el('skip') as HTMLButtonElement).hidden = replayIndex >= 0 || !run || ended;
     app.root.querySelector<HTMLElement>('.flight-deck')!.dataset.phase = canvas.dataset.phase;
     if (training) {
       finishTrainingIfReady();
@@ -1433,6 +1487,22 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   function exit() {
     args.onReturn ? args.onReturn() : app.go('stages');
   }
+  /**
+   * The rest of this flight, flown at once. Still the real flight (same steps, same
+   * record, counted as an attempt); only the waiting is skipped, so trying again costs
+   * seconds instead of a minute. Watch it back in the replay.
+   */
+  function skipToEnd() {
+    if (!run || replayIndex >= 0) return;
+    const limit = Number.isFinite(missionTimeLimit(stage))
+      ? missionTimeLimit(stage) + 5
+      : run.time + Math.max(30, stage.audit?.timeLimit ?? 120);
+    while (run && (run.status === 'running' || run.status === 'impact') && run.time < limit)
+      tick(run, stage, WORLD_STEP, stage.objects, true, false);
+    paused = false;
+    announceCommands();
+    if (run.status !== 'running' && run.status !== 'impact') finish();
+  }
   function finish() {
     if (!run || ended) return;
     ended = true;
@@ -1459,16 +1529,31 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     el('result').hidden = false;
     const lastTrial = trials.at(-1)!;
     lastMiss = flightMisses(stage, run.goals, lastTrial.frames, lastTrial.scheduledPlan)[0];
+    // A win joins the player's own solution records (read before, so a best shows as new).
+    const counts = run.status === 'won' && !args.onReturn && !training;
+    const solutions = counts ? readSolutions(stage.id) : undefined;
+    if (counts) {
+      const m = flightMedals(stage, run);
+      saveSolution(stage.id, {
+        fuel: m.initial > 0 ? Math.min(1, m.used / m.initial) : 0,
+        time: run.time,
+        steps: (run.plan.engineCommands?.length ?? 0) + run.plan.impulses.length,
+      });
+    }
     el('result').innerHTML = resultSummary(stage, run, trials.at(-2)?.scheduledPlan, {
       hasNext: !!args.next,
       attempt: trials.length,
       miss: lastMiss,
+      solutions,
     });
     el('result').dataset.outcome = run.status === 'won' ? 'won' : 'failed';
     if (run.status === 'won' && !args.onReturn && !training) {
       const earned = flightMedals(stage, run);
       saveMedals(stage.id, earned);
       if (earned.budget) setTimeout(() => eventSound('medal'), 900);
+      // A new personal best on a mission already solved gets its own moment.
+      if (solutions?.fuel.length && app.root.querySelector('.solution-tile.record em'))
+        setTimeout(() => eventSound('medal'), 1300);
     }
     beginReplay(trials.length - 1, true);
     el('result-close').onclick = () => {
@@ -1516,6 +1601,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
         start();
       },
       pause: togglePause,
+      skip: skipToEnd,
       rate: () => {
         const popup = el('rate-options');
         popup.hidden = !popup.hidden;
@@ -1665,6 +1751,11 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       keys.add(e.code);
       if (e.repeat) return;
       if (e.code === 'Space') replayIndex >= 0 || run ? togglePause() : start();
+      if (e.code === 'KeyE' && run?.status === 'running' && replayIndex < 0) skipToEnd();
+      if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.code === 'KeyY')) {
+        e.preventDefault();
+        stepHistory(e.code === 'KeyZ' && !e.shiftKey);
+      }
       if (e.code === 'KeyR') {
         if (replayIndex >= 0) leaveReplay();
         if (!run) start();

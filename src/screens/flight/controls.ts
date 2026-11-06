@@ -17,6 +17,9 @@ const glyphs: Record<string, string> = {
   sliders:
     '<path d="M4 6h16M4 18h16"/><circle cx="9" cy="6" r="3"/><circle cx="16" cy="18" r="3"/>',
   pause: '<path d="M8 4v16M16 4v16"/>',
+  skip: '<path d="M3 5l8 7-8 7zM12 5l8 7-8 7zM21 5v14"/>',
+  undo: '<path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  redo: '<path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/>',
   play: '<path d="M7 3l14 9-14 9z"/>',
   follow: '<circle cx="12" cy="12" r="5"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>',
   vehicle:

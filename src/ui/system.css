@@ -727,3 +727,11 @@
     font-weight: 600;
   }
 }
+@layer components {
+  body.game-ui #command-popover .dv-field.compact .dv-entry input[type='number'] {
+    width: 76px;
+  }
+  body.game-ui #command-popover .dv-field.compact small {
+    white-space: nowrap;
+  }
+}

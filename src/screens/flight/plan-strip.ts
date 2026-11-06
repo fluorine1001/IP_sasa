@@ -3,6 +3,9 @@ import { length } from '../../physics/vector';
 import { STAGE_COLORS } from '../../render/rocket-sprite';
 import { apsisNames, type Apsis } from '../../world/heading';
 /** A trigger in a chip: "근점", "↳ 2.0초", "90°", "목표 30°". */
+/** A burn sized by its orbit: "원점→2.00". */
+const untilShort = (u: { apsis: string; height: number }) =>
+  (u.apsis === 'apoapsis' ? '원점→' : '근점→') + u.height.toFixed(2);
 function triggerShort(t: { at?: Apsis; delay?: number; atAngle?: number; altitude?: number }) {
   if (t.at === 'near') return `접근 ${(t.altitude ?? 0).toFixed(2)}`;
   if (t.at === 'after') return `↳${(t.delay ?? 0).toFixed(1)}초`;
@@ -200,7 +203,11 @@ export function chipText(
           prefix +
           (command?.burn?.at ? triggerShort(command.burn) + ' ' : '') +
           (command?.burn ? headingShort[command.burn.heading.frame] : '연소'),
-        value: command?.burn ? 'Δv ' + formatDv(command.burn.dv) : '',
+        value: command?.burn
+          ? command.burn.until
+            ? untilShort(command.burn.until)
+            : 'Δv ' + formatDv(command.burn.dv)
+          : '',
       };
     case 'push': {
       const push = plan.impulses.find((c) => c.id === event.id);
@@ -208,7 +215,11 @@ export function chipText(
         word:
           (push?.at ? triggerShort(push) + ' ' : '') +
           (push?.heading ? headingShort[push.heading.frame] : '추진'),
-        value: push ? formatDv(push.magnitude ?? length(push.vector)) : '',
+        value: push
+          ? push.until && push.heading
+            ? untilShort(push.until)
+            : formatDv(push.magnitude ?? length(push.vector))
+          : '',
       };
     }
     case 'deploy':

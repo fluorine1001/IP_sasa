@@ -56,6 +56,8 @@ export type Impulse = {
   /** Relative push: resolved in the orbit frame at its time; `vector` is then ignored. */
   heading?: import('./heading').Heading;
   magnitude?: number;
+  /** Size set by the orbit it leaves (see burn-until.ts); `magnitude` is then a ceiling. */
+  until?: import('./burn-until').BurnUntil;
   /** Fire at the next apsis or on coming down to `altitude`, after `time`. */
   at?: import('./heading').Apsis;
   altitude?: number;
@@ -70,6 +72,8 @@ export type Impulse = {
 export type DvBurn = {
   dv: number;
   heading: import('./heading').Heading;
+  /** Stop when the orbit reaches this apsis height (see burn-until.ts); `dv` is a ceiling. */
+  until?: import('./burn-until').BurnUntil;
   throttle?: number;
   /** Fire at the next apoapsis/periapsis, or on coming down to `altitude`, after the command's time. */
   at?: import('./heading').Apsis;

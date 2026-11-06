@@ -1,3 +1,4 @@
+import { untilDv } from './burn-until';
 import { missionTimeLimit, launchFraction } from './program';
 import { craftCenter } from './craft-center';
 import { landingBounds, landingReading, surfaceVelocity } from './landing';
@@ -183,7 +184,11 @@ function integrate(
 /** The push a cold-gas command gives now: fixed on the map, or relative to the orbit. */
 export function impulseVector(run: Run, stage: Stage, m: Impulse): Vec {
   if (!m.heading || m.magnitude === undefined) return m.vector;
-  return scale(resolveHeading(stage, run.position, run.velocity, run.time, m.heading), m.magnitude);
+  const dir = resolveHeading(stage, run.position, run.velocity, run.time, m.heading);
+  const size = m.until
+    ? untilDv(stage, run.position, run.velocity, run.time, dir, m.until, m.magnitude)
+    : m.magnitude;
+  return scale(dir, size);
 }
 function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: DvBurn) {
   const actor = actorId === 'craft' ? undefined : run.detached.find((a) => a.id === actorId);
@@ -206,6 +211,7 @@ function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: Dv
     b.dv,
     b.throttle ?? 1,
     b.at ? { trigger: triggerOf(b)!, heading: b.heading } : undefined,
+    b.until,
   );
 }
 function triggerAt(v: object) {

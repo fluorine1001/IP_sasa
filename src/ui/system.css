@@ -709,6 +709,9 @@
     body.game-ui .flight-deck {
       padding: 10px 12px 12px;
     }
+    body.game-ui .flight-deck #flight-timeline {
+      --lane-h: 30px;
+    }
   }
 }
 
@@ -744,5 +747,46 @@
   body.game-ui {
     word-break: keep-all;
     overflow-wrap: break-word;
+  }
+}
+
+/* Reservation editor: one labelled choice per question (언제 · 방향 · 크기 · 발사),
+ * then only that choice's own values. Questions are separated by air, not boxes. */
+@layer components {
+  body.game-ui #command-popover .pick {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 6px;
+  }
+  body.game-ui #command-popover .pick:first-child {
+    margin-top: 4px;
+  }
+  body.game-ui #command-popover .pick-label {
+    color: var(--k-accent);
+    font-weight: 800;
+  }
+  body.game-ui #command-popover .pick select {
+    width: 100%;
+    min-height: 38px;
+    background-color: var(--k-raised);
+    font-weight: 700;
+  }
+}
+@layer components {
+  body.game-ui #command-popover .dv-field.compact {
+    display: grid;
+    grid-template-columns: 72px auto minmax(0, 1fr);
+    justify-content: start;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+  }
+  body.game-ui #command-popover .dv-field.compact small {
+    color: var(--k-dim);
+  }
+  body.game-ui #command-popover .dv-entry input[type='number'] {
+    width: 92px;
   }
 }

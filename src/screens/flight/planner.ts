@@ -1,3 +1,4 @@
+import type { BurnUntil } from '../../world/burn-until';
 import { launchWindowTime } from '../../world/launch-window';
 import {
   planningTimeLimit,
@@ -30,6 +31,29 @@ import { plannedChanges } from '../../world/plan-preview';
 
 const frames: HeadingFrame[] = ['prograde', 'retrograde', 'outward', 'inward'];
 /** Button words, short enough for a three-across choice group (full names in the diagram). */
+/** When a reservation acts, in words a player would say. */
+const WHEN = [
+  ['', '정한 시각에'],
+  ['after', '앞 예약이 끝난 뒤'],
+  ['periapsis', '근점에서'],
+  ['apoapsis', '원점에서'],
+  ['angle', '위치각을 지날 때'],
+  ['phase', '목표가 각도에 올 때'],
+  ['near', '목표에 다가갔을 때'],
+  ['altitude', '높이까지 내려왔을 때'],
+] as const;
+const WHEN_SIMPLE = [
+  ['', '정한 시각에'],
+  ['after', '앞 예약이 끝난 뒤'],
+] as const;
+const FRAME_LONG: Record<HeadingFrame | 'map', string> = {
+  prograde: '진행 방향',
+  retrograde: '진행 반대',
+  outward: '바깥쪽',
+  inward: '안쪽',
+  match: '목표와 속도 맞추기',
+  map: '지도 위 고정 방향',
+};
 const frameShort: Record<HeadingFrame | 'map', string> = {
   prograde: '진행',
   retrograde: '역진행',
@@ -308,6 +332,29 @@ export function timelinePlanner(
       '</span></span></label>'
     );
   }
+  /**
+   * Size by result: stop when the apoapsis or periapsis reaches a height. The engine
+   * reads it from the craft's own state when it acts, so earlier errors do not carry on.
+   */
+  function sizeFields(until: BurnUntil | undefined) {
+    const top = Math.max(5, Math.round(stage.rules.worldRadius ?? 20));
+    return (
+      pick(
+        'size',
+        '크기',
+        [
+          ['', '속력 변화(Δv)로'],
+          ['apoapsis', '원점 높이가 될 때까지'],
+          ['periapsis', '근점 높이가 될 때까지'],
+        ],
+        until?.apsis ?? '',
+      ) +
+      (until
+        ? `<label class="dv-field">${until.apsis === 'apoapsis' ? '원점' : '근점'} 높이<span class="dv-entry"><input type="number" data-edit="until-height" min="0" max="${top}" step="0.01" value="${until.height.toFixed(2)}" aria-label="목표 높이 (u)"> u</span>` +
+          `<input type="range" data-edit="until-height" min="0" max="${top}" step="0.01" value="${until.height}" aria-label="목표 높이 조절"><span class="range-ends">0<span>${top} u</span></span></label>`
+        : '')
+    );
+  }
   /** The wait after the reservation it follows: typed to 0.01 s, or dragged. */
   function delayField(value: number) {
     const top = Math.max(30, Math.ceil(Math.min(planningTimeLimit(stage), 600)));
@@ -390,46 +437,25 @@ export function timelinePlanner(
       const relative = c?.burn?.heading ?? impulse?.heading;
       const trigger = c?.burn ?? (impulse?.heading ? impulse : undefined);
       // A separation or payload release can follow the reservation before it, too.
+      // One question per row: 언제 · 방향 · 크기. Each is one choice; only the chosen
+      // option's own value appears under it.
       if (!trigger && c && (c.separate || c.releasePayload))
-        fields +=
-          '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
-          (
-            [
-              ['', '시각'],
-              ['after', '앞 예약 뒤'],
-            ] as const
-          )
-            .map(
-              ([v, label]) =>
-                `<button type="button" data-at="${v}" aria-pressed="${(c.at ?? '') === v}">${label}</button>`,
-            )
-            .join('') +
-          '</div>';
+        fields = pick('at', '언제', WHEN_SIMPLE, c.at ?? '') + fields;
       if (trigger) {
-        fields +=
-          '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
-          (
-            [
-              ['', '시각'],
-              ['after', '앞 예약 뒤'],
-              ['periapsis', '근점'],
-              ['apoapsis', '원점'],
-              ['angle', '위치각'],
-              ...(matchTargets().length
-                ? ([
-                    ['phase', '목표 각도'],
-                    ['near', '목표 접근'],
-                  ] as const)
-                : []),
-              ['altitude', '높이'],
-            ] as const
-          )
-            .map(([at, label]) => {
-              const blocked = at === 'after' && previousOf(p, id) === 'launch' && !launchEnds();
-              return `<button type="button" data-at="${at}" aria-pressed="${(trigger.at ?? '') === at}"${blocked ? ' disabled title="발사 연소에 Δv를 정하면 발사 뒤로 이을 수 있습니다"' : ''}>${label}</button>`;
-            })
-            .join('') +
-          '</div>';
+        fields =
+          pick(
+            'at',
+            '언제',
+            WHEN.filter(([at]) => (at !== 'phase' && at !== 'near') || matchTargets().length).map(
+              ([at, label]) =>
+                [
+                  at,
+                  label,
+                  at === 'after' && previousOf(p, id) === 'launch' && !launchEnds(),
+                ] as const,
+            ),
+            trigger.at ?? '',
+          ) + fields;
         if (trigger.at === 'angle' || trigger.at === 'phase')
           fields +=
             (trigger.at === 'phase'
@@ -493,23 +519,27 @@ export function timelinePlanner(
             )
             .join('') +
           '</select></label>';
+      // Tilt is a fine adjustment of the chosen direction: one compact typed value.
       if (relative)
-        fields += range(
+        fields += `<label class="dv-field compact">기울기<span class="dv-entry"><input type="number" data-edit="tilt" min="-90" max="90" step="1" value="${relative.angle}" aria-label="기울기 (도)"> °</span><small>${
           relative.frame === 'match'
-            ? '기울기 (+ 왼쪽 / − 오른쪽)'
+            ? '+ 왼쪽 / − 오른쪽'
             : relative.frame === 'prograde' || relative.frame === 'retrograde'
-              ? '기울기 (+ 바깥 / − 안쪽)'
-              : '기울기 (+ 진행 / − 역진행)',
-          'tilt',
-          relative.angle,
-          -90,
-          90,
-          '°',
-          1,
-        );
+              ? '+ 바깥 / − 안쪽'
+              : '+ 진행 / − 역진행'
+        }</small></label>`;
+      // How big: a Δv, or "until the orbit is right" (the Δv becomes a ceiling).
+      const sized = c?.burn ?? (impulse?.heading ? impulse : undefined);
+      if (sized && relative && relative.frame !== 'match') fields += sizeFields(sized.until);
       if (c?.burn) {
         const estimate = burnEstimate(stage, p, c.id);
-        fields += dvField('속력 변화 Δv', 'dv', c.burn.dv, Math.max(0.01, estimate.stageDv));
+        fields += dvField(
+          c.burn.until ? 'Δv 상한' : '속력 변화 Δv',
+          'dv',
+          c.burn.dv,
+          Math.max(0.01, estimate.stageDv),
+          !!c.burn.until,
+        );
         fields += '<div id="burn-estimate">' + estimate.html + '</div>';
       }
       if (relative) fields += frameDiagram(relative);
@@ -526,10 +556,11 @@ export function timelinePlanner(
         );
       if (impulse)
         fields += dvField(
-          '속력 변화',
+          impulse.until ? '추진 상한' : '속력 변화',
           'push',
           impulse.magnitude ?? length(impulse.vector),
           stage.rules.maneuverBudget,
+          !!(impulse.until && impulse.heading),
         );
       // Steering a dropped stage only makes sense once a stage can be dropped.
       if (c && !c.separate && !c.releasePayload && (stage.rocket?.parts.length ?? 0) > 1)
@@ -572,20 +603,7 @@ export function timelinePlanner(
         ? (sep.at === 'after'
             ? `<div class="chain-anchor" role="note">${refPicker(sep.id, sep.ref ?? 'launch')}<svg viewBox="0 0 40 12" aria-hidden="true"><path d="M2 6h32M30 2l5 4-5 4"/></svg><span class="chain-to">분리</span></div>` +
               delayField(sep.delay ?? 0)
-            : '') +
-          '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
-          (
-            [
-              ['', '시각'],
-              ['after', '앞 예약 뒤'],
-            ] as const
-          )
-            .map(
-              ([v, label]) =>
-                `<button type="button" data-at="${v}" aria-pressed="${(sep.at ?? '') === v}">${label}</button>`,
-            )
-            .join('') +
-          '</div>'
+            : '') + pick('at', '언제', WHEN_SIMPLE, sep.at ?? '')
         : '';
     } else {
       if (id === 'launch' || kind === 'ignite' || kind === 'push')
@@ -714,6 +732,10 @@ export function timelinePlanner(
         const dial = popup.querySelector('.angle-dial');
         if (dial && target)
           dial.outerHTML = angleDial(target.at as 'angle' | 'phase', target.atAngle ?? 0);
+      }
+      if (key === 'until-height') {
+        const t = c?.burn ?? impulse;
+        if (t?.until) t.until.height = Math.max(0, round2(value));
       }
       if (key === 'hold-angle' && p.launchHold) {
         p.launchHold.atAngle = Math.round(clamp(value, -180, 180));
@@ -844,6 +866,22 @@ export function timelinePlanner(
     { signal },
   );
   popup.addEventListener(
+    'change',
+    (e) => {
+      const select = (e.target as HTMLElement).closest<HTMLSelectElement>('select[data-pick]');
+      if (!select) return;
+      // Same rules as the old choice buttons: hand the pick to the click path below.
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.hidden = true;
+      b.dataset[select.dataset.pick!] = select.value;
+      popup.append(b);
+      b.click();
+      b.remove();
+    },
+    { signal },
+  );
+  popup.addEventListener(
     'click',
     (e) => {
       const button = (e.target as HTMLElement).closest('button');
@@ -868,6 +906,22 @@ export function timelinePlanner(
             target.delay = undefined;
           }
         }
+        action?.('edit');
+        changed();
+        update();
+        open(selected);
+        return;
+      }
+      const size = button.dataset.size;
+      if (size !== undefined) {
+        const t = command(selected)?.burn ?? push(selected);
+        if (t)
+          t.until = size
+            ? {
+                apsis: size as BurnUntil['apsis'],
+                height: t.until?.height ?? 1,
+              }
+            : undefined;
         action?.('edit');
         changed();
         update();
@@ -1080,10 +1134,15 @@ export function timelinePlanner(
     if (stage.rocket || !surfaceLaunch(stage) || !matchTargets().length) return '';
     const hold = p.launchHold;
     return (
-      '<div class="frame-choice when-choice" role="group" aria-label="발사 시점">' +
-      `<button type="button" data-hold="" aria-pressed="${!hold}">바로</button>` +
-      `<button type="button" data-hold="phase" aria-pressed="${!!hold}">목표 각도</button>` +
-      '</div>' +
+      pick(
+        'hold',
+        '발사',
+        [
+          ['', '바로'],
+          ['phase', '목표가 각도에 올 때'],
+        ],
+        hold ? 'phase' : '',
+      ) +
       (hold
         ? '<label>기준 대상 <select data-edit="hold-target" aria-label="발사 시점을 잴 대상">' +
           matchTargets()
@@ -1135,28 +1194,45 @@ export function timelinePlanner(
     ];
   }
   /** A speed change: typed to the calculator's precision, or dragged. */
-  function dvField(label: string, key: string, value: number, max: number) {
+  function dvField(label: string, key: string, value: number, max: number, compact = false) {
     const top = (Math.floor(max * 1000) / 1000).toFixed(3);
+    // A ceiling (orbit-sized burns) is secondary: the typed value only.
+    if (compact)
+      return `<label class="dv-field compact">${label}<span class="dv-entry"><input type="number" data-edit="${key}" min="0.001" max="${top}" step="0.001" value="${value.toFixed(3)}" aria-label="${label} (u/s)"> u/s</span></label>`;
     return (
       `<label class="dv-field">${label}<span class="dv-entry"><input type="number" data-edit="${key}" min="0.001" max="${top}" step="0.001" value="${value.toFixed(3)}" aria-label="${label} (u/s)"> u/s</span>` +
       `<input type="range" data-edit="${key}" min="0.001" max="${top}" step="0.001" value="${value}" aria-label="${label} 조절"><span class="range-ends">0.001<span>${top} u/s</span></span></label>`
     );
   }
   function frameButtons(h: Heading | undefined, allowMap: boolean) {
-    return (
-      '<div class="frame-choice" role="group" aria-label="기준 방향">' +
+    return pick(
+      'frame',
+      '방향',
       [
-        ...frames,
+        ...frames.map((f) => [f, FRAME_LONG[f]] as const),
         // Meeting something: a burn against the motion relative to it.
-        ...(matchTargets().length ? (['match'] as const) : []),
-        ...(allowMap ? (['map'] as const) : []),
-      ]
+        ...(matchTargets().length ? ([['match', FRAME_LONG.match]] as const) : []),
+        ...(allowMap ? ([['map', FRAME_LONG.map]] as const) : []),
+      ],
+      h?.frame ?? 'map',
+    );
+  }
+  /** A labelled single choice (a native list: one visible answer, the rest on demand). */
+  function pick(
+    kind: string,
+    label: string,
+    options: readonly (readonly [string, string, boolean?])[],
+    current: string,
+  ) {
+    return (
+      `<label class="pick"><span class="pick-label">${label}</span><select data-pick="${kind}" aria-label="${label}">` +
+      options
         .map(
-          (f) =>
-            `<button type="button" data-frame="${f}" aria-pressed="${(h?.frame ?? 'map') === f}">${frameShort[f]}</button>`,
+          ([v, text, off]) =>
+            `<option value="${v}"${v === current ? ' selected' : ''}${off ? ' disabled' : ''}>${escape(text)}</option>`,
         )
         .join('') +
-      '</div>'
+      '</select></label>'
     );
   }
   const timeField = palette.querySelector<HTMLInputElement>('#timeline-time')!;

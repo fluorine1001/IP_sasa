@@ -605,7 +605,18 @@ export function parseStage(value: unknown, allowIncomplete = false): Stage {
   }
 }
 
+/** A burn/push sized by the orbit it leaves (burn-until.ts). */
+function validUntil(u: unknown) {
+  if (u === undefined) return true;
+  const v = u as { apsis?: unknown; height?: unknown };
+  return (
+    ['apoapsis', 'periapsis'].includes(v.apsis as string) &&
+    Number.isFinite(v.height) &&
+    (v.height as number) >= 0
+  );
+}
 function validTrigger(t: {
+  until?: unknown;
   at?: unknown;
   altitude?: unknown;
   // 'near' stores its distance in `altitude` and its target in `phaseTarget`.
@@ -614,6 +625,7 @@ function validTrigger(t: {
   atAngle?: unknown;
   phaseTarget?: unknown;
 }) {
+  if (!validUntil(t.until)) return false;
   if (t.at === undefined) return t.altitude === undefined;
   if (
     !['apoapsis', 'periapsis', 'altitude', 'after', 'angle', 'phase', 'near'].includes(

@@ -1,3 +1,4 @@
+import { untilDv, type BurnUntil } from './burn-until';
 import { craftHull, segmentLength } from './hull';
 import type { Vec } from '../physics/vector.ts';
 import type { Stage, Run } from './types.ts';
@@ -47,6 +48,8 @@ export type BurnState = {
   trigger?: TriggerSpec;
   heading?: Heading;
   last?: TriggerReading;
+  /** Stop once the orbit reaches this apsis height (burn-until.ts). */
+  until?: BurnUntil;
 };
 /** Alignment tolerance before a Δv burn ignites. */
 export const BURN_ALIGN = (0.5 * Math.PI) / 180;
@@ -228,6 +231,7 @@ export function startBurn(
   dv: number,
   throttle = 1,
   armed?: { trigger: TriggerSpec; heading: Heading },
+  until?: BurnUntil,
 ): boolean {
   if (!stage.rocket || !run.rocket || run.status !== 'running') return false;
   if (!(dv > 0) || !Number.isFinite(dv) || !(throttle > 0)) return false;
@@ -253,6 +257,7 @@ export function startBurn(
     throttle: Math.min(1, throttle),
     lit: aligned,
     ...(armed ? { trigger: armed.trigger, heading: armed.heading } : {}),
+    ...(until ? { until } : {}),
   };
   if (aligned) state.throttle = Math.min(1, throttle);
   return true;
@@ -459,6 +464,20 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
       );
       pending.remaining = Math.min(pending.remaining, Math.max(0, -dot(v, state.direction)));
     }
+    // A burn sized by its orbit: re-read each step from the craft's own state.
+    if (pending.lit && pending.until)
+      pending.remaining = Math.min(
+        pending.remaining,
+        untilDv(
+          stage,
+          actor?.position ?? run.position,
+          actor?.velocity ?? run.velocity,
+          run.time,
+          state.direction,
+          pending.until,
+          pending.remaining,
+        ),
+      );
     if (pending.lit && state.throttle > 0) {
       const mass = actor ? actor.dryMass + actor.fuel : rocketMass(stage, run),
         flow = (part.thrust * state.throttle) / part.exhaustSpeed;

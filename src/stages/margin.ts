@@ -42,6 +42,8 @@ const scaled = (v: { x: number; y: number }, to: number) => {
   return { x: (v.x / l) * to, y: (v.y / l) * to };
 };
 
+/** A target height is read from the calculator to its 0.01 u: allow 2% of it. */
+const untilMargin = (h: number) => Math.max(0.01, h * 0.02);
 /** Each single-value nudge of a plan, both ways, as named variants. */
 export function nudges(
   stage: Stage,
@@ -110,13 +112,20 @@ export function nudges(
           for (const other of p.engineCommands ?? [])
             if (Math.abs(other.time - c.time) < 1e-9) other.time += sign * MARGIN.time;
         });
-      if (c.burn) {
-        variant(name + ' Δv', `${s}${dvMargin(c.burn.dv).toFixed(3)}`, (p) => {
-          const b = p.engineCommands![i].burn!,
-            step = dvMargin(c.burn!.dv);
-          if (b.dv + sign * step <= 0) return false;
-          b.dv += sign * step;
+      // A burn sized by its orbit: the height is the reasoned value; Δv is only a ceiling.
+      if (c.burn?.until)
+        variant(name + ' 목표 높이', `${s}${untilMargin(c.burn.until.height).toFixed(2)}`, (p) => {
+          const u = p.engineCommands![i].burn!.until!;
+          u.height = Math.max(0, u.height + sign * untilMargin(c.burn!.until!.height));
         });
+      if (c.burn) {
+        if (!c.burn.until)
+          variant(name + ' Δv', `${s}${dvMargin(c.burn.dv).toFixed(3)}`, (p) => {
+            const b = p.engineCommands![i].burn!,
+              step = dvMargin(c.burn!.dv);
+            if (b.dv + sign * step <= 0) return false;
+            b.dv += sign * step;
+          });
         // A matching burn at its default (straight against the relative motion) is set
         // exactly by leaving it alone, not reasoned to.
         if (!(c.burn.heading.frame === 'match' && c.burn.heading.angle === 0))
@@ -157,14 +166,20 @@ export function nudges(
           const q = p.impulses[i];
           q.atAngle = (q.atAngle ?? 0) + sign * MARGIN.angle;
         });
+      if (m.until && m.heading)
+        variant(name + ' 목표 높이', `${s}${untilMargin(m.until.height).toFixed(2)}`, (p) => {
+          const u = p.impulses[i].until!;
+          u.height = Math.max(0, u.height + sign * untilMargin(m.until!.height));
+        });
       const pushStep = dvMargin(m.magnitude ?? length(m.vector));
-      variant(name + ' 세기', `${s}${pushStep.toFixed(3)}`, (p) => {
-        const q = p.impulses[i],
-          size = (q.magnitude ?? length(q.vector)) + sign * pushStep;
-        if (size <= 0) return false;
-        q.vector = scaled(q.vector, size);
-        if (q.heading) q.magnitude = size;
-      });
+      if (!(m.until && m.heading))
+        variant(name + ' 세기', `${s}${pushStep.toFixed(3)}`, (p) => {
+          const q = p.impulses[i],
+            size = (q.magnitude ?? length(q.vector)) + sign * pushStep;
+          if (size <= 0) return false;
+          q.vector = scaled(q.vector, size);
+          if (q.heading) q.magnitude = size;
+        });
       if (m.at === 'altitude')
         variant(name + ' 높이', `${s}${MARGIN.altitude}`, (p) => {
           const q = p.impulses[i];
@@ -215,7 +230,18 @@ function changes(plan: RoutePlan) {
 }
 type Change = ReturnType<typeof changes>[number];
 const changeName = (c: Change) => (c.kind === 'burn' ? `연소 ${c.i + 1}` : `추진 ${c.i + 1}`);
+/** The orbit target of a change sized by its orbit, if it is one. */
+function untilOf(plan: RoutePlan, c: Change) {
+  return c.kind === 'burn'
+    ? plan.engineCommands![c.i].burn!.until
+    : plan.impulses[c.i].heading
+      ? plan.impulses[c.i].until
+      : undefined;
+}
 function sizeOf(plan: RoutePlan, c: Change) {
+  // Re-aiming an orbit-sized change moves its target height, not its ceiling.
+  const u = untilOf(plan, c);
+  if (u) return u.height;
   return c.kind === 'burn'
     ? plan.engineCommands![c.i].burn!.dv
     : (plan.impulses[c.i].magnitude ?? length(plan.impulses[c.i].vector));
@@ -228,6 +254,14 @@ const opposite = {
 } as const;
 /** A negative size means the same change the other way (prograde ↔ retrograde, …). */
 function setChange(plan: RoutePlan, c: Change, size: number, tilt: number) {
+  const u = untilOf(plan, c);
+  if (u) {
+    u.height = Math.max(0, Math.round(Math.abs(size) * 100) / 100);
+    const h =
+      c.kind === 'burn' ? plan.engineCommands![c.i].burn!.heading : plan.impulses[c.i].heading!;
+    h.angle = Math.max(-90, Math.min(90, h.angle + tilt));
+    return;
+  }
   const h =
     c.kind === 'burn' ? plan.engineCommands![c.i].burn!.heading : plan.impulses[c.i].heading;
   if (size < 0 && h && h.frame in opposite) {

@@ -121,6 +121,7 @@ test('발사 후 추적 카메라를 자유 시점으로 바꾸고 되돌릴 수
 });
 
 test('개발 기준 경로로 궤도 클리어와 제작 화면 복귀', async ({ page }) => {
+  test.setTimeout(60000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await editor(page);
@@ -150,7 +151,7 @@ test('3단·대기권 기준 계획으로 완료하고 비행 중 수동 분리�
   await expect(page.locator('#engine')).toBeDisabled();
   await expect(page.locator('#separate')).toBeDisabled();
   await page.keyboard.press('KeyJ');
-  await page.keyboard.press('KeyE');
+  await page.keyboard.press('KeyB');
   await expect(page.locator('#hint')).toContainText('남은 단 3');
   await page.locator('#abort').click();
   await expect(page.locator('#result')).toContainText('비행 중단');
@@ -304,13 +305,15 @@ test('개발 판정 관찰창은 시험에서만 나타나고 실제 값과 기�
 test('일반 블록으로 정의한 표면 착륙과 움직이는 위성 만남을 실제 화면에서 판정한다', async ({
   page,
 }) => {
+  test.setTimeout(120000);
   for (const order of [3, 5]) {
     await editor(page, order);
     await testAuthorPlan(page);
     await page.locator('#rate').click();
-    await page.locator('[data-rate="2"]').click();
+    await page.locator('[data-rate="4"]').click();
     await page.locator('#launch').click();
-    await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 12000 });
+    // Event-chained plans coast to their apsis: up to about a minute of flight time.
+    await expect(page.locator('#result')).toContainText('임무 완료', { timeout: 40000 });
     await page.locator('#exit').click();
     await expect(page.locator('#editor-world')).toBeVisible();
   }

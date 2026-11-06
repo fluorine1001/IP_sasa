@@ -46,8 +46,9 @@ test('단일 훈련에서 실제 편집·분리·재점화·재생·한 변수 �
   await page.locator('#pause').click();
   await expect(page.locator('.timeline-event.separate.executed')).toHaveCount(1);
   await page.locator('#vehicle').click();
+  // A full lap after separation flies about 31 s at 1x.
   await expect(page.locator('#result')).toContainText(/임무 완료|통합 훈련 완료/, {
-    timeout: 30000,
+    timeout: 45000,
   });
   expect(await page.evaluate(() => localStorage.getItem('orbit-tutorial-completed-v1'))).toBeNull();
   await page.locator('#training-next').click();

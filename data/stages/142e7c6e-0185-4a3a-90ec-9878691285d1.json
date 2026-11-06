@@ -147,31 +147,14 @@
           "time": 1,
           "actorId": "craft",
           "burn": {
-            "dv": 0.007,
+            "dv": 0.005,
             "heading": {
               "frame": "outward",
-              "angle": -19
+              "angle": -17
             },
             "at": "after",
             "ref": "c1",
-            "delay": 30
-          }
-        },
-        {
-          "id": "c3",
-          "time": 1,
-          "actorId": "craft",
-          "burn": {
-            "dv": 0.9,
-            "heading": {
-              "frame": "match",
-              "angle": 0,
-              "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
-            },
-            "at": "altitude",
-            "altitude": 0.1,
-            "ref": "c2",
-            "delay": 0
+            "delay": 37
           }
         }
       ]

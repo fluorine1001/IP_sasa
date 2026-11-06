@@ -156,7 +156,7 @@ export function leaderLabel(
   let pick = tries[0],
     least = Infinity;
   for (const t of tries) {
-    const o = overlap(
+    let o = overlap(
       device(
         ctx,
         ...textBox(
@@ -167,6 +167,11 @@ export function leaderLabel(
         ),
       ),
     );
+    // The leader itself should not cross a body or another label either.
+    for (let k = 0.3; k < 1; k += 0.2) {
+      const q = { x: at.x + (t.end.x - at.x) * k, y: at.y + (t.end.y - at.y) * k };
+      o += overlap(device(ctx, q.x - 2, q.y - 2, q.x + 2, q.y + 2)) * 20;
+    }
     if (o < least) ((least = o), (pick = t));
     if (o === 0) break;
   }

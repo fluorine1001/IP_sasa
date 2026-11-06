@@ -659,13 +659,13 @@ export function flightTimeline(
     {
       const track = el('timeline-ticks').getBoundingClientRect();
       const at = track.left + (percent / 100) * track.width;
-      const flip = percent > 88;
       el('timeline-ticks')
         .querySelectorAll<HTMLElement>('i')
         .forEach((tick) => {
           const r = tick.getBoundingClientRect();
-          const tagL = flip ? at - 62 : at - 2,
-            tagR = flip ? at + 2 : at + 62;
+          // The tag is a pill centred on the playhead.
+          const tagL = at - 38,
+            tagR = at + 38;
           tick.style.visibility = r.right > tagL && r.left < tagR ? 'hidden' : '';
         });
     }
@@ -723,10 +723,8 @@ export function flightTimeline(
       const size = Math.min(100, (knownEnd! / duration) * 100);
       known.style.width = size + '%';
       const text = '지난 비행 그대로 · ' + knownEnd!.toFixed(1) + '초까지';
-      known.innerHTML =
-        (size / 100) * (el('timeline-track').clientWidth || 640) > textWidth(text) + 16
-          ? '<span>' + text + '</span>'
-          : '';
+      // No words on the bar: the lighter stretch and its end mark say it; the tooltip names it.
+      known.innerHTML = '';
       known.title = text + ' — 이 구간의 상태는 기록에서 읽습니다';
     }
     el('timeline-explanation').textContent = '';

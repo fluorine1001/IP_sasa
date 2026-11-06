@@ -561,3 +561,153 @@
     color: var(--k-accent);
   }
 }
+
+/* ---- Flight dock, calm version: fewer lines, more air, one strong colour per row ----
+ * The dock is read at a glance while the map is the subject. Rules: no borders inside
+ * the dock surface; secondary controls are quiet (no frame until hovered); the time
+ * band is a thin flat track; numbers on the ruler are dim; only chips and the primary
+ * action carry colour. */
+@layer components {
+  body.game-ui .flight-deck {
+    padding: 12px 18px 14px;
+  }
+  body.game-ui .flight-deck .dock-toolbar {
+    gap: 10px;
+    padding: 0 0 8px;
+    border: 0;
+  }
+  /* Quiet secondary controls: undo/redo, transport, records. */
+  body.game-ui .flight-deck :is(#plan-undo, #plan-redo, .dock-transport > button, #notes) {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  body.game-ui .flight-deck :is(#plan-undo, #plan-redo, .dock-transport > button, #notes):hover {
+    background: color-mix(in srgb, var(--k-raised) 70%, transparent);
+    border-color: var(--k-ink);
+  }
+  body.game-ui .flight-deck #timeline-mode {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    color: var(--k-dim);
+    font-weight: 700;
+  }
+  body.game-ui .flight-deck #flight-timeline {
+    --ruler: 24px;
+    --lane-h: 34px;
+    --chip-h: 26px;
+    --band-h: 8px;
+    border: 0;
+    background: none;
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-track {
+    margin: 6px 4px 0;
+  }
+  /* Ruler: dim numbers, hairline grid. */
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks i {
+    font-weight: 600;
+    color: color-mix(in srgb, var(--k-dim) 70%, transparent);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-ticks i::before {
+    border-left: 1px solid color-mix(in srgb, var(--k-dim) 10%, transparent);
+  }
+  /* The time band: a thin flat track; burns are flat colour on it. */
+  body.game-ui .flight-deck #flight-timeline :is(.timeline-rail, .timeline-burns, #timeline-known) {
+    top: calc(var(--ruler) + var(--lanes, 1) * var(--lane-h) + 4px);
+  }
+  body.game-ui .flight-deck #flight-timeline .timeline-rail {
+    border: 0;
+    border-radius: 999px;
+    background: var(--k-sunk);
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-known {
+    border: 0;
+    border-right: 2px solid var(--k-dim);
+    border-radius: 999px 0 0 999px;
+    background: color-mix(in srgb, var(--k-dim) 22%, transparent);
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-span {
+    border: 0;
+    border-radius: 999px;
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-span span {
+    display: none;
+  }
+  body.game-ui .flight-deck #flight-timeline .burn-out {
+    top: -4px;
+    bottom: -4px;
+    border-left-width: 2px;
+  }
+  /* Chips: one flat plate each, no drop shadow. */
+  body.game-ui .flight-deck #flight-timeline .timeline-event {
+    box-shadow: none;
+    border: 1.5px solid var(--k-ink);
+    padding: 0 10px 0 7px;
+    font-weight: 700;
+  }
+  /* Playhead tag: a small pill, not a box. */
+  body.game-ui .flight-deck #flight-timeline #timeline-cursor::before {
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 7px;
+    border: 0;
+    border-radius: 999px;
+    line-height: 17px;
+  }
+  body.game-ui .flight-deck #flight-timeline #timeline-cursor.flip::before {
+    left: 50%;
+    right: auto;
+    border-radius: 999px;
+  }
+  /* Placing row: quiet tool buttons; counts as small dim numbers. */
+  body.game-ui .flight-deck #timeline-palette {
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 0;
+    border: 0;
+  }
+  body.game-ui .flight-deck #timeline-palette > button {
+    background: transparent;
+    border-color: color-mix(in srgb, var(--k-dim) 30%, transparent);
+    box-shadow: none;
+    font-weight: 700;
+  }
+  body.game-ui .flight-deck #timeline-palette > button:hover {
+    background: var(--k-raised);
+    border-color: var(--k-ink);
+  }
+  body.game-ui .flight-deck #timeline-palette .tool-count {
+    min-width: 0;
+    padding: 0 0 0 2px;
+    border: 0;
+    background: none;
+    color: var(--k-dim);
+    font-weight: 600;
+  }
+  body.game-ui .flight-deck #timeline-placement {
+    color: var(--k-dim);
+    font-weight: 600;
+  }
+  body.game-ui .flight-deck #timeline-placement input {
+    width: 88px;
+    background: transparent;
+    border-color: color-mix(in srgb, var(--k-dim) 30%, transparent);
+  }
+}
+
+/* Phone: the two top panels keep an 8px gap instead of touching. */
+@layer components {
+  @media (max-width: 650px) {
+    body.game-ui .mission-panel {
+      width: calc(58% - 20px);
+    }
+    body.game-ui .resources {
+      width: calc(42% - 12px);
+    }
+    body.game-ui .flight-deck {
+      padding: 10px 12px 12px;
+    }
+  }
+}

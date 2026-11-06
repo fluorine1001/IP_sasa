@@ -308,6 +308,14 @@ export function timelinePlanner(
       '</span></span></label>'
     );
   }
+  /** The wait after the reservation it follows: typed to 0.01 s, or dragged. */
+  function delayField(value: number) {
+    const top = Math.max(30, Math.ceil(Math.min(planningTimeLimit(stage), 600)));
+    return (
+      `<label class="dv-field">끝난 뒤 간격<span class="dv-entry"><input type="number" data-edit="trigger-delay" min="0" max="${top}" step="0.01" value="${value.toFixed(2)}" aria-label="끝난 뒤 간격 (초)"> 초</span>` +
+      `<input type="range" data-edit="trigger-delay" min="0" max="${top}" step="0.01" value="${value}" aria-label="끝난 뒤 간격 조절"><span class="range-ends">0초<span>${top}초</span></span></label>`
+    );
+  }
   function open(id: string) {
     selected = id;
     const p = get().plan,
@@ -363,7 +371,7 @@ export function timelinePlanner(
       if (at === 'after')
         fields =
           anchor('이 예약') +
-          range('끝난 뒤 간격', 'trigger-delay', host!.delay ?? 0, 0, 30, '초', 0.01) +
+          delayField(host!.delay ?? 0) +
           `<p class="chain-estimate">≈ ${chainTime(p, id).toFixed(2)}초 (기록 전 추정)</p>`;
       else if (armed && ref)
         // Waiting starts when the one before finishes: "burn 1, then the next periapsis".
@@ -563,7 +571,7 @@ export function timelinePlanner(
       fields = sep
         ? (sep.at === 'after'
             ? `<div class="chain-anchor" role="note">${refPicker(sep.id, sep.ref ?? 'launch')}<svg viewBox="0 0 40 12" aria-hidden="true"><path d="M2 6h32M30 2l5 4-5 4"/></svg><span class="chain-to">분리</span></div>` +
-              range('끝난 뒤 간격', 'trigger-delay', sep.delay ?? 0, 0, 30, '초', 0.01)
+              delayField(sep.delay ?? 0)
             : '') +
           '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
           (

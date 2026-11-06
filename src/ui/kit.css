@@ -194,6 +194,23 @@
     border-radius: var(--k-r-ctl);
     box-shadow: none;
   }
+  /* Rows inside a panel are quiet fields: flat sunk colour, no outline, so a panel
+     reads as one surface with a few soft wells rather than boxes inside boxes. */
+  body.game-ui
+    :is(
+      .briefing-section,
+      .body-card,
+      .craft-cell,
+      .telemetry-tile,
+      .chain-anchor,
+      .orbit-calc,
+      .goal-gauges,
+      .result-miss,
+      .setting
+    ) {
+    border-color: transparent;
+    background-image: none;
+  }
   body.game-ui :is(.stage-card, .tutorial-card) {
     box-shadow: var(--k-lip);
     cursor: pointer;

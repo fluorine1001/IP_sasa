@@ -703,7 +703,7 @@ export function timelinePlanner(
         if (h) h.angle = Math.round(clamp(value, -90, 90));
       }
       if (key === 'dv' && c?.burn) c.burn.dv = Math.max(0.001, round3(value));
-      if (key === 'launch-dv') p.launchDv = value > 0 ? round2(value) : undefined;
+      if (key === 'launch-dv') p.launchDv = value > 0 ? round3(value) : undefined;
       if (key === 'trigger-delay') {
         const target = hostFor(selected);
         if (target) target.delay = Math.max(0, round2(value));
@@ -1065,16 +1065,11 @@ export function timelinePlanner(
       config.parts.reduce((m, q) => m + q.dryMass + q.fuelMass, 0);
     const max = part.exhaustSpeed * Math.log(mass / (mass - part.fuelMass));
     const value = p.launchDv ?? 0;
+    const top = (Math.floor(max * 100) / 100).toFixed(2);
+    // Typed to the same 0.001 as every other Δv; 0 keeps it burning to the end of its fuel.
     return (
-      '<label>발사 연소 Δv<output>' +
-      (value > 0 ? value.toFixed(2) + ' u/s' : '연료 끝까지') +
-      '</output><input type="range" data-edit="launch-dv" min="0" max="' +
-      (Math.floor(max * 100) / 100).toFixed(2) +
-      '" step="0.01" value="' +
-      value +
-      '" aria-label="발사 연소 Δv"><span class="range-ends">연료 끝까지<span>' +
-      (Math.floor(max * 100) / 100).toFixed(2) +
-      ' u/s</span></span></label>'
+      `<label class="dv-field">발사 연소 Δv<span class="dv-entry"><input type="number" data-edit="launch-dv" min="0" max="${top}" step="0.001" value="${value.toFixed(3)}" aria-label="발사 연소 Δv (u/s, 0은 연료 끝까지)"> u/s</span>` +
+      `<input type="range" data-edit="launch-dv" min="0" max="${top}" step="0.001" value="${value}" aria-label="발사 연소 Δv 조절"><span class="range-ends">연료 끝까지<span>${top} u/s</span></span></label>`
     );
   }
   /**

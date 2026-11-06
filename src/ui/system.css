@@ -711,3 +711,38 @@
     }
   }
 }
+
+/* Nothing a player needs is cut off with "…": labels wrap onto another line instead.
+ * Korean breaks between words (keep-all); a single over-long word still breaks. */
+@layer components {
+  body.game-ui
+    :is(
+      .gg-label,
+      .aim-calc .aim-name,
+      .telemetry-label small,
+      .flight-log .log-metric,
+      .frame-choice > button,
+      .when-choice > button,
+      .goal-name,
+      .preflight-list li
+    ) {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+  }
+  body.game-ui :is(.frame-choice, .when-choice) > button {
+    height: auto;
+    padding-block: 5px;
+  }
+}
+
+/* Korean text breaks between words everywhere in the game, never inside one. */
+@layer kit {
+  body.game-ui {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+}

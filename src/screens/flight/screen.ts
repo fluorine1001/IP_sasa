@@ -1332,7 +1332,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       // Name whose fuel the bar shows: the stage now attached, not a generic "연료".
       const shown = replayIndex >= 0 ? replayView : run;
       const index = shown?.rocket?.partIndex ?? 0;
-      el('fuel-label').textContent = stage.rocket ? `${index + 1}단 연료` : '추진 남은 양';
+      el('fuel-label').textContent = stage.rocket ? `${index + 1}단 연료` : '남은 추진';
       if (stage.rocket && index >= stage.rocket.parts.length)
         el('fuel-label').textContent = '연료 없음 · 모든 단 분리';
     }

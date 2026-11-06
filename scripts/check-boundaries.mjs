@@ -30,7 +30,9 @@ for (const file of await files('src')) {
     if (
       isolated &&
       !local.startsWith('src/screens/' + isolated + '/') &&
-      !/^src\/app\/core(?:\.ts)?$/.test(local)
+      !/^src\/app\/core(?:\.ts)?$/.test(local) &&
+      // Shared libraries every screen may use: strings, sound, the design system.
+      !/^src\/(i18n|audio|ui)(\/|\.ts$|$)/.test(local)
     )
       errors.push(normalized + ' → ' + local + ' : 화면 담당 경계 밖 의존성');
     if (model && /^src\/(screens|render|editor|app)\//.test(local))

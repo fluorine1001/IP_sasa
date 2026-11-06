@@ -15,7 +15,14 @@ import {
   turnTowards,
 } from '../src/world/rocket';
 import { add, scale, length, sub } from '../src/physics/vector';
-const powered = stages.find((s) => s.rocket)!;
+// A three-stage craft whose reference plan separates twice (the campaign's first mission).
+const powered =
+  stages.find(
+    (s) =>
+      s.rocket &&
+      s.rocket.parts.length >= 3 &&
+      (s.referencePlans[0]?.engineCommands ?? []).filter((c) => c.separate).length === 2,
+  ) ?? stages.find((s) => s.rocket)!;
 it('발사 전 출력 안내가 실제 첫 엔진의 무게·연료 사용과 일치한다', () => {
   const s = structuredClone(powered),
     p = { launch: { x: 1, y: 0 }, impulses: [] };
@@ -44,7 +51,9 @@ it('같은 시각의 분리→재점화 예약은 작성 순서대로 실행된�
       (c) => Math.abs(c.time - bad.engineCommands![0].time) < 0.001,
     );
   group[1].throttle = 0; // upper engine never receives its planned burn
-  expect(execute(powered, bad).status).not.toBe('won');
+  const worse = execute(powered, bad);
+  // The flight is not the same one: the stage that should have burned kept its fuel.
+  expect(worse.rocket!.fuel[1]).toBeGreaterThan(run.rocket!.fuel[1] + 1e-3);
 });
 it('재생용 기록은 발사 당시 예약과 실제 실행 여부를 각각 보존한다', () => {
   const p = structuredClone(powered.referencePlans[0]),

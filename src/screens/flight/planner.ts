@@ -12,8 +12,23 @@ import type { Stage, RoutePlan } from '../../world/types';
 import type { ProgramEvent } from '../../world/program';
 import type { TimelineState } from './timeline';
 import { engineBench, actorDiagram, directionDial, dialRotation, dialAngle } from './engine-bench';
-import { headingNames, type Apsis, type Heading, type HeadingFrame } from '../../world/heading';
+import {
+  apsisNames,
+  headingNames,
+  type Apsis,
+  type Heading,
+  type HeadingFrame,
+} from '../../world/heading';
 import { burnEstimate, frameDiagram } from './burn-panel';
+import {
+  chainRef,
+  chainTime,
+  dependents,
+  detachChain,
+  previousOf,
+  settleChains,
+} from '../../world/chain';
+import { plannedChanges } from '../../world/plan-preview';
 
 const frames: HeadingFrame[] = ['prograde', 'retrograde', 'outward', 'inward'];
 const round2 = (n: number) => Math.round(n * 100) / 100,
@@ -64,6 +79,25 @@ export function timelinePlanner(
       }
     | undefined;
   const editable = () => get().phase === 'plan';
+  // Every edit refreshes the chains: a hand-moved chained item keeps its place by
+  // changing its delay, and items that follow others move with them.
+  let movedId: string | undefined;
+  const notify = changed;
+  changed = () => {
+    settleChains(get().plan, movedId);
+    movedId = undefined;
+    notify();
+  };
+  /** A reservation's short name for "follows …" lines. */
+  const itemName = (id: string) => {
+    if (id === 'launch') return '발사';
+    const c = get().plan.engineCommands?.find((x) => x.id === id);
+    if (c?.separate) return '단 분리';
+    if (c?.releasePayload) return '탑재체 분리';
+    return plannedChanges(get().plan).find((x) => x.id === id)?.label ?? '앞 예약';
+  };
+  /** 'launch' can be followed only when its end is a planned moment. */
+  const launchEnds = () => !stage.rocket || get().plan.launchDv !== undefined;
   const degrees = (v: { x: number; y: number }) => {
     const a = Math.atan2(v.y, v.x) - (stage.launchAngle ?? 0);
     return Math.round((Math.atan2(Math.sin(a), Math.cos(a)) * 180) / Math.PI);
@@ -129,6 +163,18 @@ export function timelinePlanner(
               ? { direction: heading(stage, 0) }
               : { throttle: kind === 'stop' ? 0 : 1 }),
       });
+    // A second or later speed change follows the one before it by default: moving or
+    // retuning the earlier one then carries this one along instead of leaving it at a
+    // clock time that now means a different place on the path.
+    if (kind === 'burn' || kind === 'push') {
+      const ref = previousOf(p, id);
+      const target = kind === 'burn' ? command(id)?.burn : push(id);
+      if (ref !== 'launch' && target) {
+        target.at = 'after';
+        target.ref = ref;
+        target.delay = Math.max(0, round2(time - chainTime(p, ref)));
+      }
+    }
     selected = id;
     action?.('reserve');
     changed();
@@ -236,13 +282,23 @@ export function timelinePlanner(
     let fields = '';
     if (id === 'launch')
       fields =
-        range('첫 출력', 'launch-power', launchFraction(stage, p) * 100, 0, 100, '%') +
+        (stage.rocket
+          ? range('첫 출력', 'launch-power', launchFraction(stage, p) * 100, 0, 100, '%')
+          : // A cold-gas launch is an instant push the calculator shows exactly: aim it finely.
+            `<label class="dv-field">발사 세기<span class="dv-entry"><input type="number" data-edit="launch-power" min="0" max="100" step="0.1" value="${(launchFraction(stage, p) * 100).toFixed(1)}" aria-label="발사 세기 (%)"> %</span>` +
+            `<input type="range" data-edit="launch-power" min="0" max="100" step="0.1" value="${launchFraction(stage, p) * 100}" aria-label="발사 세기 조절"><span class="range-ends">0%<span>100%</span></span></label>`) +
         (stage.rocket ? launchDvField(p) : '') +
         (stage.rocket ? '' : range('발사 방향', 'launch-angle', degrees(p.launch), -180, 180, '°'));
     else {
-      fields =
+      const host = c?.burn ?? impulse;
+      const at = host?.at;
+      const armed = !!at && at !== 'after';
+      const ref = chainRef(p, id);
+      const anchor = (to: string) =>
+        `<div class="chain-anchor" role="note"><span class="chain-from">${escape(itemName(ref ?? 'launch'))}</span><svg viewBox="0 0 40 12" aria-hidden="true"><path d="M2 6h32M30 2l5 4-5 4"/></svg><span class="chain-to">${escape(to)}</span></div>`;
+      const timeInput =
         '<label>' +
-        (c?.burn?.at ? '이 시각 이후' : '실행 시각') +
+        (armed ? '이 시각 이후' : '실행 시각') +
         ' <input type="number" data-edit="time" min="0" ' +
         (Number.isFinite(planningTimeLimit(stage))
           ? 'max="' + planningTimeLimit(stage) + '" '
@@ -250,6 +306,25 @@ export function timelinePlanner(
         'step=".01" value="' +
         (c ?? impulse)!.time.toFixed(2) +
         '" aria-label="선택 조작 실행 시각"> 초</label>';
+      if (at === 'after')
+        fields =
+          anchor('이 예약') +
+          range('끝난 뒤 간격', 'trigger-delay', host!.delay ?? 0, 0, 30, '초', 0.01) +
+          `<p class="chain-estimate">≈ ${chainTime(p, id).toFixed(2)}초 (기록 전 추정)</p>`;
+      else if (armed && ref)
+        // Waiting starts when the one before finishes: "burn 1, then the next periapsis".
+        fields =
+          anchor('다음 ' + apsisNames[at!]) +
+          '<button type="button" class="arm-switch" data-arm="time">시각부터 기다리기</button>';
+      else
+        fields =
+          timeInput +
+          (armed && previousOf(p, id) !== 'launch'
+            ? '<button type="button" class="arm-switch" data-arm="ref">앞 예약 끝난 뒤부터 기다리기</button>'
+            : '');
+      const followers = dependents(p, id).length;
+      if (followers)
+        fields += `<p class="chain-followers">이 예약을 따르는 예약 ${followers}개 · 함께 움직임</p>`;
       const relative = c?.burn?.heading ?? impulse?.heading;
       const trigger = c?.burn ?? (impulse?.heading ? impulse : undefined);
       if (trigger) {
@@ -257,18 +332,43 @@ export function timelinePlanner(
           '<div class="frame-choice when-choice" role="group" aria-label="실행 시점">' +
           (
             [
-              ['', '이 시각'],
-              ['apoapsis', '이후 원점'],
-              ['periapsis', '이후 근점'],
+              ['', '시각'],
+              ['after', '앞 예약 뒤'],
+              ['periapsis', '근점'],
+              ['apoapsis', '원점'],
+              ['angle', '위치각'],
+              ...(matchTargets().length ? ([['phase', '목표 각도']] as const) : []),
               ['altitude', '높이'],
             ] as const
           )
-            .map(
-              ([at, label]) =>
-                `<button type="button" data-at="${at}" aria-pressed="${(trigger.at ?? '') === at}">${label}</button>`,
-            )
+            .map(([at, label]) => {
+              const blocked = at === 'after' && previousOf(p, id) === 'launch' && !launchEnds();
+              return `<button type="button" data-at="${at}" aria-pressed="${(trigger.at ?? '') === at}"${blocked ? ' disabled title="발사 연소에 Δv를 정하면 발사 뒤로 이을 수 있습니다"' : ''}>${label}</button>`;
+            })
             .join('') +
           '</div>';
+        if (trigger.at === 'angle' || trigger.at === 'phase')
+          fields +=
+            (trigger.at === 'phase'
+              ? '<label>기준 대상 <select data-edit="phase-target" aria-label="각도를 잴 대상">' +
+                matchTargets()
+                  .map(
+                    (t) =>
+                      `<option value="${escape(t.id)}"${t.id === trigger.phaseTarget ? ' selected' : ''}>${escape(t.name)}</option>`,
+                  )
+                  .join('') +
+                '</select></label>'
+              : '') +
+            angleDial(trigger.at, trigger.atAngle ?? 0) +
+            range(
+              trigger.at === 'angle' ? '지날 위치각' : '목표가 앞선 각도',
+              'trigger-angle',
+              trigger.atAngle ?? 0,
+              -180,
+              180,
+              '°',
+              1,
+            );
         if (trigger.at === 'altitude')
           fields += range(
             '내려오며 지날 높이',
@@ -419,6 +519,14 @@ export function timelinePlanner(
       const input = e.target as HTMLInputElement,
         key = input.dataset.edit;
       if (!key || key === 'actor') return;
+      if (key === 'phase-target') {
+        const t = command(selected)?.burn ?? push(selected);
+        if (t) t.phaseTarget = input.value;
+        action?.('edit');
+        changed();
+        update();
+        return;
+      }
       if (key === 'match-target') {
         const h = command(selected)?.burn?.heading ?? push(selected)?.heading;
         if (h) h.targetId = input.value;
@@ -456,6 +564,18 @@ export function timelinePlanner(
       }
       if (key === 'dv' && c?.burn) c.burn.dv = Math.max(0.001, round3(value));
       if (key === 'launch-dv') p.launchDv = value > 0 ? round2(value) : undefined;
+      if (key === 'trigger-delay') {
+        const target = c?.burn ?? impulse;
+        if (target) target.delay = Math.max(0, round2(value));
+      }
+      if (key === 'trigger-angle') {
+        const target = c?.burn ?? impulse;
+        if (target) target.atAngle = Math.round(clamp(value, -180, 180));
+        const dial = popup.querySelector('.angle-dial');
+        if (dial && target)
+          dial.outerHTML = angleDial(target.at as 'angle' | 'phase', target.atAngle ?? 0);
+      }
+      if (key === 'time') movedId = selected;
       if (key === 'trigger-height') {
         const target = c?.burn ?? impulse;
         if (target) target.altitude = Math.max(0, round2(value));
@@ -588,13 +708,50 @@ export function timelinePlanner(
       }
       if (!editable()) return;
       const p = get().plan;
+      const arm = button.dataset.arm;
+      if (arm) {
+        const target = command(selected)?.burn ?? push(selected);
+        if (target) {
+          if (arm === 'ref') {
+            target.ref = previousOf(p, selected);
+            target.delay = 0;
+          } else {
+            (command(selected) ?? push(selected))!.time = chainTime(p, selected);
+            target.ref = undefined;
+            target.delay = undefined;
+          }
+        }
+        action?.('edit');
+        changed();
+        update();
+        open(selected);
+        return;
+      }
       const at = button.dataset.at;
       if (at !== undefined) {
         const c = command(selected),
           target = c?.burn ?? push(selected);
         if (target) {
+          const was = target.at;
+          // Leaving a chain: keep the moment it stood for as a clock time.
+          if (was && target.ref && !at) (c ?? push(selected))!.time = chainTime(p, selected);
           target.at = (at || undefined) as Apsis | undefined;
           target.altitude = at === 'altitude' ? (target.altitude ?? 0.3) : undefined;
+          if (at === 'after') {
+            const ref = previousOf(p, selected);
+            target.ref = ref;
+            target.delay = Math.max(
+              0,
+              Math.round(((c ?? push(selected))!.time - chainTime(p, ref)) * 100) / 100,
+            );
+          } else if (!at) {
+            target.ref = undefined;
+            target.delay = undefined;
+          } else if (was === 'after') target.delay = 0;
+          if (at === 'angle' || at === 'phase') target.atAngle ??= 0;
+          else target.atAngle = undefined;
+          target.phaseTarget =
+            at === 'phase' ? (target.phaseTarget ?? matchTargets()[0]?.id) : undefined;
         }
         action?.('edit');
         changed();
@@ -634,6 +791,7 @@ export function timelinePlanner(
         return;
       }
       if (button.hasAttribute('data-remove')) {
+        detachChain(p, selected);
         p.engineCommands = p.engineCommands?.filter((c) => c.id !== selected);
         p.impulses = p.impulses.filter((c) => c.id !== selected);
         action?.('remove');
@@ -741,6 +899,33 @@ export function timelinePlanner(
       '" aria-label="발사 연소 Δv"><span class="range-ends">연료 끝까지<span>' +
       (Math.floor(max * 100) / 100).toFixed(2) +
       ' u/s</span></span></label>'
+    );
+  }
+  /**
+   * Where an angle trigger acts, as a picture: the body at the centre, the craft's mark
+   * at the set angle (map orientation: 0° to the right, counter-clockwise). For a target
+   * angle, the target's mark sits that far ahead of the craft's.
+   */
+  function angleDial(kind: 'angle' | 'phase', deg: number) {
+    const a = (deg * Math.PI) / 180,
+      R = 30,
+      c = 40;
+    const pt = (t: number) =>
+      `${(c + Math.cos(t) * R).toFixed(1)} ${(c - Math.sin(t) * R).toFixed(1)}`;
+    const sweep = deg >= 0 ? 0 : 1;
+    const arc =
+      Math.abs(deg) < 1
+        ? ''
+        : `<path class="ad-arc" d="M${pt(0)}A${R} ${R} 0 ${Math.abs(deg) > 180 ? 1 : 0} ${sweep} ${pt(a)}"/>`;
+    return (
+      `<svg class="angle-dial" viewBox="0 0 80 80" width="96" height="96" aria-hidden="true">` +
+      `<circle class="ad-orbit" cx="${c}" cy="${c}" r="${R}"/><circle class="ad-body" cx="${c}" cy="${c}" r="10"/>` +
+      `<path class="ad-zero" d="M${c + 12} ${c}H${c + R + 6}"/>` +
+      arc +
+      (kind === 'angle'
+        ? `<circle class="ad-craft" cx="${pt(a).split(' ')[0]}" cy="${pt(a).split(' ')[1]}" r="5"/>`
+        : `<circle class="ad-craft" cx="${pt(0).split(' ')[0]}" cy="${pt(0).split(' ')[1]}" r="5"/><circle class="ad-target" cx="${pt(a).split(' ')[0]}" cy="${pt(a).split(' ')[1]}" r="5"/>`) +
+      `</svg>`
     );
   }
   function matchTargets() {
@@ -885,6 +1070,7 @@ export function timelinePlanner(
       } else if (drag.moved) {
         const c = command(drag.id) ?? push(drag.id);
         if (c) c.time = timeAt(e.clientX);
+        movedId = drag.id;
         action?.('move');
         showGhost(timeAt(e.clientX));
         changed();
@@ -903,6 +1089,7 @@ export function timelinePlanner(
       if (d.kind === 'move') {
         const c = command(d.id) ?? push(d.id);
         if (c) c.time = d.original;
+        movedId = d.id;
         changed();
         update();
       }

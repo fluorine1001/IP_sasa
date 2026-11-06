@@ -367,59 +367,51 @@
   },
   "referencePlans": [
     {
+      "impulses": [],
       "launch": {
-        "x": 0.8601133918855339,
+        "x": 1,
         "y": 0
       },
-      "impulses": [],
+      "launchDv": 0.417,
       "engineCommands": [
         {
-          "id": "dda91687-9f0b-4ded-bdae-674602152ce5",
-          "time": 0,
+          "id": "c0",
+          "time": 0.5,
           "actorId": "craft",
-          "direction": {
-            "x": 0.9769721601318716,
-            "y": 0.2133668163685831
+          "separate": true,
+          "at": "after",
+          "ref": "launch",
+          "delay": 0
+        },
+        {
+          "id": "c2",
+          "time": 1,
+          "actorId": "craft",
+          "burn": {
+            "dv": 0.016,
+            "heading": {
+              "frame": "prograde",
+              "angle": -68
+            },
+            "at": "after",
+            "ref": "c0",
+            "delay": 4.2
           }
         },
         {
-          "id": "2f817054-e9fc-4ab5-90b7-c75bd60bb235",
-          "time": 0.20211459467187523,
+          "id": "c3",
+          "time": 1,
           "actorId": "craft",
-          "throttle": 0
-        },
-        {
-          "id": "8c5f8d38-3633-481f-a6c2-5726a5514a31",
-          "time": 0.25211459467187525,
-          "actorId": "craft",
-          "separate": true
-        },
-        {
-          "id": "566f37f5-a813-4ca7-a553-6cd58400927d",
-          "time": 7.402536856899557,
-          "actorId": "craft",
-          "direction": {
-            "x": -0.1282798468450139,
-            "y": -0.991738010209057
+          "burn": {
+            "dv": 0.14,
+            "heading": {
+              "frame": "retrograde",
+              "angle": 0
+            },
+            "at": "periapsis",
+            "ref": "c2",
+            "delay": 0
           }
-        },
-        {
-          "id": "8014c3c7-6f94-4781-8c5a-6eaf21d2f0a0",
-          "time": 9.402536856899557,
-          "actorId": "craft",
-          "throttle": 1
-        },
-        {
-          "id": "ff9a8f68-d229-49eb-9839-c231ff3c1ad2",
-          "time": 9.448973452527785,
-          "actorId": "craft",
-          "throttle": 0
-        },
-        {
-          "id": "d57bdc70-006f-4746-a5aa-c58c0e6b18b3",
-          "time": 9.498973452527785,
-          "actorId": "craft",
-          "separate": true
         }
       ]
     }

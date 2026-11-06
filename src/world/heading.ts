@@ -1,5 +1,5 @@
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector';
-import { bodyPosition, bodyVelocity, objectVelocity } from './celestial';
+import { bodyPosition, bodyVelocity, objectVelocity, objectPosition } from './celestial';
 import { dominantBody } from './conic';
 import type { Stage } from './types';
 
@@ -20,32 +20,119 @@ export type Heading = {
  * Where an armed command waits after its time: the next highest or lowest point of the
  * current orbit, or the moment it comes down to a set height above the surface.
  */
-export type Apsis = 'apoapsis' | 'periapsis' | 'altitude';
+/**
+ * When an armed reservation fires. Event triggers keep a reservation tied to a place
+ * on the orbit (or to the reservation before it) rather than to a clock time, so
+ * changing an earlier reservation does not move where a later one acts.
+ */
+export type Apsis = 'apoapsis' | 'periapsis' | 'altitude' | 'after' | 'angle' | 'phase' | 'near';
 export const apsisNames: Record<Apsis, string> = {
   apoapsis: '원점',
   periapsis: '근점',
   altitude: '높이',
+  after: '앞 예약 뒤',
+  angle: '위치각',
+  phase: '목표 각도',
+  near: '목표 접근',
 };
+/** Everything a trigger needs; stored on the reservation. */
+export type TriggerSpec = {
+  at: Apsis;
+  altitude?: number;
+  /** after: seconds after `ref` finished. */
+  delay?: number;
+  ref?: string;
+  /** angle: craft's angle around the body; phase: target's angle minus the craft's (degrees). */
+  atAngle?: number;
+  phaseTarget?: string;
+};
+export type TriggerReading = {
+  radial: number;
+  height: number;
+  time: number;
+  /** Degrees, counter-clockwise from the map's +x, around the body pulling hardest. */
+  angle: number;
+  phase?: number;
+  /** Distance to the phase/near target. */
+  gap?: number;
+};
+function objectPositionOf(stage: Stage, o: Stage['objects'][number], time: number) {
+  return objectPosition(stage, o, time);
+}
+const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 /** Radial speed and height above the reference body's surface at a state. */
-export function triggerReading(stage: Stage, position: Vec, velocity: Vec, time: number) {
+export function triggerReading(
+  stage: Stage,
+  position: Vec,
+  velocity: Vec,
+  time: number,
+  phaseTarget?: string,
+): TriggerReading {
   const f = orbitFrame(stage, position, velocity, time);
-  const height = f.body
-    ? length(sub(position, bodyPosition(stage, f.body, time))) - f.body.radius
-    : Infinity;
-  return { radial: f.radialSpeed, height };
+  const centre = f.body ? bodyPosition(stage, f.body, time) : { x: 0, y: 0 };
+  const r = sub(position, centre);
+  const height = f.body ? length(r) - f.body.radius : Infinity;
+  const angle = (Math.atan2(r.y, r.x) * 180) / Math.PI;
+  let phase: number | undefined, gap: number | undefined;
+  if (phaseTarget) {
+    const b = stage.bodies.find((x) => x.id === phaseTarget);
+    const o = stage.objects.find((x) => x.id === phaseTarget);
+    const p = b ? bodyPosition(stage, b, time) : o ? objectPositionOf(stage, o, time) : undefined;
+    if (p) {
+      const q = sub(p, centre);
+      phase = wrap180((Math.atan2(q.y, q.x) * 180) / Math.PI - angle);
+      gap = length(sub(position, p));
+    }
+  }
+  return { radial: f.radialSpeed, height, time, angle, phase, gap };
 }
 /** True when an armed trigger fires between the previous reading and this one. */
 export function triggerFired(
-  at: Apsis,
-  before: { radial: number; height: number } | undefined,
-  now: { radial: number; height: number },
-  altitude = 0,
+  t: TriggerSpec,
+  before: TriggerReading | undefined,
+  now: TriggerReading,
+  firedAt?: Record<string, number>,
 ) {
-  if (at === 'altitude') return now.radial < 0 && now.height <= altitude;
+  if (t.at === 'altitude') return now.radial < 0 && now.height <= (t.altitude ?? 0);
+  // Coming within a set distance of the target (centre to centre).
+  if (t.at === 'near') return now.gap !== undefined && now.gap <= (t.altitude ?? 0);
+  if (t.at === 'after') {
+    const done = t.ref ? firedAt?.[t.ref] : undefined;
+    return done !== undefined && now.time >= done + (t.delay ?? 0) - 1e-9;
+  }
   if (!before) return false;
-  return at === 'apoapsis'
+  if (t.at === 'angle' || t.at === 'phase') {
+    const a = t.at === 'angle' ? before.angle : before.phase,
+      b = t.at === 'angle' ? now.angle : now.phase;
+    if (a === undefined || b === undefined) return false;
+    const da = wrap180(a - (t.atAngle ?? 0)),
+      db = wrap180(b - (t.atAngle ?? 0));
+    // A crossing of the set angle (in either direction of travel), not the wrap-around.
+    return Math.abs(da) < 90 && Math.abs(db) < 90 && (da === 0 || Math.sign(da) !== Math.sign(db));
+  }
+  return t.at === 'apoapsis'
     ? before.radial > 0 && now.radial <= 0
     : before.radial < 0 && now.radial >= 0;
+}
+/** The trigger fields of a reservation (burn or push). */
+export function triggerOf(x: {
+  at?: Apsis;
+  altitude?: number;
+  delay?: number;
+  ref?: string;
+  atAngle?: number;
+  phaseTarget?: string;
+}): TriggerSpec | undefined {
+  return x.at
+    ? {
+        at: x.at,
+        altitude: x.altitude,
+        delay: x.delay,
+        ref: x.ref,
+        atAngle: x.atAngle,
+        phaseTarget: x.phaseTarget,
+      }
+    : undefined;
 }
 export const headingNames: Record<HeadingFrame, string> = {
   prograde: '진행 방향',
@@ -105,7 +192,7 @@ function turningSense(r: Vec, v: Vec) {
  */
 export function apsisFrame(stage: Stage, position: Vec, velocity: Vec, time: number, at: Apsis) {
   const body = dominantBody(stage, position, time);
-  if (!body || at === 'altitude' || !(body.mu > 0)) return undefined;
+  if (!body || (at !== 'apoapsis' && at !== 'periapsis') || !(body.mu > 0)) return undefined;
   const r = sub(position, bodyPosition(stage, body, time)),
     v = sub(velocity, bodyVelocity(stage, body, time));
   const rl = length(r);
@@ -180,6 +267,17 @@ export function matchHeading(stage: Stage, velocity: Vec, time: number, heading:
   return rotate(base, (heading.angle * Math.PI) / 180);
 }
 
+/** Velocity relative to a match target (for "stop when matched"). */
+export function relativeTo(stage: Stage, velocity: Vec, time: number, targetId?: string): Vec {
+  const object = stage.objects.find((o) => o.id === targetId),
+    body = stage.bodies.find((b) => b.id === targetId);
+  const targetV = object
+    ? objectVelocity(stage, object, time)
+    : body
+      ? bodyVelocity(stage, body, time)
+      : { x: 0, y: 0 };
+  return sub(velocity, targetV);
+}
 /** Short Korean label: "진행 방향", "진행 방향 · 바깥 15°", "바깥 · 진행 10°". */
 export function headingLabel(h: Heading) {
   if (h.frame === 'match')

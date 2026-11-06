@@ -3,6 +3,14 @@
  * "outward / ahead" axes players reason in, and the last planned change before it
  * (the one a fix most directly reaches). An observation of a finished flight. */
 import { bodyPosition, bodyVelocity, objectPosition } from './celestial';
+
+/** Object velocity by a short central difference of its position. */
+function objectVelocityAt(stage: Stage, o: Parameters<typeof objectPosition>[1], t: number) {
+  const h = 1e-3;
+  const a = objectPosition(stage, o, t - h),
+    b = objectPosition(stage, o, t + h);
+  return { x: (b.x - a.x) / (2 * h), y: (b.y - a.y) / (2 * h) };
+}
 import { dominantBody } from './conic';
 import { dynamicView } from './dynamics';
 import { objectiveGoals } from './goals';
@@ -23,6 +31,16 @@ export type Miss = {
   gap: number;
   outward: number;
   ahead: number;
+  /** Measured around the body the target moves with (its name), when there is one. */
+  centreName?: string;
+  /** Distance from that body's centre: craft, target. */
+  craftHeight?: number;
+  targetHeight?: number;
+  /** Speed relative to that body: craft, target. */
+  craftSpeed?: number;
+  targetSpeed?: number;
+  /** For a moving target: how much later (+) or earlier (−) the craft came than the target. */
+  late?: number;
   /** Id of the planned change to revisit ('launch' when none came before). */
   cause: string;
   causeLabel: string;
@@ -79,12 +97,30 @@ export function flightMisses(
         const offset = sub(frame.position, target);
         let outward = length(offset) - radius,
           ahead = 0;
+        let around: Partial<Miss> = {};
         if (centre && centre.id !== body?.id) {
           const c = bodyPosition(view, centre, frame.time);
+          const cv = bodyVelocity(view, centre, frame.time);
           const r = sub(target, c);
-          const v = sub(frame.velocity, bodyVelocity(view, centre, frame.time));
+          const v = sub(frame.velocity, cv);
           outward = dot(offset, scale(r, 1 / Math.max(length(r), 1e-12)));
           ahead = dot(offset, scale(v, 1 / Math.max(length(v), 1e-12)));
+          const tv = sub(
+            body
+              ? bodyVelocity(view, body, frame.time)
+              : objectVelocityAt(view, object!, frame.time),
+            cv,
+          );
+          const moving = length(tv) > 1e-6;
+          around = {
+            centreName: centre.name,
+            craftHeight: length(sub(frame.position, c)) - centre.radius,
+            targetHeight: length(r) - centre.radius,
+            craftSpeed: length(v),
+            targetSpeed: length(tv),
+            // Along the target's track: behind it means arriving late.
+            late: moving ? -dot(offset, scale(tv, 1 / length(tv))) / length(tv) : undefined,
+          };
         }
         best = {
           goalId: goal.id,
@@ -97,6 +133,7 @@ export function flightMisses(
           gap,
           outward,
           ahead,
+          ...around,
         };
       }
     }

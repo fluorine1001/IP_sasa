@@ -6,7 +6,18 @@
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector';
 import { bodyPosition, bodyVelocity } from './celestial';
 import { dominantBody } from './conic';
-import { apsisFrame, headingIn, resolveHeading, type Heading } from './heading';
+import {
+  apsisFrame,
+  headingIn,
+  resolveHeading,
+  triggerFired,
+  triggerOf,
+  triggerReading,
+  type Apsis,
+  type Heading,
+  type TriggerSpec,
+} from './heading';
+import { propagate } from './aim';
 import type { RoutePlan, Stage } from './types';
 
 export type PreviewState = { position: Vec; velocity: Vec; time: number };
@@ -17,7 +28,8 @@ export type PlannedChange = {
   heading?: Heading;
   /** A map-fixed push (cold gas without a heading). */
   vector?: Vec;
-  at?: 'apoapsis' | 'periapsis' | 'altitude';
+  at?: Apsis;
+  trigger?: TriggerSpec;
   label: string;
 };
 
@@ -31,6 +43,7 @@ export function plannedChanges(plan: RoutePlan): PlannedChange[] {
       dv: c.burn!.dv,
       heading: c.burn!.heading,
       at: c.burn!.at,
+      trigger: triggerOf(c.burn!),
       label: `연소 ${i + 1}`,
     }));
   const pushes = plan.impulses.map((m, i) => ({
@@ -40,6 +53,7 @@ export function plannedChanges(plan: RoutePlan): PlannedChange[] {
     heading: m.heading,
     vector: m.heading ? undefined : m.vector,
     at: m.at,
+    trigger: triggerOf(m),
     label: `추진 ${i + 1}`,
   }));
   return [...burns, ...pushes].sort((a, b) => a.time - b.time);
@@ -100,10 +114,15 @@ export function previewStates(
   stage: Stage,
   plan: RoutePlan,
   recorded: (time: number) => PreviewState | undefined,
+  /** State right after launch when no flight is recorded yet (the launch approximation). */
+  start?: PreviewState,
 ): { change: PlannedChange; state: PreviewState; before: PreviewState }[] {
   const out: { change: PlannedChange; state: PreviewState; before: PreviewState }[] = [];
-  let chain: PreviewState | undefined;
+  let chain: PreviewState | undefined = recorded(0) ? undefined : start;
+  let previous: PlannedChange | undefined;
   for (const change of plannedChanges(plan)) {
+    const prior = previous;
+    previous = change;
     let before: PreviewState | undefined;
     if (change.at === 'apoapsis' || change.at === 'periapsis') {
       const from = chain ?? recorded(change.time);
@@ -120,6 +139,19 @@ export function previewStates(
           continue;
         }
       }
+    } else if (
+      change.trigger &&
+      (change.at === 'after' || change.at === 'angle' || change.at === 'phase')
+    ) {
+      // Coast on the two-body orbit until the trigger: from the state right after the
+      // previous change ('after' measures from it), or from the record at the arming time.
+      const from =
+        change.at === 'after'
+          ? prior && change.trigger.ref === prior.id
+            ? chain
+            : undefined
+          : (chain ?? recorded(change.time));
+      before = from && coastUntil(stage, from, change.trigger, prior?.id);
     } else if (!chain && change.at !== 'altitude') before = recorded(change.time);
     if (!before) {
       chain = undefined;
@@ -130,4 +162,57 @@ export function previewStates(
     chain = after;
   }
   return out;
+}
+
+/**
+ * Coast a state on the two-body orbit of the body pulling hardest until an event
+ * trigger fires ('after': the delay from `from`, which is when `refId` finished;
+ * 'angle'/'phase': the angle crossing). Undefined if it does not fire within 600 s.
+ */
+export function coastUntil(
+  stage: Stage,
+  from: PreviewState,
+  trigger: TriggerSpec,
+  refId?: string,
+): PreviewState | undefined {
+  const body = dominantBody(stage, from.position, from.time);
+  if (!body || !(body.mu > 0)) return;
+  const c0 = bodyPosition(stage, body, from.time),
+    w0 = bodyVelocity(stage, body, from.time);
+  const r0 = sub(from.position, c0),
+    v0 = sub(from.velocity, w0);
+  const at = (dt: number): PreviewState => {
+    const s = propagate(body.mu, r0, v0, dt);
+    const t = from.time + dt;
+    return {
+      position: add(bodyPosition(stage, body, t), s.r),
+      velocity: add(bodyVelocity(stage, body, t), s.v),
+      time: t,
+    };
+  };
+  if (trigger.at === 'after') return at(Math.max(0, trigger.delay ?? 0));
+  const fired = (a: PreviewState, b: PreviewState) =>
+    triggerFired(
+      trigger,
+      triggerReading(stage, a.position, a.velocity, a.time, trigger.phaseTarget),
+      triggerReading(stage, b.position, b.velocity, b.time, trigger.phaseTarget),
+      refId ? { [refId]: from.time } : undefined,
+    );
+  const step = 0.05;
+  let prev = at(0);
+  for (let dt = step; dt <= 600; dt += step) {
+    const next = at(dt);
+    if (fired(prev, next)) {
+      let lo = dt - step,
+        hi = dt;
+      for (let i = 0; i < 30; i++) {
+        const m = (lo + hi) / 2;
+        if (fired(at(lo), at(m))) hi = m;
+        else lo = m;
+      }
+      return at(hi);
+    }
+    prev = next;
+  }
+  return undefined;
 }

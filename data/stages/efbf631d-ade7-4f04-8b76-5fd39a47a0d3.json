@@ -80,9 +80,7 @@
       },
       "startTime": 0,
       "endTime": 100,
-      "dependsOn": [
-        "91f05c4c-f076-48d0-9f05-545dc640a9b2"
-      ],
+      "dependsOn": ["91f05c4c-f076-48d0-9f05-545dc640a9b2"],
       "condition": {
         "kind": "hold",
         "duration": 0.5,
@@ -165,11 +163,28 @@
   },
   "referencePlans": [
     {
+      "impulses": [
+        {
+          "id": "p1",
+          "time": 1,
+          "vector": {
+            "x": 0.005,
+            "y": 0
+          },
+          "heading": {
+            "frame": "outward",
+            "angle": 0
+          },
+          "magnitude": 0.005,
+          "at": "after",
+          "ref": "launch",
+          "delay": 2
+        }
+      ],
       "launch": {
         "x": 0.3552058528794401,
         "y": 0.3953843725796322
-      },
-      "impulses": []
+      }
     }
   ],
   "audit": {

@@ -19,7 +19,14 @@ import {
   rocketMass,
   drag,
 } from './rocket.ts';
-import { apsisFrame, headingIn, resolveHeading, triggerFired, triggerReading } from './heading';
+import {
+  apsisFrame,
+  headingIn,
+  resolveHeading,
+  triggerFired,
+  triggerReading,
+  triggerOf,
+} from './heading';
 import { add, dot, length, scale, sub, rotate, type Vec } from '../physics/vector.ts';
 import { segmentHitsCircle } from '../physics/orbit.ts';
 import {
@@ -30,7 +37,13 @@ import {
   objectVelocity,
 } from './celestial.ts';
 import { freshProgress, updateGoals, objectiveGoals } from './goals.ts';
-import { dueEvents, nextEventTime } from './event-schedule';
+import {
+  isChained,
+  chainedEvents,
+  dueEvents,
+  nextChainedTime,
+  nextEventTime,
+} from './event-schedule';
 import { nativeRk4 } from '../physics/nonlinear-native';
 import { flightOutcome, hybridFloat } from '../physics/hybrid-kernel';
 import type { DvBurn, Impulse, Observation, RoutePlan, Run, Stage, WorldObject } from './types.ts';
@@ -126,6 +139,8 @@ export function createRun(stage: Stage, plan: RoutePlan, probe = false): Run {
       throttle: run.rocket.throttle,
       lit: true,
     };
+  // A cold-gas launch is an instant push: it is finished at once ('after launch' chains).
+  if (!stage.rocket) run.firedAt = { launch: 0 };
   if (!stage.rocket) {
     const pad = surfaceLaunch(stage);
     if (pad)
@@ -164,7 +179,10 @@ function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: Dv
   const position = actor?.position ?? run.position,
     velocity = actor?.velocity ?? run.velocity;
   // An apsis burn turns now toward the heading it will need at that apsis.
-  const ahead = b.at ? apsisFrame(stage, position, velocity, run.time, b.at) : undefined;
+  const ahead =
+    b.at === 'apoapsis' || b.at === 'periapsis'
+      ? apsisFrame(stage, position, velocity, run.time, b.at)
+      : undefined;
   const direction = ahead
     ? headingIn(ahead, b.heading)
     : resolveHeading(stage, position, velocity, run.time, b.heading);
@@ -176,21 +194,48 @@ function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: Dv
     direction,
     b.dv,
     b.throttle ?? 1,
-    b.at ? { at: b.at, heading: b.heading, altitude: b.altitude } : undefined,
+    b.at ? { trigger: triggerOf(b)!, heading: b.heading } : undefined,
   );
+}
+function triggerAt(v: object) {
+  return (((v as { burn?: object }).burn ?? v) as { at?: string }).at;
+}
+function isChainedValue(v: object) {
+  return isChained(v as { at?: string });
+}
+/** The same reservation with its trigger removed (it is due now). */
+function untriggered<
+  T extends {
+    at?: unknown;
+    altitude?: unknown;
+    delay?: unknown;
+    ref?: unknown;
+    atAngle?: unknown;
+    phaseTarget?: unknown;
+  },
+>(x: T): T {
+  const { at: _a, altitude: _b, delay: _c, ref: _d, atAngle: _e, phaseTarget: _f, ...rest } = x;
+  return rest as T;
 }
 /** Fire cold-gas pushes whose trigger is met; false when one breaks the budget. */
 function fireArmedPushes(run: Run, stage: Stage) {
   if (!run.armedPushes?.length) return true;
   for (const armed of [...run.armedPushes]) {
-    const now = triggerReading(stage, run.position, run.velocity, run.time);
-    const fired = triggerFired(armed.at, armed.last, now, armed.altitude);
+    const now = triggerReading(
+      stage,
+      run.position,
+      run.velocity,
+      run.time,
+      armed.trigger.phaseTarget,
+    );
+    const fired = triggerFired(armed.trigger, armed.last, now, run.firedAt);
     armed.last = now;
     if (!fired) continue;
     run.armedPushes = run.armedPushes.filter((a) => a !== armed);
     // `impulse` skips ids already applied, so it is told under a fired id.
     if (!impulse(run, stage, impulseVector(run, stage, armed.push), armed.id + ':fired'))
       return false;
+    (run.firedAt ??= {})[armed.id] = run.time;
   }
   return true;
 }
@@ -265,7 +310,25 @@ export function tick(
     let remaining = dt;
     while (remaining > 1e-9 && run.status === 'running') {
       const appliedBefore = run.applied.size;
-      for (const event of dueEvents(run)) {
+      // Timed reservations first, then those chained to one that just finished (a chain
+      // can cascade within the same instant, so it is re-read until nothing new is due).
+      const queue = dueEvents(run);
+      for (let guard = 0; guard < 4096; guard++) {
+        const chained = chainedEvents(run).filter(
+          (e) => !queue.some((q) => q.value.id === e.value.id),
+        );
+        if (!queue.length && !chained.length) break;
+        queue.push(...chained);
+        const event = queue.shift()!;
+        // A chained reservation runs now: it is due, so it is not armed again.
+        // An 'after' reservation is due now, so it runs untriggered; one that waits for an
+        // apsis or angle from here is armed now with its trigger intact.
+        const chainedNow = isChainedValue(event.value) && triggerAt(event.value) === 'after';
+        if (chainedNow) {
+          if (event.kind === 'engine' && event.value.burn)
+            event.value = { ...event.value, burn: untriggered(event.value.burn) };
+          if (event.kind === 'impulse') event.value = untriggered(event.value);
+        }
         const command = event.value;
         if (run.applied.has(command.id)) continue;
         if (event.kind === 'engine') {
@@ -286,12 +349,13 @@ export function tick(
             return;
           }
           run.applied.add(command.id);
+          // Instant commands are finished now; a Δv burn is finished when delivered.
+          if (!command.burn) (run.firedAt ??= {})[command.id] = run.time;
         } else if (event.value.at) {
           // Armed push: it fires later, when its trigger is met (see fireArmedPushes).
           (run.armedPushes ??= []).push({
             id: command.id,
-            at: event.value.at,
-            altitude: event.value.altitude,
+            trigger: triggerOf(event.value)!,
             push: event.value,
           });
           run.applied.add(command.id);
@@ -301,6 +365,7 @@ export function tick(
             run.reason = '수정 추진의 총량 한도를 넘었습니다.';
             return;
           }
+          (run.firedAt ??= {})[command.id] = run.time;
         }
       }
       if (!fireArmedPushes(run, stage)) {
@@ -309,7 +374,9 @@ export function tick(
         return;
       }
       if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
-      const nextCommand = nextEventTime(run);
+      // A push that just fired may release reservations chained to it at this instant.
+      if (chainedEvents(run).length) continue;
+      const nextCommand = Math.min(nextEventTime(run), Math.max(run.time, nextChainedTime(run)));
       const gridTime = nextPhysicsBoundary(run.time),
         gridGap = gridTime - run.time;
       const slice = Math.min(
@@ -418,6 +485,16 @@ export function tick(
       }
       run.time = slice === gridGap ? gridTime : run.time + slice;
       remaining -= slice;
+      // The launch is finished the first time the main engine goes quiet (Δv cutoff, empty
+      // stage or a stop command): reservations that follow 'launch' count from here.
+      if (
+        run.rocket &&
+        run.firedAt?.launch === undefined &&
+        run.time > 0 &&
+        run.rocket.throttle <= 0 &&
+        !run.rocket.burn
+      )
+        (run.firedAt ??= {}).launch = run.time;
       stage = dynamicView(source, run);
       for (const actor of run.detached) {
         actor.age += slice;

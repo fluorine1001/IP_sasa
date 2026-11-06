@@ -163,13 +163,13 @@
           "time": 0,
           "actorId": "craft",
           "burn": {
-            "dv": 0.4,
+            "dv": 0.338,
             "heading": {
               "frame": "outward",
               "angle": 0
             },
             "at": "altitude",
-            "altitude": 0.19
+            "altitude": 0.09
           }
         }
       ]

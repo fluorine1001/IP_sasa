@@ -1,3 +1,4 @@
+import { chainRef } from '../../world/chain';
 import {
   timelineDuration,
   launchFraction,
@@ -502,7 +503,8 @@ export function flightTimeline(
         lanes: [number, number][][] = [],
         maxLanes = 3;
       let usedLanes = 1;
-      el('timeline-markers').innerHTML = events
+      const placed = new Map<string, { time: number; row: number }>();
+      const chips = events
         .map((e) => {
           const text = chipText(stage, plan, e, degrees);
           const chipWidth =
@@ -519,6 +521,7 @@ export function flightTimeline(
           if (row < 0) row = lanes.length < maxLanes ? lanes.length : maxLanes - 1;
           (lanes[row] ??= []).push([a, b]);
           usedLanes = Math.max(usedLanes, row + 1);
+          placed.set(e.id, { time: e.time, row });
           const id = e.id.replace(':turn', ''),
             performed = e.id === 'launch' || state.applied?.has(id),
             applied = performed && e.time <= state.time + 1e-8;
@@ -583,6 +586,21 @@ export function flightTimeline(
           );
         })
         .join('');
+      // Dependencies drawn: a bracket from a reservation to each one that follows it.
+      const links = events
+        .map((e) => {
+          const ref = chainRef(plan, e.id);
+          const from = ref
+            ? (placed.get(ref) ?? (ref === 'launch' ? { time: 0, row: 0 } : undefined))
+            : undefined;
+          const to = placed.get(e.id);
+          if (!from || !to) return '';
+          const l = Math.min(100, (from.time / duration) * 100),
+            r = Math.min(100, (to.time / duration) * 100);
+          return `<i class="chain-link" aria-hidden="true" style="left:${l}%;width:${Math.max(0.4, r - l)}%;--lane:${Math.max(from.row, to.row)}"></i>`;
+        })
+        .join('');
+      el('timeline-markers').innerHTML = links + chips;
       el('timeline-track').style.setProperty('--lanes', String(usedLanes));
       el('timeline-track').classList.toggle('compact-chips', compact);
       // Engine-on stretches, coloured by the stage that burns. Bookkeeping, not a forecast.

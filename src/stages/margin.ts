@@ -1,5 +1,6 @@
 import { execute } from '../world/engine';
 import { length } from '../physics/vector';
+import { chainTime } from '../world/chain';
 import type { RoutePlan, Stage } from '../world/types';
 
 /**
@@ -18,6 +19,9 @@ export const MARGIN = {
   angle: 2,
   /** fraction of the launch limit */
   launchPower: 0.02,
+  /** fraction of the launch limit for a cold-gas launch: an instant push the calculator
+   * shows exactly, so it is aimed like a burn (the field takes 0.1 % steps) */
+  launchPowerAimed: 0.005,
   /** u, the height of a "brake at height" trigger */
   altitude: 0.02,
   /** degrees, cold-gas launch direction */
@@ -26,7 +30,7 @@ export const MARGIN = {
 
 /** The Δv nudge for a burn of this size. */
 export const dvMargin = (dv: number) => Math.max(MARGIN.dv, MARGIN.dvShare * Math.abs(dv));
-export type MarginCheck = { knob: string; delta: string; won: boolean };
+export type MarginCheck = { knob: string; delta: string; won: boolean; reaimed?: boolean };
 
 const rotate = (v: { x: number; y: number }, degrees: number) => {
   const a = (degrees * Math.PI) / 180;
@@ -50,9 +54,12 @@ export function nudges(
   const launch = length(plan.launch),
     limit = stage.rules.launchLimit;
   if (launch > 1e-9) {
+    const share = stage.rocket ? MARGIN.launchPower : MARGIN.launchPowerAimed;
     for (const sign of [1, -1]) {
-      const to = launch + sign * MARGIN.launchPower * limit;
-      variant('발사 세기', `${sign > 0 ? '+' : '−'}${MARGIN.launchPower * 100}%`, (p) => {
+      const to = launch + sign * share * limit;
+      variant('발사 세기', `${sign > 0 ? '+' : '−'}${share * 100}%`, (p) => {
+        // Full power is a value a player sets exactly (the slider's end), not one reasoned to.
+        if (Math.abs(launch - limit) < 1e-6) return false;
         if (to > limit + 1e-9 || to <= 0) return false;
         p.launch = scaled(p.launch, to);
       });
@@ -78,11 +85,19 @@ export function nudges(
     for (const sign of [1, -1]) {
       const s = sign > 0 ? '+' : '−';
       // Commands planned for the same instant move together, so order never changes.
-      variant(name + ' 시각', `${s}${MARGIN.time}초`, (p) => {
-        if (c.time + sign * MARGIN.time < 0) return false;
-        for (const other of p.engineCommands ?? [])
-          if (Math.abs(other.time - c.time) < 1e-9) other.time += sign * MARGIN.time;
-      });
+      // A chained reservation has no clock time: its knob is the delay after the one it follows.
+      if (c.burn?.at === 'after')
+        variant(name + ' 간격', `${s}${MARGIN.time}초`, (p) => {
+          const b = p.engineCommands![i].burn!;
+          if ((b.delay ?? 0) + sign * MARGIN.time < 0) return false;
+          b.delay = (b.delay ?? 0) + sign * MARGIN.time;
+        });
+      else
+        variant(name + ' 시각', `${s}${MARGIN.time}초`, (p) => {
+          if (c.time + sign * MARGIN.time < 0) return false;
+          for (const other of p.engineCommands ?? [])
+            if (Math.abs(other.time - c.time) < 1e-9) other.time += sign * MARGIN.time;
+        });
       if (c.burn) {
         variant(name + ' Δv', `${s}${dvMargin(c.burn.dv).toFixed(3)}`, (p) => {
           const b = p.engineCommands![i].burn!,
@@ -90,9 +105,17 @@ export function nudges(
           if (b.dv + sign * step <= 0) return false;
           b.dv += sign * step;
         });
-        variant(name + ' 기울기', `${s}${MARGIN.angle}°`, (p) => {
-          p.engineCommands![i].burn!.heading.angle += sign * MARGIN.angle;
-        });
+        // A matching burn at its default (straight against the relative motion) is set
+        // exactly by leaving it alone, not reasoned to.
+        if (!(c.burn.heading.frame === 'match' && c.burn.heading.angle === 0))
+          variant(name + ' 기울기', `${s}${MARGIN.angle}°`, (p) => {
+            p.engineCommands![i].burn!.heading.angle += sign * MARGIN.angle;
+          });
+        if (c.burn.at === 'angle' || c.burn.at === 'phase')
+          variant(name + ' 위치각', `${s}${MARGIN.angle}°`, (p) => {
+            const b = p.engineCommands![i].burn!;
+            b.atAngle = (b.atAngle ?? 0) + sign * MARGIN.angle;
+          });
         if (c.burn.at === 'altitude')
           variant(name + ' 높이', `${s}${MARGIN.altitude}`, (p) => {
             const b = p.engineCommands![i].burn!;
@@ -106,10 +129,22 @@ export function nudges(
     const name = `추진 ${i + 1}`;
     for (const sign of [1, -1]) {
       const s = sign > 0 ? '+' : '−';
-      variant(name + ' 시각', `${s}${MARGIN.time}초`, (p) => {
-        if (m.time + sign * MARGIN.time < 0) return false;
-        p.impulses[i].time += sign * MARGIN.time;
-      });
+      if (m.at === 'after')
+        variant(name + ' 간격', `${s}${MARGIN.time}초`, (p) => {
+          const q = p.impulses[i];
+          if ((q.delay ?? 0) + sign * MARGIN.time < 0) return false;
+          q.delay = (q.delay ?? 0) + sign * MARGIN.time;
+        });
+      else
+        variant(name + ' 시각', `${s}${MARGIN.time}초`, (p) => {
+          if (m.time + sign * MARGIN.time < 0) return false;
+          p.impulses[i].time += sign * MARGIN.time;
+        });
+      if (m.at === 'angle' || m.at === 'phase')
+        variant(name + ' 위치각', `${s}${MARGIN.angle}°`, (p) => {
+          const q = p.impulses[i];
+          q.atAngle = (q.atAngle ?? 0) + sign * MARGIN.angle;
+        });
       const pushStep = dvMargin(m.magnitude ?? length(m.vector));
       variant(name + ' 세기', `${s}${pushStep.toFixed(3)}`, (p) => {
         const q = p.impulses[i],
@@ -134,14 +169,144 @@ export function nudges(
   return out;
 }
 
-export function planMargin(stage: Stage, plan: RoutePlan): MarginCheck[] {
-  return nudges(stage, plan).map(({ knob, delta, plan: p }) => {
-    let won = false;
-    try {
-      won = execute(stage, p).status === 'won';
-    } catch {
-      won = false;
+const wins = (stage: Stage, p: RoutePlan) => {
+  try {
+    return execute(stage, p).status === 'won';
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The last speed change of a plan: the one a player re-aims after seeing a flight,
+ * with the precision the calculator gives (its state is read from the record, which
+ * is exact up to there once everything before it is unchanged).
+ */
+/**
+ * The plan's speed changes in the order they happen (chains resolved), excluding
+ * matching burns (they size themselves). The last ones are what a player re-aims after
+ * seeing a flight, with the precision the calculator gives from the record.
+ */
+function changes(plan: RoutePlan) {
+  const all = [
+    ...(plan.engineCommands ?? [])
+      .map((c, i) => ({
+        i,
+        id: c.id,
+        kind: 'burn' as const,
+        ok: !!c.burn && c.burn.heading.frame !== 'match',
+      }))
+      .filter((x) => x.ok),
+    ...plan.impulses.map((m, i) => ({ i, id: m.id, kind: 'push' as const, ok: true })),
+  ];
+  return all.sort((a, b) => chainTime(plan, a.id) - chainTime(plan, b.id));
+}
+type Change = ReturnType<typeof changes>[number];
+const changeName = (c: Change) => (c.kind === 'burn' ? `연소 ${c.i + 1}` : `추진 ${c.i + 1}`);
+function sizeOf(plan: RoutePlan, c: Change) {
+  return c.kind === 'burn'
+    ? plan.engineCommands![c.i].burn!.dv
+    : (plan.impulses[c.i].magnitude ?? length(plan.impulses[c.i].vector));
+}
+const opposite = {
+  prograde: 'retrograde',
+  retrograde: 'prograde',
+  outward: 'inward',
+  inward: 'outward',
+} as const;
+/** A negative size means the same change the other way (prograde ↔ retrograde, …). */
+function setChange(plan: RoutePlan, c: Change, size: number, tilt: number) {
+  const h =
+    c.kind === 'burn' ? plan.engineCommands![c.i].burn!.heading : plan.impulses[c.i].heading;
+  if (size < 0 && h && h.frame in opposite) {
+    h.frame = opposite[h.frame as keyof typeof opposite];
+    size = -size;
+  }
+  if (c.kind === 'burn') {
+    const b = plan.engineCommands![c.i].burn!;
+    b.dv = Math.max(0.001, size);
+    b.heading.angle = Math.max(-90, Math.min(90, b.heading.angle + tilt));
+  } else {
+    const q = plan.impulses[c.i];
+    const to = Math.max(0.001, size);
+    q.vector = scaled(q.vector, to);
+    if (q.heading) {
+      q.magnitude = to;
+      q.heading.angle = Math.max(-90, Math.min(90, q.heading.angle + tilt));
+    } else q.vector = rotate(q.vector, tilt);
+  }
+}
+const offsetsFor = (base: number, n = 10) => {
+  const out = [0];
+  for (let k = 1; k <= n; k++) {
+    const step = Math.max(0.003, base * 0.025) * k;
+    out.push(step, -step);
+  }
+  return out;
+};
+/** Small corrections may also turn around: sizes through zero to the other side. */
+const sizesFor = (base: number, n = 10) =>
+  offsetsFor(base, n)
+    .map((o) => base + o)
+    .filter((v) => Math.abs(v) >= 0.001);
+
+/**
+ * Can a nudged plan be won again by re-aiming the last speed change (and, if that is
+ * not enough, the one before it as well)? That is the loop a player runs: keep the
+ * early part roughly right, fly, then aim the later changes from the record.
+ */
+function reaim(stage: Stage, nudged: RoutePlan, knob: string): boolean {
+  const list = changes(nudged);
+  const last = list.at(-1);
+  if (!last || knob.startsWith(changeName(last))) return false;
+  const tryLast = (plan: RoutePlan, tilts: number[], n: number) => {
+    const base = sizeOf(plan, last);
+    for (const tilt of tilts)
+      for (const size of sizesFor(base, n)) {
+        const p = structuredClone(plan);
+        setChange(p, last, size, tilt);
+        if (wins(stage, p)) return true;
+      }
+    return false;
+  };
+  if (tryLast(nudged, [0, 5, -5, 10, -10, 20, -20, 30, -30], 10)) return true;
+  const before = list.at(-2);
+  if (!before || knob.startsWith(changeName(before))) return false;
+  const base = sizeOf(nudged, before);
+  const heading = (p: RoutePlan) =>
+    before.kind === 'burn'
+      ? p.engineCommands![before.i].burn!.heading
+      : p.impulses[before.i].heading;
+  const own = heading(nudged)?.frame;
+  // The earlier change may need another direction too (a push the other way, or sideways).
+  const frames =
+    own && own in opposite ? [own, 'prograde', 'retrograde', 'outward', 'inward'] : [own];
+  for (const frame of [...new Set(frames)])
+    for (const size of frame === own
+      ? sizesFor(base, 8)
+      : [0.003, 0.006, 0.01, 0.015, 0.02, 0.03]) {
+      const p = structuredClone(nudged);
+      const h = heading(p);
+      if (h && frame) h.frame = frame as typeof h.frame;
+      setChange(p, before, size, 0);
+      if (wins(stage, p) || tryLast(p, [0], 6)) return true;
     }
-    return { knob, delta, won };
+  return false;
+}
+
+/**
+ * Each nudge either still wins, or (with `reaimLast`) wins again after re-aiming the
+ * final speed change: the early choices need only be roughly right, the last one is aimed.
+ */
+export function planMargin(
+  stage: Stage,
+  plan: RoutePlan,
+  opts: { reaimLast?: boolean } = {},
+): MarginCheck[] {
+  return nudges(stage, plan).map(({ knob, delta, plan: p }) => {
+    let won = wins(stage, p);
+    let reaimed = false;
+    if (!won && opts.reaimLast && reaim(stage, p, knob)) won = reaimed = true;
+    return { knob, delta, won, ...(reaimed ? { reaimed } : {}) };
   });
 }

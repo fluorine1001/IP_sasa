@@ -127,76 +127,71 @@
   },
   "referencePlans": [
     {
+      "impulses": [],
       "launch": {
-        "x": 0.8067031878878386,
+        "x": 1,
         "y": 0
       },
-      "impulses": [],
       "engineCommands": [
         {
-          "id": "31159d91-4adc-4c7c-bf0f-7ee57d3b09c2",
-          "time": 0,
+          "id": "c0",
+          "time": 0.5,
           "actorId": "craft",
-          "direction": {
-            "x": -0.22264616350027536,
-            "y": 0.9748993208935006
+          "separate": true,
+          "at": "after",
+          "ref": "launch",
+          "delay": 0
+        },
+        {
+          "id": "c1",
+          "time": 0.5,
+          "actorId": "craft",
+          "burn": {
+            "dv": 0.394,
+            "heading": {
+              "frame": "prograde",
+              "angle": -7
+            },
+            "at": "apoapsis",
+            "ref": "c0",
+            "delay": 0
           }
         },
         {
-          "id": "81d9e951-6a48-469e-b989-328aaf535fd9",
-          "time": 0.5541402241115321,
+          "id": "c2",
+          "time": 1,
           "actorId": "craft",
-          "throttle": 0
-        },
-        {
-          "id": "bca6adf9-eb51-47b7-a812-a3154cd8b9fd",
-          "time": 0.6041402241115321,
-          "actorId": "craft",
-          "separate": true
-        },
-        {
-          "id": "1b89c99e-7f63-4001-ab84-e5802f4b50fa",
-          "time": 3.7058565342184613,
-          "actorId": "craft",
-          "direction": {
-            "x": -0.18769549571159866,
-            "y": -0.9822272653971571
+          "burn": {
+            "dv": 0.094,
+            "heading": {
+              "frame": "outward",
+              "angle": 15
+            },
+            "at": "after",
+            "ref": "c1",
+            "delay": 11
           }
         },
         {
-          "id": "01940bfa-f884-42f5-8403-a4ffa694fd91",
-          "time": 5.705856534218461,
+          "id": "c3",
+          "time": 1,
           "actorId": "craft",
-          "throttle": 1
-        },
-        {
-          "id": "d67427ca-48d5-49c0-a747-3f3eac16ed62",
-          "time": 5.775752161447659,
-          "actorId": "craft",
-          "throttle": 0
-        },
-        {
-          "id": "59415f50-db10-473e-9e23-4992b1026c59",
-          "time": 13.549664922594886,
-          "actorId": "craft",
-          "direction": {
-            "x": 0.3143454938919881,
-            "y": -0.9493086486858751
+          "burn": {
+            "dv": 0.8,
+            "heading": {
+              "frame": "match",
+              "angle": 0,
+              "targetId": "d8c96f5a-3681-4963-b530-0bb4835bde8d"
+            },
+            "at": "near",
+            "ref": "c2",
+            "delay": 0,
+            "phaseTarget": "d8c96f5a-3681-4963-b530-0bb4835bde8d",
+            "altitude": 0.06
           }
-        },
-        {
-          "id": "d1db4006-1fcd-4a35-a751-0ece426029b9",
-          "time": 13.799664922594886,
-          "actorId": "craft",
-          "throttle": 0.3
-        },
-        {
-          "id": "e0e75628-3d99-4665-b734-f5e51576d94f",
-          "time": 13.982324513907088,
-          "actorId": "craft",
-          "throttle": 0
         }
-      ]
+      ],
+      "launchDv": 1.48
     }
   ],
   "audit": {

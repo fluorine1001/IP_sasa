@@ -23,7 +23,13 @@ const n = (v: number) => Math.round(v * 100) / 100;
  */
 export function rocketSide(
   stages: { size: number; label?: string }[],
-  opts: { width?: number; height?: number; highlight?: number; spent?: number; payload?: boolean } = {},
+  opts: {
+    width?: number;
+    height?: number;
+    highlight?: number;
+    spent?: number;
+    payload?: boolean;
+  } = {},
 ) {
   const W = opts.width ?? 240,
     H = opts.height ?? 44;
@@ -40,12 +46,13 @@ export function rocketSide(
     const spent = opts.spent !== undefined && i < opts.spent;
     const hi = opts.highlight === i;
     const r = `<rect x="${n(x)}" y="${n(top)}" width="${n(w)}" height="${n(body)}" rx="2" fill="${spent ? 'var(--n-500)' : stageFill(i)}" ${hi ? 'stroke="var(--c-text)" stroke-width="2"' : ''}/>`;
-    const seam = i ? `<path d="M${n(x)} ${n(top - 1)}v${n(body + 2)}" stroke="var(--n-950)" stroke-width="1.5"/>` : '';
+    const seam = i
+      ? `<path d="M${n(x)} ${n(top - 1)}v${n(body + 2)}" stroke="var(--n-950)" stroke-width="1.5"/>`
+      : '';
     x += w;
     return r + seam;
   });
-  const flame =
-    `<path d="M${n(nozzle + 2)} ${n(top + body * 0.18)}L2 ${n(top - 2)}L2 ${n(top + body + 2)}L${n(nozzle + 2)} ${n(top + body * 0.82)}Z" fill="var(--n-400)"/>`;
+  const flame = `<path d="M${n(nozzle + 2)} ${n(top + body * 0.18)}L2 ${n(top - 2)}L2 ${n(top + body + 2)}L${n(nozzle + 2)} ${n(top + body * 0.82)}Z" fill="var(--n-400)"/>`;
   const payload = opts.payload
     ? `<rect x="${n(x)}" y="${n(top + body * 0.12)}" width="${n(pay)}" height="${n(body * 0.76)}" rx="2" fill="var(--n-200)"/>`
     : '';
@@ -79,7 +86,8 @@ export function meter(
 /** One icon repeated: allowances such as ignitions ("●●○○" made of flames). */
 export function pips(count: number, used = 0, kind: 'flame' | 'split' | 'drop' = 'flame') {
   const glyph = {
-    flame: '<path d="M6 1c2 3 4 4.5 4 7.2A4 4 0 0 1 2 8.2C2 6 3.5 5 4 3c.8 1.2 1.2 2 2 2.3C6.4 4 6 2.5 6 1z"/>',
+    flame:
+      '<path d="M6 1c2 3 4 4.5 4 7.2A4 4 0 0 1 2 8.2C2 6 3.5 5 4 3c.8 1.2 1.2 2 2 2.3C6.4 4 6 2.5 6 1z"/>',
     split: '<path d="M2 3h8M2 9h8M6 3v2M6 7v2"/>',
     drop: '<path d="M6 1.5 9.5 7a3.5 3.5 0 1 1-7 0z"/>',
   }[kind];
@@ -95,7 +103,8 @@ export function medalBadge(kind: 'success' | 'budget' | 'clean', on = true, size
     success: '<path d="M13 21l5 5 9-11" fill="none" stroke-width="3.4"/>',
     budget:
       '<path d="M14 12h10v18H14z" fill="none" stroke-width="2.6"/><path d="M14 22h10" stroke-width="2.6"/><path d="M16 26h6" stroke-width="2.6"/>',
-    clean: '<path d="M20 11l8 3v6c0 5-3.6 8.4-8 10-4.4-1.6-8-5-8-10v-6z" fill="none" stroke-width="2.6"/>',
+    clean:
+      '<path d="M20 11l8 3v6c0 5-3.6 8.4-8 10-4.4-1.6-8-5-8-10v-6z" fill="none" stroke-width="2.6"/>',
   }[kind];
   return `<svg class="fig-medal ${kind} ${on ? 'on' : 'off'}" viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle cx="20" cy="20" r="14.5" class="ring"/><g class="picto">${picto}</g></svg>`;
 }
@@ -145,7 +154,9 @@ export function orbitFigure(c: Conic, size = 120) {
       uy = c.r.y / Math.max(r, 1e-12);
     const far = c.bound ? c.apoapsis : extent * 1.5;
     d.length = 0;
-    d.push(`M${n(cx + ux * R * s)} ${n(cy - uy * R * s)}L${n(cx + ux * far * s)} ${n(cy - uy * far * s)}`);
+    d.push(
+      `M${n(cx + ux * R * s)} ${n(cy - uy * R * s)}L${n(cx + ux * far * s)} ${n(cy - uy * far * s)}`,
+    );
   }
   const craft = radial
     ? {

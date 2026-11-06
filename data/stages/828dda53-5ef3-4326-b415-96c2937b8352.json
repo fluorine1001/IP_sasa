@@ -439,56 +439,52 @@
   },
   "referencePlans": [
     {
+      "impulses": [],
       "launch": {
         "x": 1,
         "y": 0
       },
-      "impulses": [],
+      "launchDv": 0.274,
       "engineCommands": [
         {
-          "id": "cutoff",
-          "time": 0.7011213599296398,
+          "id": "c0",
+          "time": 0.5,
           "actorId": "craft",
-          "throttle": 0
+          "separate": true,
+          "at": "after",
+          "ref": "launch",
+          "delay": 0
         },
         {
-          "id": "separate",
-          "time": 0.7011213599296398,
+          "id": "c1",
+          "time": 0.5,
           "actorId": "craft",
-          "separate": true
-        },
-        {
-          "id": "pitch",
-          "time": 0.7011213599296398,
-          "actorId": "craft",
-          "direction": {
-            "x": 0.4600212085580246,
-            "y": 0.8879079274771763
+          "burn": {
+            "dv": 0.258,
+            "heading": {
+              "frame": "prograde",
+              "angle": 3
+            },
+            "at": "apoapsis",
+            "ref": "c0",
+            "delay": 0
           }
         },
         {
-          "id": "relight",
-          "time": 9.185767858202645,
-          "actorId": "craft",
-          "throttle": 1
-        },
-        {
-          "id": "coast",
-          "time": 9.926970405964184,
-          "actorId": "craft",
-          "throttle": 0
-        },
-        {
-          "id": "booster-brake",
-          "time": 5.837343749999919,
+          "id": "k1",
+          "time": 0.5,
           "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e",
-          "throttle": 1
-        },
-        {
-          "id": "booster-cutoff",
-          "time": 5.979999999999917,
-          "actorId": "8cff698a-695b-5e27-879f-b19456e75b0e",
-          "throttle": 0
+          "burn": {
+            "dv": 0.286,
+            "heading": {
+              "frame": "outward",
+              "angle": 0
+            },
+            "at": "altitude",
+            "altitude": 0.05,
+            "ref": "c0",
+            "delay": 0
+          }
         }
       ]
     }

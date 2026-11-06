@@ -29,12 +29,8 @@
       "title": "출발 원궤도",
       "condition": {
         "kind": "quantify",
-        "actorIds": [
-          "craft"
-        ],
-        "targetIds": [
-          "f319597d-afd0-58f8-87d6-11863fe0d24f"
-        ],
+        "actorIds": ["craft"],
+        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
         "mode": "all",
         "child": {
           "kind": "hold",
@@ -256,9 +252,7 @@
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": [
-          "craft"
-        ],
+        "actorIds": ["craft"],
         "radius": 1,
         "width": 0.04,
         "minor": 1,
@@ -290,12 +284,8 @@
       "title": "전이 타원의 관성 구간",
       "condition": {
         "kind": "quantify",
-        "actorIds": [
-          "craft"
-        ],
-        "targetIds": [
-          "f319597d-afd0-58f8-87d6-11863fe0d24f"
-        ],
+        "actorIds": ["craft"],
+        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
         "mode": "all",
         "child": {
           "kind": "hold",
@@ -577,9 +567,7 @@
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": [
-          "craft"
-        ],
+        "actorIds": ["craft"],
         "radius": 1.5,
         "width": 0.08,
         "minor": 1.4142135623730951,
@@ -611,12 +599,8 @@
       "title": "도착 원궤도에서 한 바퀴",
       "condition": {
         "kind": "quantify",
-        "actorIds": [
-          "craft"
-        ],
-        "targetIds": [
-          "f319597d-afd0-58f8-87d6-11863fe0d24f"
-        ],
+        "actorIds": ["craft"],
+        "targetIds": ["f319597d-afd0-58f8-87d6-11863fe0d24f"],
         "mode": "all",
         "child": {
           "kind": "sequence",
@@ -1365,9 +1349,7 @@
       "marker": {
         "kind": "orbit",
         "targetId": "f319597d-afd0-58f8-87d6-11863fe0d24f",
-        "actorIds": [
-          "craft"
-        ],
+        "actorIds": ["craft"],
         "radius": 2,
         "width": 0.08,
         "minor": 2,
@@ -1461,31 +1443,35 @@
     {
       "impulses": [
         {
-          "id": "transfer-burn",
-          "time": 1.3,
+          "id": "p1",
+          "time": 0.2,
           "vector": {
             "x": 0,
-            "y": 0.155
+            "y": 0
           },
           "heading": {
             "frame": "prograde",
             "angle": 0
           },
-          "magnitude": 0.155
+          "magnitude": 0.155,
+          "at": "angle",
+          "atAngle": 57
         },
         {
-          "id": "insertion-burn",
-          "time": 2,
+          "id": "p2",
+          "time": 0.2,
           "vector": {
             "x": 0,
-            "y": 0.13
+            "y": 0
           },
           "heading": {
             "frame": "prograde",
             "angle": 0
           },
           "magnitude": 0.13,
-          "at": "apoapsis"
+          "at": "apoapsis",
+          "ref": "p1",
+          "delay": 0
         }
       ],
       "launch": {

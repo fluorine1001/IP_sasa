@@ -136,18 +136,51 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     return Math.min(last.duration, firstChangeTime(last.scheduledPlan, plan) ?? Infinity);
   }
   /** The state the aiming calculator starts from right after a planned item. */
+  /**
+   * The launch as the calculator sees it: cold gas is an instant push; a rocket's launch
+   * burn is approximated as an instant Δv from the pad (gravity and drag losses left
+   * out), so a first flight can be aimed too. Labelled as an approximation in the UI.
+   */
+  function launchState(p: RoutePlan): AimState | undefined {
+    const start = createRun(stage, p);
+    if (!stage.rocket) return { position: start.position, velocity: start.velocity, time: 0 };
+    const dir = length(p.launch) > 1e-9 ? unit(p.launch) : undefined;
+    if (!dir) return undefined;
+    const dv = p.launchDv ?? stageTable(stage)[0]?.deltaV ?? 0;
+    return {
+      position: craftCenterOf(start),
+      velocity: { x: start.velocity.x + dir.x * dv, y: start.velocity.y + dir.y * dv },
+      time: 0,
+    };
+  }
+  function craftCenterOf(r: Run) {
+    return craftCenter(stage, r);
+  }
+  const launchIsApprox = !!stage.rocket;
+  /** The calculator's planned states, memoised per plan and record (it runs every frame). */
+  let previewMemo: { key: string; value: ReturnType<typeof previewStates> } | undefined;
+  function preview(p: RoutePlan) {
+    const key = JSON.stringify(p) + '|' + trials.length;
+    if (previewMemo?.key !== key)
+      previewMemo = {
+        key,
+        value: previewStates(
+          stage,
+          p,
+          (t) => recordedState(t, p),
+          noFlight() ? launchState(p) : undefined,
+        ),
+      };
+    return previewMemo.value;
+  }
+  /** No usable record of this plan's start yet. */
+  const noFlight = () => !trials.length || recordedState(0.01, plan) === undefined;
   function aimStart(id: string, p: RoutePlan): { state?: AimState; reason?: string } {
     if (id === 'launch') {
-      if (stage.rocket)
-        return {
-          reason: '로켓 상승은 계산기 범위 밖입니다. 한 번 날린 뒤 수정 연소로 겨냥하세요.',
-        };
-      const start = createRun(stage, p);
-      return { state: { position: start.position, velocity: start.velocity, time: 0 } };
+      const s = launchState(p);
+      return s ? { state: s } : { reason: '발사 방향을 정하면 계산합니다.' };
     }
-    const entry = previewStates(stage, p, (t) => recordedState(t, p)).find(
-      (e) => e.change.id === id,
-    );
+    const entry = preview(p).find((e) => e.change.id === id);
     if (entry) return { state: entry.state };
     const item =
       p.impulses.find((m) => m.id === id) ?? p.engineCommands?.find((c) => c.id === id)?.burn;
@@ -217,9 +250,7 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         active: activeHandle === 'launch',
       });
     }
-    for (const { change, state, before } of previewStates(stage, plan, (t) =>
-      recordedState(t, plan),
-    )) {
+    for (const { change, state, before } of preview(plan)) {
       const d = sub(state.velocity, before.velocity),
         size = length(d);
       const direction =
@@ -313,22 +344,27 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     const out: OrbitSketch[] = [];
     // The path after the last calculable planned change gets the aiming mark.
     let finalPlan: { sketch: OrbitSketch; state?: AimState } | undefined;
-    // Before launch: a cold-gas launch is itself an instant push from a known state.
-    if (!stage.rocket && Math.hypot(plan.launch.x, plan.launch.y) > 1e-9) {
-      const key = JSON.stringify(plan.launch);
+    // Before any usable record: the launch (cold gas exactly, a rocket as an instant-Δv
+    // approximation) and the apsis burns chained after it.
+    const fresh = noFlight();
+    if (fresh && Math.hypot(plan.launch.x, plan.launch.y) > 1e-9) {
+      const key = JSON.stringify([plan.launch, plan.launchDv]);
       if (launchSketch.key !== key) {
-        const start = createRun(stage, plan);
-        launchSketch = { key, conic: conicFor(start) };
+        const s0 = launchState(plan);
+        launchSketch = { key, conic: s0 ? conicFor(s0) : undefined };
       }
       if (launchSketch.conic) {
-        out.push({ conic: launchSketch.conic, tone: 'plan', label: '발사 직후' });
-        finalPlan = { sketch: out.at(-1)!, state: aimStart('launch', plan).state };
+        out.push({
+          conic: launchSketch.conic,
+          tone: 'plan',
+          label: launchIsApprox ? '발사 후 (근사)' : '발사 직후',
+        });
+        finalPlan = { sketch: out.at(-1)!, state: launchState(plan) };
       }
     }
     const last = trials.at(-1);
-    if (last) {
-      const recorded = (time: number) => recordedState(time, plan);
-      for (const { change, state } of previewStates(stage, plan, recorded)) {
+    if (last || fresh) {
+      for (const { change, state } of preview(plan)) {
         const c = conicFor(state);
         if (c) {
           out.push({
@@ -341,7 +377,7 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
           finalPlan = { sketch: out.at(-1)!, state };
         }
       }
-      if (replayTime !== undefined && replayTime > 0) {
+      if (last && replayTime !== undefined && replayTime > 0) {
         const frame = replayAt(
           last.frames,
           Math.min(replayTime, last.duration),

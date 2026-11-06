@@ -39,10 +39,13 @@ try {
       failed = true;
       continue;
     }
-    const checks = planMargin(stage, plan);
+    // Early choices need only be roughly right when the final correction can be re-aimed.
+    const checks = planMargin(stage, plan, { reaimLast: true });
     const bad = checks.filter((c) => !c.won);
+    const reaimed = checks.filter((c) => c.reaimed).length;
     console.log(
       `${stage.order}. ${stage.title}: ${checks.length - bad.length}/${checks.length}` +
+        (reaimed ? ` (마지막 수정으로 다시 맞춤 ${reaimed})` : '') +
         (bad.length ? ` · 실패 ${bad.map((c) => c.knob + ' ' + c.delta).join(', ')}` : ' · 통과'),
     );
     if (bad.length) failed = true;

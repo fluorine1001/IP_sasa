@@ -24,12 +24,61 @@ const cursors = new WeakMap<
     next?: number;
   }
 >();
+/**
+ * A reservation tied to another one: 'after' runs a set delay after it finishes; an
+ * apsis/angle/height trigger with `ref` starts waiting only once it has finished
+ * ("the first periapsis after burn 1"), so neither depends on a clock time.
+ */
+export function isChained(v: object) {
+  const t = ((v as { burn?: object }).burn ?? v) as { at?: string; ref?: string };
+  return t.at === 'after' || (!!t.at && typeof t.ref === 'string' && t.ref !== '');
+}
+function chainOf(v: { burn?: { ref?: string; delay?: number }; ref?: string; delay?: number }) {
+  const t = (v as { burn?: { ref?: string; delay?: number } }).burn ?? v;
+  return { ref: (t as { ref?: string }).ref, delay: (t as { delay?: number }).delay ?? 0 };
+}
+/** Chained reservations whose predecessor has finished and whose delay has passed. */
+export function chainedEvents(run: Run): Entry[] {
+  const due: Entry[] = [];
+  const all = [
+    ...(run.plan.engineCommands ?? []).map((value, index) => ({
+      kind: 'engine' as const,
+      value,
+      index,
+    })),
+    ...run.plan.impulses.map((value, index) => ({ kind: 'impulse' as const, value, index })),
+  ];
+  for (const e of all) {
+    if (!isChained(e.value) || run.applied.has(e.value.id)) continue;
+    const { ref, delay } = chainOf(e.value);
+    const done = ref ? run.firedAt?.[ref] : undefined;
+    if (done === undefined || run.time < done + delay - 1e-8) continue;
+    due.push({ ...e, time: done + delay } as Entry);
+  }
+  return due.sort(
+    (a, b) =>
+      a.time - b.time || (a.kind === b.kind ? a.index - b.index : a.kind === 'engine' ? -1 : 1),
+  );
+}
+/** The next moment a chained reservation becomes due (Infinity when none is waiting on a finished one). */
+export function nextChainedTime(run: Run) {
+  let next = Infinity;
+  for (const v of [...(run.plan.engineCommands ?? []), ...run.plan.impulses]) {
+    if (!isChained(v) || run.applied.has(v.id)) continue;
+    const { ref, delay } = chainOf(v);
+    const done = ref ? run.firedAt?.[ref] : undefined;
+    if (done !== undefined) next = Math.min(next, done + delay);
+  }
+  return next;
+}
 export function invalidateEventSchedule(plan: RoutePlan) {
   indexes.delete(plan);
 }
 function index(plan: RoutePlan) {
   let value = indexes.get(plan);
   if (!value) {
+    // 'after' reservations are not on the clock: they run when the one they follow
+    // finishes (see chainedEvents), so they stay out of the timed index.
     const entries: Entry[] = [
       ...(plan.engineCommands ?? []).map((value, index) => ({
         time: value.time,
@@ -43,7 +92,7 @@ function index(plan: RoutePlan) {
         kind: 'impulse' as const,
         value,
       })),
-    ];
+    ].filter((e) => !isChained(e.value));
     entries.sort((a, b) => a.time - b.time);
     value = {
       entries,

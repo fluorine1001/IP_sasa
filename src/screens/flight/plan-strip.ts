@@ -1,7 +1,14 @@
 import { formatDv, launchCutoffTime, launchFraction } from '../../world/program';
 import { length } from '../../physics/vector';
 import { STAGE_COLORS } from '../../render/rocket-sprite';
-import { apsisNames } from '../../world/heading';
+import { apsisNames, type Apsis } from '../../world/heading';
+/** A trigger in a chip: "근점", "↳ 2.0초", "90°", "목표 30°". */
+function triggerShort(t: { at?: Apsis; delay?: number; atAngle?: number }) {
+  if (t.at === 'after') return `↳${(t.delay ?? 0).toFixed(1)}초`;
+  if (t.at === 'angle') return `${Math.round(t.atAngle ?? 0)}°`;
+  if (t.at === 'phase') return `목표 ${Math.round(t.atAngle ?? 0)}°`;
+  return t.at ? apsisNames[t.at] : '';
+}
 import type { RoutePlan, Stage } from '../../world/types';
 
 export type BurnSpan = {
@@ -190,7 +197,7 @@ export function chipText(
       return {
         word:
           prefix +
-          (command?.burn?.at ? apsisNames[command.burn.at] + ' ' : '') +
+          (command?.burn?.at ? triggerShort(command.burn) + ' ' : '') +
           (command?.burn ? headingShort[command.burn.heading.frame] : '연소'),
         value: command?.burn ? 'Δv ' + formatDv(command.burn.dv) : '',
       };
@@ -198,7 +205,7 @@ export function chipText(
       const push = plan.impulses.find((c) => c.id === event.id);
       return {
         word:
-          (push?.at ? apsisNames[push.at] + ' ' : '') +
+          (push?.at ? triggerShort(push) + ' ' : '') +
           (push?.heading ? headingShort[push.heading.frame] : '추진'),
         value: push ? formatDv(push.magnitude ?? length(push.vector)) : '',
       };

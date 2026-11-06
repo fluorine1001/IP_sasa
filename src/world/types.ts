@@ -59,6 +59,12 @@ export type Impulse = {
   /** Fire at the next apsis or on coming down to `altitude`, after `time`. */
   at?: import('./heading').Apsis;
   altitude?: number;
+  /** Trigger 'after': seconds after reservation `ref` finished. */
+  delay?: number;
+  ref?: string;
+  /** Trigger 'angle' / 'phase': the angle in degrees; 'phase' measures toward `phaseTarget`. */
+  atAngle?: number;
+  phaseTarget?: string;
 };
 /** Engine burn measured in delivered speed change: turn, ignite when aligned, stop at Δv. */
 export type DvBurn = {
@@ -68,6 +74,12 @@ export type DvBurn = {
   /** Fire at the next apoapsis/periapsis, or on coming down to `altitude`, after the command's time. */
   at?: import('./heading').Apsis;
   altitude?: number;
+  /** Trigger 'after': seconds after reservation `ref` finished. */
+  delay?: number;
+  ref?: string;
+  /** Trigger 'angle' / 'phase': the angle in degrees; 'phase' measures toward `phaseTarget`. */
+  atAngle?: number;
+  phaseTarget?: string;
 };
 export type RoutePlan = {
   launch: Vec;
@@ -83,6 +95,10 @@ export type RoutePlan = {
     separate?: boolean;
     releasePayload?: string;
     burn?: DvBurn;
+    /** A separation/engine command that runs `delay` seconds after reservation `ref` finished. */
+    at?: 'after';
+    ref?: string;
+    delay?: number;
   }[];
   deployments?: { id: string; time: number; kind: DeviceKind }[];
 };
@@ -185,12 +201,13 @@ export type MeasuredSeries = {
 /** A cold-gas push waiting for its trigger (see Impulse.at). */
 export type ArmedPush = {
   id: string;
-  at: import('./heading').Apsis;
-  altitude?: number;
-  last?: { radial: number; height: number };
+  trigger: import('./heading').TriggerSpec;
+  last?: import('./heading').TriggerReading;
   push: Impulse;
 };
 export type Run = {
+  /** When each reservation finished (burn delivered, push given, separation done). */
+  firedAt?: Record<string, number>;
   armedPushes?: ArmedPush[];
   /** Record per-condition value series for the flight log graph. Off for audits and search. */
   recordSeries?: boolean;

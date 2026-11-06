@@ -6,7 +6,7 @@ import { withUnit } from '../../app/units';
 import { metrics } from '../../world/metrics';
 import { medalBadge, missFigure } from '../../ui/figures';
 import { goalGaugesHtml } from './goal-gauges';
-import { missSide, type Miss } from '../../world/miss';
+import { type Miss } from '../../world/miss';
 import type { Stage, Run, RoutePlan } from '../../world/types';
 
 /** Optional recognition: a generous 90% fuel/impulse budget, never part of mission completion. */
@@ -97,8 +97,18 @@ export function resultSummary(
   }
 
   const m = run.status !== 'won' ? options.miss : undefined;
+  const pair = (label: string, mine: number, theirs: number, unit: string) =>
+    `<div class="miss-pair"><span>${label}</span><b>${mine.toFixed(mine < 10 ? 3 : 2)}</b><i>목표 ${theirs.toFixed(theirs < 10 ? 3 : 2)}</i><small>${unit}</small></div>`;
   const missBlock = m
-    ? `<div class="result-miss">${missFigure(m.outward, m.ahead, Math.max(m.targetRadius, 1e-3), 88)}<div class="result-miss-text"><span>${escape(m.targetName)} · ${m.time.toFixed(1)}초에 가장 가까움</span><b>${missSide(m)} ${m.gap.toFixed(3)} u</b><button id="result-fix" class="primary" data-fix="${escape(m.cause)}">${escape(m.causeLabel)} 고치기</button></div></div>`
+    ? `<div class="result-miss">${missFigure(m.outward, m.ahead, Math.max(m.targetRadius, 1e-3), 88)}<div class="result-miss-text"><span>${escape(m.targetName)}에 가장 가까웠던 ${m.time.toFixed(1)}초${m.centreName ? ` · ${escape(m.centreName)} 기준` : ''}</span>${
+        m.craftHeight !== undefined && m.targetHeight !== undefined
+          ? pair('높이', m.craftHeight, m.targetHeight, 'u')
+          : `<b class="miss-gap">${m.gap.toFixed(3)} u</b>`
+      }${m.craftSpeed !== undefined && m.targetSpeed !== undefined && m.targetSpeed > 1e-6 ? pair('속력', m.craftSpeed, m.targetSpeed, 'u/s') : ''}${
+        m.late !== undefined
+          ? `<div class="miss-pair"><span>도착</span><b>${Math.abs(m.late).toFixed(1)}초 ${m.late > 0 ? '늦음' : '이름'}</b></div>`
+          : ''
+      }<button id="result-fix" class="primary" data-fix="${escape(m.cause)}">${escape(m.causeLabel)} 고치기</button></div></div>`
     : '';
   const medals = flightMedals(stage, run);
   const medalRow =

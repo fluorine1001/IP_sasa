@@ -93,7 +93,8 @@ export function goalParts(stage: Stage, goal: Goal): GoalPart[] {
           out.push({
             kind: 'event',
             path,
-            label: c.left.operation === 'coverage' ? `${period} 끝까지 돌기` : `${period} 내내 유지`,
+            label:
+              c.left.operation === 'coverage' ? `${period} 끝까지 돌기` : `${period} 내내 유지`,
           });
         return;
       }

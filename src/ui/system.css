@@ -477,3 +477,110 @@ body.game-ui input[type='checkbox']:checked::before {
   transform: translateX(20px);
   background: var(--c-text);
 }
+body.game-ui .result-miss .miss-pair {
+  display: grid;
+  grid-template-columns: 3.2em auto auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+}
+body.game-ui .result-miss .miss-pair span {
+  color: var(--n-200);
+  font-weight: var(--fw-bold);
+}
+body.game-ui .result-miss .miss-pair b {
+  font-size: var(--fs-4);
+  font-weight: var(--fw-heavy);
+  color: var(--c-text);
+}
+body.game-ui .result-miss .miss-pair i {
+  font-style: normal;
+  font-weight: var(--fw-bold);
+  color: var(--yellow-400);
+}
+body.game-ui .result-miss .miss-pair small {
+  color: var(--n-200);
+}
+
+/* ---- Reservation chains: who follows whom ---- */
+.chain-link {
+  position: absolute;
+  top: calc(var(--lane) * 16px);
+  height: 8px;
+  border: 2px solid var(--pink-400);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.chain-anchor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--panel-sunk);
+  font-size: var(--fs-2);
+}
+.chain-anchor svg {
+  width: 40px;
+  height: 12px;
+  fill: none;
+  stroke: var(--pink-400);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chain-anchor .chain-from {
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  background: var(--panel-raised);
+  font-weight: 700;
+}
+.chain-anchor .chain-to {
+  color: var(--n-100);
+}
+.chain-estimate,
+.chain-followers {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--n-100);
+}
+.chain-followers {
+  color: var(--pink-200, #f6b8cf);
+}
+.angle-dial {
+  display: block;
+  margin: 4px auto;
+}
+.angle-dial .ad-orbit {
+  fill: none;
+  stroke: var(--n-300);
+  stroke-width: 1.6;
+  stroke-dasharray: 3 3;
+}
+.angle-dial .ad-body {
+  fill: var(--sky-400);
+}
+.angle-dial .ad-zero {
+  stroke: var(--n-200);
+  stroke-width: 1.6;
+}
+.angle-dial .ad-arc {
+  fill: none;
+  stroke: var(--amber-400, #f5b13d);
+  stroke-width: 3;
+}
+.angle-dial .ad-craft {
+  fill: var(--c-text);
+  stroke: var(--n-950);
+  stroke-width: 1.5;
+}
+.angle-dial .ad-target {
+  fill: var(--pink-400);
+  stroke: var(--n-950);
+  stroke-width: 1.5;
+}
+#command-popover svg.angle-dial {
+  width: 96px;
+  height: 96px;
+}

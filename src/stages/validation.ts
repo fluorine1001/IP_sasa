@@ -488,6 +488,8 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
                   command.separate ||
                   command.throttle !== undefined ||
                   command.direction !== undefined)) ||
+              (command.at !== undefined &&
+                (command.burn !== undefined || !validTrigger(command))) ||
               (command.actorId !== 'craft' &&
                 !stage.rocket?.parts.some((p) => p.id === command.actorId))
             )
@@ -594,10 +596,32 @@ export function parseStage(value: unknown, allowIncomplete = false): Stage {
   }
 }
 
-function validTrigger(t: { at?: unknown; altitude?: unknown }) {
+function validTrigger(t: {
+  at?: unknown;
+  altitude?: unknown;
+  // 'near' stores its distance in `altitude` and its target in `phaseTarget`.
+  delay?: unknown;
+  ref?: unknown;
+  atAngle?: unknown;
+  phaseTarget?: unknown;
+}) {
   if (t.at === undefined) return t.altitude === undefined;
-  if (!['apoapsis', 'periapsis', 'altitude'].includes(t.at as string)) return false;
-  return t.at !== 'altitude' || (Number.isFinite(t.altitude) && (t.altitude as number) >= 0);
+  if (
+    !['apoapsis', 'periapsis', 'altitude', 'after', 'angle', 'phase', 'near'].includes(
+      t.at as string,
+    )
+  )
+    return false;
+  if (t.at === 'near')
+    return (
+      Number.isFinite(t.altitude) && (t.altitude as number) > 0 && typeof t.phaseTarget === 'string'
+    );
+  if (t.at === 'altitude') return Number.isFinite(t.altitude) && (t.altitude as number) >= 0;
+  if (t.at === 'after')
+    return typeof t.ref === 'string' && Number.isFinite(t.delay) && (t.delay as number) >= 0;
+  if (t.at === 'angle') return Number.isFinite(t.atAngle);
+  if (t.at === 'phase') return Number.isFinite(t.atAngle) && typeof t.phaseTarget === 'string';
+  return true;
 }
 function validHeading(h: unknown) {
   const v = h as { frame?: unknown; angle?: unknown } | undefined;

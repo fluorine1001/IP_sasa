@@ -112,53 +112,67 @@
   },
   "referencePlans": [
     {
+      "impulses": [],
       "launch": {
-        "x": 0.9969149658696022,
+        "x": 1,
         "y": 0
       },
-      "impulses": [],
       "engineCommands": [
         {
-          "id": "6958b5ad-8fcc-474f-8c7a-a00794de8d27",
-          "time": 0.20356037011382072,
+          "id": "c0",
+          "time": 0.5,
           "actorId": "craft",
-          "direction": {
-            "x": -0.3643716412379445,
-            "y": 0.9312536212340689
+          "separate": true,
+          "at": "after",
+          "ref": "launch",
+          "delay": 0
+        },
+        {
+          "id": "c1",
+          "time": 0.5,
+          "actorId": "craft",
+          "burn": {
+            "dv": 0.386,
+            "heading": {
+              "frame": "prograde",
+              "angle": 7
+            },
+            "at": "apoapsis",
+            "ref": "c0",
+            "delay": 0
           }
         },
         {
-          "id": "f9a41bdf-7552-461b-bc76-1e42ebe39313",
-          "time": 0.41439864136849175,
+          "id": "c2",
+          "time": 1,
           "actorId": "craft",
-          "throttle": 0
-        },
-        {
-          "id": "ea8001a8-934e-461c-a656-5f3ef44bc1e0",
-          "time": 0.46439864136849174,
-          "actorId": "craft",
-          "separate": true
-        },
-        {
-          "id": "abdef108-de3a-4a2a-8cec-5bbfc1949e87",
-          "time": 10.698797394702336,
-          "actorId": "craft",
-          "direction": {
-            "x": -1,
-            "y": -1.2246467991473532e-16
+          "burn": {
+            "dv": 0.007,
+            "heading": {
+              "frame": "outward",
+              "angle": -19
+            },
+            "at": "after",
+            "ref": "c1",
+            "delay": 30
           }
         },
         {
-          "id": "ec8d7d23-cfdf-4b99-983c-ed3ed25770b6",
-          "time": 3,
+          "id": "c3",
+          "time": 1,
           "actorId": "craft",
-          "throttle": 1
-        },
-        {
-          "id": "7df68fd5-af19-4dff-bae2-1b6112e0435a",
-          "time": 3.3603948900674068,
-          "actorId": "craft",
-          "throttle": 0
+          "burn": {
+            "dv": 0.9,
+            "heading": {
+              "frame": "match",
+              "angle": 0,
+              "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+            },
+            "at": "altitude",
+            "altitude": 0.1,
+            "ref": "c2",
+            "delay": 0
+          }
         }
       ]
     }

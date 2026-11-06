@@ -128,10 +128,10 @@ function craftHtml(stage: Stage) {
 <div class="craft-cell"><span>Δv</span><b>${f(x.deltaV, 3)}<small>u/s</small></b>${meter(x.deltaV, total, { fill: stageFill(i), label: 'Δv' })}</div>
 <div class="craft-cell"><span>연소 시간</span><b>${f(x.burn, 1)}<small>초</small></b>${meter(x.burn, maxBurn, { tone: 'neutral', label: '연소 시간' })}</div>
 ${
-        twr !== undefined && i === 0
-          ? `<div class="craft-cell"><span>이륙 추력 대 무게</span><b class="${twr < 1 ? 'low' : ''}">${f(twr, 2)}<small>배</small></b>${meter(twr, maxTwr, { tone: twr < 1 ? 'bad' : 'ok', marks: [{ at: 1, label: '1배 = 뜸' }], label: '추력 대 무게' })}</div>`
-          : `<div class="craft-cell"><span>가속</span><b>${f(x.accel, 3)}<small>u/s²</small></b>${meter(x.accel, maxAccel, { tone: 'neutral', label: '가속' })}</div>`
-      }
+  twr !== undefined && i === 0
+    ? `<div class="craft-cell"><span>이륙 추력 대 무게</span><b class="${twr < 1 ? 'low' : ''}">${f(twr, 2)}<small>배</small></b>${meter(twr, maxTwr, { tone: twr < 1 ? 'bad' : 'ok', marks: [{ at: 1, label: '1배 = 뜸' }], label: '추력 대 무게' })}</div>`
+    : `<div class="craft-cell"><span>가속</span><b>${f(x.accel, 3)}<small>u/s²</small></b>${meter(x.accel, maxAccel, { tone: 'neutral', label: '가속' })}</div>`
+}
 <div class="craft-cell"><span>점화</span>${pips(x.ignitions)}</div></li>`;
     })
     .join('');
@@ -170,7 +170,8 @@ function controlsHtml(stage: Stage) {
       ? `<li>${controlIcon('rocket')}<b>발사</b><span>${stage.rocket ? '처음 출력' : '방향과 세기'}</span></li>`
       : '',
     ...kinds.map(
-      (k) => `<li>${controlIcon(icon[k] ?? 'sliders')}<b>${commandNames[k]}</b><span>${limit(k)}</span></li>`,
+      (k) =>
+        `<li>${controlIcon(icon[k] ?? 'sliders')}<b>${commandNames[k]}</b><span>${limit(k)}</span></li>`,
     ),
   ];
   return `<ul class="briefing-controls">${items.join('')}</ul>`;

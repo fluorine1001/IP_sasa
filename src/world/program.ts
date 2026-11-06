@@ -298,9 +298,18 @@ export function launchCutoffTime(stage: Stage, plan: RoutePlan) {
 }
 
 /** "이후 첫 원점에서 ", "높이 0.30 u까지 내려오면 ", or "" for a timed command. */
-export function triggerText(t: { at?: Apsis; altitude?: number }) {
+export function triggerText(t: {
+  at?: Apsis;
+  altitude?: number;
+  delay?: number;
+  atAngle?: number;
+}) {
   if (!t.at) return '';
   if (t.at === 'altitude') return `높이 ${(t.altitude ?? 0).toFixed(2)} u까지 내려오면 `;
+  if (t.at === 'after') return `앞 예약 끝나고 ${(t.delay ?? 0).toFixed(1)}초 뒤 `;
+  if (t.at === 'angle') return `위치각 ${Math.round(t.atAngle ?? 0)}°에서 `;
+  if (t.at === 'phase') return `목표 각도 ${Math.round(t.atAngle ?? 0)}°에서 `;
+  if (t.at === 'near') return `목표 ${(t.altitude ?? 0).toFixed(2)} u 안에 들면 `;
   return `이후 첫 ${apsisNames[t.at]}에서 `;
 }
 /** Δv as players type it: three decimals for small burns, two for large ones. */

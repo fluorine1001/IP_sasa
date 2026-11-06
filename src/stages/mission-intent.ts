@@ -1,6 +1,6 @@
 import { compileOutcome, type Outcome } from './outcomes';
 import { bodyPosition, objectPosition } from '../world/celestial';
-import { hullSize , craftScale } from '../world/hull';
+import { hullSize, craftScale } from '../world/hull';
 import { length, sub } from '../physics/vector';
 import type { Stage, Goal } from '../world/types';
 

@@ -562,47 +562,36 @@
   },
   "referencePlans": [
     {
+      "impulses": [],
       "launch": {
-        "x": 0.6,
+        "x": 1,
         "y": 0
       },
-      "impulses": [],
+      "launchDv": 0.218,
       "engineCommands": [
         {
-          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1401",
-          "time": 0.4,
+          "id": "c0",
+          "time": 0.5,
           "actorId": "craft",
-          "direction": {
-            "x": -0.1736481776669303,
-            "y": 0.984807753012208
+          "separate": true,
+          "at": "after",
+          "ref": "launch",
+          "delay": 0
+        },
+        {
+          "id": "c1",
+          "time": 0.5,
+          "actorId": "craft",
+          "burn": {
+            "dv": 0.292,
+            "heading": {
+              "frame": "prograde",
+              "angle": 5
+            },
+            "at": "apoapsis",
+            "ref": "c0",
+            "delay": 0
           }
-        },
-        {
-          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1402",
-          "time": 1.2,
-          "actorId": "craft",
-          "separate": true
-        },
-        {
-          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1403",
-          "time": 1.5,
-          "actorId": "craft",
-          "throttle": 0.45
-        },
-        {
-          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1404",
-          "time": 1.5,
-          "actorId": "craft",
-          "direction": {
-            "x": -0.9659258262890682,
-            "y": -0.258819045102521
-          }
-        },
-        {
-          "id": "b2d9b3d0-1d5b-4f0f-9d9a-6a9a3f0b1405",
-          "time": 2.4,
-          "actorId": "craft",
-          "throttle": 0
         }
       ]
     }

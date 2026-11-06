@@ -2,14 +2,16 @@ import { craftHull, segmentLength } from './hull';
 import type { Vec } from '../physics/vector.ts';
 import type { Stage, Run } from './types.ts';
 import { bodyPosition, bodyVelocity } from './celestial.ts';
-import { add, sub, length, scale, unit } from '../physics/vector.ts';
+import { add, dot, sub, length, scale, unit } from '../physics/vector.ts';
 import { burn, engineSetting, hybridFloat, separationReset } from '../physics/hybrid-kernel';
 import {
   resolveHeadingNear,
+  relativeTo,
   triggerFired,
   triggerReading,
-  type Apsis,
   type Heading,
+  type TriggerSpec,
+  type TriggerReading,
 } from './heading';
 import { dominantBody } from './conic';
 export type RocketPart = {
@@ -41,11 +43,10 @@ export type BurnState = {
   remaining: number;
   throttle: number;
   lit: boolean;
-  /** Armed for an apsis: track the heading and wait for radial speed to change sign. */
-  at?: Apsis;
-  altitude?: number;
+  /** Armed: wait for the trigger, then aim at the heading of that moment. */
+  trigger?: TriggerSpec;
   heading?: Heading;
-  last?: { radial: number; height: number };
+  last?: TriggerReading;
 };
 /** Alignment tolerance before a Δv burn ignites. */
 export const BURN_ALIGN = (0.5 * Math.PI) / 180;
@@ -226,7 +227,7 @@ export function startBurn(
   direction: Vec,
   dv: number,
   throttle = 1,
-  armed?: { at: Apsis; heading: Heading; altitude?: number },
+  armed?: { trigger: TriggerSpec; heading: Heading },
 ): boolean {
   if (!stage.rocket || !run.rocket || run.status !== 'running') return false;
   if (!(dv > 0) || !Number.isFinite(dv) || !(throttle > 0)) return false;
@@ -251,7 +252,7 @@ export function startBurn(
     remaining: dv,
     throttle: Math.min(1, throttle),
     lit: aligned,
-    ...(armed ? { at: armed.at, heading: armed.heading, altitude: armed.altitude } : {}),
+    ...(armed ? { trigger: armed.trigger, heading: armed.heading } : {}),
   };
   if (aligned) state.throttle = Math.min(1, throttle);
   return true;
@@ -400,16 +401,16 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
   // then burn exactly until the planned speed change is delivered.
   const pending = state.burn;
   let burnDt = dt;
-  if (pending?.at) {
+  if (pending?.trigger) {
     // Armed: wait for the trigger (radial speed changing sign at an apsis, or coming down
     // to the set height), then aim at the heading of that moment and fire once aligned.
     // The hull does not track the frame while coasting: every turn pivots the hull, and
     // turning all orbit long would change the orbit itself.
     const position = actor?.position ?? run.position,
       velocity = actor?.velocity ?? run.velocity;
-    const now = triggerReading(stage, position, velocity, run.time);
-    if (triggerFired(pending.at, pending.last, now, pending.altitude)) {
-      pending.at = undefined;
+    const now = triggerReading(stage, position, velocity, run.time, pending.trigger.phaseTarget);
+    if (triggerFired(pending.trigger, pending.last, now, run.firedAt)) {
+      pending.trigger = undefined;
       pending.direction = resolveHeadingNear(
         stage,
         position,
@@ -422,7 +423,7 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     }
     pending.last = now;
   }
-  if (pending && !pending.at) {
+  if (pending && !pending.trigger) {
     const fixedOnPad = !actor && !run.rocket.airborne && !!stage.launchBodyId;
     if (
       !pending.lit &&
@@ -446,6 +447,17 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
       else run.rocket.ignitions[index] = setting.ignitions;
       state.throttle = setting.throttle;
       pending.lit = true;
+    }
+    // A burn against the motion relative to a target ends once that motion along the
+    // burn is gone: matching cannot overshoot, so its size never has to be guessed.
+    if (pending.lit && pending.heading?.frame === 'match') {
+      const v = relativeTo(
+        stage,
+        actor?.velocity ?? run.velocity,
+        run.time,
+        pending.heading.targetId,
+      );
+      pending.remaining = Math.min(pending.remaining, Math.max(0, -dot(v, state.direction)));
     }
     if (pending.lit && state.throttle > 0) {
       const mass = actor ? actor.dryMass + actor.fuel : rocketMass(stage, run),
@@ -476,6 +488,7 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     if (pending.remaining <= 1e-9 || burnDt < dt - 1e-12 || next.throttle <= 0) {
       state.throttle = 0;
       state.burn = undefined;
+      (run.firedAt ??= {})[pending.id] = run.time;
     }
   }
   const a = atmosphericState(

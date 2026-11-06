@@ -8,6 +8,7 @@ import { paintCraftLocator } from './craft-locator';
 import { paintGoalRegion } from './goal-region';
 import { paintBody } from './body-art';
 import { blob, seeded } from './ink';
+import { paintBeacon, paintDebris, paintMachine } from './object-art';
 import { drawBurnHandles, type BurnHandle } from './burn-handle';
 import { paintMarker } from './goal-marker';
 import { paintExhaust } from './exhaust';
@@ -481,8 +482,7 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#83c6bf';
-      ctx.fillRect(-2, -2, 4, 4);
+      paintBeacon(ctx);
     } else if (o.kind === 'landing-site') {
       ctx.rotate(-Math.atan2(o.position.y, o.position.x));
       ctx.strokeStyle = '#efc370';
@@ -495,32 +495,16 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       ctx.fillStyle = '#efc370';
       ctx.fillText('회수', 8, 0);
     } else if (o.kind === 'debris') {
-      const size = o.radius * c.zoom;
-      ctx.fillStyle = '#898f8e';
-      ctx.beginPath();
-      ctx.arc(0, 0, size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      paintDebris(ctx, Math.max(3, o.radius * c.zoom), o.id);
     } else {
+      // Drawn inside the actual circular contact surface (a readability floor aside).
       const physicalSize = physicalRadius(o) * c.zoom;
-      const size =
-        ((o.kind === 'station' ? (o.physicalRadius ?? 0.03) : o.radius) * c.zoom) / Math.sqrt(2);
-      // The exterior is the actual circular contact surface. Solar panels are
-      // detail inside it, not a smaller square suggesting invisible collisions.
-      if (physicalSize > 0) {
-        ctx.beginPath();
-        ctx.arc(0, 0, physicalSize, 0, Math.PI * 2);
-        ctx.fillStyle = '#758e9c';
-        ctx.fill();
-        ctx.strokeStyle = '#d9dfd0';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-      ctx.fillStyle = '#ddd8bf';
-      ctx.fillRect(-size, -size, size * 2, size * 2);
-      ctx.fillStyle = '#6599c2';
-      ctx.fillRect(-size, -size * 0.8, size * 0.6, size * 1.6);
-      ctx.fillRect(size * 0.4, -size * 0.8, size * 0.6, size * 1.6);
+      paintMachine(
+        ctx,
+        physicalSize > 0 ? physicalSize : o.radius * c.zoom,
+        o.id,
+        o.kind !== 'station',
+      );
     }
     ctx.restore();
   }

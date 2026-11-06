@@ -92,10 +92,12 @@
   --c-focus: var(--sky-200);
 
   /* ---------- Type: six steps, 15px floor (no small print) ---------- */
+  /* One face for the whole game (bundled, src/main.ts): the rounded title face. It has
+     a single weight, so weight differences are made by size and colour, never by faux bold. */
   --font:
-    'Pretendard Variable', Pretendard, 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
-  /* Rounded heavy display face for titles and big readouts. */
-  --font-display: 'Jua', var(--font);
+    'Jua', 'Pretendard Variable', Pretendard, 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui,
+    sans-serif;
+  --font-display: var(--font);
   --fs-1: calc(15px * var(--ui-scale, 1));
   --fs-2: calc(16px * var(--ui-scale, 1));
   --fs-3: calc(18px * var(--ui-scale, 1));

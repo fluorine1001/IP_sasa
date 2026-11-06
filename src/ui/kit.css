@@ -31,6 +31,9 @@
     /* Worn paint: a faint hand-made grain over flat fields (no gloss, no gradients). */
     --k-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .85 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23n%29'/%3E%3C/svg%3E");
     color: var(--k-text);
+    font-family: var(--font);
+    /* One weight in the face: no smeared fake bold anywhere. */
+    font-synthesis: none;
   }
 
   /* ---- Surface: every panel, sheet, dialog and popover ---- */
@@ -130,7 +133,6 @@
   body.game-ui
     :is(
       #launch,
-      #start,
       #continue,
       .primary,
       .launch-command,

@@ -302,7 +302,7 @@
   height: 36px;
 }
 .launch-balance svg text {
-  font: 11px sans-serif;
+  font: 11px var(--font);
   fill: var(--c-text);
 }
 .launch-balance svg path {

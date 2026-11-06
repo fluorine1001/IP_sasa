@@ -1,3 +1,4 @@
+import { canvasFont } from '../render/fonts';
 import { paintMarker, markerHandles, type MarkerHandle } from '../render/goal-marker';
 import { toScreen, toWorld, type Camera } from '../render/camera';
 import { referencePosition } from '../world/actor-reference';
@@ -215,7 +216,7 @@ export function paintAuthoringFeedback(
     ctx.closePath();
     ctx.fill();
   };
-  ctx.font = '12px sans-serif';
+  ctx.font = canvasFont(12);
   if (m.kind === 'orbit' && body) {
     const e = Math.sqrt(Math.max(0, 1 - (m.minor / m.radius) ** 2));
     const a = m.angle ?? 0,

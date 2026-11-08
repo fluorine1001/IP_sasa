@@ -102,7 +102,7 @@
       "separate": 1,
       "push": 0
     },
-    "timelineDuration": 20,
+    "timelineDuration": 40,
     "craftScale": 0.368
   },
   "camera": {
@@ -116,6 +116,11 @@
       "launch": {
         "x": 1,
         "y": 0
+      },
+      "launchHold": {
+        "at": "phase",
+        "atAngle": -32,
+        "phaseTarget": "917e4015-cde1-4de5-bd48-e983c45aab1c"
       },
       "engineCommands": [
         {
@@ -132,8 +137,9 @@
           "time": 0.5,
           "actorId": "craft",
           "heading": {
-            "frame": "prograde",
-            "angle": 8
+            "frame": "match",
+            "angle": 0,
+            "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
           },
           "at": "after",
           "ref": "c0",
@@ -144,7 +150,9 @@
           "time": 0.5,
           "actorId": "craft",
           "throttle": 1,
-          "at": "apoapsis",
+          "at": "near",
+          "altitude": 0.45,
+          "phaseTarget": "917e4015-cde1-4de5-bd48-e983c45aab1c",
           "ref": "c0",
           "delay": 0
         },
@@ -155,39 +163,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "c1b",
-          "delay": 0.18
-        },
-        {
-          "id": "c2a",
-          "time": 1,
-          "actorId": "craft",
-          "heading": {
-            "frame": "match",
-            "angle": 0,
-            "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
-          },
-          "at": "after",
-          "ref": "c1",
-          "delay": 1
-        },
-        {
-          "id": "c2b",
-          "time": 1,
-          "actorId": "craft",
-          "throttle": 1,
-          "at": "altitude",
-          "altitude": 0.125,
-          "ref": "c1",
-          "delay": 0
-        },
-        {
-          "id": "c2",
-          "time": 1,
-          "actorId": "craft",
-          "throttle": 0,
-          "at": "after",
-          "ref": "c2b",
-          "delay": 0.574
+          "delay": 0.36
         }
       ]
     }
@@ -201,7 +177,7 @@
   "launchBodyId": "dcd8ce89-9e24-4974-9575-de160c0bf32c",
   "launchAngle": 0,
   "learning": {
-    "briefing": "1단으로 지구를 떠나 달로 향하고, 다 쓴 1단은 버리세요. 2단 착륙 엔진은 달에 가까워졌을 때 켜서 달과의 속도 차이를 줄여야 합니다. 방향과 점화 시각을 하나씩 바꿔 기록을 비교하세요.",
+    "briefing": "달이 알맞은 자리에 왔을 때 발사하면 곧장 달로 올라갑니다. 다 쓴 1단은 버리고, 달에 가까워지면 2단을 달 기준으로 돌려 켠 뒤 속도 차이가 거의 사라질 때 끄세요.",
     "instruments": [
       {
         "id": "approach",
@@ -308,8 +284,8 @@
         "maxQ": 2,
         "maxHeat": 2,
         "turnRate": 3.141592653589793,
-        "dryMass": 0.25,
-        "fuelMass": 0.3,
+        "dryMass": 0.2,
+        "fuelMass": 0.35,
         "thrust": 1.1,
         "exhaustSpeed": 1.6,
         "ignitionLimit": 2,

@@ -75,7 +75,7 @@
               "operator": "lte",
               "right": {
                 "kind": "constant",
-                "value": 0.006
+                "value": 0.01
               }
             }
           ]
@@ -97,7 +97,7 @@
         "kind": "rendezvous",
         "targetId": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8",
         "max": 0.43,
-        "speed": 0.006,
+        "speed": 0.01,
         "duration": 0.5,
         "actorId": "craft"
       }

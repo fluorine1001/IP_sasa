@@ -7,9 +7,25 @@ import { add, sub } from '../physics/vector';
 import type { RoutePlan, Stage } from './types';
 
 /** When a held launch leaves the pad (undefined when not held or never within `until`). */
+// The pad and the bodies move on rails, so a stage's window for a given hold never changes:
+// it is worked out once (editors and the timeline ask for it every frame).
+const windows = new WeakMap<Stage, Map<string, number | undefined>>();
 export function launchWindowTime(stage: Stage, plan: RoutePlan, until = 400): number | undefined {
   const hold = plan.launchHold;
   if (!hold || !surfaceLaunch(stage)) return undefined;
+  const key = [hold.at, hold.atAngle, hold.phaseTarget ?? '', until].join('|');
+  let known = windows.get(stage);
+  if (!known) windows.set(stage, (known = new Map()));
+  if (known.has(key)) return known.get(key);
+  const t = searchWindow(stage, hold, until);
+  known.set(key, t);
+  return t;
+}
+function searchWindow(
+  stage: Stage,
+  hold: NonNullable<RoutePlan['launchHold']>,
+  until: number,
+): number | undefined {
   const spec = { at: hold.at, atAngle: hold.atAngle, phaseTarget: hold.phaseTarget };
   let last: TriggerReading | undefined;
   for (let t = 0; t <= until; t += 0.01) {

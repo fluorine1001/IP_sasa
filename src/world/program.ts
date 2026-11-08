@@ -1,4 +1,5 @@
 import { isChained } from './event-schedule';
+import { launchWindowTime } from './launch-window';
 import { length, scale } from '../physics/vector';
 import { apsisNames, headingLabel, type Apsis } from './heading';
 
@@ -105,26 +106,30 @@ export function programWarnings(stage: Stage, plan: RoutePlan): string[] {
     warnings.push('수정 추진 예약 합계가 장치의 여유를 넘습니다.');
   if (!stage.rocket) return warnings;
   const config = stage.rocket;
+  // A held launch lights the engine only at its window: no fuel burns on the pad.
+  const lift = (plan.launchHold && launchWindowTime(stage, plan)) || 0;
   let index = 0,
     throttle = Math.min(1, launchFraction(stage, plan)),
-    time = 0;
+    time = lift;
   const fuel = config.parts.map((p) => p.fuelMass),
     ignitions = config.parts.map((_, i) => (i === 0 && throttle > 0 ? 1 : 0));
-  const cutoff = launchCutoffTime(stage, plan);
-  for (const c of [
+  const cutoff = launchCutoffTime(stage, plan) + lift;
+  // An item armed on an orbital event (원점, 다가갔을 때 …) acts at an unknown later moment,
+  // not at the time it was armed: it is read after the clocked and chained ones.
+  const armed = (c: { at?: Apsis }) => !!c.at && c.at !== 'after';
+  const commands = [
     ...(plan.engineCommands ?? []).filter((c) => c.actorId === 'craft'),
     ...(Number.isFinite(cutoff)
       ? [{ id: 'launch-cutoff', time: cutoff, actorId: 'craft', throttle: 0 }]
       : []),
-  ].sort((a, b) => a.time - b.time)) {
+  ].sort((a, b) => Number(armed(a)) - Number(armed(b)) || a.time - b.time);
+  for (const c of commands) {
     const p = config.parts[index];
+    const at = armed(c) ? Math.max(time, c.time) : Math.max(lift, c.time);
     if (p)
-      fuel[index] = Math.max(
-        0,
-        fuel[index] - ((c.time - time) * p.thrust * throttle) / p.exhaustSpeed,
-      );
+      fuel[index] = Math.max(0, fuel[index] - ((at - time) * p.thrust * throttle) / p.exhaustSpeed);
     if (p && fuel[index] <= 1e-8) throttle = 0;
-    time = c.time;
+    time = at;
     if (c.releasePayload) continue;
     if (c.separate) {
       if (index >= config.parts.length - 1)

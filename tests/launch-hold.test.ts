@@ -51,3 +51,19 @@ describe('held rocket launch', () => {
     expect(run.firedAt?.launch).toBeGreaterThan(t);
   });
 });
+
+describe('pre-launch check with a held rocket and event-armed controls', () => {
+  const rocketStage = parseStage(
+    JSON.parse(readFileSync('data/stages/142e7c6e-0185-4a3a-90ec-9878691285d1.json', 'utf8')),
+  );
+  it('does not burn fuel on the pad nor fire an armed 출력 at its arming time', async () => {
+    const { programWarnings } = await import('../src/world/program');
+    const plan = structuredClone(rocketStage.referencePlans[0]);
+    // A player may arm the brake early on the clock: it still waits for the moon.
+    const ignite = plan.engineCommands!.find((c) => c.throttle === 1)!;
+    delete ignite.ref;
+    ignite.time = 3.1;
+    expect(programWarnings(rocketStage, plan)).toEqual([]);
+    expect(execute(rocketStage, plan, false).status).toBe('won');
+  });
+});

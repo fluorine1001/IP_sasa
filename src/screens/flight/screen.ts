@@ -171,20 +171,23 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
   }
   const launchIsApprox = !!stage.rocket;
   /** The calculator's planned states, memoised per plan and record (it runs every frame). */
-  let previewMemo: { key: string; value: ReturnType<typeof previewStates> } | undefined;
+  // A few plans are asked for in turn each frame (the plan and the editor's copy), so
+  // one slot would recompute every frame: keep the latest handful.
+  const previewMemo = new Map<string, ReturnType<typeof previewStates>>();
   function preview(p: RoutePlan) {
     const key = JSON.stringify(p) + '|' + trials.length;
-    if (previewMemo?.key !== key)
-      previewMemo = {
-        key,
-        value: previewStates(
-          stage,
-          p,
-          (t) => recordedState(t, p),
-          noFlight() ? launchState(p) : undefined,
-        ),
-      };
-    return previewMemo.value;
+    let value = previewMemo.get(key);
+    if (!value) {
+      value = previewStates(
+        stage,
+        p,
+        (t) => recordedState(t, p),
+        noFlight() ? launchState(p) : undefined,
+      );
+      previewMemo.set(key, value);
+      if (previewMemo.size > 8) previewMemo.delete(previewMemo.keys().next().value!);
+    }
+    return value;
   }
   /**
    * Where event-anchored reservations land on the clock, for drawing them on the
@@ -447,6 +450,13 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
     }
     if (finalPlan?.state && targets.length) {
       const state = finalPlan.state;
+      // The approach is a long conic walk: it only changes with the state it starts from.
+      const memoKey = JSON.stringify([state, aimUntil()]);
+      if (approachMemo?.key === memoKey) {
+        if (approachMemo.value) finalPlan.sketch.approach = approachMemo.value;
+        return out;
+      }
+      approachMemo = { key: memoKey, value: undefined };
       const view = dynamicView(stage, { ...createRun(stage, plan), ...state } as Run);
       const near = targets
         .map((t) => closestApproach(view, state, t, aimUntil()))
@@ -483,10 +493,12 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
             return switched ? pts : undefined;
           })(),
         };
+        approachMemo.value = finalPlan.sketch.approach;
       }
     }
     return out;
   }
+  let approachMemo: { key: string; value: OrbitSketch['approach'] } | undefined;
   function defaultPlan(): RoutePlan {
     return {
       launch: {
@@ -657,8 +669,16 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     for (const canvas of goalDialog.querySelectorAll<HTMLCanvasElement>('[data-goal-thumb]')) {
       const goal = stage.goals.find((g) => g.id === canvas.dataset.goalThumb);
       if (!goal) continue;
-      const body = stage.bodies.find((b) => b.id === goal.display?.targetId);
-      const object = stage.objects.find((o) => o.id === goal.display?.targetId);
+      // Frame what the goal is about: its display target, else the first body or object
+      // its condition names (a landing on the moon is framed on the moon, not a default spot).
+      const named = [...JSON.stringify(goal.condition).matchAll(/"targetId":"([^"]+)"/g)]
+        .map((m) => m[1])
+        .find(
+          (id) => id !== home?.id && [...stage.bodies, ...stage.objects].some((x) => x.id === id),
+        );
+      const targetId = goal.display?.targetId ?? named;
+      const body = stage.bodies.find((b) => b.id === targetId);
+      const object = stage.objects.find((o) => o.id === targetId);
       const p = body
         ? bodyPosition(stage, body, 0)
         : object

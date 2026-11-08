@@ -447,9 +447,11 @@ export function drawWorld(canvas: HTMLCanvasElement, s: DrawState) {
       disc(0, Math.PI);
     }
     ctx.restore();
-    if (p.x < 35 || p.x > w - 35 || p.y < 35 || p.y > h - 35) {
+    // Point to a body only when none of it is on screen (a disc at the edge is seen).
+    const seen = b.radius * c.zoom;
+    if (p.x < -seen || p.x > w + seen || p.y < -seen || p.y > h + seen) {
       const x = Math.max(40, Math.min(w - 40, p.x)),
-        y = Math.max(55, Math.min(h - 180, p.y));
+        y = Math.max(Math.min(55, h / 2), Math.min(Math.max(55, h - 180), p.y));
       ctx.fillStyle = '#d7d5a0';
       ctx.font = canvasFont(15, 'bold');
       ctx.textAlign = 'center';

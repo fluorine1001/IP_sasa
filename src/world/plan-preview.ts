@@ -270,8 +270,11 @@ export function coastUntil(
     );
   const step = 0.05;
   const first = Math.max(0, (armedAt ?? from.time) - from.time);
+  // Nothing after the mission ends can be planned for: search no further than its clock.
+  const limit = typeof stage.rules.maxTime === 'number' ? stage.rules.maxTime : from.time + 600;
+  const horizon = Math.min(first + 600, Math.max(first, limit - from.time));
   let prev = at(first);
-  for (let dt = first + step; dt <= first + 600; dt += step) {
+  for (let dt = first + step; dt <= horizon; dt += step) {
     const next = at(dt);
     if (fired(prev, next)) {
       let lo = dt - step,

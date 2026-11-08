@@ -665,7 +665,7 @@ export function timelinePlanner(
         return;
       }
       if (key === 'phase-target') {
-        const t = command(selected)?.burn ?? push(selected);
+        const t = hostFor(selected);
         if (t) t.phaseTarget = input.value;
         action?.('edit');
         changed();
@@ -715,7 +715,7 @@ export function timelinePlanner(
         if (target) target.delay = Math.max(0, round3(value));
       }
       if (key === 'trigger-angle') {
-        const target = c?.burn ?? impulse;
+        const target = hostFor(selected);
         if (target) target.atAngle = Math.round(clamp(value, -180, 180));
         const dial = popup.querySelector('.angle-dial');
         if (dial && target)
@@ -730,7 +730,7 @@ export function timelinePlanner(
       }
       if (key === 'time') movedId = selected;
       if (key === 'trigger-height') {
-        const target = c?.burn ?? impulse;
+        const target = hostFor(selected);
         if (target) target.altitude = Math.max(target.at === 'near' ? 0.01 : 0, round2(value));
       }
       action?.(key === 'time' ? 'move' : 'edit');

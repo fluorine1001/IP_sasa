@@ -112,6 +112,7 @@ test('예약 삭제는 표식 위 팝업에 있고 출력·방향은 그림으�
   await expect(page.locator('#command-popover .actor-diagram')).toContainText('본체');
   await page.locator('[data-close]').click();
   await page.locator('[data-tool="turn"]').click();
+  await page.locator('#command-popover select[data-pick="frame"]').selectOption('map');
   expect((await page.locator('.direction-dial svg').boundingBox())!.width).toBeGreaterThan(150);
   await expect(page.locator('[data-direction]')).toHaveCount(0);
   const dial = (await page.locator('.direction-dial svg').boundingBox())!;

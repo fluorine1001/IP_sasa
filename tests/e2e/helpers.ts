@@ -1,3 +1,4 @@
+import { toControls } from '../fixtures/to-controls';
 import { expect, type Page } from '@playwright/test';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
@@ -175,6 +176,8 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
 
 /** Test-only entry of author verification inputs through actual UI; no solution button. */
 export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
+  // Players have 회전 · 출력 · 끄기, not Δv burns: older witnesses are entered that way.
+  plan = toControls(stage, plan);
   const eventPlan =
     plan.launchDv !== undefined ||
     !!plan.launchHold ||

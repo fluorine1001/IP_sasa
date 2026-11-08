@@ -279,7 +279,10 @@ function applyEngine(run: Run, stage: Stage, command: EngineCommand) {
   }
   const ok = controlEngine(run, stage, command.actorId, command.throttle, direction);
   if (!ok) return false;
-  // A turn to an orbit frame holds it (like a pilot's prograde hold); a map turn ends a hold.
+  // A turn to an orbit frame holds it until that engine is next cut (the burn it aims);
+  // a map turn or a cut ends the hold, and the hull then keeps the pose it has.
+  if (command.throttle === 0)
+    run.holding = (run.holding ?? []).filter((h) => h.actorId !== command.actorId);
   if (direction && length(direction) > 1e-8) {
     run.holding = (run.holding ?? []).filter((h) => h.actorId !== command.actorId);
     if (command.heading) run.holding.push({ actorId: command.actorId, heading: command.heading });

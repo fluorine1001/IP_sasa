@@ -50,6 +50,7 @@ test('배속 선택은 외부 클릭으로 닫히며 다른 임무·튜토리얼
   await page.locator('#engine').click();
   await expect(page.locator('#command-popover')).toBeVisible();
   await page.locator('[data-tool="turn"]').click();
+  await page.locator('#command-popover select[data-pick="frame"]').selectOption('map');
   await expect(page.locator('#command-popover .direction-dial')).toBeVisible();
   await page.mouse.click(600, 350);
   await expect(page.locator('#command-popover')).toBeHidden();

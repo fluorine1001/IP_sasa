@@ -24,6 +24,8 @@ test('시간선에 조작을 끌어 배치하고 각도 슬라이더·시각 이
   await page.mouse.up();
   await expect(page.locator('.timeline-event.turn')).toHaveCount(1);
   await expect(page.locator('#command-popover')).toBeVisible();
+  // New turns hold the direction of travel; a fixed map direction is one choice away.
+  await page.locator('#command-popover select[data-pick="frame"]').selectOption('map');
   const angle = page.getByRole('slider', { name: '목표 방향', exact: true });
   await expect(angle).toHaveAttribute('min', '-180');
   await expect(angle).toHaveAttribute('max', '180');
@@ -47,7 +49,8 @@ test('시간선에 조작을 끌어 배치하고 각도 슬라이더·시각 이
   await expect(page.locator('.timeline-event.stop')).toHaveCount(1);
   await page.screenshot({ path: 'test-results/screens/timeline-direct-planning.png' });
   await expect(page.locator('#command-popover')).toBeVisible();
-  await expect(page.locator('#command-popover input')).toHaveCount(0);
+  // 끄기 has no output of its own; only when it happens (here, chained to the turn).
+  await expect(page.locator('#command-popover [data-edit="output"]')).toHaveCount(0);
   await page.locator('#launch').click();
   await page.locator('#pause').click();
   await expect(page.locator('#timeline-palette')).toBeHidden();
@@ -70,6 +73,7 @@ test('배치 도중 시간선 밖에서 놓으면 예약하지 않고 회전값�
   const r = (await page.locator('#timeline-track').boundingBox())!;
   await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2);
   await page.locator('[data-tool="turn"]').click();
+  await page.locator('#command-popover select[data-pick="frame"]').selectOption('map');
   await page
     .getByRole('slider', { name: '목표 방향', exact: true })
     .evaluate((e: HTMLInputElement) => {

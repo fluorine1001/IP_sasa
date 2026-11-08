@@ -47,16 +47,17 @@ export function programEvents(plan: RoutePlan): ProgramEvent[] {
           ...base,
           kind: c.throttle > 0 ? 'ignite' : 'stop',
           label:
-            c.throttle > 0
+            triggerText(c) +
+            (c.throttle > 0
               ? '엔진 출력 ' + Math.round(c.throttle * 100) + '%'
-              : '엔진 끄기 · 관성 비행',
+              : '엔진 끄기 · 관성 비행'),
         });
-      if (c.direction)
+      if (c.direction || c.heading)
         labels.push({
           ...base,
           id: c.throttle === undefined ? c.id : c.id + ':turn',
           kind: 'turn',
-          label: '방향 전환',
+          label: triggerText(c) + (c.heading ? headingLabel(c.heading) + ' 유지' : '방향 전환'),
         });
       return labels;
     }),
@@ -221,7 +222,7 @@ export function commandUsage(plan: RoutePlan): Record<CommandKind, number> {
     else if (c.burn) count.burn++;
     else {
       if (c.throttle !== undefined) count[c.throttle > 0 ? 'ignite' : 'stop']++;
-      if (c.direction) count.turn++;
+      if (c.direction || c.heading) count.turn++;
     }
   }
   return count;

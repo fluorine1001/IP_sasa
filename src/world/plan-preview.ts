@@ -34,7 +34,58 @@ export type PlannedChange = {
 };
 
 /** The craft's planned Δv changes in time order (burns of the craft and cold-gas pushes). */
-export function plannedChanges(plan: RoutePlan): PlannedChange[] {
+/**
+ * A 출력 … 끄기 pair of the craft as one speed change for the calculator: its length is
+ * the cut's delay after the light (or the clock gap), its size the rocket equation on
+ * the stage then firing (fuel taken as full: an estimate), its direction the turn held
+ * before it. Pairs whose length or stage cannot be read are left out.
+ */
+function enginePairs(stage: Stage | undefined, plan: RoutePlan): PlannedChange[] {
+  const parts = stage?.rocket?.parts;
+  if (!parts) return [];
+  const all = plan.engineCommands ?? [];
+  const craft = all.filter((c) => c.actorId === 'craft' && !c.burn);
+  const order = [...craft].sort((a, b) => a.time - b.time);
+  const out: PlannedChange[] = [];
+  craft
+    .filter((c) => (c.throttle ?? 0) > 0)
+    .forEach((light, i) => {
+      const cut =
+        craft.find((c) => c.throttle === 0 && c.at === 'after' && c.ref === light.id) ??
+        order.find((c) => c.throttle === 0 && c.time > light.time && c.at !== 'after');
+      if (!cut) return;
+      const length =
+        cut.at === 'after' && cut.ref === light.id ? (cut.delay ?? 0) : cut.time - light.time;
+      // The turn it follows: the one it is chained to, else the latest turn before it.
+      const turn =
+        craft.find((c) => c.id === light.ref && (c.heading || c.direction)) ??
+        [...order].reverse().find((c) => c.time <= light.time && (c.heading || c.direction));
+      const k = all.filter(
+        (c) => c.actorId === 'craft' && c.separate && c.time <= light.time,
+      ).length;
+      const part = parts[k];
+      if (!part || !turn || length <= 0) return;
+      const m0 =
+        parts.slice(k).reduce((m, x) => m + x.dryMass + x.fuelMass, 0) +
+        (stage!.rocket!.payloadMass ?? 0);
+      const used = Math.min(
+        part.fuelMass,
+        ((part.thrust * light.throttle!) / part.exhaustSpeed) * length,
+      );
+      out.push({
+        id: light.id,
+        time: light.time,
+        dv: part.exhaustSpeed * Math.log(m0 / (m0 - used)),
+        heading: turn.heading,
+        vector: turn.heading ? undefined : turn.direction,
+        at: light.at,
+        trigger: triggerOf(light),
+        label: `출력 ${i + 1}`,
+      });
+    });
+  return out;
+}
+export function plannedChanges(plan: RoutePlan, stage?: Stage): PlannedChange[] {
   const burns = (plan.engineCommands ?? [])
     .filter((c) => c.burn && c.actorId === 'craft')
     .map((c, i) => ({
@@ -56,7 +107,7 @@ export function plannedChanges(plan: RoutePlan): PlannedChange[] {
     trigger: triggerOf(m),
     label: `추진 ${i + 1}`,
   }));
-  return [...burns, ...pushes].sort((a, b) => a.time - b.time);
+  return [...burns, ...enginePairs(stage, plan), ...pushes].sort((a, b) => a.time - b.time);
 }
 
 /** The two-body apsis state after `from` (radius and speed from energy and angular momentum). */
@@ -120,7 +171,7 @@ export function previewStates(
   const out: { change: PlannedChange; state: PreviewState; before: PreviewState }[] = [];
   let chain: PreviewState | undefined = recorded(0) ? undefined : start;
   let previous: PlannedChange | undefined;
-  for (const change of plannedChanges(plan)) {
+  for (const change of plannedChanges(plan, stage)) {
     const prior = previous;
     previous = change;
     let before: PreviewState | undefined;

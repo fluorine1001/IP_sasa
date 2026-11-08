@@ -128,34 +128,66 @@
           "delay": 0
         },
         {
+          "id": "c1a",
+          "time": 0.5,
+          "actorId": "craft",
+          "heading": {
+            "frame": "prograde",
+            "angle": 7.8
+          },
+          "at": "after",
+          "ref": "c0",
+          "delay": 0
+        },
+        {
+          "id": "c1b",
+          "time": 0.5,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "apoapsis",
+          "ref": "c0",
+          "delay": 0
+        },
+        {
           "id": "c1",
           "time": 0.5,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.386,
-            "heading": {
-              "frame": "prograde",
-              "angle": 7
-            },
-            "at": "apoapsis",
-            "ref": "c0",
-            "delay": 0
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c1b",
+          "delay": 0.1805
+        },
+        {
+          "id": "c2a",
+          "time": 1,
+          "actorId": "craft",
+          "heading": {
+            "frame": "match",
+            "angle": 0,
+            "targetId": "917e4015-cde1-4de5-bd48-e983c45aab1c"
+          },
+          "at": "after",
+          "ref": "c1",
+          "delay": 1
+        },
+        {
+          "id": "c2b",
+          "time": 1,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "altitude",
+          "altitude": 0.125,
+          "ref": "c1",
+          "delay": 0
         },
         {
           "id": "c2",
           "time": 1,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.005,
-            "heading": {
-              "frame": "outward",
-              "angle": -17
-            },
-            "at": "after",
-            "ref": "c1",
-            "delay": 37
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c2b",
+          "delay": 0.574
         }
       ]
     }

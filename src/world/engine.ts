@@ -18,11 +18,14 @@ import {
   startBurn,
   rocketMass,
   drag,
+  BURN_ALIGN,
+  angleBetween,
 } from './rocket.ts';
 import {
   apsisFrame,
   headingIn,
   resolveHeading,
+  resolveHeadingNear,
   triggerFired,
   triggerReading,
   triggerOf,
@@ -233,6 +236,110 @@ function untriggered<
   return rest as T;
 }
 /** Fire cold-gas pushes whose trigger is met; false when one breaks the budget. */
+type EngineCommand = NonNullable<RoutePlan['engineCommands']>[number];
+/** Where the commanded part is: the craft, or a detached booster. */
+function actorState(run: Run, actorId: string) {
+  return actorId === 'craft'
+    ? { position: run.position, velocity: run.velocity, rocket: run.rocket }
+    : (() => {
+        const a = run.detached.find((d) => d.id === actorId);
+        return a ? { position: a.position, velocity: a.velocity, rocket: a } : undefined;
+      })();
+}
+/**
+ * Carry out one engine command now. 출력/끄기 are finished at once; a 회전 is finished
+ * when the hull points the new way (so "출력 after 회전" lights only when aligned).
+ */
+function applyEngine(run: Run, stage: Stage, command: EngineCommand) {
+  if (command.releasePayload || command.separate || command.burn) {
+    const ok = command.releasePayload
+      ? releasePayload(run, stage, command.releasePayload)
+      : command.separate
+        ? separate(run, stage)
+        : scheduleBurn(run, stage, command.id, command.actorId, command.burn!);
+    if (ok && !command.burn) (run.firedAt ??= {})[command.id] = run.time;
+    return ok;
+  }
+  let direction = command.direction;
+  if (command.heading) {
+    const actor = actorState(run, command.actorId);
+    if (!actor) return false;
+    // Of the two senses an orbit frame allows, the one nearer where the hull points now
+    // (as burns do), so a turn never swings round needlessly.
+    const pointing =
+      actor.rocket && 'direction' in actor.rocket ? actor.rocket.direction : actor.velocity;
+    direction = resolveHeadingNear(
+      stage,
+      actor.position,
+      actor.velocity,
+      run.time,
+      command.heading,
+      pointing,
+    );
+  }
+  const ok = controlEngine(run, stage, command.actorId, command.throttle, direction);
+  if (!ok) return false;
+  // A turn to an orbit frame holds it (like a pilot's prograde hold); a map turn ends a hold.
+  if (direction && length(direction) > 1e-8) {
+    run.holding = (run.holding ?? []).filter((h) => h.actorId !== command.actorId);
+    if (command.heading) run.holding.push({ actorId: command.actorId, heading: command.heading });
+  }
+  // Later turns replace earlier ones: an unfinished turn of the same part counts as done.
+  if (direction && length(direction) > 1e-8) {
+    for (const t of run.turning ?? [])
+      if (t.actorId === command.actorId) (run.firedAt ??= {})[t.id] = run.time;
+    run.turning = (run.turning ?? []).filter((t) => t.actorId !== command.actorId);
+    run.turning.push({ id: command.id, actorId: command.actorId, direction: { ...direction } });
+  } else (run.firedAt ??= {})[command.id] = run.time;
+  return true;
+}
+/** Engine commands armed on an orbital event act when it comes. */
+function fireArmedCommands(run: Run, stage: Stage) {
+  if (!run.armedCommands?.length) return true;
+  for (const armed of [...run.armedCommands]) {
+    const actor = actorState(run, armed.command.actorId);
+    if (!actor) continue;
+    const now = triggerReading(
+      stage,
+      actor.position,
+      actor.velocity,
+      run.time,
+      armed.trigger.phaseTarget,
+    );
+    const fired = triggerFired(armed.trigger, armed.last, now, run.firedAt);
+    armed.last = now;
+    if (!fired) continue;
+    run.armedCommands = run.armedCommands.filter((a) => a !== armed);
+    if (!applyEngine(run, stage, armed.command)) return false;
+  }
+  return true;
+}
+/** Holds follow their frame; a turn is finished once its part points the commanded way. */
+function settleTurns(run: Run, stage: Stage) {
+  for (const h of run.holding ?? []) {
+    const actor = actorState(run, h.actorId);
+    const state = actor?.rocket;
+    if (!actor || !state || !('direction' in state)) continue;
+    const d = resolveHeadingNear(
+      stage,
+      actor.position,
+      actor.velocity,
+      run.time,
+      h.heading,
+      state.direction,
+    );
+    state.targetDirection = d;
+    for (const t of run.turning ?? []) if (t.actorId === h.actorId) t.direction = d;
+  }
+  if (!run.turning?.length) return;
+  run.turning = run.turning.filter((t) => {
+    const state = actorState(run, t.actorId)?.rocket;
+    const pointing = state && 'direction' in state ? state.direction : undefined;
+    if (!pointing || angleBetween(pointing, t.direction) > BURN_ALIGN) return true;
+    (run.firedAt ??= {})[t.id] = run.time;
+    return false;
+  });
+}
 function fireArmedPushes(run: Run, stage: Stage) {
   if (!run.armedPushes?.length) return true;
   for (const armed of [...run.armedPushes]) {
@@ -374,13 +481,17 @@ export function tick(
         if (run.applied.has(command.id)) continue;
         if (event.kind === 'engine') {
           const command = event.value;
-          const accepted = command.releasePayload
-            ? releasePayload(run, stage, command.releasePayload)
-            : command.separate
-              ? separate(run, stage)
-              : command.burn
-                ? scheduleBurn(run, stage, command.id, command.actorId, command.burn)
-                : controlEngine(run, stage, command.actorId, command.throttle, command.direction);
+          // An engine command waiting for an orbital event is armed now and acts then.
+          if (!command.burn && command.at && command.at !== 'after') {
+            (run.armedCommands ??= []).push({
+              id: command.id,
+              trigger: triggerOf(command)!,
+              command,
+            });
+            run.applied.add(command.id);
+            continue;
+          }
+          const accepted = applyEngine(run, stage, command);
           if (!accepted) {
             run.status = 'failed';
             run.reason =
@@ -390,8 +501,6 @@ export function tick(
             return;
           }
           run.applied.add(command.id);
-          // Instant commands are finished now; a Δv burn is finished when delivered.
-          if (!command.burn) (run.firedAt ??= {})[command.id] = run.time;
         } else if (event.value.at) {
           // Armed push: it fires later, when its trigger is met (see fireArmedPushes).
           (run.armedPushes ??= []).push({
@@ -409,6 +518,14 @@ export function tick(
           (run.firedAt ??= {})[command.id] = run.time;
         }
       }
+      if (!fireArmedCommands(run, stage)) {
+        run.status = 'failed';
+        run.reason =
+          '사건에 맞춘 엔진 예약을 실행하지 못했습니다. 남은 단, 연료와 재점화 횟수를 계획에서 확인하세요.';
+        if (record) captureFrame(run, true);
+        return;
+      }
+      settleTurns(run, stage);
       if (!fireArmedPushes(run, stage)) {
         run.status = 'failed';
         run.reason = '수정 추진의 총량 한도를 넘었습니다.';

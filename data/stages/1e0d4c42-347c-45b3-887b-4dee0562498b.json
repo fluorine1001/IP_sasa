@@ -146,22 +146,37 @@
       "launchDv": 0.131,
       "engineCommands": [
         {
+          "id": "c1a",
+          "time": 1,
+          "actorId": "craft",
+          "heading": {
+            "frame": "match",
+            "angle": 0,
+            "targetId": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8"
+          },
+          "at": "after",
+          "ref": "launch",
+          "delay": 0
+        },
+        {
+          "id": "c1b",
+          "time": 1,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "near",
+          "altitude": 0.27,
+          "phaseTarget": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8",
+          "ref": "launch",
+          "delay": 0
+        },
+        {
           "id": "c1",
           "time": 1,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.45,
-            "heading": {
-              "frame": "match",
-              "angle": 0,
-              "targetId": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8"
-            },
-            "at": "near",
-            "altitude": 0.27,
-            "phaseTarget": "a3d5fadc-89c0-5395-8bc5-4577127d3bc8",
-            "ref": "launch",
-            "delay": 0
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c1b",
+          "delay": 0.35
         }
       ]
     }

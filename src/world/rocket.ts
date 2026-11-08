@@ -257,7 +257,7 @@ export function startBurn(
   if (aligned) state.throttle = Math.min(1, throttle);
   return true;
 }
-function angleBetween(a: Vec, b: Vec) {
+export function angleBetween(a: Vec, b: Vec) {
   return Math.abs(Math.atan2(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y));
 }
 export function separate(run: Run, stage: Stage): boolean {

@@ -372,7 +372,7 @@
         "x": 1,
         "y": 0
       },
-      "launchDv": 0.417,
+      "launchDv": 0.428,
       "engineCommands": [
         {
           "id": "c0",
@@ -384,34 +384,64 @@
           "delay": 0
         },
         {
+          "id": "c2a",
+          "time": 1,
+          "actorId": "craft",
+          "heading": {
+            "frame": "prograde",
+            "angle": -57.5
+          },
+          "at": "after",
+          "ref": "c0",
+          "delay": 0
+        },
+        {
+          "id": "c2b",
+          "time": 1,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "after",
+          "ref": "c0",
+          "delay": 6.4
+        },
+        {
           "id": "c2",
           "time": 1,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.016,
-            "heading": {
-              "frame": "prograde",
-              "angle": -68
-            },
-            "at": "after",
-            "ref": "c0",
-            "delay": 4.2
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c2b",
+          "delay": 0.08
+        },
+        {
+          "id": "c3a",
+          "time": 1,
+          "actorId": "craft",
+          "heading": {
+            "frame": "retrograde",
+            "angle": 1.5
+          },
+          "at": "after",
+          "ref": "c2",
+          "delay": 0
+        },
+        {
+          "id": "c3b",
+          "time": 1,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "periapsis",
+          "ref": "c2",
+          "delay": 0
         },
         {
           "id": "c3",
           "time": 1,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.14,
-            "heading": {
-              "frame": "retrograde",
-              "angle": 0
-            },
-            "at": "periapsis",
-            "ref": "c2",
-            "delay": 0
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c3b",
+          "delay": 0.078
         }
       ]
     }

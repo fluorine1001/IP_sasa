@@ -159,18 +159,30 @@
       },
       "engineCommands": [
         {
+          "id": "brakea",
+          "time": 0,
+          "actorId": "craft",
+          "heading": {
+            "frame": "outward",
+            "angle": 0
+          }
+        },
+        {
+          "id": "brakeb",
+          "time": 0,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "altitude",
+          "altitude": 0.09
+        },
+        {
           "id": "brake",
           "time": 0,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.338,
-            "heading": {
-              "frame": "outward",
-              "angle": 0
-            },
-            "at": "altitude",
-            "altitude": 0.09
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "brakeb",
+          "delay": 0.35
         }
       ]
     }

@@ -905,17 +905,29 @@
       "launchDv": 0.35,
       "engineCommands": [
         {
+          "id": "relighta",
+          "time": 2.2,
+          "actorId": "craft",
+          "heading": {
+            "frame": "prograde",
+            "angle": -5
+          }
+        },
+        {
+          "id": "relightb",
+          "time": 2.2,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "apoapsis"
+        },
+        {
           "id": "relight",
           "time": 2.2,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.23,
-            "heading": {
-              "frame": "prograde",
-              "angle": -5
-            },
-            "at": "apoapsis"
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "relightb",
+          "delay": 0.35
         },
         {
           "id": "release-0",

@@ -579,19 +579,34 @@
           "delay": 0
         },
         {
+          "id": "c1a",
+          "time": 0.5,
+          "actorId": "craft",
+          "heading": {
+            "frame": "prograde",
+            "angle": 5
+          },
+          "at": "after",
+          "ref": "c0",
+          "delay": 0
+        },
+        {
+          "id": "c1b",
+          "time": 0.5,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "apoapsis",
+          "ref": "c0",
+          "delay": 0
+        },
+        {
           "id": "c1",
           "time": 0.5,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.292,
-            "heading": {
-              "frame": "prograde",
-              "angle": 5
-            },
-            "at": "apoapsis",
-            "ref": "c0",
-            "delay": 0
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c1b",
+          "delay": 0.8
         }
       ]
     }

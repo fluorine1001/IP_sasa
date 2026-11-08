@@ -185,7 +185,14 @@ export function chipText(
     case 'turn':
       return {
         word: prefix + '회전',
-        value: command?.direction ? Math.round(degrees(command.direction)) + '°' : '',
+        value: command?.heading
+          ? headingShort[command.heading.frame] +
+            (command.heading.angle
+              ? ` ${command.heading.angle > 0 ? '+' : ''}${command.heading.angle}°`
+              : '')
+          : command?.direction
+            ? Math.round(degrees(command.direction)) + '°'
+            : '',
       };
     case 'separate': {
       const order = (plan.engineCommands ?? [])

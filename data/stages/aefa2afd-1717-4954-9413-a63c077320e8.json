@@ -336,17 +336,29 @@
       "launchDv": 0.41,
       "engineCommands": [
         {
+          "id": "c1a",
+          "time": 3.2,
+          "actorId": "craft",
+          "heading": {
+            "frame": "prograde",
+            "angle": 0
+          }
+        },
+        {
+          "id": "c1b",
+          "time": 3.2,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "apoapsis"
+        },
+        {
           "id": "c1",
           "time": 3.2,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.27,
-            "heading": {
-              "frame": "prograde",
-              "angle": 0
-            },
-            "at": "apoapsis"
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c1b",
+          "delay": 0.35
         }
       ]
     }

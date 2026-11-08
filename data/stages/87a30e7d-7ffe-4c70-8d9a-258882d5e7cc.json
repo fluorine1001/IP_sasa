@@ -143,52 +143,97 @@
           "delay": 0
         },
         {
+          "id": "c1a",
+          "time": 0.5,
+          "actorId": "craft",
+          "heading": {
+            "frame": "prograde",
+            "angle": -7
+          },
+          "at": "after",
+          "ref": "c0",
+          "delay": 0
+        },
+        {
+          "id": "c1b",
+          "time": 0.5,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "apoapsis",
+          "ref": "c0",
+          "delay": 0
+        },
+        {
           "id": "c1",
           "time": 0.5,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.397,
-            "heading": {
-              "frame": "prograde",
-              "angle": -7
-            },
-            "at": "apoapsis",
-            "ref": "c0",
-            "delay": 0
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c1b",
+          "delay": 0.25
+        },
+        {
+          "id": "c2a",
+          "time": 1,
+          "actorId": "craft",
+          "heading": {
+            "frame": "outward",
+            "angle": 17
+          },
+          "at": "after",
+          "ref": "c1",
+          "delay": 0
+        },
+        {
+          "id": "c2b",
+          "time": 1,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "after",
+          "ref": "c1",
+          "delay": 11
         },
         {
           "id": "c2",
           "time": 1,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.087,
-            "heading": {
-              "frame": "outward",
-              "angle": 17
-            },
-            "at": "after",
-            "ref": "c1",
-            "delay": 11
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c2b",
+          "delay": 0.03
+        },
+        {
+          "id": "c3a",
+          "time": 1,
+          "actorId": "craft",
+          "heading": {
+            "frame": "match",
+            "angle": 0,
+            "targetId": "d8c96f5a-3681-4963-b530-0bb4835bde8d"
+          },
+          "at": "after",
+          "ref": "c2",
+          "delay": 0
+        },
+        {
+          "id": "c3b",
+          "time": 1,
+          "actorId": "craft",
+          "throttle": 1,
+          "at": "near",
+          "ref": "c2",
+          "delay": 0,
+          "phaseTarget": "d8c96f5a-3681-4963-b530-0bb4835bde8d",
+          "altitude": 0.05
         },
         {
           "id": "c3",
           "time": 1,
           "actorId": "craft",
-          "burn": {
-            "dv": 0.8,
-            "heading": {
-              "frame": "match",
-              "angle": 0,
-              "targetId": "d8c96f5a-3681-4963-b530-0bb4835bde8d"
-            },
-            "at": "near",
-            "ref": "c2",
-            "delay": 0,
-            "phaseTarget": "d8c96f5a-3681-4963-b530-0bb4835bde8d",
-            "altitude": 0.05
-          }
+          "throttle": 0,
+          "at": "after",
+          "ref": "c3b",
+          "delay": 0.05
         }
       ],
       "launchDv": 1.484

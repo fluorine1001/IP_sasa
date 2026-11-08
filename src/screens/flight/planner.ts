@@ -138,7 +138,7 @@ export function timelinePlanner(
     const c = get().plan.engineCommands?.find((x) => x.id === id);
     if (c?.separate) return '단 분리';
     if (c?.releasePayload) return '탑재체 분리';
-    return plannedChanges(get().plan).find((x) => x.id === id)?.label ?? '앞 예약';
+    return plannedChanges(get().plan, stage).find((x) => x.id === id)?.label ?? '앞 예약';
   };
   /** Which reservation this one follows: any earlier one that does not wait for it. */
   const refPicker = (id: string, ref: string) => {
@@ -177,7 +177,7 @@ export function timelinePlanner(
   const hostFor = (id: string): TriggerHost | undefined => {
     const c = command(id);
     if (c?.burn) return c.burn;
-    if (c && (c.separate || c.releasePayload)) return c as TriggerHost;
+    if (c) return c as TriggerHost;
     return push(id);
   };
   const timeAt = (x: number) =>
@@ -236,15 +236,16 @@ export function timelinePlanner(
           : kind === 'separate'
             ? { separate: true }
             : kind === 'turn'
-              ? { direction: heading(stage, 0) }
+              ? // New turns hold the direction of travel; the frame is one choice away.
+                { heading: { frame: 'prograde' as HeadingFrame, angle: 0 } }
               : { throttle: kind === 'stop' ? 0 : 1 }),
       });
     // A second or later speed change follows the one before it by default: moving or
     // retuning the earlier one then carries this one along instead of leaving it at a
     // clock time that now means a different place on the path.
-    if (kind === 'burn' || kind === 'push') {
+    if (['burn', 'push', 'turn', 'ignite', 'stop'].includes(kind)) {
       const ref = previousOf(p, id);
-      const target = kind === 'burn' ? command(id)?.burn : push(id);
+      const target = kind === 'burn' ? command(id)?.burn : kind === 'push' ? push(id) : command(id);
       if (ref !== 'launch' && target) {
         target.at = 'after';
         target.ref = ref;
@@ -412,8 +413,10 @@ export function timelinePlanner(
       const followers = dependents(p, id).length;
       if (followers)
         fields += `<p class="chain-followers">이 예약을 따르는 예약 ${followers}개 · 함께 움직임</p>`;
-      const relative = c?.burn?.heading ?? impulse?.heading;
-      const trigger = c?.burn ?? (impulse?.heading ? impulse : undefined);
+      const relative = c?.burn?.heading ?? c?.heading ?? impulse?.heading;
+      // 회전·출력·끄기 act on the same events as pushes (근점, 원점, 앞 예약 뒤 …).
+      const engineControl = c && !c.burn && !c.separate && !c.releasePayload ? c : undefined;
+      const trigger = c?.burn ?? engineControl ?? (impulse?.heading ? impulse : undefined);
       // A separation or payload release can follow the reservation before it, too.
       // One question per row: 언제 · 방향 · 크기. Each is one choice; only the chosen
       // option's own value appears under it.
@@ -486,7 +489,8 @@ export function timelinePlanner(
             0.01,
           );
       }
-      if (c?.burn || impulse) fields += frameButtons(relative, !!impulse);
+      if (c?.burn || impulse || kind === 'turn')
+        fields += frameButtons(relative, !!impulse || kind === 'turn');
       if (relative?.frame === 'match')
         fields +=
           '<label>맞출 대상 <select data-edit="match-target" aria-label="상대속도를 맞출 대상">' +
@@ -557,11 +561,16 @@ export function timelinePlanner(
           '</select></label>';
       if (c?.separate)
         fields += '<p>아래 단을 분리합니다. 다음 단 엔진의 출력은 별도 조작으로 지정하세요.</p>';
-      if (c?.throttle === 0)
-        fields += '<p>엔진 분사를 멈춥니다. 관성과 중력은 계속 작용합니다.</p>';
+      if (c?.throttle === 0) {
+        // How much this cut lets the engine give: the rocket equation over the time since 출력.
+        const pair = c.ref ? plannedChanges(p, stage).find((x) => x.id === c.ref) : undefined;
+        fields += pair
+          ? `<p class="chain-estimate">이 연소 ≈ Δv ${pair.dv.toFixed(3)} u/s (단 연료 가득 기준 추정)</p>`
+          : '<p>엔진 분사를 멈춥니다. 관성과 중력은 계속 작용합니다.</p>';
+      }
       if (c?.direction) fields += '<div id="rotation-info">' + rotationInfo(id) + '</div>';
     }
-    const discreteOnly = id !== 'launch' && (kind === 'separate' || kind === 'stop');
+    const discreteOnly = id !== 'launch' && kind === 'separate';
     if (c?.releasePayload)
       fields = `<label>분리할 위성<select data-edit="payload">${(stage.rocket?.payloads ?? []).map((payload) => `<option value="${payload.id}" ${payload.id === c.releasePayload ? 'selected' : ''}>${escape(payload.name)}</option>`).join('')}</select></label>`;
     if (discreteOnly) {
@@ -654,7 +663,8 @@ export function timelinePlanner(
         return;
       }
       if (key === 'match-target') {
-        const h = command(selected)?.burn?.heading ?? push(selected)?.heading;
+        const h =
+          command(selected)?.burn?.heading ?? command(selected)?.heading ?? push(selected)?.heading;
         if (h) h.targetId = input.value;
         action?.('edit');
         changed();
@@ -685,7 +695,7 @@ export function timelinePlanner(
         if (impulse.heading) impulse.magnitude = size;
       }
       if (key === 'tilt') {
-        const h = c?.burn?.heading ?? impulse?.heading;
+        const h = c?.burn?.heading ?? c?.heading ?? impulse?.heading;
         if (h) h.angle = Math.round(clamp(value, -90, 90));
       }
       if (key === 'dv' && c?.burn) c.burn.dv = Math.max(0.001, round3(value));
@@ -934,7 +944,20 @@ export function timelinePlanner(
             angle: 0,
             ...(targetId ? { targetId } : {}),
           };
-        else if (impulse) {
+        else if (c && (c.direction || c.heading)) {
+          // A turn: an orbit frame it holds, or a fixed map direction.
+          if (frame === 'map') {
+            c.direction = c.direction ?? { x: 0, y: 1 };
+            c.heading = undefined;
+          } else {
+            c.heading = {
+              frame: frame as HeadingFrame,
+              angle: 0,
+              ...(targetId ? { targetId } : {}),
+            };
+            c.direction = undefined;
+          }
+        } else if (impulse) {
           const size = impulse.magnitude ?? length(impulse.vector);
           if (frame === 'map') {
             impulse.heading = undefined;
@@ -976,22 +999,21 @@ export function timelinePlanner(
   palette.innerHTML =
     '<label id="timeline-placement">예약 시각 <input id="timeline-time" type="number" min="0" step="0.01" aria-label="새 예약 시각"> 초</label>' +
     // Only tools this craft actually has: a cold-gas craft has no engine or stages.
+    // Rocket work is three plain controls — 회전 (point), 출력 (light), 끄기 (cut) — plus
+    // 분리; how long the engine runs is the player's decision, not a Δv the game delivers.
     [
-      ...(stage.rocket ? ['burn'] : []),
+      ...(stage.rocket ? ['turn', 'ignite', 'stop'] : []),
       ...((stage.rocket?.parts.length ?? 0) > 1 ? ['separate'] : []),
       ...(!stage.rocket && stage.rules.maneuverBudget > 0 && stage.rules.commandLimits?.push !== 0
         ? ['push']
         : []),
       ...(stage.rocket?.payloads?.length ? ['deploy'] : []),
-      // Throttle, cut-off and free turning stay available as manual engine work.
-      ...(stage.rocket ? ['ignite', 'stop', 'turn'] : []),
     ]
       .map(
         (k) =>
           '<button data-tool="' +
           k +
           '"' +
-          (['ignite', 'stop', 'turn'].includes(k) ? ' data-manual' : '') +
           (k === 'ignite' || k === 'separate'
             ? ' id="' + (k === 'ignite' ? 'engine' : 'separate') + '"'
             : '') +
@@ -1021,42 +1043,7 @@ export function timelinePlanner(
           }[k] +
           '</span><small class="tool-count"></small></button>',
       )
-      .join('') +
-    (stage.rocket
-      ? '<button id="manual-tools" class="manual-toggle" aria-expanded="false" title="출력·끄기·회전을 직접 예약">수동 조작</button>'
-      : '');
-  const manualToggle = palette.querySelector<HTMLButtonElement>('#manual-tools');
-  // Tutorials teach the manual controls, and a plan that already uses them keeps them in view.
-  // The player's last choice is remembered across missions.
-  const remembered = (() => {
-    try {
-      return localStorage.getItem('apollo-manual-tools') === 'true';
-    } catch {
-      return false;
-    }
-  })();
-  let manual =
-    remembered ||
-    stage.track === 'tutorial' ||
-    (get().plan.engineCommands ?? []).some((c) => c.throttle !== undefined || c.direction);
-  const showManual = () => {
-    palette.classList.toggle('show-manual', manual);
-    manualToggle?.setAttribute('aria-expanded', String(manual));
-  };
-  showManual();
-  manualToggle?.addEventListener(
-    'click',
-    () => {
-      manual = !manual;
-      try {
-        localStorage.setItem('apollo-manual-tools', String(manual));
-      } catch {
-        /* not remembered */
-      }
-      showManual();
-    },
-    { signal },
-  );
+      .join('');
   /** The launch burn may stop itself after a set Δv; 0 keeps it burning until told. */
   function launchDvField(p: RoutePlan) {
     const part = stage.rocket!.parts[0],

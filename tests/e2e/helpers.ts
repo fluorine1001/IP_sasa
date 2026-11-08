@@ -137,6 +137,9 @@ async function enterEventPlan(page: Page, stage: Stage, plan: RoutePlan) {
     if (c.burn) {
       await choose(page, 'frame', c.burn.heading.frame);
       if (c.burn.heading.targetId) await edit(page, 'match-target', c.burn.heading.targetId);
+    } else if (tool === 'turn' && c.heading) {
+      await choose(page, 'frame', c.heading.frame);
+      if (c.heading.targetId) await edit(page, 'match-target', c.heading.targetId);
     } else if (item.kind === 'push' && c.heading) {
       await choose(page, 'frame', c.heading.frame);
       if (c.heading.targetId) await edit(page, 'match-target', c.heading.targetId);
@@ -175,7 +178,7 @@ export async function enterPlan(page: Page, stage: Stage, plan: RoutePlan) {
   const eventPlan =
     plan.launchDv !== undefined ||
     !!plan.launchHold ||
-    (plan.engineCommands ?? []).some((c) => c.burn || (c as { at?: string }).at) ||
+    (plan.engineCommands ?? []).some((c) => c.burn || c.heading || (c as { at?: string }).at) ||
     plan.impulses.some((m) => m.at || m.heading);
   if (eventPlan) return enterEventPlan(page, stage, plan);
   await page.locator('#program-toggle').click();

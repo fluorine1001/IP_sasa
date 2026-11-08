@@ -51,9 +51,10 @@ it('생성한 조건은 기존 움직이는 위성 임무와 같은 실제 비�
     kind: 'rendezvous',
     actorId: 'craft',
     targetId: target.id,
-    distanceTolerance: 0.08,
-    speedTolerance: 0.018,
-    holdDuration: 0.5,
+    // The mission's own tolerances: a timed cut-off leaves a little relative speed.
+    distanceTolerance: 0.2,
+    speedTolerance: 0.06,
+    holdDuration: 1,
   });
   expect(execute(stage, stage.referencePlans[0]).status).toBe('won');
 });

@@ -93,12 +93,37 @@ export function nudges(
         },
       );
   (plan.engineCommands ?? []).forEach((c, i) => {
-    const name = c.burn ? `연소 ${i + 1}` : c.separate ? `분리 ${i + 1}` : `엔진 ${i + 1}`;
+    const name = c.burn
+      ? `연소 ${i + 1}`
+      : c.separate
+        ? `분리 ${i + 1}`
+        : c.throttle === undefined
+          ? `회전 ${i + 1}`
+          : c.throttle > 0
+            ? `출력 ${i + 1}`
+            : `끄기 ${i + 1}`;
     for (const sign of [1, -1]) {
       const s = sign > 0 ? '+' : '−';
       // Commands planned for the same instant move together, so order never changes.
       // A chained reservation has no clock time: its knob is the delay after the one it follows.
-      if (c.burn?.at === 'after')
+      // 회전·출력·끄기 carry their own triggers. A cut chained to its 출력 is the burn's
+      // length: read from the calculator's Δv to its typed 0.01 s, so 2% of it (≥ 0.01 s).
+      const control = !c.burn && !c.separate && !c.releasePayload;
+      const lengthOfBurn =
+        control &&
+        c.throttle === 0 &&
+        c.at === 'after' &&
+        (plan.engineCommands ?? []).some((o) => o.id === c.ref && (o.throttle ?? 0) > 0);
+      if (control && c.at === 'after') {
+        const step = lengthOfBurn ? Math.max(0.01, (c.delay ?? 0) * 0.02) : MARGIN.time;
+        variant(name + (lengthOfBurn ? ' 연소 길이' : ' 간격'), `${s}${step.toFixed(2)}초`, (p) => {
+          const q = p.engineCommands![i];
+          if ((q.delay ?? 0) + sign * step < 0) return false;
+          q.delay = (q.delay ?? 0) + sign * step;
+        });
+      } else if (control && c.at && c.ref) {
+        /* armed on an event after its predecessor: no clock knob */
+      } else if (c.burn?.at === 'after')
         variant(name + ' 간격', `${s}${MARGIN.time}초`, (p) => {
           const b = p.engineCommands![i].burn!;
           if ((b.delay ?? 0) + sign * MARGIN.time < 0) return false;
@@ -110,6 +135,23 @@ export function nudges(
           for (const other of p.engineCommands ?? [])
             if (Math.abs(other.time - c.time) < 1e-9) other.time += sign * MARGIN.time;
         });
+      if (control) {
+        if (c.heading && !(c.heading.frame === 'match' && c.heading.angle === 0))
+          variant(name + ' 기울기', `${s}${MARGIN.angle}°`, (p) => {
+            p.engineCommands![i].heading!.angle += sign * MARGIN.angle;
+          });
+        if (c.at === 'angle' || c.at === 'phase')
+          variant(name + ' 위치각', `${s}${MARGIN.angle}°`, (p) => {
+            const q = p.engineCommands![i];
+            q.atAngle = (q.atAngle ?? 0) + sign * MARGIN.angle;
+          });
+        if (c.at === 'altitude' || c.at === 'near')
+          variant(name + ' 높이', `${s}${MARGIN.altitude}`, (p) => {
+            const q = p.engineCommands![i];
+            if ((q.altitude ?? 0) + sign * MARGIN.altitude < 0) return false;
+            q.altitude = (q.altitude ?? 0) + sign * MARGIN.altitude;
+          });
+      }
       if (c.burn) {
         variant(name + ' Δv', `${s}${dvMargin(c.burn.dv).toFixed(3)}`, (p) => {
           const b = p.engineCommands![i].burn!,
@@ -209,13 +251,28 @@ function changes(plan: RoutePlan) {
         ok: !!c.burn && c.burn.heading.frame !== 'match',
       }))
       .filter((x) => x.ok),
+    // A burn of plain controls: its size is the cut's delay after the 출력.
+    ...(plan.engineCommands ?? [])
+      .map((c, i) => ({
+        i,
+        id: c.id,
+        kind: 'cut' as const,
+        ok:
+          !c.burn &&
+          c.throttle === 0 &&
+          c.at === 'after' &&
+          (plan.engineCommands ?? []).some((o) => o.id === c.ref && (o.throttle ?? 0) > 0),
+      }))
+      .filter((x) => x.ok),
     ...plan.impulses.map((m, i) => ({ i, id: m.id, kind: 'push' as const, ok: true })),
   ];
   return all.sort((a, b) => chainTime(plan, a.id) - chainTime(plan, b.id));
 }
 type Change = ReturnType<typeof changes>[number];
-const changeName = (c: Change) => (c.kind === 'burn' ? `연소 ${c.i + 1}` : `추진 ${c.i + 1}`);
+const changeName = (c: Change) =>
+  c.kind === 'burn' ? `연소 ${c.i + 1}` : c.kind === 'cut' ? `끄기 ${c.i + 1}` : `추진 ${c.i + 1}`;
 function sizeOf(plan: RoutePlan, c: Change) {
+  if (c.kind === 'cut') return plan.engineCommands![c.i].delay ?? 0;
   return c.kind === 'burn'
     ? plan.engineCommands![c.i].burn!.dv
     : (plan.impulses[c.i].magnitude ?? length(plan.impulses[c.i].vector));
@@ -228,6 +285,12 @@ const opposite = {
 } as const;
 /** A negative size means the same change the other way (prograde ↔ retrograde, …). */
 function setChange(plan: RoutePlan, c: Change, size: number, tilt: number) {
+  if (c.kind === 'cut') {
+    // A burn length cannot go negative; re-aiming its direction is the turn's business.
+    if (tilt !== 0 || size <= 0) return;
+    plan.engineCommands![c.i].delay = Math.round(size * 1000) / 1000;
+    return;
+  }
   const h =
     c.kind === 'burn' ? plan.engineCommands![c.i].burn!.heading : plan.impulses[c.i].heading;
   if (size < 0 && h && h.frame in opposite) {

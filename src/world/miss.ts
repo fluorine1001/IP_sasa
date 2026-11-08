@@ -140,7 +140,7 @@ export function flightMisses(
       }
     }
     if (!best || best.gap <= 0) continue;
-    const last = plannedChanges(plan)
+    const last = plannedChanges(plan, stage)
       .filter((c) => c.time <= best!.time + 1e-9)
       .at(-1);
     out.push({ ...best, cause: last?.id ?? 'launch', causeLabel: last?.label ?? '발사' });

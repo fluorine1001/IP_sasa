@@ -98,10 +98,16 @@ export type RoutePlan = {
     separate?: boolean;
     releasePayload?: string;
     burn?: DvBurn;
-    /** A separation/engine command that runs `delay` seconds after reservation `ref` finished. */
-    at?: 'after';
+    /** Turn to a direction read from the craft's orbit when the command acts. */
+    heading?: import('./heading').Heading;
+    /** When it acts: a clock time, `delay` s after `ref` finished, or an orbital event
+     * (apsis, angle, phase, approach, height) — the same triggers as pushes. */
+    at?: import('./heading').Apsis;
     ref?: string;
     delay?: number;
+    atAngle?: number;
+    phaseTarget?: string;
+    altitude?: number;
   }[];
   deployments?: { id: string; time: number; kind: DeviceKind }[];
 };
@@ -210,7 +216,19 @@ export type ArmedPush = {
   /** The held launch: given by the launcher, outside the maneuver budget. */
   free?: boolean;
 };
+/** An engine command (출력·끄기·회전·분리) waiting for its orbital event. */
+export type ArmedCommand = {
+  id: string;
+  trigger: import('./heading').TriggerSpec;
+  last?: import('./heading').TriggerReading;
+  command: NonNullable<RoutePlan['engineCommands']>[number];
+};
 export type Run = {
+  /** Engine commands waiting for their event, and turns still swinging round. */
+  armedCommands?: ArmedCommand[];
+  turning?: { id: string; actorId: string; direction: Vec }[];
+  /** Attitude holds: a part keeps pointing along an orbit frame (진행 방향 등) until turned again. */
+  holding?: { actorId: string; heading: import('./heading').Heading }[];
   /** When each reservation finished (burn delivered, push given, separation done). */
   firedAt?: Record<string, number>;
   armedPushes?: ArmedPush[];

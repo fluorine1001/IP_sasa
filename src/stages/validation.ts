@@ -498,6 +498,10 @@ export function issues(stage: Stage, allowIncomplete = false): string[] {
                   command.direction !== undefined)) ||
               (command.at !== undefined &&
                 (command.burn !== undefined || !validTrigger(command))) ||
+              (command.heading !== undefined &&
+                (!validHeading(command.heading) ||
+                  command.direction !== undefined ||
+                  command.burn !== undefined)) ||
               (command.actorId !== 'craft' &&
                 !stage.rocket?.parts.some((p) => p.id === command.actorId))
             )

@@ -133,7 +133,7 @@
           "actorId": "craft",
           "heading": {
             "frame": "prograde",
-            "angle": 7.8
+            "angle": 8
           },
           "at": "after",
           "ref": "c0",
@@ -155,7 +155,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "c1b",
-          "delay": 0.1805
+          "delay": 0.18
         },
         {
           "id": "c2a",

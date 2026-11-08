@@ -334,12 +334,17 @@ export function timelinePlanner(
       '</span></span></label>'
     );
   }
-  /** The wait after the reservation it follows: typed to 0.01 s, or dragged. */
-  function delayField(value: number) {
-    const top = Math.max(30, Math.ceil(Math.min(planningTimeLimit(stage), 600)));
+  /**
+   * The wait after the reservation it follows, typed or dragged. A cut after its 출력 is
+   * the burn's length (its size), so it is typed to 0.001 s like a Δv was.
+   */
+  function delayField(value: number, burnLength = false) {
+    const top = burnLength ? 10 : Math.max(30, Math.ceil(Math.min(planningTimeLimit(stage), 600)));
+    const step = burnLength ? '0.001' : '0.01';
+    const label = burnLength ? '연소 길이' : '끝난 뒤 간격';
     return (
-      `<label class="dv-field">끝난 뒤 간격<span class="dv-entry"><input type="number" data-edit="trigger-delay" min="0" max="${top}" step="0.01" value="${value.toFixed(2)}" aria-label="끝난 뒤 간격 (초)"> 초</span>` +
-      `<input type="range" data-edit="trigger-delay" min="0" max="${top}" step="0.01" value="${value}" aria-label="끝난 뒤 간격 조절"><span class="range-ends">0초<span>${top}초</span></span></label>`
+      `<label class="dv-field">${label}<span class="dv-entry"><input type="number" data-edit="trigger-delay" min="0" max="${top}" step="${step}" value="${value.toFixed(burnLength ? 3 : 2)}" aria-label="${label} (초)"> 초</span>` +
+      `<input type="range" data-edit="trigger-delay" min="0" max="${top}" step="${step}" value="${value}" aria-label="${label} 조절"><span class="range-ends">0초<span>${top}초</span></span></label>`
     );
   }
   function open(id: string) {
@@ -397,7 +402,12 @@ export function timelinePlanner(
       if (at === 'after')
         fields =
           anchor('이 예약') +
-          delayField(host!.delay ?? 0) +
+          delayField(
+            host!.delay ?? 0,
+            !!c &&
+              c.throttle === 0 &&
+              (p.engineCommands ?? []).some((o) => o.id === c.ref && (o.throttle ?? 0) > 0),
+          ) +
           `<p class="chain-estimate">≈ ${chainTime(p, id).toFixed(2)}초 (기록 전 추정)</p>`;
       else if (armed && ref)
         // Waiting starts when the one before finishes: "burn 1, then the next periapsis".
@@ -702,7 +712,7 @@ export function timelinePlanner(
       if (key === 'launch-dv') p.launchDv = value > 0 ? round3(value) : undefined;
       if (key === 'trigger-delay') {
         const target = hostFor(selected);
-        if (target) target.delay = Math.max(0, round2(value));
+        if (target) target.delay = Math.max(0, round3(value));
       }
       if (key === 'trigger-angle') {
         const target = c?.burn ?? impulse;

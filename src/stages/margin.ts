@@ -107,7 +107,7 @@ export function nudges(
       // Commands planned for the same instant move together, so order never changes.
       // A chained reservation has no clock time: its knob is the delay after the one it follows.
       // 회전·출력·끄기 carry their own triggers. A cut chained to its 출력 is the burn's
-      // length: read from the calculator's Δv to its typed 0.01 s, so 2% of it (≥ 0.01 s).
+      // length, read from the calculator's Δv estimate.
       const control = !c.burn && !c.separate && !c.releasePayload;
       const lengthOfBurn =
         control &&
@@ -115,8 +115,9 @@ export function nudges(
         c.at === 'after' &&
         (plan.engineCommands ?? []).some((o) => o.id === c.ref && (o.throttle ?? 0) > 0);
       if (control && c.at === 'after') {
-        const step = lengthOfBurn ? Math.max(0.01, (c.delay ?? 0) * 0.02) : MARGIN.time;
-        variant(name + (lengthOfBurn ? ' 연소 길이' : ' 간격'), `${s}${step.toFixed(2)}초`, (p) => {
+        // Like a Δv (±max(0.001, 2%)): a burn length is typed to 0.001 s.
+        const step = lengthOfBurn ? Math.max(0.001, (c.delay ?? 0) * 0.02) : MARGIN.time;
+        variant(name + (lengthOfBurn ? ' 연소 길이' : ' 간격'), `${s}${step.toFixed(3)}초`, (p) => {
           const q = p.engineCommands![i];
           if ((q.delay ?? 0) + sign * step < 0) return false;
           q.delay = (q.delay ?? 0) + sign * step;
@@ -377,7 +378,9 @@ function reaim(stage: Stage, nudged: RoutePlan, knob: string): boolean {
   const heading = (p: RoutePlan) =>
     before.kind === 'burn'
       ? p.engineCommands![before.i].burn!.heading
-      : p.impulses[before.i].heading;
+      : before.kind === 'cut'
+        ? undefined
+        : p.impulses[before.i].heading;
   const own = heading(nudged)?.frame;
   // The earlier change may need another direction too (a push the other way, or sideways).
   const frames =

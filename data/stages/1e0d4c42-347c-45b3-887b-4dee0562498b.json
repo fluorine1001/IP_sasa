@@ -176,7 +176,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "c1b",
-          "delay": 0.35
+          "delay": 0.352
         }
       ]
     }

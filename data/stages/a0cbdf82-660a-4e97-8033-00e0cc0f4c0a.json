@@ -372,7 +372,7 @@
         "x": 1,
         "y": 0
       },
-      "launchDv": 0.428,
+      "launchDv": 0.427,
       "engineCommands": [
         {
           "id": "c0",
@@ -389,7 +389,7 @@
           "actorId": "craft",
           "heading": {
             "frame": "prograde",
-            "angle": -57.5
+            "angle": -59.25
           },
           "at": "after",
           "ref": "c0",
@@ -411,7 +411,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "c2b",
-          "delay": 0.08
+          "delay": 0.0765
         },
         {
           "id": "c3a",
@@ -419,7 +419,7 @@
           "actorId": "craft",
           "heading": {
             "frame": "retrograde",
-            "angle": 1.5
+            "angle": -0.25
           },
           "at": "after",
           "ref": "c2",
@@ -441,7 +441,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "c3b",
-          "delay": 0.078
+          "delay": 0.0785
         }
       ]
     }

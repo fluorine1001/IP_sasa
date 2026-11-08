@@ -902,7 +902,7 @@
         "x": 1,
         "y": 0
       },
-      "launchDv": 0.35,
+      "launchDv": 0.334,
       "engineCommands": [
         {
           "id": "relighta",
@@ -910,7 +910,7 @@
           "actorId": "craft",
           "heading": {
             "frame": "prograde",
-            "angle": -5
+            "angle": -12.75
           }
         },
         {
@@ -927,7 +927,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "relightb",
-          "delay": 0.35
+          "delay": 0.3375
         },
         {
           "id": "release-0",

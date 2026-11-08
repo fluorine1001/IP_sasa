@@ -41,6 +41,16 @@
 
 공개 주소는 **서버에 배포된 버전**입니다. GitHub Desktop에서 로컬 파일만 수정해도 공개 주소가 자동으로 바뀌는 것은 아닙니다.
 
+### GitHub Pages (플레이 전용, 서버 없음)
+
+`main`에 push하면 `.github/workflows/pages.yml`이 단일 파일 게임(`npm run build:offline`)을 만들어 GitHub Pages에 올립니다. 주소는 `https://<계정>.github.io/<저장소>/`입니다(이 저장소는 `https://fluorine1001.github.io/IP_sasa/`). 플레이 전용이며 제작소와 팀 공유 서버는 포함하지 않습니다. 스테이지 목록은 빌드에 들어 있는 공개 스테이지입니다.
+
+처음 한 번: 저장소 **Settings → Pages → Build and deployment → Source**를 **GitHub Actions**로 바꿉니다. 다른 브랜치에서 바로 올리고 싶으면 **Actions → Deploy game to GitHub Pages → Run workflow**에서 브랜치를 골라 실행합니다(환경 보호 규칙이 `main`만 허용하면 Settings → Environments → github-pages에서 브랜치를 추가).
+
+### 파일 하나로 플레이
+
+`npm run build:offline`이 만든 `dist/play.html`은 그림·글꼴·스테이지가 모두 들어 있는 파일 하나입니다. 더블클릭해 크롬·엣지로 열면 서버 없이 실행되고, 기록은 그 브라우저에 저장됩니다.
+
 ## 3. GitHub Desktop으로 가져와 실행
 
 ### 처음 한 번

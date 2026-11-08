@@ -100,9 +100,12 @@
     font-size: var(--fs-1);
     color: var(--k-dim);
   }
+  /* Eyebrow: a small amber tag above a title (dark text on the accent). */
   body.game-ui :is(.ui-eyebrow, .eyebrow) {
-    color: var(--k-accent);
-    font-weight: 800;
+    background: var(--k-accent);
+    color: var(--k-accent-ink);
+    border-radius: 999px;
+    padding: 2px 10px;
   }
 
   /* ---- Button: one shape for everything pressable ---- */

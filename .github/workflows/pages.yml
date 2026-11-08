@@ -1,0 +1,46 @@
+# Publishes the playable game to GitHub Pages: the single-file offline build
+# (everything inline, no server needed) is served as the site's index.html.
+# One-time setup: repository Settings → Pages → Source: "GitHub Actions".
+name: Deploy game to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build the single-file game
+        run: npm run build:offline
+      - name: Lay out the site
+        run: |
+          mkdir -p site
+          cp dist/play.html site/index.html
+          touch site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

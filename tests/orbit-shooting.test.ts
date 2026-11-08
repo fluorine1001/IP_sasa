@@ -52,6 +52,9 @@ it('이미 궤도를 도는 유한연료 기체의 무조작 해를 첫 실제 �
   delete s.launchBodyId;
   s.spawn = { position: { x: 2, y: 0 }, velocity: { x: 0, y: Math.sqrt(0.08 / 2) }, placed: true };
   s.bodies[0].mu = 0.08;
+  // The spawn states where the craft's mass is; the judged point is its base, half a
+  // hull behind. A small craft keeps that base inside the 0.2-wide band of this orbit.
+  s.rules.craftScale = 0.1;
   const goal = createMarker(s, 'orbit', { x: 2, y: 0 });
   Object.assign(goal.marker!, { radius: 2, minor: 2, width: 0.2, span: 'settle', duration: 0.3 });
   Object.assign(goal, compileMarker(s, goal));

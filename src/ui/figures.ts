@@ -14,7 +14,8 @@ export const STAGE_FILL = [
 ];
 export const stageFill = (i: number) => STAGE_FILL[i % STAGE_FILL.length];
 
-const n = (v: number) => Math.round(v * 100) / 100;
+// A degenerate figure (craft at the centre, no orbit) draws at the origin instead of NaN.
+const n = (v: number) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : 0);
 
 /**
  * A side view of the craft: the first stage at the tail (left, with its nozzle), the

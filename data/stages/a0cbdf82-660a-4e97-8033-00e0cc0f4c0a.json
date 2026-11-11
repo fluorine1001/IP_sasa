@@ -389,7 +389,8 @@
           "actorId": "craft",
           "heading": {
             "frame": "prograde",
-            "angle": -59
+            "angle": -80,
+            "body": "ff2ce58f-5fa7-48ed-8c42-3fac8bbc64a3"
           },
           "at": "after",
           "ref": "c0",
@@ -411,7 +412,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "c2b",
-          "delay": 0.07
+          "delay": 0.03
         },
         {
           "id": "c3a",
@@ -419,7 +420,8 @@
           "actorId": "craft",
           "heading": {
             "frame": "retrograde",
-            "angle": 0
+            "angle": 0,
+            "body": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
           },
           "at": "after",
           "ref": "c2",
@@ -432,7 +434,8 @@
           "throttle": 1,
           "at": "periapsis",
           "ref": "c2",
-          "delay": 0
+          "delay": 0,
+          "body": "fbe12635-76a8-46a4-ab3c-8f9865fd3da1"
         },
         {
           "id": "c3",
@@ -441,7 +444,7 @@
           "throttle": 0,
           "at": "after",
           "ref": "c3b",
-          "delay": 0.079
+          "delay": 0.07
         }
       ]
     }

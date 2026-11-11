@@ -31,6 +31,8 @@ jobs:
         run: npm test
       - name: Stage audit
         run: npm run audit:stages
+      - name: Puzzle margins (every published stage must survive small nudges)
+        run: npm run audit:margins
       - name: Game build and offline file
         run: npm run build
       - name: Online editor server (same build and start as the hosted service)

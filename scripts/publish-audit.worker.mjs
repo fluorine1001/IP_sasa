@@ -12,7 +12,7 @@ try {
   const { parseStage } = await runtime.ssrLoadModule('/src/stages/validation.ts');
   const { manualPublication } = await runtime.ssrLoadModule('/src/stages/manual-publication.ts');
   const { physicalDesignIssues } = await runtime.ssrLoadModule('/src/editor/physical-design.ts');
-  const final = manualPublication(parseStage(workerData.stage));
+  const final = manualPublication(parseStage(workerData.stage), { margins: true });
   final.errors.push(...physicalDesignIssues(workerData.stage));
   parentPort.postMessage({ result: final });
 } catch (error) {

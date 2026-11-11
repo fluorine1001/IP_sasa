@@ -1,3 +1,4 @@
+import { nameOf } from '../../world/blackbox';
 import { landingBounds } from '../../world/landing';
 import { objectiveGoals } from '../../world/goals';
 import { planChanges } from '../../world/plan-diff';
@@ -63,6 +64,8 @@ export function resultSummary(
     miss?: Miss;
     /** The previous flight's miss, shown beside this one when it is about the same goal. */
     previousMiss?: Miss;
+    /** The player's own probes: this flight's value beside the previous flight's. */
+    probes?: { label: string; now: string; before?: string }[];
   } = {},
 ) {
   const seal = stamp(stage, run);
@@ -138,7 +141,9 @@ export function resultSummary(
   const share = medals.initial > 0 ? Math.min(1, medals.used / medals.initial) : 0;
   const stats = `<dl class="result-stats">${options.attempt ? `<div><dt>시도</dt><dd>${options.attempt}번째</dd></div>` : ''}<div><dt>비행 시간</dt><dd>${run.time.toFixed(2)}초</dd></div><div><dt>${stage.rocket ? '연료 사용' : '추진 사용'}</dt><dd>${Math.round(share * 100)}%</dd></div></dl>`;
 
-  const changes = previous ? planChanges(previous, run.initialPlan ?? run.plan) : [];
+  const changes = previous
+    ? planChanges(previous, run.initialPlan ?? run.plan, (id) => nameOf(stage, id))
+    : [];
   // On a retry, what changed since the last flight; nothing to say on the first.
   const change = !previous
     ? ''
@@ -155,5 +160,20 @@ export function resultSummary(
   // A flight stopped by hand has nothing to analyse: stamp and actions only.
   if (run.status === 'aborted')
     return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${actions}`;
-  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}${missBlock}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${stats}${change ? `<p class="result-change">${escape(change)}</p>` : ''}${actions}`;
+  return `<button id="result-close" aria-label="결과 닫기">×</button><div class="result-stamp ${seal.tone}">${escape(seal.text)}</div>${cause ? `<p class="result-cause">${escape(cause)}</p>` : ''}${measure}${missBlock}<ul class="result-goals">${goalRows.map((g) => g.html).join('')}</ul>${medalRow}${probeTable(options.probes)}${stats}${change ? `<p class="result-change">${escape(change)}</p>` : ''}${actions}`;
+}
+
+/** 내 관측: the numbers the player chose to watch, this flight and the one before. */
+function probeTable(rows?: { label: string; now: string; before?: string }[]) {
+  if (!rows?.length) return '';
+  return (
+    `<section class="result-probes"><h3>내 관측</h3><ul>` +
+    rows
+      .map(
+        (r) =>
+          `<li><span class="probe-name">${escape(r.label)}</span><span class="probe-values"><b>${r.now}</b>${r.before !== undefined ? `<span class="before">직전 ${r.before}</span>` : ''}</span></li>`,
+      )
+      .join('') +
+    '</ul></section>'
+  );
 }

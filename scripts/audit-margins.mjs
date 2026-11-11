@@ -21,6 +21,9 @@ try {
     `여유 기준: 시각 ±${MARGIN.time}초 · Δv ±max(${MARGIN.dv}, ${MARGIN.dvShare * 100}%) · 각도 ±${MARGIN.angle}° · 발사 세기 ±${MARGIN.launchPower * 100}% · 냉가스 발사 방향 ±${MARGIN.launchAngle}°`,
   );
   let failed = false;
+  // Published stages that do not meet the rule yet, each with the redesign it needs. They
+  // are reported, never hidden; a stage published from the workshop gets no such entry.
+  const debt = JSON.parse(await readFile('data/margin-debt.json', 'utf8'));
   const stages = [];
   for (const file of await readdir('data/stages'))
     if (file.endsWith('.json'))
@@ -48,7 +51,12 @@ try {
         (reaimed ? ` (마지막 수정으로 다시 맞춤 ${reaimed})` : '') +
         (bad.length ? ` · 실패 ${bad.map((c) => c.knob + ' ' + c.delta).join(', ')}` : ' · 통과'),
     );
-    if (bad.length) failed = true;
+    if (bad.length && debt[stage.id]) console.log(`   알려진 과제: ${debt[stage.id]}`);
+    else if (bad.length) failed = true;
+    else if (debt[stage.id])
+      console.log(
+        '   알려진 과제 목록에 있지만 이제 통과합니다: data/margin-debt.json에서 지우세요.',
+      );
   }
   if (failed) process.exitCode = 1;
 } finally {

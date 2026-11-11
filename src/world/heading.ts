@@ -15,6 +15,11 @@ export type Heading = {
   targetId?: string;
   /** Degrees. Along/against motion: + tilts toward outward. Outward/inward: + tilts toward prograde. */
   angle: number;
+  /**
+   * The body whose horizon the frame is read from. Unset: the body pulling hardest when
+   * the turn begins, then kept for as long as the turn holds (it never switches silently).
+   */
+  body?: string;
 };
 /**
  * Where an armed command waits after its time: the next highest or lowest point of the
@@ -45,6 +50,11 @@ export type TriggerSpec = {
   /** angle: craft's angle around the body; phase: target's angle minus the craft's (degrees). */
   atAngle?: number;
   phaseTarget?: string;
+  /**
+   * The body the height, apsis and angle are measured around. Unset: the body pulling
+   * hardest when the reservation is armed, then kept until it fires.
+   */
+  body?: string;
 };
 export type TriggerReading = {
   radial: number;
@@ -59,6 +69,22 @@ export type TriggerReading = {
 function objectPositionOf(stage: Stage, o: Stage['objects'][number], time: number) {
   return objectPosition(stage, o, time);
 }
+/** A named reference body, or (unset or unknown) the body pulling hardest here and now. */
+export function referenceBody(stage: Stage, position: Vec, time: number, bodyId?: string) {
+  const named = bodyId ? stage.bodies.find((b) => b.id === bodyId && b.mu > 0) : undefined;
+  return named ?? dominantBody(stage, position, time);
+}
+/** Fix an unnamed reference body to the one pulling hardest now (it then never switches). */
+export function settleBody<T extends { body?: string }>(
+  stage: Stage,
+  x: T,
+  position: Vec,
+  time: number,
+): T {
+  if (x.body) return x;
+  const body = dominantBody(stage, position, time);
+  return body ? { ...x, body: body.id } : x;
+}
 const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 /** Radial speed and height above the reference body's surface at a state. */
 export function triggerReading(
@@ -67,8 +93,9 @@ export function triggerReading(
   velocity: Vec,
   time: number,
   phaseTarget?: string,
+  bodyId?: string,
 ): TriggerReading {
-  const f = orbitFrame(stage, position, velocity, time);
+  const f = orbitFrame(stage, position, velocity, time, undefined, bodyId);
   const centre = f.body ? bodyPosition(stage, f.body, time) : { x: 0, y: 0 };
   const r = sub(position, centre);
   const height = f.body ? length(r) - f.body.radius : Infinity;
@@ -122,6 +149,7 @@ export function triggerOf(x: {
   ref?: string;
   atAngle?: number;
   phaseTarget?: string;
+  body?: string;
 }): TriggerSpec | undefined {
   return x.at
     ? {
@@ -131,6 +159,7 @@ export function triggerOf(x: {
         ref: x.ref,
         atAngle: x.atAngle,
         phaseTarget: x.phaseTarget,
+        ...(x.body ? { body: x.body } : {}),
       }
     : undefined;
 }
@@ -160,8 +189,9 @@ export function orbitFrame(
   velocity: Vec,
   time: number,
   senseOverride?: 1 | -1,
+  bodyId?: string,
 ) {
-  const body = dominantBody(stage, position, time);
+  const body = referenceBody(stage, position, time, bodyId);
   const r = body ? sub(position, bodyPosition(stage, body, time)) : position,
     v = body ? sub(velocity, bodyVelocity(stage, body, time)) : velocity;
   if (!body || length(r) < 1e-9) {
@@ -190,8 +220,15 @@ function turningSense(r: Vec, v: Vec) {
  * early, instead of turning after the apsis has passed. Undefined when the orbit is a
  * circle or there is no body to orbit.
  */
-export function apsisFrame(stage: Stage, position: Vec, velocity: Vec, time: number, at: Apsis) {
-  const body = dominantBody(stage, position, time);
+export function apsisFrame(
+  stage: Stage,
+  position: Vec,
+  velocity: Vec,
+  time: number,
+  at: Apsis,
+  bodyId?: string,
+) {
+  const body = referenceBody(stage, position, time, bodyId);
   if (!body || (at !== 'apoapsis' && at !== 'periapsis') || !(body.mu > 0)) return undefined;
   const r = sub(position, bodyPosition(stage, body, time)),
     v = sub(velocity, bodyVelocity(stage, body, time));
@@ -227,7 +264,7 @@ export function resolveHeading(
   heading: Heading,
 ): Vec {
   if (heading.frame === 'match') return matchHeading(stage, velocity, time, heading);
-  return headingIn(orbitFrame(stage, position, velocity, time), heading);
+  return headingIn(orbitFrame(stage, position, velocity, time, undefined, heading.body), heading);
 }
 /**
  * The heading of this moment, keeping the turning sense that brings it closest to
@@ -245,7 +282,7 @@ export function resolveHeadingNear(
 ): Vec {
   if (heading.frame === 'match') return matchHeading(stage, velocity, time, heading);
   const [a, b] = ([1, -1] as const).map((sense) =>
-    headingIn(orbitFrame(stage, position, velocity, time, sense), heading),
+    headingIn(orbitFrame(stage, position, velocity, time, sense, heading.body), heading),
   );
   return dot(a, near) >= dot(b, near) ? a : b;
 }

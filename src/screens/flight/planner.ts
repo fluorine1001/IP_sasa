@@ -1,4 +1,5 @@
 import { launchWindowTime } from '../../world/launch-window';
+import { nameOf } from '../../world/blackbox';
 import {
   planningTimeLimit,
   canAddCommand,
@@ -173,6 +174,7 @@ export function timelinePlanner(
     altitude?: number;
     atAngle?: number;
     phaseTarget?: string;
+    body?: string;
   };
   const hostFor = (id: string): TriggerHost | undefined => {
     const c = command(id);
@@ -447,6 +449,9 @@ export function timelinePlanner(
             ),
             trigger.at ?? '',
           ) + fields;
+        // Heights, apsides and angles are read around one named body, never a switching one.
+        if (['apoapsis', 'periapsis', 'angle', 'altitude'].includes(trigger.at ?? ''))
+          fields += bodyPick('atbody', trigger.body);
         if (trigger.at === 'angle' || trigger.at === 'phase')
           fields +=
             (trigger.at === 'phase'
@@ -624,6 +629,7 @@ export function timelinePlanner(
       (editable() ? '' : 'disabled') +
       '>' +
       fields +
+      recordBox(id) +
       (aim && (c?.burn || impulse || (id === 'launch' && !stage.rocket))
         ? '<div id="aim-readout" aria-live="polite">' + aim(id, p) + '</div>'
         : '') +
@@ -943,6 +949,24 @@ export function timelinePlanner(
         open(selected);
         return;
       }
+      const framebody = button.dataset.framebody,
+        atbody = button.dataset.atbody;
+      if (framebody !== undefined || atbody !== undefined) {
+        const c = command(selected),
+          impulse = push(selected);
+        if (framebody !== undefined) {
+          const h = c?.burn?.heading ?? c?.heading ?? impulse?.heading;
+          if (h) h.body = framebody || undefined;
+        } else {
+          const target = hostFor(selected);
+          if (target) target.body = atbody || undefined;
+        }
+        action?.('edit');
+        changed();
+        update();
+        open(selected);
+        return;
+      }
       const frame = button.dataset.frame;
       if (frame) {
         const c = command(selected),
@@ -1150,16 +1174,63 @@ export function timelinePlanner(
     );
   }
   function frameButtons(h: Heading | undefined, allowMap: boolean) {
+    return (
+      pick(
+        'frame',
+        '방향',
+        [
+          ...frames.map((f) => [f, FRAME_LONG[f]] as const),
+          // Meeting something: a burn against the motion relative to it.
+          ...(matchTargets().length ? ([['match', FRAME_LONG.match]] as const) : []),
+          ...(allowMap ? ([['map', FRAME_LONG.map]] as const) : []),
+        ],
+        h?.frame ?? 'map',
+      ) + (h && h.frame !== 'match' ? bodyPick('framebody', h.body) : '')
+    );
+  }
+  /**
+   * What this item actually met in the flight on record: measurements only, in the
+   * order a player checks them. No judgement, no suggested change.
+   */
+  function recordBox(id: string) {
+    const record = get().record;
+    if (!record) return '';
+    const e = record.box[id];
+    const head = `<h4>${record.number}번째 비행 기록</h4>`;
+    if (!e) return `<section class="flight-record">${head}<p>실행되지 않았습니다.</p></section>`;
+    const n = (v: number) => v.toFixed(3);
+    const rows: [string, string][] = [['마친 시각', e.time.toFixed(2) + '초']];
+    const body = nameOf(stage, e.body);
+    if (e.height !== undefined) rows.push([`${body} 위 높이`, n(e.height) + ' u']);
+    if (e.speed !== undefined)
+      rows.push([
+        `${body} 기준 속력`,
+        `${n(e.speed)} u/s · ${(e.radial ?? 0) >= 0 ? '오르며' : '내려오며'} ${n(Math.abs(e.radial ?? 0))}`,
+      ]);
+    if (e.gap !== undefined) {
+      const t = nameOf(stage, e.target);
+      rows.push([`${t}까지`, n(e.gap) + ' u']);
+      rows.push([`${t}와 상대속력`, n(e.relSpeed ?? 0) + ' u/s']);
+    }
+    if (e.dv !== undefined) rows.push(['이 연소의 실제 Δv', n(e.dv) + ' u/s']);
+    return (
+      `<section class="flight-record">${head}<dl>` +
+      rows.map(([k, v]) => `<dt>${escape(k)}</dt><dd>${v}</dd>`).join('') +
+      '</dl></section>'
+    );
+  }
+  /** Bodies a frame or trigger can be read around (only when there is a choice). */
+  function referenceBodies() {
+    return stage.bodies.filter((b) => b.kind !== 'barycenter' && b.mu > 0);
+  }
+  function bodyPick(kind: 'framebody' | 'atbody', current: string | undefined) {
+    const bodies = referenceBodies();
+    if (bodies.length < 2) return '';
     return pick(
-      'frame',
-      '방향',
-      [
-        ...frames.map((f) => [f, FRAME_LONG[f]] as const),
-        // Meeting something: a burn against the motion relative to it.
-        ...(matchTargets().length ? ([['match', FRAME_LONG.match]] as const) : []),
-        ...(allowMap ? ([['map', FRAME_LONG.map]] as const) : []),
-      ],
-      h?.frame ?? 'map',
+      kind,
+      '기준 천체',
+      [['', '걸 때 가장 세게 당기는 천체'], ...bodies.map((b) => [b.id, b.name] as const)],
+      current ?? '',
     );
   }
   /** A labelled single choice (a native list: one visible answer, the rest on demand). */

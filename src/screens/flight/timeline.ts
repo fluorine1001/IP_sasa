@@ -37,6 +37,8 @@ export type TimelineState = {
   log?: LogAttempt[];
   /** Clock times of event-anchored reservations (calculated before a flight, actual in it). */
   estimates?: Record<string, number>;
+  /** The black box of the flight shown (the last one while planning): what each item met. */
+  record?: { number: number; box: import('../../world/blackbox').Blackbox };
 };
 import { eventIcon } from '../../render/program-icons';
 import { burnSpans, chipText, stageColor, textWidth } from './plan-strip';

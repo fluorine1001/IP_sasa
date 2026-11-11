@@ -29,8 +29,10 @@ import {
   triggerFired,
   triggerReading,
   triggerOf,
+  settleBody,
 } from './heading';
 import { add, dot, length, scale, sub, rotate, type Vec } from '../physics/vector.ts';
+import { recordBlackbox } from './blackbox';
 import { segmentHitsCircle } from '../physics/orbit.ts';
 import {
   bodyPosition,
@@ -199,7 +201,7 @@ function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: Dv
   // An apsis burn turns now toward the heading it will need at that apsis.
   const ahead =
     b.at === 'apoapsis' || b.at === 'periapsis'
-      ? apsisFrame(stage, position, velocity, run.time, b.at)
+      ? apsisFrame(stage, position, velocity, run.time, b.at, b.heading.body ?? b.body)
       : undefined;
   const direction = ahead
     ? headingIn(ahead, b.heading)
@@ -212,7 +214,15 @@ function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: Dv
     direction,
     b.dv,
     b.throttle ?? 1,
-    b.at ? { trigger: triggerOf(b)!, heading: b.heading } : undefined,
+    b.at
+      ? (() => {
+          const trigger = settleBody(stage, triggerOf(b)!, position, run.time);
+          return {
+            trigger,
+            heading: b.heading.body ? b.heading : { ...b.heading, body: trigger.body },
+          };
+        })()
+      : undefined,
   );
 }
 function triggerAt(v: object) {
@@ -285,7 +295,14 @@ function applyEngine(run: Run, stage: Stage, command: EngineCommand) {
     run.holding = (run.holding ?? []).filter((h) => h.actorId !== command.actorId);
   if (direction && length(direction) > 1e-8) {
     run.holding = (run.holding ?? []).filter((h) => h.actorId !== command.actorId);
-    if (command.heading) run.holding.push({ actorId: command.actorId, heading: command.heading });
+    // A hold keeps the body it began around: the frame never switches mid-turn or mid-burn.
+    if (command.heading) {
+      const actor = actorState(run, command.actorId)!;
+      run.holding.push({
+        actorId: command.actorId,
+        heading: settleBody(stage, command.heading, actor.position, run.time),
+      });
+    }
   }
   // Later turns replace earlier ones: an unfinished turn of the same part counts as done.
   if (direction && length(direction) > 1e-8) {
@@ -308,6 +325,7 @@ function fireArmedCommands(run: Run, stage: Stage) {
       actor.velocity,
       run.time,
       armed.trigger.phaseTarget,
+      armed.trigger.body,
     );
     const fired = triggerFired(armed.trigger, armed.last, now, run.firedAt);
     armed.last = now;
@@ -352,6 +370,7 @@ function fireArmedPushes(run: Run, stage: Stage) {
       run.velocity,
       run.time,
       armed.trigger.phaseTarget,
+      armed.trigger.body,
     );
     const fired = triggerFired(armed.trigger, armed.last, now, run.firedAt);
     armed.last = now;
@@ -486,10 +505,18 @@ export function tick(
           const command = event.value;
           // An engine command waiting for an orbital event is armed now and acts then.
           if (!command.burn && command.at && command.at !== 'after') {
+            const actor = actorState(run, command.actorId);
+            const trigger = actor
+              ? settleBody(stage, triggerOf(command)!, actor.position, run.time)
+              : triggerOf(command)!;
             (run.armedCommands ??= []).push({
               id: command.id,
-              trigger: triggerOf(command)!,
-              command,
+              trigger,
+              // A turn armed on an event reads its frame around the same body as its trigger.
+              command:
+                command.heading && !command.heading.body && trigger.body
+                  ? { ...command, heading: { ...command.heading, body: trigger.body } }
+                  : command,
             });
             run.applied.add(command.id);
             continue;
@@ -506,10 +533,15 @@ export function tick(
           run.applied.add(command.id);
         } else if (event.value.at) {
           // Armed push: it fires later, when its trigger is met (see fireArmedPushes).
+          const trigger = settleBody(stage, triggerOf(event.value)!, run.position, run.time);
+          const push = event.value;
           (run.armedPushes ??= []).push({
             id: command.id,
-            trigger: triggerOf(event.value)!,
-            push: event.value,
+            trigger,
+            push:
+              push.heading && !push.heading.body && trigger.body
+                ? { ...push, heading: { ...push.heading, body: trigger.body } }
+                : push,
           });
           run.applied.add(command.id);
         } else {
@@ -534,6 +566,7 @@ export function tick(
         run.reason = '수정 추진의 총량 한도를 넘었습니다.';
         return;
       }
+      recordBlackbox(run, stage);
       if (record && run.applied.size !== appliedBefore) captureFrame(run, true);
       // A push that just fired may release reservations chained to it at this instant.
       if (chainedEvents(run).length) continue;

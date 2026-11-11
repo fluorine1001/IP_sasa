@@ -1,3 +1,5 @@
+import { editProbes, probeEditorHtml, probeLabel, probeRowsHtml, probeValue } from './probes';
+import { nameOf } from '../../world/blackbox';
 import { heldLaunchState, launchWindowTime } from '../../world/launch-window';
 import { objectiveGoals } from '../../world/goals';
 import {
@@ -798,6 +800,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       return trial && replayIndex >= 0
         ? {
             phase: 'replay',
+            record: { number: trial.number, box: trial.blackbox ?? {} },
             plan: trial.flightPlan,
             scheduled: trial.scheduledPlan,
             applied: new Set(trial.appliedIds),
@@ -821,6 +824,11 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
             ended,
             known: !run ? repeatsUntil() : undefined,
             estimates: run ? { ...run.firedAt } : planEstimates(),
+            record: run
+              ? { number: trials.length + 1, box: run.blackbox ?? {} }
+              : trials.at(-1)
+                ? { number: trials.at(-1)!.number, box: trials.at(-1)!.blackbox ?? {} }
+                : undefined,
             log: (
               (!showLog
                 ? []
@@ -1089,13 +1097,13 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
     );
   }
   function ledgerHtml() {
-    return `<div class="archive-heading"><h2>비행 일지</h2>${trials.length ? `<button id="log-toggle" class="log-toggle" aria-pressed="${showLog}">시간선 그래프</button>` : ''}<button id="close-notes" data-close-ledger class="archive-close" aria-label="비행 기록 닫기" title="비행 기록 닫기">${controlIcon('close')}</button></div>${trials.length > 1 ? planComparison() : ''}<div class="trial-grid">${
+    return `<div class="archive-heading"><h2>비행 일지</h2>${trials.length ? `<button id="log-toggle" class="log-toggle" aria-pressed="${showLog}">시간선 그래프</button>` : ''}<button id="close-notes" data-close-ledger class="archive-close" aria-label="비행 기록 닫기" title="비행 기록 닫기">${controlIcon('close')}</button></div>${probeEditorHtml(stage, plan, !run || ended)}${trials.length > 1 ? planComparison() : ''}<div class="trial-grid">${
       trials
         .map((t, index) => ({ t, index }))
         .reverse()
         .map(
           ({ t, index }) =>
-            `<article class="trial-card"><div class="trial-heading"><b>${t.number}차</b><span class="trial-outcome ${t.status === 'won' ? 'won' : ''}">${endReason(t.status, t.reason)}</span></div><div class="trial-media"><button class="trial-select" data-trial-view="${index}" aria-label="${t.number}차 경로 선택" aria-pressed="${index === compareIndex}">${trialPreview(t)}</button><div class="trial-meta"><span>${controlIcon('clock')}${t.duration.toFixed(2)}초</span><span>${controlIcon('engine')}${Math.round(launchFraction(stage, t.plan) * 100)}%</span><span>${controlIcon('sliders')}${(t.scheduledPlan.engineCommands?.length ?? 0) + t.scheduledPlan.impulses.length}개</span></div></div><div class="trial-actions"><button data-trial-copy="${index}" aria-label="${t.number}차 계획 복사" title="실행한 계획 복사" ${run && !ended ? 'disabled' : ''}>${controlIcon('copy')}</button><button data-trial-replay="${index}" aria-label="${t.number}차 비행 다시보기">${controlIcon('play')}<span>재생</span></button></div><details class="trial-readings"><summary>관측 수치</summary>${design.instruments.map((i) => `<div data-reading="${escape(i.id)}">${escape(i.label)}: <b>${t.evidence.readings[i.id] ? t.evidence.readings[i.id].value.toFixed(3) : '—'}</b></div>`).join('')}</details></article>`,
+            `<article class="trial-card"><div class="trial-heading"><b>${t.number}차</b><span class="trial-outcome ${t.status === 'won' ? 'won' : ''}">${endReason(t.status, t.reason)}</span></div><div class="trial-media"><button class="trial-select" data-trial-view="${index}" aria-label="${t.number}차 경로 선택" aria-pressed="${index === compareIndex}">${trialPreview(t)}</button><div class="trial-meta"><span>${controlIcon('clock')}${t.duration.toFixed(2)}초</span><span>${controlIcon('engine')}${Math.round(launchFraction(stage, t.plan) * 100)}%</span><span>${controlIcon('sliders')}${(t.scheduledPlan.engineCommands?.length ?? 0) + t.scheduledPlan.impulses.length}개</span></div></div><div class="trial-actions"><button data-trial-copy="${index}" aria-label="${t.number}차 계획 복사" title="실행한 계획 복사" ${run && !ended ? 'disabled' : ''}>${controlIcon('copy')}</button><button data-trial-replay="${index}" aria-label="${t.number}차 비행 다시보기">${controlIcon('play')}<span>재생</span></button></div><details class="trial-readings"><summary>관측 수치</summary>${design.instruments.map((i) => `<div data-reading="${escape(i.id)}">${escape(i.label)}: <b>${t.evidence.readings[i.id] ? t.evidence.readings[i.id].value.toFixed(3) : '—'}</b></div>`).join('')}${(t.scheduledPlan.probes ?? []).map((p) => `<div>${escape(probeLabel(stage, t.scheduledPlan, p))}: <b>${probeValue(t, p)}</b></div>`).join('')}</details></article>`,
         )
         .join('') ||
       '<div class="archive-empty">' + controlIcon('records') + '<b>저장된 비행 없음</b></div>'
@@ -1103,7 +1111,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
   }
   function planComparison() {
     const [a, b] = comparedTrials();
-    const changes = planChanges(a.scheduledPlan, b.scheduledPlan);
+    const changes = planChanges(a.scheduledPlan, b.scheduledPlan, (id) => nameOf(stage, id));
     return `<section class="plan-comparison"><b>${comparedTrials()[0].number}차 → ${comparedTrials()[1].number}차 바꾼 점</b>${changes.length ? changes.map((c) => (typeof c.after === 'number' && c.label.includes('시각') ? `<button data-comparison-time="${c.after}">${escape(c.label)} · ${c.before} → ${c.after}초</button>` : `<p>${escape(c.label)} · ${escape(String(c.before))} → ${escape(String(c.after))}</p>`)).join('') : '<p>같은 계획</p>'}</section>`;
   }
   function comparedTrials() {
@@ -1141,7 +1149,7 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       )
       .join(
         '',
-      )}<tr><th>기록 길이</th><td>${a.duration.toFixed(2)}초</td><td>${b.duration.toFixed(2)}초</td></tr></tbody></table>`;
+      )}${probeRowsHtml(stage, a, b)}<tr><th>기록 길이</th><td>${a.duration.toFixed(2)}초</td><td>${b.duration.toFixed(2)}초</td></tr></tbody></table>`;
   }
   function timeComparison() {
     if (!trials.length) return '';
@@ -1158,6 +1166,17 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       .join('')}</tbody></table>`;
   }
   function wireLedger() {
+    const book = el('notebook');
+    // 내 관측: the player's own probes, edited in place (they never change a flight).
+    const probeEdit = (e: Event) => {
+      if (!editProbes(stage, plan, e.target as HTMLElement)) return;
+      saveSession();
+      drawNotes();
+    };
+    book.onclick = (e) => {
+      if ((e.target as HTMLElement).closest('[data-probe-add],[data-probe-remove]')) probeEdit(e);
+    };
+    book.onchange = probeEdit;
     const close = app.root.querySelector<HTMLButtonElement>('[data-close-ledger]');
     if (close)
       close.onclick = () => {
@@ -1598,6 +1617,11 @@ ${controlButton('abort', 'stop', '비행 종료', 'stop-flight')}
       attempt: trials.length,
       miss: lastMiss,
       previousMiss,
+      probes: (lastTrial.scheduledPlan.probes ?? []).map((p) => ({
+        label: probeLabel(stage, lastTrial.scheduledPlan, p),
+        now: probeValue(lastTrial, p),
+        before: trials.length >= 2 ? probeValue(trials.at(-2)!, p) : undefined,
+      })),
     });
     el('result').dataset.outcome = run.status === 'won' ? 'won' : 'failed';
     if (run.status === 'won' && !args.onReturn && !training) {

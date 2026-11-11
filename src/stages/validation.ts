@@ -616,7 +616,9 @@ function validTrigger(t: {
   ref?: unknown;
   atAngle?: unknown;
   phaseTarget?: unknown;
+  body?: unknown;
 }) {
+  if (t.body !== undefined && typeof t.body !== 'string') return false;
   if (t.at === undefined) return t.altitude === undefined;
   if (
     !['apoapsis', 'periapsis', 'altitude', 'after', 'angle', 'phase', 'near'].includes(
@@ -636,9 +638,10 @@ function validTrigger(t: {
   return true;
 }
 function validHeading(h: unknown) {
-  const v = h as { frame?: unknown; angle?: unknown } | undefined;
+  const v = h as { frame?: unknown; angle?: unknown; body?: unknown } | undefined;
   return (
     !!v &&
+    (v.body === undefined || typeof v.body === 'string') &&
     ['prograde', 'retrograde', 'outward', 'inward', 'match'].includes(v.frame as string) &&
     Number.isFinite(v.angle) &&
     Math.abs(v.angle as number) <= 180

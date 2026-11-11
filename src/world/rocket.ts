@@ -408,7 +408,14 @@ export function poweredStep(run: Run, stage: Stage, dt: number, actor?: Detached
     // turning all orbit long would change the orbit itself.
     const position = actor?.position ?? run.position,
       velocity = actor?.velocity ?? run.velocity;
-    const now = triggerReading(stage, position, velocity, run.time, pending.trigger.phaseTarget);
+    const now = triggerReading(
+      stage,
+      position,
+      velocity,
+      run.time,
+      pending.trigger.phaseTarget,
+      pending.trigger.body,
+    );
     if (triggerFired(pending.trigger, pending.last, now, run.firedAt)) {
       pending.trigger = undefined;
       pending.direction = resolveHeadingNear(

@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { Stage } from '../src/world/types';
 import type { PublicationCheck } from './workshop-api';
 
-export function publicationAuditor(root: string, timeoutMs = 120_000) {
+export function publicationAuditor(root: string, timeoutMs = 300_000) {
   let queue = Promise.resolve();
   let pending = 0;
   return (stage: Stage): Promise<PublicationCheck> => {

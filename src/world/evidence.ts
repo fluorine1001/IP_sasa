@@ -3,6 +3,7 @@ import { evaluateCondition, expressionValue, type Condition, type Expression } f
 import type { GoalContext, GoalProgress, MeasuredSeries, RoutePlan, Run, Stage } from './types';
 import { length } from '../physics/vector';
 import { planChanges, singleVariableChange } from './plan-diff';
+import { metrics } from './metrics';
 
 // Author-defined observations share the goal language, but never change goal state.
 export type Instrument = {
@@ -38,7 +39,12 @@ export type Trial = {
   evidence: EvidenceState;
   /** goal id → compared quantity path → sampled values (flight log graph). */
   series?: Record<string, Record<string, MeasuredSeries>>;
+  /** What each reservation actually met when it acted. */
+  blackbox?: import('./blackbox').Blackbox;
 };
+export const probeKey = (id: string) => 'probe:' + id;
+/** How many probes a player may set on any stage. */
+export const PROBE_LIMIT = 3;
 export const emptyEvidence = (): EvidenceState => ({ readings: {}, memory: {}, cues: [] });
 export function learningDesign(stage: Stage): LearningDesign {
   if (stage.learning) return stage.learning;
@@ -89,6 +95,23 @@ export function collectEvidence(c: GoalContext) {
       state.readings[device.id] = { value, time: c.run.time, count: (old?.count ?? 0) + 1 };
     else old.count++;
   }
+  // The player's own probes: same recording, keyed apart from the author's instruments.
+  for (const probe of (c.run.initialPlan ?? c.run.plan).probes ?? []) {
+    if (probe.after && c.run.firedAt?.[probe.after] === undefined) continue;
+    const metric = metrics[probe.metric];
+    if (!metric) continue;
+    const value = metric.read(
+      c,
+      probe.targetId,
+      (state.memory[probeKey(probe.id)] ??= { complete: false, ratio: 0 }),
+    );
+    if (!Number.isFinite(value)) continue;
+    const key = probeKey(probe.id),
+      old = state.readings[key];
+    if (!old || (probe.summary === 'min' ? value < old.value : value > old.value))
+      state.readings[key] = { value, time: c.run.time, count: (old?.count ?? 0) + 1 };
+    else old.count++;
+  }
   for (const cue of design.cues) {
     if (state.cues.some((x) => x.id === cue.id)) continue;
     const p = (state.memory[cue.id] ??= { complete: false, ratio: 0 });
@@ -122,6 +145,7 @@ export function recordTrial(run: Run, number: number): Trial {
     duration: run.time,
     trail: structuredClone(run.trail),
     evidence: structuredClone(run.evidence),
+    blackbox: structuredClone(run.blackbox ?? {}),
     series: Object.fromEntries(
       Object.entries(run.goals)
         .filter(([, p]) => p.series)

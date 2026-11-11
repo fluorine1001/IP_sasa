@@ -16,6 +16,7 @@ import {
   type Apsis,
   type Heading,
   type TriggerSpec,
+  referenceBody,
 } from './heading';
 import { propagate } from './aim';
 import type { RoutePlan, Stage } from './types';
@@ -115,10 +116,11 @@ export function keplerApsis(
   stage: Stage,
   from: PreviewState,
   at: 'apoapsis' | 'periapsis',
+  bodyId?: string,
 ): PreviewState | undefined {
-  const body = dominantBody(stage, from.position, from.time);
+  const body = referenceBody(stage, from.position, from.time, bodyId);
   if (!body || !(body.mu > 0)) return;
-  const frame = apsisFrame(stage, from.position, from.velocity, from.time, at);
+  const frame = apsisFrame(stage, from.position, from.velocity, from.time, at, body.id);
   if (!frame) return;
   const centre = bodyPosition(stage, body, from.time),
     bodyV = bodyVelocity(stage, body, from.time);
@@ -177,20 +179,27 @@ export function previewStates(
     let before: PreviewState | undefined;
     if (change.at === 'apoapsis' || change.at === 'periapsis') {
       const from = chain ?? recorded(change.time);
-      before = from && keplerApsis(stage, from, change.at);
+      before = from && keplerApsis(stage, from, change.at, change.trigger?.body);
       // Its moment, for drawing on the clock: coast the same two-body orbit to it.
       if (before && from) {
         const timed = coastUntil(
           stage,
           from,
-          { at: change.at },
+          { at: change.at, body: change.trigger?.body },
           undefined,
           change.trigger?.ref ? undefined : change.time,
         );
         if (timed) before = { ...before, time: timed.time };
       }
       if (before && change.heading && change.heading.frame !== 'match') {
-        const frame = apsisFrame(stage, from!.position, from!.velocity, from!.time, change.at);
+        const frame = apsisFrame(
+          stage,
+          from!.position,
+          from!.velocity,
+          from!.time,
+          change.at,
+          change.trigger?.body,
+        );
         if (frame) {
           const after = {
             ...before,
@@ -245,7 +254,7 @@ export function coastUntil(
   /** Start waiting only from this time (an item armed by its own clock time). */
   armedAt?: number,
 ): PreviewState | undefined {
-  const body = dominantBody(stage, from.position, from.time);
+  const body = referenceBody(stage, from.position, from.time, trigger.body);
   if (!body || !(body.mu > 0)) return;
   const c0 = bodyPosition(stage, body, from.time),
     w0 = bodyVelocity(stage, body, from.time);
@@ -264,8 +273,8 @@ export function coastUntil(
   const fired = (a: PreviewState, b: PreviewState) =>
     triggerFired(
       trigger,
-      triggerReading(stage, a.position, a.velocity, a.time, trigger.phaseTarget),
-      triggerReading(stage, b.position, b.velocity, b.time, trigger.phaseTarget),
+      triggerReading(stage, a.position, a.velocity, a.time, trigger.phaseTarget, body.id),
+      triggerReading(stage, b.position, b.velocity, b.time, trigger.phaseTarget, body.id),
       refId ? { [refId]: from.time } : undefined,
     );
   const step = 0.05;

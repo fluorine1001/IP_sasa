@@ -412,6 +412,42 @@
   .chain-anchor .chain-to {
     color: var(--n-100);
   }
+  /* Flight record (black box): a quiet paper slip of measurements under the editor. */
+  .flight-record {
+    margin-top: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-md);
+    background: var(--n-850);
+    border-left: 3px solid var(--n-300);
+  }
+  .flight-record h4 {
+    margin: 0 0 6px;
+    font-size: var(--fs-1);
+    color: var(--n-300);
+    font-weight: 400;
+  }
+  .flight-record p {
+    margin: 0;
+    font-size: var(--fs-1);
+    color: var(--n-200);
+  }
+  .flight-record dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--sp-1) var(--sp-3);
+    margin: 0;
+    font-size: var(--fs-1);
+  }
+  .flight-record dt {
+    color: var(--n-300);
+  }
+  .flight-record dd {
+    margin: 0;
+    color: var(--n-100);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
   .chain-estimate,
   .chain-followers {
     margin: 0;
@@ -733,5 +769,85 @@
   }
   body.game-ui #command-popover .dv-field.compact small {
     white-space: nowrap;
+  }
+}
+@layer components {
+  /* 내 관측: the player's own probes in the flight log — one row of plain choices each. */
+  .probe-editor {
+    margin: var(--sp-3) 0;
+  }
+  .probe-editor h3 {
+    margin: 0 0 var(--sp-2);
+    font-size: var(--fs-2);
+  }
+  .probe-editor h3 small {
+    color: var(--n-300);
+    font-size: var(--fs-1);
+  }
+  .probe-editor fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .probe-editor ul {
+    list-style: none;
+    margin: 0 0 var(--sp-2);
+    padding: 0;
+    display: grid;
+    gap: var(--sp-2);
+  }
+  .probe-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px;
+    gap: var(--sp-1) var(--sp-2);
+    padding: var(--sp-2);
+    border-radius: var(--r-md);
+    background: var(--n-850);
+  }
+  .probe-row select {
+    min-width: 0;
+    min-height: 34px;
+    font-size: var(--fs-1);
+  }
+  .probe-row button {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: center;
+    width: 30px;
+    min-height: 30px;
+    padding: 0;
+  }
+  .result-probes {
+    margin: var(--sp-2) 0;
+  }
+  .result-probes h3 {
+    margin: 0 0 var(--sp-1);
+    font-size: var(--fs-1);
+    font-weight: 400;
+    color: var(--n-300);
+  }
+  .result-probes ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--sp-2);
+  }
+  .result-probes li {
+    display: grid;
+    gap: 2px;
+    font-size: var(--fs-1);
+  }
+  .result-probes .probe-name {
+    color: var(--n-200);
+  }
+  .result-probes .probe-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--sp-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .result-probes .before {
+    color: var(--n-300);
   }
 }

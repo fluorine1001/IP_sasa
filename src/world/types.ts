@@ -65,6 +65,8 @@ export type Impulse = {
   /** Trigger 'angle' / 'phase': the angle in degrees; 'phase' measures toward `phaseTarget`. */
   atAngle?: number;
   phaseTarget?: string;
+  /** The body its height, apsis and angle are measured around (unset: fixed when armed). */
+  body?: string;
 };
 /** Engine burn measured in delivered speed change: turn, ignite when aligned, stop at Δv. */
 export type DvBurn = {
@@ -80,6 +82,8 @@ export type DvBurn = {
   /** Trigger 'angle' / 'phase': the angle in degrees; 'phase' measures toward `phaseTarget`. */
   atAngle?: number;
   phaseTarget?: string;
+  /** The body its height, apsis and angle are measured around (unset: fixed when armed). */
+  body?: string;
 };
 export type RoutePlan = {
   launch: Vec;
@@ -108,8 +112,24 @@ export type RoutePlan = {
     atAngle?: number;
     phaseTarget?: string;
     altitude?: number;
+    /** The body its trigger is measured around (unset: fixed when armed). */
+    body?: string;
   }[];
   deployments?: { id: string; time: number; kind: DeviceKind }[];
+  /** The player's own measurements: recorded each flight, never change it. */
+  probes?: Probe[];
+};
+/**
+ * A measurement the player sets up: the least or greatest of one quantity relative to a
+ * body or object, from the start or from when one reservation acted.
+ */
+export type Probe = {
+  id: string;
+  metric: 'altitude' | 'speed' | 'radialSpeed';
+  targetId: string;
+  summary: 'min' | 'max';
+  /** Only after this reservation acted (unset: the whole flight). */
+  after?: string;
 };
 export type Stage = {
   version: 2;
@@ -231,6 +251,8 @@ export type Run = {
   holding?: { actorId: string; heading: import('./heading').Heading }[];
   /** When each reservation finished (burn delivered, push given, separation done). */
   firedAt?: Record<string, number>;
+  /** What each reservation actually met when it acted (src/world/blackbox.ts). */
+  blackbox?: import('./blackbox').Blackbox;
   armedPushes?: ArmedPush[];
   /** Record per-condition value series for the flight log graph. Off for audits and search. */
   recordSeries?: boolean;

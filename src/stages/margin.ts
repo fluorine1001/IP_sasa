@@ -224,7 +224,11 @@ export function nudges(
   return out;
 }
 
+/** Flights a single re-aim may spend before it counts as not found (bounded checks). */
+let budget = Infinity;
+class OutOfFlights extends Error {}
 const wins = (stage: Stage, p: RoutePlan) => {
+  if (budget-- <= 0) throw new OutOfFlights();
   try {
     return execute(stage, p).status === 'won';
   } catch {
@@ -278,6 +282,17 @@ function sizeOf(plan: RoutePlan, c: Change) {
     ? plan.engineCommands![c.i].burn!.dv
     : (plan.impulses[c.i].magnitude ?? length(plan.impulses[c.i].vector));
 }
+/** The orbit-frame turn held while a 출력…끄기 burn runs (the turn before its light). */
+function holdHeading(plan: RoutePlan, c: Change) {
+  const all = plan.engineCommands ?? [];
+  const cut = all[c.i],
+    light = all.find((o) => o.id === cut.ref);
+  if (!light) return undefined;
+  const at = chainTime(plan, light.id);
+  return all
+    .filter((o) => o.heading && o.actorId === cut.actorId && chainTime(plan, o.id) <= at + 1e-9)
+    .sort((a, b) => chainTime(plan, b.id) - chainTime(plan, a.id))[0]?.heading;
+}
 const opposite = {
   prograde: 'retrograde',
   retrograde: 'prograde',
@@ -287,9 +302,12 @@ const opposite = {
 /** A negative size means the same change the other way (prograde ↔ retrograde, …). */
 function setChange(plan: RoutePlan, c: Change, size: number, tilt: number) {
   if (c.kind === 'cut') {
-    // A burn length cannot go negative; re-aiming its direction is the turn's business.
-    if (tilt !== 0 || size <= 0) return;
+    // A burn length cannot go negative. Its direction is the held turn's: a player
+    // re-aiming this burn re-aims that turn's tilt with it.
+    if (size <= 0) return;
     plan.engineCommands![c.i].delay = Math.round(size * 1000) / 1000;
+    const h = holdHeading(plan, c);
+    if (tilt && h && h.frame !== 'match') h.angle = Math.max(-90, Math.min(90, h.angle + tilt));
     return;
   }
   const h =
@@ -379,7 +397,7 @@ function reaim(stage: Stage, nudged: RoutePlan, knob: string): boolean {
     before.kind === 'burn'
       ? p.engineCommands![before.i].burn!.heading
       : before.kind === 'cut'
-        ? undefined
+        ? holdHeading(p, before)
         : p.impulses[before.i].heading;
   const own = heading(nudged)?.frame;
   // The earlier change may need another direction too (a push the other way, or sideways).
@@ -395,6 +413,14 @@ function reaim(stage: Stage, nudged: RoutePlan, knob: string): boolean {
       setChange(p, before, size, 0);
       if (wins(stage, p) || tryLast(p, [0], 6)) return true;
     }
+  // A mid-course correction is aimed by direction as well as size.
+  if (own)
+    for (const tilt of [5, -5, 10, -10])
+      for (const size of sizesFor(base, 4)) {
+        const p = structuredClone(nudged);
+        setChange(p, before, size, tilt);
+        if (wins(stage, p) || tryLast(p, [0], 4)) return true;
+      }
   return false;
 }
 
@@ -405,12 +431,31 @@ function reaim(stage: Stage, nudged: RoutePlan, knob: string): boolean {
 export function planMargin(
   stage: Stage,
   plan: RoutePlan,
-  opts: { reaimLast?: boolean } = {},
+  opts: {
+    reaimLast?: boolean;
+    /** Flights one re-aim may try (a player's patience, and a bounded check time). */
+    flightsPerReaim?: number;
+    /** Stop once this many nudges failed (a publication check needs only a few). */
+    stopAfter?: number;
+  } = {},
 ): MarginCheck[] {
-  return nudges(stage, plan).map(({ knob, delta, plan: p }) => {
+  const out: MarginCheck[] = [];
+  let failed = 0;
+  for (const { knob, delta, plan: p } of nudges(stage, plan)) {
+    budget = Infinity;
     let won = wins(stage, p);
     let reaimed = false;
-    if (!won && opts.reaimLast && reaim(stage, p, knob)) won = reaimed = true;
-    return { knob, delta, won, ...(reaimed ? { reaimed } : {}) };
-  });
+    if (!won && opts.reaimLast) {
+      budget = opts.flightsPerReaim ?? 600;
+      try {
+        if (reaim(stage, p, knob)) won = reaimed = true;
+      } catch (e) {
+        if (!(e instanceof OutOfFlights)) throw e;
+      }
+      budget = Infinity;
+    }
+    out.push({ knob, delta, won, ...(reaimed ? { reaimed } : {}) });
+    if (!won && ++failed >= (opts.stopAfter ?? Infinity)) break;
+  }
+  return out;
 }

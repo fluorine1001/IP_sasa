@@ -449,9 +449,6 @@ export function timelinePlanner(
             ),
             trigger.at ?? '',
           ) + fields;
-        // Heights, apsides and angles are read around one named body, never a switching one.
-        if (['apoapsis', 'periapsis', 'angle', 'altitude'].includes(trigger.at ?? ''))
-          fields += bodyPick('atbody', trigger.body);
         if (trigger.at === 'angle' || trigger.at === 'phase')
           fields +=
             (trigger.at === 'phase'
@@ -580,7 +577,7 @@ export function timelinePlanner(
         // How much this cut lets the engine give: the rocket equation over the time since 출력.
         const pair = c.ref ? plannedChanges(p, stage).find((x) => x.id === c.ref) : undefined;
         fields += pair
-          ? `<p class="chain-estimate">이 연소 ≈ Δv ${pair.dv.toFixed(3)} u/s (단 연료 가득 기준 추정)</p>`
+          ? `<p class="chain-estimate">이 연소 Δv ${pair.dv.toFixed(3)} u/s (앞 연소들이 남긴 연료 기준)</p>`
           : '<p>엔진 분사를 멈춥니다. 관성과 중력은 계속 작용합니다.</p>';
       }
       if (c?.direction) fields += '<div id="rotation-info">' + rotationInfo(id) + '</div>';
@@ -949,24 +946,6 @@ export function timelinePlanner(
         open(selected);
         return;
       }
-      const framebody = button.dataset.framebody,
-        atbody = button.dataset.atbody;
-      if (framebody !== undefined || atbody !== undefined) {
-        const c = command(selected),
-          impulse = push(selected);
-        if (framebody !== undefined) {
-          const h = c?.burn?.heading ?? c?.heading ?? impulse?.heading;
-          if (h) h.body = framebody || undefined;
-        } else {
-          const target = hostFor(selected);
-          if (target) target.body = atbody || undefined;
-        }
-        action?.('edit');
-        changed();
-        update();
-        open(selected);
-        return;
-      }
       const frame = button.dataset.frame;
       if (frame) {
         const c = command(selected),
@@ -1174,18 +1153,16 @@ export function timelinePlanner(
     );
   }
   function frameButtons(h: Heading | undefined, allowMap: boolean) {
-    return (
-      pick(
-        'frame',
-        '방향',
-        [
-          ...frames.map((f) => [f, FRAME_LONG[f]] as const),
-          // Meeting something: a burn against the motion relative to it.
-          ...(matchTargets().length ? ([['match', FRAME_LONG.match]] as const) : []),
-          ...(allowMap ? ([['map', FRAME_LONG.map]] as const) : []),
-        ],
-        h?.frame ?? 'map',
-      ) + (h && h.frame !== 'match' ? bodyPick('framebody', h.body) : '')
+    return pick(
+      'frame',
+      '방향',
+      [
+        ...frames.map((f) => [f, FRAME_LONG[f]] as const),
+        // Meeting something: a burn against the motion relative to it.
+        ...(matchTargets().length ? ([['match', FRAME_LONG.match]] as const) : []),
+        ...(allowMap ? ([['map', FRAME_LONG.map]] as const) : []),
+      ],
+      h?.frame ?? 'map',
     );
   }
   /**
@@ -1217,20 +1194,6 @@ export function timelinePlanner(
       `<section class="flight-record">${head}<dl>` +
       rows.map(([k, v]) => `<dt>${escape(k)}</dt><dd>${v}</dd>`).join('') +
       '</dl></section>'
-    );
-  }
-  /** Bodies a frame or trigger can be read around (only when there is a choice). */
-  function referenceBodies() {
-    return stage.bodies.filter((b) => b.kind !== 'barycenter' && b.mu > 0);
-  }
-  function bodyPick(kind: 'framebody' | 'atbody', current: string | undefined) {
-    const bodies = referenceBodies();
-    if (bodies.length < 2) return '';
-    return pick(
-      kind,
-      '기준 천체',
-      [['', '걸 때 가장 세게 당기는 천체'], ...bodies.map((b) => [b.id, b.name] as const)],
-      current ?? '',
     );
   }
   /** A labelled single choice (a native list: one visible answer, the rest on demand). */

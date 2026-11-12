@@ -29,7 +29,6 @@ import {
   triggerFired,
   triggerReading,
   triggerOf,
-  settleBody,
 } from './heading';
 import { add, dot, length, scale, sub, rotate, type Vec } from '../physics/vector.ts';
 import { recordBlackbox } from './blackbox';
@@ -214,15 +213,7 @@ function scheduleBurn(run: Run, stage: Stage, id: string, actorId: string, b: Dv
     direction,
     b.dv,
     b.throttle ?? 1,
-    b.at
-      ? (() => {
-          const trigger = settleBody(stage, triggerOf(b)!, position, run.time);
-          return {
-            trigger,
-            heading: b.heading.body ? b.heading : { ...b.heading, body: trigger.body },
-          };
-        })()
-      : undefined,
+    b.at ? { trigger: triggerOf(b)!, heading: b.heading } : undefined,
   );
 }
 function triggerAt(v: object) {
@@ -295,14 +286,7 @@ function applyEngine(run: Run, stage: Stage, command: EngineCommand) {
     run.holding = (run.holding ?? []).filter((h) => h.actorId !== command.actorId);
   if (direction && length(direction) > 1e-8) {
     run.holding = (run.holding ?? []).filter((h) => h.actorId !== command.actorId);
-    // A hold keeps the body it began around: the frame never switches mid-turn or mid-burn.
-    if (command.heading) {
-      const actor = actorState(run, command.actorId)!;
-      run.holding.push({
-        actorId: command.actorId,
-        heading: settleBody(stage, command.heading, actor.position, run.time),
-      });
-    }
+    if (command.heading) run.holding.push({ actorId: command.actorId, heading: command.heading });
   }
   // Later turns replace earlier ones: an unfinished turn of the same part counts as done.
   if (direction && length(direction) > 1e-8) {
@@ -415,6 +399,8 @@ export function impulse(run: Run, stage: Stage, vector: Vec, id: string): boolea
   if (run.used + length(vector) > stage.rules.maneuverBudget + 1e-8) return false;
   run.applied.add(id);
   run.used += length(vector);
+  // The record keeps the moment just before an instant change as well as just after.
+  if (run.frames) captureFrame(run, true, true);
   run.velocity = add(run.velocity, vector);
   return true;
 }
@@ -505,18 +491,10 @@ export function tick(
           const command = event.value;
           // An engine command waiting for an orbital event is armed now and acts then.
           if (!command.burn && command.at && command.at !== 'after') {
-            const actor = actorState(run, command.actorId);
-            const trigger = actor
-              ? settleBody(stage, triggerOf(command)!, actor.position, run.time)
-              : triggerOf(command)!;
             (run.armedCommands ??= []).push({
               id: command.id,
-              trigger,
-              // A turn armed on an event reads its frame around the same body as its trigger.
-              command:
-                command.heading && !command.heading.body && trigger.body
-                  ? { ...command, heading: { ...command.heading, body: trigger.body } }
-                  : command,
+              trigger: triggerOf(command)!,
+              command,
             });
             run.applied.add(command.id);
             continue;
@@ -533,15 +511,10 @@ export function tick(
           run.applied.add(command.id);
         } else if (event.value.at) {
           // Armed push: it fires later, when its trigger is met (see fireArmedPushes).
-          const trigger = settleBody(stage, triggerOf(event.value)!, run.position, run.time);
-          const push = event.value;
           (run.armedPushes ??= []).push({
             id: command.id,
-            trigger,
-            push:
-              push.heading && !push.heading.body && trigger.body
-                ? { ...push, heading: { ...push.heading, body: trigger.body } }
-                : push,
+            trigger: triggerOf(event.value)!,
+            push: event.value,
           });
           run.applied.add(command.id);
         } else {

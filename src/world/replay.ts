@@ -24,7 +24,8 @@ export type FlightFrame = Pick<
   | 'touchdownTangentialSpeed'
   | 'touchdownTilt'
 >;
-export function captureFrame(run: Run, force = false) {
+/** `instantBefore`: the state just before an instant change, kept apart from the one after. */
+export function captureFrame(run: Run, force = false, instantBefore = false) {
   const frames = (run.frames ??= []),
     last = frames.at(-1);
   if (!force && last && run.time - last.time < 0.05 - 1e-8) return;
@@ -72,7 +73,8 @@ export function captureFrame(run: Run, force = false) {
     touchdownTangentialSpeed,
     touchdownTilt,
   });
-  if (last && Math.abs(last.time - time) < 1e-9) frames[frames.length - 1] = frame;
+  if (instantBefore) frame.time = time - 1e-6;
+  if (last && Math.abs(last.time - frame.time) < 1e-9) frames[frames.length - 1] = frame;
   else frames.push(frame);
 }
 /** Playback reads captured state; it never runs physics, goals, fuel or commands. */

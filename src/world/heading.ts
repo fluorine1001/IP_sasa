@@ -15,10 +15,7 @@ export type Heading = {
   targetId?: string;
   /** Degrees. Along/against motion: + tilts toward outward. Outward/inward: + tilts toward prograde. */
   angle: number;
-  /**
-   * The body whose horizon the frame is read from. Unset: the body pulling hardest when
-   * the turn begins, then kept for as long as the turn holds (it never switches silently).
-   */
+  /** Author override of the body the frame is read around (unset: the sphere the craft is in). */
   body?: string;
 };
 /**
@@ -50,10 +47,7 @@ export type TriggerSpec = {
   /** angle: craft's angle around the body; phase: target's angle minus the craft's (degrees). */
   atAngle?: number;
   phaseTarget?: string;
-  /**
-   * The body the height, apsis and angle are measured around. Unset: the body pulling
-   * hardest when the reservation is armed, then kept until it fires.
-   */
+  /** Author override of the body heights and apsides are read around (unset: current sphere). */
   body?: string;
 };
 export type TriggerReading = {
@@ -73,17 +67,6 @@ function objectPositionOf(stage: Stage, o: Stage['objects'][number], time: numbe
 export function referenceBody(stage: Stage, position: Vec, time: number, bodyId?: string) {
   const named = bodyId ? stage.bodies.find((b) => b.id === bodyId && b.mu > 0) : undefined;
   return named ?? dominantBody(stage, position, time);
-}
-/** Fix an unnamed reference body to the one pulling hardest now (it then never switches). */
-export function settleBody<T extends { body?: string }>(
-  stage: Stage,
-  x: T,
-  position: Vec,
-  time: number,
-): T {
-  if (x.body) return x;
-  const body = dominantBody(stage, position, time);
-  return body ? { ...x, body: body.id } : x;
 }
 const wrap180 = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 /** Radial speed and height above the reference body's surface at a state. */
@@ -200,7 +183,7 @@ export function orbitFrame(
     return { body, prograde, outward: rotate(prograde, Math.PI / 2), radialSpeed: 0 };
   }
   const outward = unit(r);
-  const sense = senseOverride ?? turningSense(r, v);
+  const sense = senseOverride ?? turningSense(r, v, body.mu);
   const prograde = rotate(outward, (sense * Math.PI) / 2);
   return { body, prograde, outward, radialSpeed: dot(v, outward) };
 }
@@ -210,9 +193,12 @@ export function orbitFrame(
  * up-and-down flight counts as counter-clockwise. Shared by every frame so a burn
  * aimed early and re-read at its trigger agree.
  */
-function turningSense(r: Vec, v: Vec) {
+function turningSense(r: Vec, v: Vec, mu: number) {
   const h = r.x * v.y - r.y * v.x;
-  return h < -1e-3 * length(r) * length(v) ? -1 : 1;
+  // Clockwise only when the craft clearly goes round that way: a twentieth of a circular
+  // orbit's angular momentum there. Straight up and down, or nearly, is counter-clockwise,
+  // so the top of a climb never flips "진행 방향" on a speck of sideways speed.
+  return h < -0.05 * Math.sqrt(Math.max(mu, 0) * length(r)) ? -1 : 1;
 }
 /**
  * The horizon frame at the next apoapsis or periapsis of the two-body orbit (the same
@@ -236,7 +222,7 @@ export function apsisFrame(
   const e = scale(sub(scale(r, dot(v, v) - body.mu / rl), scale(v, dot(r, v))), 1 / body.mu);
   if (length(e) < 1e-3) return undefined;
   const outward = at === 'periapsis' ? unit(e) : scale(unit(e), -1);
-  const sense = turningSense(r, v);
+  const sense = turningSense(r, v, body.mu);
   return { outward, prograde: rotate(outward, (sense * Math.PI) / 2) };
 }
 /** A heading in a given frame (see resolveHeading). */
@@ -278,13 +264,10 @@ export function resolveHeadingNear(
   velocity: Vec,
   time: number,
   heading: Heading,
-  near: Vec,
+  // Kept for callers: the sense no longer depends on where the hull points.
+  _near?: Vec,
 ): Vec {
-  if (heading.frame === 'match') return matchHeading(stage, velocity, time, heading);
-  const [a, b] = ([1, -1] as const).map((sense) =>
-    headingIn(orbitFrame(stage, position, velocity, time, sense, heading.body), heading),
-  );
-  return dot(a, near) >= dot(b, near) ? a : b;
+  return resolveHeading(stage, position, velocity, time, heading);
 }
 /**
  * Against the motion relative to a target: a burn this way cancels relative velocity.

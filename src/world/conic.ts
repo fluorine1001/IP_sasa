@@ -1,3 +1,4 @@
+import { influenceBody } from './celestial';
 /* Two-body orbit calculator (the player's "궤도 계산기").
  * Given one state, the conic it would follow around the single body pulling hardest on it,
  * ignoring every other body, atmosphere and engine. This is a calculation tool the
@@ -45,19 +46,9 @@ export type Conic = {
 };
 
 /** The body with the strongest pull (mu / r²) at a point. */
+/** The body whose orbit the craft is on: the sphere of influence it is in. */
 export function dominantBody(stage: Stage, position: Vec, time: number): Body | undefined {
-  let best: Body | undefined,
-    pull = -1;
-  for (const b of stage.bodies) {
-    if (b.kind === 'barycenter' || !(b.mu > 0)) continue;
-    const c = bodyPosition(stage, b, time);
-    const r2 = (position.x - c.x) ** 2 + (position.y - c.y) ** 2;
-    if (b.mu / Math.max(r2, 1e-12) > pull) {
-      pull = b.mu / Math.max(r2, 1e-12);
-      best = b;
-    }
-  }
-  return best;
+  return influenceBody(stage, position, time);
 }
 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));

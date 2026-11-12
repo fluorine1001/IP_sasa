@@ -1,8 +1,10 @@
+import { gravity } from './celestial';
 /* The orbit calculator's view of planned speed changes (AGENTS.md exception): the
  * previous flight's recorded state at a command's time, plus the planned Δv, as a
  * two-body orbit. An apsis-triggered burn is applied at that orbit's Kepler apsis.
  * Only the strongest body counts; no drag, contact, finite burn time or other body.
  * This is a calculation the player reads, never a forecast of the real flight. */
+import { launchFraction } from './program';
 import { add, dot, length, scale, sub, type Vec } from '../physics/vector';
 import { bodyPosition, bodyVelocity } from './celestial';
 import { dominantBody } from './conic';
@@ -32,6 +34,8 @@ export type PlannedChange = {
   at?: Apsis;
   trigger?: TriggerSpec;
   label: string;
+  /** An engine burn of finite length: integrated, not applied at once. */
+  burn?: { thrust: number; mass: number; exhaust: number; seconds: number };
 };
 
 /** The craft's planned Δv changes in time order (burns of the craft and cold-gas pushes). */
@@ -42,48 +46,90 @@ export type PlannedChange = {
  * before it. Pairs whose length or stage cannot be read are left out.
  */
 function enginePairs(stage: Stage | undefined, plan: RoutePlan): PlannedChange[] {
-  const parts = stage?.rocket?.parts;
-  if (!parts) return [];
+  const config = stage?.rocket;
+  const parts = config?.parts;
+  if (!config || !parts) return [];
   const all = plan.engineCommands ?? [];
   const craft = all.filter((c) => c.actorId === 'craft' && !c.burn);
   const order = [...craft].sort((a, b) => a.time - b.time);
+  // The fuel ledger of the plan, in the order it runs: what each burn starts with is what
+  // the burns before it left (the launch burn, earlier burns, dropped stages and payloads).
+  const fuel = parts.map((p) => p.fuelMass);
+  let index = 0;
+  let released = 0;
+  const mass = () =>
+    (config.payloadMass ?? 0) +
+    (config.payloads ?? []).reduce((m, q) => m + q.mass, 0) -
+    released +
+    parts.slice(index).reduce((m, p, i) => m + p.dryMass + fuel[index + i], 0);
+  const burn = (part: number, used: number) => {
+    const before = mass();
+    const spent = Math.max(0, Math.min(fuel[part], used));
+    fuel[part] -= spent;
+    return parts[part].exhaustSpeed * Math.log(before / Math.max(1e-12, before - spent));
+  };
+  // The launch: its Δv when set, otherwise its stage burned until the first cut or empty.
+  const power = Math.min(1, launchFraction(stage!, plan));
+  if (power > 0) {
+    const p = parts[0];
+    if (plan.launchDv !== undefined)
+      burn(0, mass() * (1 - Math.exp(-plan.launchDv / p.exhaustSpeed)));
+    else {
+      const firstCut = order.find((c) => c.throttle === 0);
+      const seconds = firstCut ? Math.max(0, firstCut.time) : Infinity;
+      burn(0, ((p.thrust * power) / p.exhaustSpeed) * seconds);
+    }
+  }
   const out: PlannedChange[] = [];
-  craft
-    .filter((c) => (c.throttle ?? 0) > 0)
-    .forEach((light, i) => {
-      const cut =
-        craft.find((c) => c.throttle === 0 && c.at === 'after' && c.ref === light.id) ??
-        order.find((c) => c.throttle === 0 && c.time > light.time && c.at !== 'after');
-      if (!cut) return;
-      const length =
-        cut.at === 'after' && cut.ref === light.id ? (cut.delay ?? 0) : cut.time - light.time;
-      // The turn it follows: the one it is chained to, else the latest turn before it.
-      const turn =
-        craft.find((c) => c.id === light.ref && (c.heading || c.direction)) ??
-        [...order].reverse().find((c) => c.time <= light.time && (c.heading || c.direction));
-      const k = all.filter(
-        (c) => c.actorId === 'craft' && c.separate && c.time <= light.time,
-      ).length;
-      const part = parts[k];
-      if (!part || !turn || length <= 0) return;
-      const m0 =
-        parts.slice(k).reduce((m, x) => m + x.dryMass + x.fuelMass, 0) +
-        (stage!.rocket!.payloadMass ?? 0);
-      const used = Math.min(
-        part.fuelMass,
-        ((part.thrust * light.throttle!) / part.exhaustSpeed) * length,
-      );
-      out.push({
-        id: light.id,
-        time: light.time,
-        dv: part.exhaustSpeed * Math.log(m0 / (m0 - used)),
-        heading: turn.heading,
-        vector: turn.heading ? undefined : turn.direction,
-        at: light.at,
-        trigger: triggerOf(light),
-        label: `출력 ${i + 1}`,
-      });
+  let lights = 0;
+  for (const c of order) {
+    if (c.separate) {
+      index++;
+      continue;
+    }
+    if (c.releasePayload) {
+      released += config.payloads?.find((q) => q.id === c.releasePayload)?.mass ?? 0;
+      continue;
+    }
+    if (!((c.throttle ?? 0) > 0)) continue;
+    const light = c;
+    lights++;
+    const cut =
+      craft.find((x) => x.throttle === 0 && x.at === 'after' && x.ref === light.id) ??
+      order.find((x) => x.throttle === 0 && x.time > light.time && x.at !== 'after');
+    if (!cut) continue;
+    const length =
+      cut.at === 'after' && cut.ref === light.id ? (cut.delay ?? 0) : cut.time - light.time;
+    // The turn it follows: the one it is chained to, else the latest turn before it.
+    const turn =
+      craft.find((x) => x.id === light.ref && (x.heading || x.direction)) ??
+      [...order].reverse().find((x) => x.time <= light.time && (x.heading || x.direction));
+    const part = parts[index];
+    if (!part || length <= 0) continue;
+    const startMass = mass();
+    const dv = burn(index, ((part.thrust * light.throttle!) / part.exhaustSpeed) * length);
+    const seconds = Math.min(
+      length,
+      (part.exhaustSpeed * (startMass - mass())) / (part.thrust * light.throttle! || 1),
+    );
+    if (!turn) continue;
+    out.push({
+      id: light.id,
+      time: light.time,
+      dv,
+      heading: turn.heading,
+      vector: turn.heading ? undefined : turn.direction,
+      at: light.at,
+      trigger: triggerOf(light),
+      label: `출력 ${lights}`,
+      burn: {
+        thrust: part.thrust * light.throttle!,
+        mass: startMass,
+        exhaust: part.exhaustSpeed,
+        seconds,
+      },
     });
+  }
   return out;
 }
 export function plannedChanges(plan: RoutePlan, stage?: Stage): PlannedChange[] {
@@ -149,6 +195,7 @@ export function keplerApsis(
 
 /** Apply a planned change to a state: the Δv in its heading at that state. */
 export function applyChange(stage: Stage, s: PreviewState, change: PlannedChange): PreviewState {
+  if (change.burn && change.burn.seconds > 0) return finiteBurn(stage, s, change, change.burn);
   const direction = change.vector
     ? scale(change.vector, 1 / Math.max(length(change.vector), 1e-12))
     : change.heading
@@ -157,6 +204,45 @@ export function applyChange(stage: Stage, s: PreviewState, change: PlannedChange
   return { ...s, velocity: add(s.velocity, scale(direction, change.dv)) };
 }
 
+/**
+ * An engine burn as it runs: thrust along the held direction while the stack lightens,
+ * under the one body whose sphere the craft is in (the same gravity the flight uses;
+ * air is left out). The state at the cut.
+ */
+function finiteBurn(
+  stage: Stage,
+  s: PreviewState,
+  change: PlannedChange,
+  b: NonNullable<PlannedChange['burn']>,
+): PreviewState {
+  const steps = Math.max(20, Math.ceil(b.seconds / 0.005)),
+    dt = b.seconds / steps,
+    flow = b.thrust / b.exhaust;
+  let p = s.position,
+    v = s.velocity,
+    t = s.time,
+    m = b.mass;
+  const accel = (pos: Vec, vel: Vec, time: number, mass: number) => {
+    const dir = change.vector
+      ? scale(change.vector, 1 / Math.max(length(change.vector), 1e-12))
+      : change.heading
+        ? resolveHeading(stage, pos, vel, time, change.heading)
+        : { x: 0, y: 0 };
+    return add(gravity(stage, pos, time), scale(dir, b.thrust / mass));
+  };
+  for (let i = 0; i < steps; i++) {
+    // Midpoint step: enough for a burn of a few tenths of a second.
+    const a1 = accel(p, v, t, m);
+    const pm = add(p, scale(v, dt / 2)),
+      vm = add(v, scale(a1, dt / 2));
+    const a2 = accel(pm, vm, t + dt / 2, m - (flow * dt) / 2);
+    p = add(p, scale(vm, dt));
+    v = add(v, scale(a2, dt));
+    t += dt;
+    m -= flow * dt;
+  }
+  return { position: p, velocity: v, time: t };
+}
 /**
  * States right after each previewable planned change. `recorded(t)` returns the previous
  * flight's state at time t when the plan up to t is unchanged from that flight, else
@@ -169,6 +255,8 @@ export function previewStates(
   recorded: (time: number) => PreviewState | undefined,
   /** State right after launch when no flight is recorded yet (the launch approximation). */
   start?: PreviewState,
+  /** When each reservation acted in the recorded flight (its black box). */
+  fired?: Record<string, number>,
 ): { change: PlannedChange; state: PreviewState; before: PreviewState }[] {
   const out: { change: PlannedChange; state: PreviewState; before: PreviewState }[] = [];
   let chain: PreviewState | undefined = recorded(0) ? undefined : start;
@@ -177,6 +265,17 @@ export function previewStates(
     const prior = previous;
     previous = change;
     let before: PreviewState | undefined;
+    // The flight on record already went through this moment with the same plan up to it:
+    // the state it really had then is exact (air, contact and all), so the change is
+    // added to that, not to a two-body guess of when its event would come.
+    const seen = fired?.[change.id];
+    const met = seen !== undefined ? recorded(seen) : undefined;
+    if (met) {
+      const after = applyChange(stage, met, change);
+      out.push({ change, state: after, before: met });
+      chain = after;
+      continue;
+    }
     if (change.at === 'apoapsis' || change.at === 'periapsis') {
       const from = chain ?? recorded(change.time);
       before = from && keplerApsis(stage, from, change.at, change.trigger?.body);

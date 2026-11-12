@@ -185,6 +185,9 @@ export function playScreen(app: App, args: PlayArgs, session?: FlightSession): S
         p,
         (t) => recordedState(t, p),
         noFlight() ? launchState(p) : undefined,
+        Object.fromEntries(
+          Object.entries(trials.at(-1)?.blackbox ?? {}).map(([id, e]) => [id, e.time]),
+        ),
       );
       previewMemo.set(key, value);
       if (previewMemo.size > 8) previewMemo.delete(previewMemo.keys().next().value!);

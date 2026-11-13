@@ -4,9 +4,11 @@ import { assessDifficulty } from './assessment';
 import { exploreMethods, type VerifiedMethod } from './solutions';
 import type { Candidate } from './protocol';
 import type { Stage } from '../../world/types';
+import { missionFamily, missionMetrics } from './mission-facts';
+import { auditGravity, type GravityAudit } from './gravity-audit';
 
 export const curationPolicy = {
-  version: 1,
+  version: 2,
   maxStep: 22,
   maxNewConcepts: 1,
   sameStructure: 2,
@@ -22,6 +24,7 @@ export type StageReview = {
   concepts: string[];
   eligible: boolean;
   reasons: string[];
+  gravity?: GravityAudit;
 };
 export type Course = {
   entries: { review: StageReview; methodIndex: number; introduced: string[]; reason: string }[];
@@ -35,6 +38,7 @@ export function reviewStage(
   geometryScore: number,
   style: string,
   methods: VerifiedMethod[],
+  gravity?: GravityAudit,
 ): StageReview {
   const coarse = methods.filter((m) => m.coarse),
     kinds = new Set(coarse.map((m) => m.kind));
@@ -53,27 +57,43 @@ export function reviewStage(
     reasons.push('둥근 수치 풀이의 조작 여유가 부족합니다.');
   if (!stage.launchBodyId || stage.rocket?.parts.length !== 1)
     reasons.push('현재 자동 선별 범위인 단일 추진단 표면 발사가 아닙니다.');
-  const metrics: string[] = [];
-  const visit = (node: unknown) => {
-    if (!node || typeof node !== 'object') return;
-    const data = node as Record<string, unknown>;
-    if (data.kind === 'metric') metrics.push(String(data.metric));
-    Object.values(data).forEach((v) => {
-      if (Array.isArray(v)) v.forEach(visit);
-      else if (v && typeof v === 'object') visit(v);
-    });
-  };
-  stage.goals.forEach((g) => visit(g.condition));
+  const metrics = [...missionMetrics(stage)],
+    family = missionFamily(stage);
   if (
     stage.goalMode !== 'all' ||
-    stage.bodies.some((b) => b.motion || b.dynamic) ||
-    stage.objects.some((o) => o.kind !== 'sensor' || o.motion || o.dynamic) ||
-    metrics.some((m) => !['x', 'y', 'throttle'].includes(m))
+    stage.objects.some((o) => !['sensor', 'landing-site'].includes(o.kind) || o.dynamic) ||
+    metrics.some(
+      (m) =>
+        ![
+          'x',
+          'y',
+          'vx',
+          'vy',
+          'throttle',
+          'altitude',
+          'distance',
+          'energy',
+          'radialSpeed',
+          'orbitTurns',
+          'landed',
+          'touchdownSpeed',
+          'touchdownNormalSpeed',
+          'touchdownTangentialSpeed',
+          'touchdownTilt',
+          'propellantUsed',
+          'time',
+        ].includes(m),
+    )
   )
-    reasons.push(
-      '현재 자동 순서 제안은 고정 행성과 관측구역 임무를 대상으로 합니다. 다른 임무는 직접 검토하세요.',
-    );
+    reasons.push('현재 자동 순서 제안의 관측·착륙·궤도·탈출 범위를 벗어납니다. 직접 검토하세요.');
   const concepts = [
+    ...(family === 'landing'
+      ? ['안전 착륙']
+      : family === 'orbit'
+        ? ['궤도 유지']
+        : family === 'escape'
+          ? ['중력권 탈출']
+          : []),
     ...(stage.objects.filter((o) => o.kind === 'sensor').length > 1 ? ['연속 관측'] : []),
     ...(style === '옆으로 휘는 호'
       ? ['휘어진 경로']
@@ -81,6 +101,8 @@ export function reviewStage(
         ? ['휘어진 경로', '긴 우회']
         : []),
   ];
+  if (gravity && !gravity.passed)
+    reasons.push('추가 천체의 중력 기여와 경로 변화를 더 확인해야 합니다.');
   return {
     stage,
     fingerprint,
@@ -93,6 +115,7 @@ export function reviewStage(
     concepts,
     eligible: !reasons.length,
     reasons,
+    gravity,
   };
 }
 export function reviewCandidate(candidate: Candidate): StageReview {
@@ -102,6 +125,7 @@ export function reviewCandidate(candidate: Candidate): StageReview {
     candidate.assessment.score,
     candidate.assessment.style,
     candidate.methods,
+    candidate.gravity,
   );
 }
 function required(review: StageReview, method: VerifiedMethod) {
@@ -313,8 +337,11 @@ export function* analyzeImportedStage(
     geometryScore = assessment.score;
     style = assessment.style;
   }
+  const gravity =
+    methods.length && stage.launchBodyId ? auditGravity(stage, methods[0].plan) : undefined;
+  checked += gravity?.checked ?? 0;
   yield {
     checked,
-    review: reviewStage(stage, `import/${stage.id}`, geometryScore, style, methods),
+    review: reviewStage(stage, `import/${stage.id}`, geometryScore, style, methods, gravity),
   };
 }

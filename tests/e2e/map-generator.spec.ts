@@ -30,6 +30,10 @@ for (const width of [390, 1440]) {
     const before = await page.evaluate(() => localStorage.getItem('orbit-editor-draft-v2'));
     await page.getByRole('button', { name: '맵 자동 생성', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: '맵 자동 생성', exact: true });
+    await dialog.getByRole('combobox', { name: '임무 종류', exact: true }).selectOption('mixed');
+    await dialog
+      .getByRole('combobox', { name: '천체 구성', exact: true })
+      .selectOption('planetary');
     await dialog.getByLabel('생성할 때 새 번호 사용').uncheck();
     await dialog.getByLabel('생성 번호', { exact: true }).fill('31415');
     await expect(dialog.getByRole('button', { name: '쉬움', exact: true })).toHaveAttribute(
@@ -92,6 +96,8 @@ test('생성 중지·Escape는 편집 도구와 초안을 유지하고 보관 �
   const before = await page.evaluate(() => localStorage.getItem('orbit-editor-draft-v2'));
   await page.getByRole('button', { name: '맵 자동 생성', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '맵 자동 생성', exact: true });
+  await dialog.getByRole('combobox', { name: '임무 종류', exact: true }).selectOption('mixed');
+  await dialog.getByRole('combobox', { name: '천체 구성', exact: true }).selectOption('planetary');
   await dialog.getByLabel('생성할 때 새 번호 사용').uncheck();
   await dialog.getByLabel('생성 번호', { exact: true }).fill('31415');
   await dialog.getByLabel('후보 개수').fill('12');
@@ -132,9 +138,11 @@ test('행성 수와 난이도는 독립이며 쉬움 3개·도전 1개 모두 �
   const before = await page.evaluate(() => localStorage.getItem('orbit-editor-draft-v2'));
   await page.getByRole('button', { name: '맵 자동 생성', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '맵 자동 생성', exact: true });
+  await dialog.getByRole('combobox', { name: '임무 종류', exact: true }).selectOption('mixed');
+  await dialog.getByRole('combobox', { name: '천체 구성', exact: true }).selectOption('planetary');
   await dialog.getByLabel('생성할 때 새 번호 사용').uncheck();
   await dialog.getByLabel('생성 번호', { exact: true }).fill('31415');
-  await dialog.getByLabel('행성 수').selectOption('3');
+  await dialog.getByRole('combobox', { name: '천체 수', exact: true }).selectOption('3');
   await expect(dialog.locator('[data-difficulty-description]')).toContainText('행성 수는 별도로');
   await dialog.getByLabel('후보 개수').fill('1');
   await dialog.getByRole('button', { name: '후보 생성', exact: true }).click();
@@ -142,21 +150,21 @@ test('행성 수와 난이도는 독립이며 쉬움 3개·도전 1개 모두 �
   await expect(dialog.locator('[data-generator-status]')).toContainText('후보 생성 완료', {
     timeout: 45000,
   });
-  await expect(dialog.locator('.generator-level')).toContainText('쉬움 · 표면 출발 · 행성 3개');
+  await expect(dialog.locator('.generator-level')).toContainText('쉬움 · 표면 출발 · 천체 3개');
   const easy = await exportCandidate(page, dialog);
   expect(easy.bodies).toHaveLength(3);
   expect(easy.spawn.position).toEqual(surfaceLaunch(easy)!.position);
   expect(execute(easy, easy.referencePlans[0]).status).toBe('won');
   expect(await page.evaluate(() => localStorage.getItem('orbit-editor-draft-v2'))).toBe(before);
   await dialog.getByRole('button', { name: '도전', exact: true }).click();
-  await expect(dialog.getByLabel('행성 수')).toHaveValue('3');
+  await expect(dialog.getByRole('combobox', { name: '천체 수', exact: true })).toHaveValue('3');
   await expect(dialog.locator('.generator-level')).toContainText('쉬움');
-  await dialog.getByLabel('행성 수').selectOption('1');
+  await dialog.getByRole('combobox', { name: '천체 수', exact: true }).selectOption('1');
   await dialog.getByRole('button', { name: '후보 생성', exact: true }).click();
   await expect(dialog.locator('[data-generator-status]')).toContainText('후보 생성 완료', {
     timeout: 45000,
   });
-  await expect(dialog.locator('.generator-level')).toContainText('도전 · 표면 출발 · 행성 1개');
+  await expect(dialog.locator('.generator-level')).toContainText('도전 · 표면 출발 · 천체 1개');
   const hard = await exportCandidate(page, dialog);
   expect(hard.bodies).toHaveLength(1);
   expect(hard.spawn.position).toEqual(surfaceLaunch(hard)!.position);
@@ -174,6 +182,8 @@ test('기본 생성은 매번 다른 배치이며 번호를 고정하면 같은 
   await page.locator('#search-auto').uncheck();
   await page.getByRole('button', { name: '맵 자동 생성', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '맵 자동 생성', exact: true });
+  await dialog.getByRole('combobox', { name: '임무 종류', exact: true }).selectOption('mixed');
+  await dialog.getByRole('combobox', { name: '천체 구성', exact: true }).selectOption('planetary');
   await expect(dialog.getByLabel('생성할 때 새 번호 사용')).toBeChecked();
   await dialog.getByLabel('후보 개수').fill('1');
   await dialog.getByRole('button', { name: '후보 생성', exact: true }).click();

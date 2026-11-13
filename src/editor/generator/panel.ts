@@ -9,6 +9,7 @@ import { candidatePreview } from './preview';
 import { createMethodReview } from './review-panel';
 import { createCollectionPanel } from './collection-panel';
 import { masteryFocuses, type MasterySettings } from './mastery-settings';
+import { environmentNames } from './environments';
 import {
   validateRequest,
   type GenerationRequest,
@@ -40,17 +41,24 @@ export function stageGenerator(
       )
       .join(
         '',
-      )}</div><p data-difficulty-description></p><small>모든 후보는 행성 표면의 실제 로켓 발사대에서 시작합니다. 설정은 다음 생성에 적용됩니다.</small></fieldset><label>임무 종류<select name="kind"><option value="mixed">두 임무 섞기</option>${Object.entries(
+      )}</div><p data-difficulty-description></p><small>모든 후보는 행성이나 달 표면의 실제 발사대에서 시작합니다. 설정은 다음 생성에 적용됩니다.</small></fieldset><label>임무 종류<select name="kind"><option value="varied" selected>여러 임무 섞기</option><option value="mixed">관측 임무 섞기</option>${Object.entries(
       templateNames,
     )
       .map(([id, name]) => `<option value="${id}">${name}</option>`)
       .join('')}</select></label>
     <label>후보 개수<input name="count" type="number" min="1" max="12" step="1" value="6" required></label>
-    <label>행성 수<select name="planetCount"><option value="auto">자동 · 1~3개 섞기</option><option value="1">1개</option><option value="2">2개</option><option value="3">3개</option></select></label>
+    <label>천체 수<select name="planetCount"><option value="auto">자동 · 1~3개 섞기</option><option value="1">1개</option><option value="2">2개</option><option value="3">3개</option></select></label>
+    <label>천체 구성<select name="environment"><option value="mixed" selected>여러 구성 섞기</option>${Object.entries(
+      environmentNames,
+    )
+      .map(([id, name]) => `<option value="${id}">${name}</option>`)
+      .join(
+        '',
+      )}</select></label><p class="generator-environment-note">천체 수는 발사 천체를 포함한 총수입니다. 쌍성계에는 출발 천체와 두 별, 총 3개가 필요합니다. 각 추가 천체의 중력 기여와 실제 경로 변화를 검사합니다.</p>
     <label>생성 번호<input name="seed" type="number" min="1" max="4294967295" step="1" value="31415" required></label>
     <label>목표 허용 폭<select name="margin"><option value="wide">넉넉하게</option><option value="standard">보통</option></select></label>
     <label class="generator-seed-mode"><input name="freshSeed" type="checkbox" checked>생성할 때 새 번호 사용</label>
-    <details class="generator-mastery"><summary>추가 설정 · 조작 숙달 묶음</summary><label class="generator-seed-mode"><input name="masteryEnabled" type="checkbox">조작 숙달 묶음 만들기</label><div data-mastery-settings hidden><div class="mastery-fields"><label>묶음 수<select name="masteryGroups"><option value="2">2개 · 출력 조절까지</option><option value="3" selected>3개 · 중간 회전까지</option><option value="4">4개 · 재점화까지</option></select></label><label>묶음당 스테이지<select name="masteryPerGroup"><option value="2">2개 · 도입과 응용</option><option value="3">3개 · 도입·반복·응용</option></select></label></div><p>앞에서 배운 조작을 계속 활용하며 새 조작 하나씩 연습합니다. 난이도 버튼 대신 조작 학습 순서에 맞는 배치를 만들며, 게임 잠금이나 플레이어 숙달 판정은 추가하지 않습니다.</p><ol data-mastery-outline></ol><small data-mastery-total></small></div></details>
+    <details class="generator-mastery"><summary>추가 설정 · 조작 숙달 묶음</summary><label class="generator-seed-mode"><input name="masteryEnabled" type="checkbox">조작 숙달 묶음 만들기</label><div data-mastery-settings hidden><div class="mastery-fields"><label>묶음 수<select name="masteryGroups"><option value="2">2개 · 출력 조절까지</option><option value="3" selected>3개 · 중간 회전까지</option><option value="4">4개 · 재점화까지</option></select></label><label>묶음당 스테이지<select name="masteryPerGroup"><option value="2">2개 · 도입과 응용</option><option value="3">3개 · 도입·반복·응용</option></select></label></div><p>관측 임무를 바탕으로 앞에서 배운 조작을 계속 활용하며 새 조작 하나씩 연습합니다. 여러 임무 섞기를 선택해도 숙달 묶음에서는 관측 임무를 사용합니다. 난이도 버튼 대신 조작 학습 순서에 맞는 배치를 만들며, 게임 잠금이나 플레이어 숙달 판정은 추가하지 않습니다.</p><ol data-mastery-outline></ol><small data-mastery-total></small></div></details>
     <div class="generator-actions"><button type="submit" class="primary">후보 생성</button><button type="submit" data-progression>학습 순서용 후보 생성</button><button type="button" data-generator-stop disabled>중지</button></div></form>
     <p class="generator-note">기본은 매번 새 배치입니다. ‘새 번호 사용’을 끄고 생성 번호와 설정을 같게 하면 같은 후보를 재현합니다. 만든 스테이지의 재시도 환경은 고정됩니다.</p>
     <p data-generator-status role="status" aria-live="polite">종류와 개수를 정한 뒤 후보를 생성하세요.</p>
@@ -175,7 +183,7 @@ export function stageGenerator(
       .map((candidate, index) => {
         const { stage, recipe } = candidate;
         const mode = recipe.difficulty ?? 'challenge';
-        return `<article class="generator-card" data-generator-candidate="${stage.id}">${candidatePreview(candidate)}<div><small class="generator-level">${difficulties[mode].name} · 표면 출발 · 행성 ${stage.bodies.length}개 · ${candidate.assessment.style}</small><h3>${escape(stage.title)}</h3><p>${escape(stage.description)}</p><small>생성 번호 ${candidate.seed} · 후보 ${candidate.index}</small><p>검증한 풀이 방식 ${candidate.methods.length}개 · ${Math.min(...candidate.methods.map((m) => m.actions))}~${Math.max(...candidate.methods.map((m) => m.actions))}단계</p><details><summary>난이도 추정과 검사 결과</summary><p>제작용 추정 ${candidate.assessment.score}/100 · 경로 굽음 ${Math.round(candidate.assessment.routeDegrees)}° · 주변 중력 영향 ${Math.round(candidate.assessment.gravityInfluence * 100)}%</p><p>실제 표면 발사 성공 · 생략 검사 ${candidate.omissions}개 통과<br>출력 ±5%·방향 ±3°·종료 시점 변경 ${candidate.nearbyWins}/${candidate.nearbyTotal}개 성공 · 임의 계획 ${candidate.randomWins}/${candidate.randomTotal}개 성공</p>${candidate.warnings.map((warning) => `<p class="generator-warning">${escape(warning)}</p>`).join('')}</details><div class="generator-actions"><button data-generator-review="${index}">풀이 비교</button><button data-generator-open="${index}">초안으로 열기</button><button data-generator-export="${index}">JSON 내보내기</button></div></div></article>`;
+        return `<article class="generator-card" data-generator-candidate="${stage.id}">${candidatePreview(candidate)}<div><small class="generator-level">${difficulties[mode].name} · 표면 출발 · 천체 ${stage.bodies.length}개 · ${candidate.assessment.style} · ${environmentNames[recipe.environment ?? 'planetary']}</small><h3>${escape(stage.title)}</h3><p>${escape(stage.description)}</p><small>생성 번호 ${candidate.seed} · 후보 ${candidate.index}</small><p>검증한 풀이 방식 ${candidate.methods.length}개 · ${Math.min(...candidate.methods.map((m) => m.actions))}~${Math.max(...candidate.methods.map((m) => m.actions))}단계</p><details><summary>난이도 추정과 검사 결과</summary><p>제작용 추정 ${candidate.assessment.score}/100 · 경로 굽음 ${Math.round(candidate.assessment.routeDegrees)}° · 주변 중력 영향 ${Math.round(candidate.assessment.gravityInfluence * 100)}%</p><p>실제 표면 발사 성공 · 생략 검사 ${candidate.omissions}개 통과<br>출력 ±5%·방향 ±3°·종료 시점 변경 ${candidate.nearbyWins}/${candidate.nearbyTotal}개 성공 · 임의 계획 ${candidate.randomWins}/${candidate.randomTotal}개 성공</p>${candidate.gravity?.effects.length ? `<p data-gravity-evidence>추가 천체별 중력 비교: ${candidate.gravity.effects.map((e) => `${escape(e.name)} 기여 ${Math.round(e.share * 100)}% · 중력 제거 시 ${e.withoutGravityWon ? `경로 ${e.pathDifference.toFixed(2)}반경 변화` : '같은 계획 실패'}`).join('<br>')}</p>` : ''}${candidate.warnings.map((warning) => `<p class="generator-warning">${escape(warning)}</p>`).join('')}</details><div class="generator-actions"><button data-generator-review="${index}">풀이 비교</button><button data-generator-open="${index}">초안으로 열기</button><button data-generator-export="${index}">JSON 내보내기</button></div></div></article>`;
       })
       .join('');
   }
@@ -195,6 +203,7 @@ export function stageGenerator(
           margin: fields.get('margin'),
           difficulty,
           mastery: currentMastery(),
+          environment: fields.get('environment'),
           progression: (event as SubmitEvent).submitter?.hasAttribute('data-progression') === true,
           planetCount:
             fields.get('planetCount') === 'auto' ? 'auto' : Number(fields.get('planetCount')),

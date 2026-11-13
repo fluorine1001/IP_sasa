@@ -1,4 +1,4 @@
-import { blankStage, newBody, newGoal, newObject } from '../../stages/factory';
+import { blankStage, newGoal, newObject } from '../../stages/factory';
 import { createMarker, compileMarker } from '../../stages/goal-marker';
 import { syncLaunch } from '../../world/launch';
 import { execute } from '../../world/engine';
@@ -6,12 +6,17 @@ import { controlSamples } from './control-samples';
 import { assessDifficulty, acceptsDifficulty, type DifficultyAssessment } from './assessment';
 import type { RoutePlan, Stage } from '../../world/types';
 import type { Difficulty } from './difficulty';
+import { configureEnvironment, type EnvironmentKind } from './environments';
+import { configureMission, fitMission } from './mission-templates';
 
-export type TemplateKind = 'survey' | 'relay';
+export type TemplateKind = 'survey' | 'relay' | 'landing' | 'orbit' | 'escape';
 export type Margin = 'wide' | 'standard';
 export const templateNames: Record<TemplateKind, string> = {
   survey: '상공 관측소 방문',
   relay: '연속 관측소 방문',
+  landing: '상승 후 안전 착륙',
+  orbit: '엔진 종료 후 한 바퀴 궤도 유지',
+  escape: '천체계 중력권 탈출',
 };
 export type Recipe = {
   kind: TemplateKind;
@@ -23,6 +28,7 @@ export type Recipe = {
   targetAngle: number;
   targetRadius: number;
   planetCount: number;
+  environment?: EnvironmentKind;
   planets: { angle: number; distance: number; radius: number; mass: number }[];
 };
 export type Blueprint = {
@@ -54,18 +60,7 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
   stage.launchAngle = launchAngle;
   stage.spawn.placed = true;
   syncLaunch(stage);
-  for (const [index, placement] of recipe.planets.entries()) {
-    const planet = newBody('planet');
-    Object.assign(planet, {
-      name: `주변 행성 ${index + 1}`,
-      position: polar(placement.distance * r, placement.angle),
-      radius: placement.radius * r,
-      mu: placement.mass * mu,
-      estimateMu: placement.mass * mu,
-      color: index ? '#92a7d9' : '#d89472',
-    });
-    stage.bodies.push(planet);
-  }
+  configureEnvironment(stage, recipe);
   stage.rocket = {
     payloadMass: 0.2,
     parts: [
@@ -112,6 +107,13 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
     const sensor = newObject('sensor');
     sensor.name = `${index + 1}번 관측소`;
     sensor.position = polar(target.radius * r, launchAngle + target.angle);
+    if (body.motion || body.dynamic)
+      sensor.motion = {
+        parentId: body.id,
+        radius: target.radius * r,
+        phase: launchAngle + target.angle,
+        angularSpeed: 0,
+      };
     sensor.radius =
       targets.length > 1 && index === 0 ? (difficulty === 'easy' ? 0.18 * r : width * 1.3) : width;
     stage.objects.push(sensor);
@@ -147,7 +149,15 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
     endTime: stage.rules.maxTime,
     condition: targets.length > 1 ? { kind: 'sequence', children: visits } : visits[0],
   });
-  const regions = [...stage.bodies, ...stage.objects];
+  configureMission(stage, recipe);
+  const regions = [
+    ...stage.bodies,
+    ...stage.objects,
+    ...stage.goals.flatMap((g) => {
+      const body = stage.bodies.find((b) => b.id === g.display?.targetId);
+      return body && g.display ? [{ position: body.position, radius: g.display.max }] : [];
+    }),
+  ];
   const minX = Math.min(...regions.map((o) => o.position.x - o.radius)),
     maxX = Math.max(...regions.map((o) => o.position.x + o.radius));
   const minY = Math.min(...regions.map((o) => o.position.y - o.radius)),
@@ -157,9 +167,14 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
     y: (minY + maxY) / 2,
     zoom: 180 / Math.max(maxX - minX, maxY - minY),
   };
-  stage.title = recipe.kind === 'relay' ? '지상 기지에서 관측소 순회' : '지상 기지에서 상공 관측';
-  stage.description = `행성 표면의 발사대에서 출발해 ${targets.length > 1 ? '번호 순서대로 관측소를 방문하세요' : '관측소에 도착하세요'}. 엔진을 끈 상태로 관측구역을 지나 자료를 모으면 임무가 완료됩니다.`;
-  const fit = fitLaunch(stage, recipe);
+  if (recipe.kind === 'survey' || recipe.kind === 'relay') {
+    stage.title = recipe.kind === 'relay' ? '지상 기지에서 관측소 순회' : '지상 기지에서 상공 관측';
+    stage.description = `행성 표면의 발사대에서 출발해 ${targets.length > 1 ? '번호 순서대로 관측소를 방문하세요' : '관측소에 도착하세요'}. 엔진을 끈 상태로 관측구역을 지나 자료를 모으면 임무가 완료됩니다.`;
+  }
+  const fit =
+    recipe.kind === 'survey' || recipe.kind === 'relay'
+      ? fitLaunch(stage, recipe)
+      : fitMission(stage, recipe);
   const omissions = [
     { label: '출발 출력 생략', plan: { ...structuredClone(fit.witness), launch: { x: 0, y: 0 } } },
     {
@@ -187,13 +202,43 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
         engineCommands: fit.witness.engineCommands?.filter((c) => !c.direction),
       },
     });
-  const relative = recipe.planets.map((p) => [
-    Math.round(
-      (Math.atan2(Math.sin(p.angle - launchAngle), Math.cos(p.angle - launchAngle)) * 6) / Math.PI,
-    ),
-    Math.round(p.distance * 2),
-    Math.round(p.mass * 50),
-  ]);
+  const relative = stage.bodies
+    .slice(1)
+    .map((b) => [
+      b.kind,
+      Math.round(
+        (((b.position.x - body.position.x) * Math.cos(launchAngle) +
+          (b.position.y - body.position.y) * Math.sin(launchAngle)) /
+          r) *
+          4,
+      ),
+      Math.round(
+        ((-(b.position.x - body.position.x) * Math.sin(launchAngle) +
+          (b.position.y - body.position.y) * Math.cos(launchAngle)) /
+          r) *
+          4,
+      ),
+      Math.round((b.radius / r) * 10),
+      Math.round((b.mu / body.mu) * 20),
+      b.motion ? 'orbit' : b.dynamic ? 'dynamic' : 'fixed',
+    ]);
+  const missionGeometry =
+    recipe.kind === 'landing'
+      ? [
+          'ascent',
+          Math.round(Math.max(0.45, 0.5 + (targetRadius - 1.4) * 0.8) * 20),
+          Math.round((stage.rocket!.parts[0].maxLandingSpeed! / (r / clock)) * 100),
+        ]
+      : recipe.kind === 'orbit'
+        ? [
+            'band',
+            Math.round((stage.goals[0].display!.min / r) * 10),
+            Math.round((stage.goals[0].display!.max / r) * 10),
+          ]
+        : [
+            Math.round((targetAngle * 18) / Math.PI),
+            recipe.kind === 'escape' ? 4 : Math.round(targetRadius * 5),
+          ];
   return {
     stage,
     recipe,
@@ -201,8 +246,8 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
     omissions,
     fingerprint: JSON.stringify([
       recipe.kind,
-      Math.round((targetAngle * 18) / Math.PI),
-      Math.round(targetRadius * 5),
+      recipe.environment ?? 'planetary',
+      missionGeometry,
       margin,
       relative,
     ]),

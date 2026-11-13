@@ -32,6 +32,12 @@
   border: 1px solid #86aaa166;
   border-radius: 8px;
 }
+.map-generator .generator-environment-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  color: #b5c8c8;
+}
 .map-generator .generator-difficulty-buttons {
   display: flex;
   gap: 10px;

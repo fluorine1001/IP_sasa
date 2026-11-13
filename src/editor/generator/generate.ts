@@ -11,6 +11,7 @@ import { reviewCandidate, selectCourse } from './curation';
 import type { Candidate } from './protocol';
 import { completeMasteryMethods } from './mastery-methods';
 import { practicesFocus } from './mastery';
+import { auditGravity } from './gravity-audit';
 
 export function randomSurfacePlan(stage: Stage, random: () => number): RoutePlan {
   const angle = stage.launchAngle ?? 0;
@@ -77,6 +78,7 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
       invalid: 0,
       margin: 0,
       difficulty: 0,
+      gravity: 0,
     },
     phase: '표면 출발 후보 준비',
     done: false,
@@ -88,7 +90,14 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
   outer: for (let i = 0; i < request.count * 8 && report.candidates.length < request.count; i++) {
     if (
       performance.now() - started >=
-      (request.mastery ? 180000 : request.progression ? 90000 : 45000)
+      (request.mastery
+        ? 180000
+        : request.progression ||
+            request.planetCount !== 1 ||
+            !['mixed', 'survey', 'relay'].includes(request.kind) ||
+            request.environment !== 'planetary'
+          ? 120000
+          : 45000)
     ) {
       report.limited = true;
       break;
@@ -108,9 +117,22 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
           ]
         : request.difficulty;
     const kind =
-      request.kind === 'mixed' ? (report.candidates.length % 2 ? 'relay' : 'survey') : request.kind;
+      request.kind === 'varied'
+        ? request.mastery
+          ? report.candidates.length % 2
+            ? 'relay'
+            : 'survey'
+          : (['survey', 'landing', 'orbit', 'escape', 'relay'] as const)[i % 5]
+        : request.kind === 'mixed'
+          ? report.candidates.length % 2
+            ? 'relay'
+            : 'survey'
+          : request.kind;
     const recipe = makeRecipe({ ...request, difficulty, kind }, i, random),
-      intro = request.progression && report.candidates.length === 0;
+      intro =
+        request.progression &&
+        report.candidates.length === 0 &&
+        (kind === 'survey' || kind === 'relay');
     if ((request.progression || request.mastery) && difficulty === 'easy') {
       recipe.targetAngle =
         Math.sign(recipe.targetAngle) * Math.min(Math.abs(recipe.targetAngle), Math.PI / 12);
@@ -143,6 +165,14 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
     report.checked++;
     if (execute(stage, witness).status !== 'won') {
       report.rejected.witness++;
+      yield report;
+      continue;
+    }
+    report.phase = '추가 천체별 중력 기여와 중력 제거 비행 비교';
+    let gravityCheck = auditGravity(stage, witness);
+    report.checked += gravityCheck.checked;
+    if (!gravityCheck.passed) {
+      report.rejected.gravity++;
       yield report;
       continue;
     }
@@ -184,11 +214,20 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
     report.phase = '둥근 수치·여러 조작 방식 실제 비행 검사';
     let methods: MethodReport | undefined,
       previousChecks = 0;
-    for (const step of exploreMethods(stage, [witness])) {
+    for (const step of exploreMethods(
+      stage,
+      [witness],
+      kind === 'survey' || kind === 'relay' ? 250 : 80,
+    )) {
       methods = step;
       report.checked += step.checked - previousChecks;
       previousChecks = step.checked;
       yield report;
+    }
+    if (!methods!.methods.length) {
+      report.rejected.witness++;
+      yield report;
+      continue;
     }
     if (request.mastery) {
       report.phase = `${focusIndex + 1}묶음 · 이전 조작과 새 조작을 함께 쓰는 비행 검사`;
@@ -204,6 +243,30 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
         yield report;
         continue;
       }
+    }
+    if (stage.bodies.length > 1) {
+      report.phase = '표시할 각 풀이의 천체별 중력 영향 재검사';
+      const meaningful = [];
+      for (const method of methods!.methods) {
+        const comparison = auditGravity(stage, method.plan);
+        report.checked += comparison.checked;
+        if (comparison.passed) {
+          if (!meaningful.length) gravityCheck = comparison;
+          meaningful.push(method);
+        }
+        yield report;
+      }
+      methods!.methods = meaningful;
+      if (!meaningful.length) {
+        report.rejected.gravity++;
+        yield report;
+        continue;
+      }
+    }
+    if (request.mastery && !methods!.methods.some((m) => practicesFocus(m, focusIndex))) {
+      report.rejected.gravity++;
+      yield report;
+      continue;
     }
     if (
       intro &&
@@ -230,6 +293,7 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
       randomTotal,
       omissions: blueprint.omissions.length,
       methods: methods!.methods,
+      gravity: gravityCheck,
       warnings: [
         '난이도는 경로·출발 정렬·주변 중력·조작 여유에 따른 제작용 추정입니다. 직접 플레이로 확인하세요.',
       ],
@@ -241,6 +305,8 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
     }
     if (
       request.progression &&
+      request.kind !== 'varied' &&
+      (kind === 'survey' || kind === 'relay') &&
       selectCourse(
         [...report.candidates, candidate].map(reviewCandidate),
         report.candidates.length + 1,

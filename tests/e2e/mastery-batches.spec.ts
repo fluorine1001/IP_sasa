@@ -17,6 +17,10 @@ for (const width of [390, 1440])
     const before = await page.evaluate(() => localStorage.getItem('orbit-editor-draft-v2'));
     await page.getByRole('button', { name: '맵 자동 생성', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: '맵 자동 생성', exact: true });
+    await dialog.getByRole('combobox', { name: '임무 종류', exact: true }).selectOption('mixed');
+    await dialog
+      .getByRole('combobox', { name: '천체 구성', exact: true })
+      .selectOption('planetary');
     await dialog.getByText('추가 설정 · 조작 숙달 묶음', { exact: true }).click();
     await expect(dialog.getByLabel('조작 숙달 묶음 만들기')).not.toBeChecked();
     await dialog.getByLabel('조작 숙달 묶음 만들기').check();
@@ -26,7 +30,7 @@ for (const width of [390, 1440])
     await expect(dialog.locator('[data-mastery-total]')).toContainText('3묶음 × 2개 = 6개');
     await dialog.getByLabel('생성할 때 새 번호 사용').uncheck();
     await dialog.getByLabel('생성 번호', { exact: true }).fill('31415');
-    await dialog.getByLabel('행성 수').selectOption('1');
+    await dialog.getByRole('combobox', { name: '천체 수', exact: true }).selectOption('1');
     await dialog.getByRole('button', { name: '후보 생성', exact: true }).click();
     await expect(dialog.locator('[data-generator-status]')).toContainText('후보 생성 완료', {
       timeout: 210000,

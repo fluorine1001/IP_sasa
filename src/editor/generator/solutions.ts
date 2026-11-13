@@ -74,6 +74,8 @@ export function methodSkills(plan: RoutePlan) {
 
 export function methodTitle(plan: RoutePlan) {
   const skills = methodSkills(plan);
+  if (methodKind(plan) === 'reignite' && !skills.includes('중간 방향 수정'))
+    return '엔진을 끈 뒤 다시 추진';
   if (skills.includes('출력 조절') && skills.includes('중간 방향 수정'))
     return skills.includes('재점화')
       ? '출력 조절·중간 회전을 활용하며 재점화'
@@ -202,20 +204,28 @@ export function* exploreMethods(
     const actualKind = methodKind(plan);
     const lastStop = plan.engineCommands?.filter((c) => c.throttle === 0).at(-1);
     for (const c of plan.engineCommands ?? []) {
-      const added =
-        ((actualKind === 'power-step' || actualKind === 'reignite') && (c.throttle ?? 0) > 0) ||
-        (!!c.direction && c.time > 0) ||
-        (actualKind === 'reignite' && c.throttle === 0 && c !== lastStop);
-      if (!added) continue;
-      report.checked++;
+      const fields: ('direction' | 'throttle')[] = [];
+      if (c.direction && c.time > 0) fields.push('direction');
       if (
-        execute(stage, {
-          ...structuredClone(plan),
-          engineCommands: plan.engineCommands!.filter((other) => other.id !== c.id),
-        }).status === 'won'
+        ((actualKind === 'power-step' || actualKind === 'reignite') && (c.throttle ?? 0) > 0) ||
+        (actualKind === 'reignite' && c.throttle === 0 && c !== lastStop)
       )
-        return;
-      necessary.push(c.id);
+        fields.push('throttle');
+      for (const field of fields) {
+        const omitted = structuredClone(plan),
+          command = omitted.engineCommands!.find((o) => o.id === c.id)!;
+        delete command[field];
+        if (
+          command.throttle === undefined &&
+          !command.direction &&
+          !command.separate &&
+          !command.releasePayload
+        )
+          omitted.engineCommands = omitted.engineCommands!.filter((o) => o.id !== c.id);
+        report.checked++;
+        if (execute(stage, omitted).status === 'won') return;
+      }
+      if (fields.length) necessary.push(c.id);
     }
     const samples = controlSamples(stage, plan);
     let nearbyWins = 0;

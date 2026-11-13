@@ -82,14 +82,14 @@ export function createCollectionPanel(
     );
     const held = new Map(course.held.map((e) => [e.review.stage.id, e.reason]));
     host.querySelector('[data-course-output]')!.innerHTML = course.entries.length
-      ? `<div class="generator-table-wrap"><table><thead><tr><th>순서</th><th>스테이지</th><th>점수</th><th>선별 이유</th><th>검토</th></tr></thead><tbody>${course.entries.map((e, i) => `<tr data-course-entry="${e.review.stage.id}"><td>${i + 1}</td><td>${escape(e.review.stage.title)}<small>${escape(e.review.style)} · 행성 ${e.review.stage.bodies.length}개</small></td><td>${e.review.score}</td><td>${escape(e.reason)}<small>검토 방식: ${escape(e.review.methods[e.methodIndex].label)}</small></td><td><button data-pool-review="${e.review.stage.id}">풀이 비교</button><button data-pool-open="${e.review.stage.id}">초안으로 열기</button></td></tr>`).join('')}</tbody></table></div>`
+      ? `<div class="generator-table-wrap"><table><thead><tr><th>순서</th><th>스테이지</th><th>점수</th><th>선별 이유</th><th>검토</th></tr></thead><tbody>${course.entries.map((e, i) => `<tr data-course-entry="${e.review.stage.id}"><td>${i + 1}</td><td>${escape(e.review.stage.title)}<small>${escape(e.review.style)} · 천체 ${e.review.stage.bodies.length}개</small></td><td>${e.review.score}</td><td>${escape(e.reason)}<small>검토 방식: ${escape(e.review.methods[e.methodIndex].label)}</small></td><td><button data-pool-review="${e.review.stage.id}">풀이 비교</button><button data-pool-open="${e.review.stage.id}">초안으로 열기</button></td></tr>`).join('')}</tbody></table></div>`
       : '<p>아직 연결할 입문 단계가 없습니다. 쉬운 후보를 더 모으거나 검토 대기 이유를 확인하세요.</p>';
     host.querySelector('[data-course-pool]')!.innerHTML =
       [...pool.values()]
         .sort((a, b) => a.score - b.score)
         .map(
           (r) =>
-            `<article class="course-pool-row"><label><input type="checkbox" data-pool-include="${r.stage.id}" ${excluded.has(r.stage.id) ? '' : 'checked'}>${escape(r.stage.title)} · ${r.score}점</label><small>서로 다른 둥근 수치 풀이 ${new Set(r.methods.filter((m) => m.coarse).map((m) => m.kind)).size}개 · ${selected.has(r.stage.id) ? `${selected.get(r.stage.id)!.index}번째 선별` : excluded.has(r.stage.id) ? '직접 제외' : escape(held.get(r.stage.id) ?? '검토 필요')}</small><button data-pool-review="${r.stage.id}">풀이 비교</button></article>`,
+            `<article class="course-pool-row"><label><input type="checkbox" data-pool-include="${r.stage.id}" ${excluded.has(r.stage.id) ? '' : 'checked'}>${escape(r.stage.title)} · ${r.score}점</label><small>서로 다른 둥근 수치 풀이 ${new Set(r.methods.filter((m) => m.coarse).map((m) => m.kind)).size}개 · ${selected.has(r.stage.id) ? `${selected.get(r.stage.id)!.index}번째 선별` : excluded.has(r.stage.id) ? '직접 제외' : escape(held.get(r.stage.id) ?? '검토 필요')}</small><button data-pool-review="${r.stage.id}">풀이 비교</button><button data-pool-open="${r.stage.id}">초안으로 열기</button></article>`,
         )
         .join('') || '<p>모은 후보가 없습니다.</p>';
     host.querySelector<HTMLButtonElement>('[data-course-export]')!.disabled =

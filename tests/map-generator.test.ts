@@ -118,7 +118,7 @@ it('한 묶음은 서로 다른 상대 배치·관측소 수·행성 수·발사
   expect(
     new Set(candidates.map((c) => Math.floor((c.recipe.launchAngle * 2) / Math.PI))).size,
   ).toBeGreaterThan(1);
-}, 60000);
+}, 180000);
 
 it('같은 번호는 물리 배치를 재현하며 다른 번호와 새 문서 ID를 구별한다', () => {
   const first = generate().candidates[0],
@@ -188,7 +188,7 @@ it('과도한 생성과 유효하지 않은 난이도·행성 수·종류는 실
     expect(() => validateRequest({ ...base, count })).toThrow('개수');
   for (const seed of [0, -1, 2 ** 32, 1.5, NaN])
     expect(() => validateRequest({ ...base, seed })).toThrow('생성 번호');
-  expect(() => validateRequest({ ...base, planetCount: 4 as 1 })).toThrow('행성 수');
+  expect(() => validateRequest({ ...base, planetCount: 4 as 1 })).toThrow('천체 수');
   expect(() => validateRequest({ ...base, kind: 'transfer' as 'survey' })).toThrow('임무 종류');
   expect(validateRequest({ ...base, difficulty: 'challenge', planetCount: 1 }).planetCount).toBe(1);
   expect(validateRequest({ ...base, difficulty: 'easy', planetCount: 3 }).planetCount).toBe(3);

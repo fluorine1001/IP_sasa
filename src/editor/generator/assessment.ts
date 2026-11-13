@@ -1,7 +1,11 @@
 import { gravity } from '../../world/celestial';
+import { bodyPosition } from '../../world/celestial';
+import { bodyForce } from './gravity-audit';
 import type { Stage, Run } from '../../world/types';
 import type { Recipe } from './templates';
 import type { Difficulty } from './difficulty';
+import { missionTolerance } from './mission-facts';
+import { programEvents } from '../../world/program';
 
 export type DifficultyAssessment = {
   score: number;
@@ -27,17 +31,16 @@ export function assessDifficulty(
     travel = 0,
     sweep = 0;
   for (const frame of run.frames) {
-    const angle = Math.atan2(
-      frame.position.y - body.position.y,
-      frame.position.x - body.position.x,
-    );
+    const center = frame.bodies?.[body.id]?.position ?? bodyPosition(stage, body, frame.time);
+    const angle = Math.atan2(frame.position.y - center.y, frame.position.x - center.x);
     travel += Math.atan2(Math.sin(angle - previous), Math.cos(angle - previous));
     previous = angle;
     sweep = Math.max(sweep, Math.abs(travel));
   }
-  const heading = run.initialPlan.engineCommands?.find((c) => c.direction)?.direction ?? {
-    x: Math.cos(previous),
-    y: Math.sin(previous),
+  const heading = run.initialPlan.engineCommands?.find((c) => c.direction && c.time === 0)
+    ?.direction ?? {
+    x: Math.cos(recipe.launchAngle),
+    y: Math.sin(recipe.launchAngle),
   };
   const departureAlignment =
     (Math.abs(
@@ -51,14 +54,14 @@ export function assessDifficulty(
   let gravityInfluence = 0;
   for (const position of [stage.spawn.position, ...stage.objects.map((o) => o.position)]) {
     const total = gravity(stage, position, 0),
-      base = gravity({ ...stage, bodies: [body] }, position, 0);
+      base = bodyForce(stage, body, position, 0);
     gravityInfluence = Math.max(
       gravityInfluence,
       Math.hypot(total.x - base.x, total.y - base.y) / Math.max(1e-8, Math.hypot(base.x, base.y)),
     );
   }
   const routeDegrees = (sweep * 180) / Math.PI;
-  const score = Math.round(
+  let score = Math.round(
     Math.min(
       100,
       Math.min(1, routeDegrees / 180) * 45 +
@@ -68,6 +71,18 @@ export function assessDifficulty(
         (1 - nearbyWins / Math.max(1, nearbyTotal)) * 20,
     ),
   );
+  const tolerance = missionTolerance(stage);
+  if (tolerance !== undefined)
+    score = Math.round(
+      Math.min(
+        100,
+        Math.max(0, tolerance) +
+          Math.min(15, departureAlignment * 0.15) +
+          (1 - nearbyWins / Math.max(1, nearbyTotal)) * 25 +
+          Math.max(0, programEvents(run.initialPlan).length - 3) * 3 +
+          Math.min(8, gravityInfluence * 10),
+      ),
+    );
   return {
     score,
     routeDegrees,

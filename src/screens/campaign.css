@@ -13,8 +13,8 @@
     margin-bottom: 28px;
   }
   .campaign-header h1 {
-    margin: 4px 0 0;
-    font-size: clamp(28px, 4vw, 38px);
+  margin: 4px 0 0;
+  font-size: 32px !important;
   }
   .eyebrow {
     color: var(--p-400);

@@ -14,6 +14,7 @@ import BlockerWorker from './blockers.worker?worker&inline';
 import { SearchClient } from './search-client';
 import { inverseStatus } from './inverse-status';
 import { launchBalanceMarkup } from './launch-balance';
+import { createMethodReview } from './generator/review-panel';
 export function solutionSearchPanel(
   root: HTMLElement,
   signal: AbortSignal,
@@ -32,6 +33,7 @@ export function solutionSearchPanel(
     result: SearchReport | undefined,
     history: Run['trail'] = [];
   const playback = representativeReplay(root, getStage, signal);
+  const savedReview = createMethodReview(root, signal);
   // Searches start from the 탐색 button; '변경 후 자동' is opt-in, so editing never launches flights.
   let enabled = false,
     continuous = true,
@@ -66,6 +68,13 @@ export function solutionSearchPanel(
     panel
       .querySelector('.search-config')!
       .insertAdjacentHTML('beforeend', launchBalanceMarkup(getStage()));
+    if (getStage().referencePlans.length)
+      panel
+        .querySelector('.search-config')!
+        .insertAdjacentHTML(
+          'beforeend',
+          `<button data-review-references>저장된 검증 풀이 ${getStage().referencePlans.length}개 비교</button>`,
+        );
   }
   function parameters() {
     panel.querySelector('#search-parameters')!.innerHTML =
@@ -215,6 +224,7 @@ export function solutionSearchPanel(
     show();
   }
   function refresh() {
+    savedReview.close();
     const old = template();
     invalidate();
     templates = searchTemplates(getStage());
@@ -291,6 +301,10 @@ export function solutionSearchPanel(
     'click',
     async (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
+      if (button?.hasAttribute('data-review-references')) {
+        savedReview.show(getStage());
+        return;
+      }
       if (!button) return;
       if (button.id === 'search-run') run();
       if (button.id === 'search-continue' && result && worker) {

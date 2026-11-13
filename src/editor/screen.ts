@@ -25,6 +25,7 @@ import { markerAxis } from './marker-inspector';
 import './style.css';
 import { markerGroups } from './marker-groups';
 import { organizeEditor, organizeInspector } from './editor-layout';
+import { stageGenerator } from './generator/panel';
 import { setBodyMassKg, setGravitationalConstant } from '../world/gravity-units';
 import { chapterChoices } from '../stages/chapters';
 import { compileMarker, refreshGoalMarkers, type GoalMarker } from '../stages/goal-marker';
@@ -1779,6 +1780,18 @@ export function editorScreen(app: App): Screen {
     },
     { signal },
   );
+  stageGenerator(app.root, signal, (stage) => {
+    preserveIncoming(stage);
+    model = new EditorModel(stage);
+    tool = 'select';
+    candidate = undefined;
+    placement = undefined;
+    pinnedTarget = '';
+    showPlacement();
+    Object.assign(camera, stage.camera);
+    changed();
+    message('생성 후보를 초안으로 열었습니다. 이전 초안은 이 기기 목록에 보존됩니다.');
+  });
   organizeEditor(app.root, signal);
   el('scene-list').addEventListener(
     'click',

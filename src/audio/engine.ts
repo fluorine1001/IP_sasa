@@ -332,7 +332,7 @@ export function eventSound(kind: EventSound, intensity = 1) {
           d: 0.08,
           peak: 0.06,
           at: now + 0.25 + i * (0.08 + Math.random() * 0.12),
-          room: 0.5,
+          room: 0.5
         });
       return;
     }
@@ -478,12 +478,14 @@ export function ambienceVoice(on: boolean, air = 0, speed = 0) {
     gain.gain.value = 0.0001;
     gain.connect(g.ambience);
     const nodes: AudioScheduledSourceNode[] = [];
+    // 수정 코드 (주파수를 2배 높이고 triangle 파형으로 변경)
     for (const [f, p, rate] of [
-      [55, 0.22, 0.05],
-      [82.4, 0.12, 0.07],
-      [110.3, 0.05, 0.11],
+      [110, 0.22, 0.05],
+      [164.8, 0.12, 0.07],
+      [220.6, 0.05, 0.11],
     ] as const) {
       const osc = g.ctx.createOscillator();
+      osc.type = 'triangle'; // 이 한 줄 추가!
       osc.frequency.value = f;
       const level = g.ctx.createGain();
       level.gain.value = p;

@@ -118,7 +118,7 @@ it('한 묶음은 서로 다른 상대 배치·관측소 수·행성 수·발사
   expect(
     new Set(candidates.map((c) => Math.floor((c.recipe.launchAngle * 2) / Math.PI))).size,
   ).toBeGreaterThan(1);
-}, 180000);
+}, 240000);
 
 it('같은 번호는 물리 배치를 재현하며 다른 번호와 새 문서 ID를 구별한다', () => {
   const first = generate().candidates[0],

@@ -8,7 +8,7 @@ import { missionFamily, missionMetrics } from './mission-facts';
 import { auditGravity, type GravityAudit } from './gravity-audit';
 
 export const curationPolicy = {
-  version: 2,
+  version: 3,
   maxStep: 22,
   maxNewConcepts: 1,
   sameStructure: 2,
@@ -82,18 +82,27 @@ export function reviewStage(
           'touchdownTilt',
           'propellantUsed',
           'time',
+          'ignitions',
+          'angularMomentum',
+          'thrustUsed',
         ].includes(m),
     )
   )
-    reasons.push('현재 자동 순서 제안의 관측·착륙·궤도·탈출 범위를 벗어납니다. 직접 검토하세요.');
+    reasons.push(
+      '현재 자동 순서 제안의 관측·착륙·궤도·탈출·중력 도움·자유 귀환 범위를 벗어납니다. 직접 검토하세요.',
+    );
   const concepts = [
-    ...(family === 'landing'
-      ? ['안전 착륙']
-      : family === 'orbit'
-        ? ['궤도 유지']
-        : family === 'escape'
-          ? ['중력권 탈출']
-          : []),
+    ...(family === 'gravity-assist'
+      ? ['중력 도움']
+      : family === 'free-return'
+        ? ['자유 귀환']
+        : family === 'landing'
+          ? ['안전 착륙']
+          : family === 'orbit'
+            ? ['궤도 유지']
+            : family === 'escape'
+              ? ['중력권 탈출']
+              : []),
     ...(stage.objects.filter((o) => o.kind === 'sensor').length > 1 ? ['연속 관측'] : []),
     ...(style === '옆으로 휘는 호'
       ? ['휘어진 경로']
@@ -132,7 +141,7 @@ function required(review: StageReview, method: VerifiedMethod) {
   return [...new Set([...review.concepts, ...method.skills.filter((s) => !basic.has(s))])];
 }
 function structure(review: StageReview) {
-  return `${review.style}/${review.stage.objects.filter((o) => o.kind === 'sensor').length}`;
+  return `${missionFamily(review.stage)}/${review.style}/${review.stage.objects.filter((o) => o.kind === 'sensor').length}`;
 }
 
 /** A partial course is preferable to inventing an introductory stage or crossing a large gap. */

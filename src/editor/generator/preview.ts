@@ -7,11 +7,17 @@ export function candidatePreview(candidate: Candidate): string {
   const { stage, recipe } = candidate;
   const region = stage.goals[0]?.display;
   const center = stage.bodies.find((b) => b.id === region?.targetId);
+  const regions = stage.goals.flatMap((g) => {
+    const body = stage.bodies.find((b) => b.id === g.display?.targetId);
+    return body && g.display
+      ? [{ position: body.position, radius: g.display.max, display: g.display }]
+      : [];
+  });
   const shapes = [
     ...stage.bodies,
     ...stage.objects,
     { position: stage.spawn.position, radius: recipe.radius * 0.1 },
-    ...(center && region ? [{ position: center.position, radius: region.max }] : []),
+    ...regions,
   ];
   const minX = Math.min(...shapes.map((o) => o.position.x - o.radius)),
     maxX = Math.max(...shapes.map((o) => o.position.x + o.radius));
@@ -55,13 +61,21 @@ export function candidatePreview(candidate: Candidate): string {
       band += `<path d="M ${cx} ${cy} l ${Math.cos(a) * r} ${-Math.sin(a) * r}" fill="none" stroke="#efb95c" stroke-dasharray="3 3"/>`;
     }
   }
+  for (const area of regions.slice(1)) {
+    const [cx, cy] = point(area.position.x, area.position.y);
+    band += `<circle cx="${cx}" cy="${cy}" r="${((area.display.min + area.display.max) / 2) * scale}" fill="none" stroke="#82c8ad55" stroke-width="${Math.max(1, (area.display.max - area.display.min) * scale)}"/>`;
+  }
   const caption =
-    recipe.kind === 'orbit'
-      ? '표면 발사·허용 궤도'
-      : recipe.kind === 'landing'
-        ? '상승 후 표면 착륙'
-        : recipe.kind === 'escape'
-          ? '탈출 경계·출구 방향'
-          : '발사대·관측소 배치';
+    recipe.kind === 'free-return'
+      ? '근접 통과·귀환 안전 띠'
+      : recipe.kind === 'gravity-assist'
+        ? '중력 도움·먼 탐사권'
+        : recipe.kind === 'orbit'
+          ? '표면 발사·허용 궤도'
+          : recipe.kind === 'landing'
+            ? '상승 후 표면 착륙'
+            : recipe.kind === 'escape'
+              ? '탈출 경계·출구 방향'
+              : '발사대·관측소 배치';
   return `<svg viewBox="0 0 160 150" role="img" aria-label="천체 ${stage.bodies.length}개 · 표면 발사대와 ${escape(templateNames[recipe.kind])} 배치">${band}${bodies}${targets}${rocket}<text x="80" y="145" text-anchor="middle" fill="currentColor">${caption}</text></svg>`;
 }

@@ -4,12 +4,14 @@ import { physicalPlanKey } from '../solution-groups';
 import { controlSamples } from './control-samples';
 import type { RoutePlan, Stage } from '../../world/types';
 
-export type MethodKind = 'baseline' | 'coast' | 'power-step' | 'turn-step' | 'reignite';
+export type MethodKind =
+  'baseline' | 'coast' | 'power-step' | 'turn-step' | 'multi-turn' | 'reignite';
 export const methodNames: Record<MethodKind, string> = {
   baseline: '계산으로 찾은 기준 비행',
-  coast: '한 번 올리고 관성 비행',
+  coast: '홀인원 · 출발 설정 후 관성 비행',
   'power-step': '출력을 나눠 올리기',
   'turn-step': '고도를 올린 뒤 방향 바꾸기',
+  'multi-turn': '추진 중 방향을 여러 번 조절',
   reignite: '끄고 회전한 뒤 짧게 재점화',
 };
 export type VerifiedMethod = {
@@ -42,6 +44,7 @@ export function methodKind(plan: RoutePlan): Exclude<MethodKind, 'baseline'> {
     if (c.throttle === 0) stopped = true;
     if ((c.throttle ?? 0) > 0 && stopped) return 'reignite';
   }
+  if (commands.filter((c) => c.direction && c.time > 0).length >= 2) return 'multi-turn';
   if (commands.some((c) => (c.throttle ?? 0) > 0)) return 'power-step';
   if (commands.filter((c) => c.direction).length > 1) return 'turn-step';
   return 'coast';
@@ -80,7 +83,29 @@ export function methodTitle(plan: RoutePlan) {
     return skills.includes('재점화')
       ? '출력 조절·중간 회전을 활용하며 재점화'
       : '출력 조절을 활용하며 중간 회전';
+  if ((plan.engineCommands ?? []).filter((c) => c.direction && c.time > 0).length >= 2)
+    return skills.includes('재점화') ? '여러 번 방향을 조절하며 재점화' : methodNames['multi-turn'];
   return methodNames[methodKind(plan)];
+}
+export function methodStyle(plan: RoutePlan) {
+  const commands = plan.engineCommands ?? [],
+    turns = commands.filter((c) => c.direction && c.time > 0).length;
+  const hole =
+    turns === 0 &&
+    !plan.impulses.length &&
+    !commands.some((c) => c.time > 0 && ((c.throttle ?? 0) > 0 || c.separate || c.releasePayload));
+  return {
+    hole,
+    turns,
+    multiple: turns >= 2,
+    label: hole
+      ? '홀인원 · 출발 설정 후 관성 비행'
+      : turns >= 2
+        ? `다중 방향 수정 · 중간 회전 ${turns}회`
+        : turns === 1
+          ? '중간 방향 수정 1회'
+          : '출력 조절·재점화',
+  };
 }
 
 /** Coarse policies, not a minimum-action optimizer or an exhaustive human model. */
@@ -89,8 +114,14 @@ function* policyPlans(
   reference: RoutePlan,
   kind: Exclude<MethodKind, 'baseline'>,
 ): Generator<RoutePlan> {
-  const initial = reference.engineCommands?.find((c) => c.direction)?.direction;
-  const end = reference.engineCommands?.find((c) => c.throttle === 0)?.time;
+  const initial = reference.engineCommands?.find((c) => c.direction && c.time === 0)?.direction;
+  const part = stage.rocket?.parts[0],
+    powerFraction = Math.hypot(reference.launch.x, reference.launch.y) / stage.rules.launchLimit;
+  const end =
+    reference.engineCommands?.find((c) => c.throttle === 0)?.time ??
+    (part && powerFraction > 0
+      ? (part.fuelMass * part.exhaustSpeed) / (part.thrust * powerFraction)
+      : undefined);
   if (!initial || end === undefined) return;
   const pad = stage.launchAngle ?? 0;
   const heading = round((relativeAngle(Math.atan2(initial.y, initial.x), pad) * 180) / Math.PI, 5);
@@ -157,6 +188,48 @@ function* policyPlans(
           yield p;
         }
   }
+  if (kind === 'multi-turn') {
+    for (const [first, middle] of [
+      [-30, 20],
+      [30, -20],
+      [-20, 10],
+      [20, -10],
+      [-10, 15],
+      [10, -15],
+      [-40, 30],
+      [40, -30],
+    ])
+      for (const [f1, f2] of [
+        [0.2, 0.55],
+        [0.3, 0.7],
+        [0.15, 0.4],
+        [0.4, 0.75],
+      ])
+        for (const dt of [0, -0.1, 0.1]) {
+          const t1 = Math.max(0.1, round(time * f1, 0.1)),
+            t2 = Math.max(t1 + 0.1, round(time * f2, 0.1)),
+            cutoff = time + dt;
+          if (t2 >= cutoff - 0.05) continue;
+          const p = plan(power, heading + first, cutoff);
+          p.engineCommands!.splice(
+            1,
+            0,
+            {
+              id: 'first-course-turn',
+              actorId: 'craft',
+              time: t1,
+              direction: vector(pad + ((heading + middle) * Math.PI) / 180),
+            },
+            {
+              id: 'second-course-turn',
+              actorId: 'craft',
+              time: t2,
+              direction: vector(pad + (heading * Math.PI) / 180),
+            },
+          );
+          yield p;
+        }
+  }
   if (kind === 'reignite') {
     for (const early of [0.6, 0.75, 0.85])
       for (const coast of [0.2, 0.4])
@@ -207,7 +280,7 @@ export function* exploreMethods(
       const fields: ('direction' | 'throttle')[] = [];
       if (c.direction && c.time > 0) fields.push('direction');
       if (
-        ((actualKind === 'power-step' || actualKind === 'reignite') && (c.throttle ?? 0) > 0) ||
+        (c.throttle ?? 0) > 0 ||
         (actualKind === 'reignite' && c.throttle === 0 && c !== lastStop)
       )
         fields.push('throttle');
@@ -226,6 +299,26 @@ export function* exploreMethods(
         if (execute(stage, omitted).status === 'won') return;
       }
       if (fields.length) necessary.push(c.id);
+    }
+    const turns = (plan.engineCommands ?? [])
+      .filter((c) => c.direction && c.time > 0)
+      .sort((a, b) => a.time - b.time);
+    if (turns.length) {
+      report.checked++;
+      const record = execute(stage, plan, true);
+      if (
+        turns.some(
+          (turn, i) =>
+            !record.frames!.some(
+              (f) =>
+                f.time >= turn.time &&
+                f.time < (turns[i + 1]?.time ?? record.time + 1e-6) &&
+                (f.rocket?.throttle ?? 0) > 0 &&
+                (f.rocket?.fuel[f.rocket.partIndex] ?? 0) > 0,
+            ),
+        )
+      )
+        return;
     }
     const samples = controlSamples(stage, plan);
     let nearbyWins = 0;
@@ -261,10 +354,23 @@ export function* exploreMethods(
   }
   const reference = report.methods[0]?.plan;
   if (reference && stage.rocket?.parts.length === 1 && stage.launchBodyId) {
-    for (const kind of ['coast', 'power-step', 'turn-step', 'reignite'] as const) {
+    const kinds: Exclude<MethodKind, 'baseline'>[] =
+      stage.rocket.parts[0].ignitionLimit === 1
+        ? ['coast', 'multi-turn', 'turn-step', 'power-step', 'reignite']
+        : ['coast', 'power-step', 'turn-step', 'reignite', 'multi-turn'];
+    for (const kind of kinds) {
       if (report.methods.some((m) => m.kind === kind && m.coarse)) continue;
+      let familyAttempts = 0;
       for (const p of policyPlans(stage, reference, kind)) {
+        if (planConstraints(stage, p).length) continue;
         if (report.attempted >= maxAttempts) break;
+        if (
+          kind === 'multi-turn' &&
+          stage.rocket.parts[0].ignitionLimit > 1 &&
+          familyAttempts >= 24
+        )
+          break;
+        familyAttempts++;
         report.attempted++;
         const method = verify(p, kind);
         if (method) {

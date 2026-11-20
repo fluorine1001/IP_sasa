@@ -16,6 +16,9 @@ export function missionMetrics(stage: Stage) {
 }
 export function missionFamily(stage: Stage) {
   const metrics = missionMetrics(stage);
+  if (stage.goals.some((g) => g.outcome?.kind === 'flyby')) return 'gravity-assist';
+  if (metrics.has('ignitions') && metrics.has('angularMomentum') && metrics.has('orbitTurns'))
+    return 'free-return';
   return metrics.has('landed')
     ? 'landing'
     : metrics.has('orbitTurns')
@@ -32,6 +35,14 @@ export function missionTolerance(stage: Stage): number | undefined {
   const family = missionFamily(stage),
     r = body.radius,
     clock = Math.sqrt(r ** 3 / body.mu);
+  if (family === 'gravity-assist' || family === 'free-return') {
+    const g = stage.goals[0],
+      span = g.display ? (g.display.max - g.display.min) / r : 1.18;
+    const close = Math.max(0, 1 - span / 1.18);
+    if (family === 'gravity-assist') return close * 50;
+    const safe = stage.goals[1]?.display;
+    return (close + Math.max(0, 1 - (safe ? (safe.max - safe.min) / r : 2.6) / 2.6)) * 25;
+  }
   if (family === 'landing') {
     const speed = stage.rocket?.parts[0].maxLandingSpeed;
     if (speed !== undefined) return Math.max(0, 1 - speed / ((r / clock) * 0.65)) * 45;

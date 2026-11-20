@@ -90,7 +90,7 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
   outer: for (let i = 0; i < request.count * 8 && report.candidates.length < request.count; i++) {
     if (
       performance.now() - started >=
-      (request.mastery
+      (request.mastery || (request.count > 1 && request.planetCount !== 1)
         ? 180000
         : request.progression ||
             request.planetCount !== 1 ||
@@ -122,12 +122,31 @@ export function* generateCandidates(input: GenerationRequest): Generator<Generat
           ? report.candidates.length % 2
             ? 'relay'
             : 'survey'
-          : (['survey', 'landing', 'orbit', 'escape', 'relay'] as const)[i % 5]
+          : (
+              [
+                'survey',
+                'landing',
+                'orbit',
+                'escape',
+                'relay',
+                'gravity-assist',
+                'free-return',
+              ] as const
+            )[i % 7]
         : request.kind === 'mixed'
           ? report.candidates.length % 2
             ? 'relay'
             : 'survey'
           : request.kind;
+    if (
+      (kind === 'gravity-assist' || kind === 'free-return') &&
+      (request.planetCount === 1 ||
+        request.planetCount === 3 ||
+        !['planetary', 'moon', 'mixed'].includes(request.environment ?? 'planetary'))
+    ) {
+      yield report;
+      continue;
+    }
     const recipe = makeRecipe({ ...request, difficulty, kind }, i, random),
       intro =
         request.progression &&

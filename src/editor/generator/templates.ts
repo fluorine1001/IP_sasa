@@ -8,8 +8,10 @@ import type { RoutePlan, Stage } from '../../world/types';
 import type { Difficulty } from './difficulty';
 import { configureEnvironment, type EnvironmentKind } from './environments';
 import { configureMission, fitMission } from './mission-templates';
+import { fitEncounter, isEncounter } from './encounter-missions';
 
-export type TemplateKind = 'survey' | 'relay' | 'landing' | 'orbit' | 'escape';
+export type TemplateKind =
+  'survey' | 'relay' | 'landing' | 'orbit' | 'escape' | 'gravity-assist' | 'free-return';
 export type Margin = 'wide' | 'standard';
 export const templateNames: Record<TemplateKind, string> = {
   survey: '상공 관측소 방문',
@@ -17,6 +19,8 @@ export const templateNames: Record<TemplateKind, string> = {
   landing: '상승 후 안전 착륙',
   orbit: '엔진 종료 후 한 바퀴 궤도 유지',
   escape: '천체계 중력권 탈출',
+  'gravity-assist': '중력 도움 · 적은 연료로 먼 탐사권 도달',
+  'free-return': '자유 귀환 · 재점화 없이 공전 천체를 돌아 복귀',
 };
 export type Recipe = {
   kind: TemplateKind;
@@ -30,6 +34,7 @@ export type Recipe = {
   planetCount: number;
   environment?: EnvironmentKind;
   planets: { angle: number; distance: number; radius: number; mass: number }[];
+  encounter?: { distance: number; mass: number; phase: number; hand: 1 | -1 };
 };
 export type Blueprint = {
   stage: Stage;
@@ -174,16 +179,22 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
   const fit =
     recipe.kind === 'survey' || recipe.kind === 'relay'
       ? fitLaunch(stage, recipe)
-      : fitMission(stage, recipe);
+      : isEncounter(recipe.kind)
+        ? fitEncounter(stage, recipe)
+        : fitMission(stage, recipe);
   const omissions = [
     { label: '출발 출력 생략', plan: { ...structuredClone(fit.witness), launch: { x: 0, y: 0 } } },
-    {
-      label: '엔진 종료 생략',
-      plan: {
-        ...structuredClone(fit.witness),
-        engineCommands: fit.witness.engineCommands?.filter((c) => c.throttle !== 0),
-      },
-    },
+    ...(fit.witness.engineCommands?.some((c) => c.throttle === 0)
+      ? [
+          {
+            label: '엔진 종료 생략',
+            plan: {
+              ...structuredClone(fit.witness),
+              engineCommands: fit.witness.engineCommands?.filter((c) => c.throttle !== 0),
+            },
+          },
+        ]
+      : []),
   ];
   const direction = fit.witness.engineCommands?.find((c) => c.direction)?.direction;
   if (
@@ -229,16 +240,22 @@ export function buildBlueprint(recipe: Recipe): Blueprint {
           Math.round(Math.max(0.45, 0.5 + (targetRadius - 1.4) * 0.8) * 20),
           Math.round((stage.rocket!.parts[0].maxLandingSpeed! / (r / clock)) * 100),
         ]
-      : recipe.kind === 'orbit'
-        ? [
-            'band',
-            Math.round((stage.goals[0].display!.min / r) * 10),
-            Math.round((stage.goals[0].display!.max / r) * 10),
-          ]
-        : [
-            Math.round((targetAngle * 18) / Math.PI),
-            recipe.kind === 'escape' ? 4 : Math.round(targetRadius * 5),
-          ];
+      : isEncounter(recipe.kind)
+        ? stage.goals.map((g) => [
+            g.display ? Math.round((g.display.min / r) * 100) : 0,
+            g.display ? Math.round((g.display.max / r) * 100) : 0,
+            g.outcome?.kind === 'flyby' ? (g.outcome.gain * clock * clock) / (r * r) : 0,
+          ])
+        : recipe.kind === 'orbit'
+          ? [
+              'band',
+              Math.round((stage.goals[0].display!.min / r) * 10),
+              Math.round((stage.goals[0].display!.max / r) * 10),
+            ]
+          : [
+              Math.round((targetAngle * 18) / Math.PI),
+              recipe.kind === 'escape' ? 4 : Math.round(targetRadius * 5),
+            ];
   return {
     stage,
     recipe,

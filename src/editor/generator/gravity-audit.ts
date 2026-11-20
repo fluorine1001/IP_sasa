@@ -1,6 +1,7 @@
 import { execute } from '../../world/engine';
 import { bodyPosition } from '../../world/celestial';
 import type { Body, Stage, Run, RoutePlan } from '../../world/types';
+import { missionFamily } from './mission-facts';
 
 export type GravityEffect = {
   bodyId: string;
@@ -104,6 +105,8 @@ export function auditGravity(stage: Stage, plan: RoutePlan, record?: Run): Gravi
   }
   return {
     passed:
+      (!['gravity-assist', 'free-return'].includes(missionFamily(stage)) ||
+        effects.every((e) => !e.withoutGravityWon)) &&
       effects.every((e) => e.share >= 0.08 && (!e.withoutGravityWon || e.pathDifference >= 0.08)) &&
       (!combined || !combined.withoutGravityWon || combined.pathDifference >= 0.35),
     effects,

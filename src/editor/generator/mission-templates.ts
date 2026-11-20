@@ -8,6 +8,7 @@ import type { Expression, Condition } from '../../world/conditions';
 import type { FlightFrame } from '../../world/replay';
 import type { Stage, RoutePlan } from '../../world/types';
 import type { Recipe } from './templates';
+import { configureEncounter, isEncounter } from './encounter-missions';
 
 const constant = (value: number): Expression => ({ kind: 'constant', value });
 const metric = (metric: string, targetId = ''): Expression => ({
@@ -67,6 +68,10 @@ export function systemEnergy(stage: Stage): Expression {
   );
 }
 export function configureMission(stage: Stage, recipe: Recipe) {
+  if (isEncounter(recipe.kind)) {
+    configureEncounter(stage, recipe);
+    return;
+  }
   if (recipe.kind === 'survey' || recipe.kind === 'relay') return;
   const { radius: r, clock, difficulty } = recipe,
     body = stage.bodies[0],

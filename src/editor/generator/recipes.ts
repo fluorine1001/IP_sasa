@@ -9,6 +9,51 @@ export function makeRecipe(
   random: () => number,
 ): Recipe {
   const difficulty = request.difficulty ?? 'easy';
+  if (request.kind === 'gravity-assist' || request.kind === 'free-return') {
+    const profiles =
+      request.kind === 'free-return'
+        ? [
+            [5.5, 1, -10],
+            [5.5, 1, 0],
+            [5.5, 1, 20],
+            [5.5, 1, 30],
+            [5.5, 1, 35],
+            [5.5, 0.7, -10],
+            [5.5, 0.7, 15],
+            [6.5, 1, -5],
+          ]
+        : [
+            [3.5, 0.5, 270],
+            [4.5, 0.3, 25],
+            [4.5, 0.5, 40],
+            [5.5, 0.7, 70],
+            [4.5, 0.5, 35],
+            [6.5, 0.5, 65],
+            [3.5, 0.3, 60],
+            [5.5, 0.5, 45],
+          ];
+    const [distance, mass, phase] = profiles[(index + request.seed) % profiles.length],
+      hand = random() < 0.5 ? -1 : 1;
+    return {
+      kind: request.kind,
+      difficulty,
+      margin: request.margin,
+      radius: 1,
+      clock: 2.5,
+      launchAngle: random() * Math.PI * 2,
+      targetAngle: hand * 0.1,
+      targetRadius: 1.5,
+      planetCount: 2,
+      environment:
+        request.environment === 'mixed'
+          ? index % 2
+            ? 'moon'
+            : 'planetary'
+          : ((request.environment as EnvironmentKind) ?? 'planetary'),
+      planets: [{ distance, mass, angle: 0, radius: 0.19 }],
+      encounter: { distance, mass, phase: (phase * Math.PI) / 180, hand },
+    };
+  }
   let planetCount =
     request.planetCount === 'auto' || request.planetCount === undefined
       ? 1 + ((index + Math.floor(index / 3) + (request.seed % 3)) % 3)

@@ -1,6 +1,7 @@
 import { planConstraints, programEvents } from '../../world/program';
 import type { RoutePlan, Stage } from '../../world/types';
 import type { Difficulty } from './difficulty';
+import { missionFamily } from './mission-facts';
 /** Perturb the actual powered controls, one variable at a time. */
 export function controlSamples(
   stage: Stage,
@@ -10,6 +11,12 @@ export function controlSamples(
   const result: RoutePlan[] = [],
     body = stage.bodies.find((b) => b.id === stage.launchBodyId) ?? stage.bodies[0],
     clock = body && body.mu > 0 ? Math.sqrt(body.radius ** 3 / body.mu) : 1;
+  const family = missionFamily(stage),
+    initialStop = witness.engineCommands?.find((c) => c.throttle === 0)?.time;
+  const cutoffError =
+    (family === 'gravity-assist' || family === 'free-return') && initialStop !== undefined
+      ? Math.min(clock * 0.04, Math.max(0.025, initialStop * 0.05))
+      : clock * 0.04;
   for (const sign of [-1, 1])
     for (const kind of ['throttle', 'heading', 'cutoff']) {
       const plan = structuredClone(witness);
@@ -30,7 +37,7 @@ export function controlSamples(
       if (kind === 'cutoff') {
         const c = plan.engineCommands?.find((c) => c.throttle === 0);
         if (!c) continue;
-        c.time += sign * clock * 0.04;
+        c.time += sign * cutoffError;
       }
       if (!planConstraints(stage, plan).length) result.push(plan);
     }

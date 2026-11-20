@@ -58,13 +58,26 @@ export type GenerationResponse = { report: GenerationReport } | { error: string 
 export function validateRequest(value: GenerationRequest): GenerationRequest {
   if (
     !value ||
-    !['mixed', 'varied', 'survey', 'relay', 'landing', 'orbit', 'escape'].includes(value.kind)
+    ![
+      'mixed',
+      'varied',
+      'survey',
+      'relay',
+      'landing',
+      'orbit',
+      'escape',
+      'gravity-assist',
+      'free-return',
+    ].includes(value.kind)
   )
     throw Error('생성할 임무 종류를 선택하세요.');
   const mastery = masterySettings(value.mastery);
-  if (mastery && ['landing', 'orbit', 'escape'].includes(value.kind))
+  if (
+    mastery &&
+    ['landing', 'orbit', 'escape', 'gravity-assist', 'free-return'].includes(value.kind)
+  )
     throw Error(
-      '조작 숙달 묶음은 관측 임무로 구성합니다. 착륙·궤도·탈출을 생성하려면 숙달 묶음을 꺼 주세요.',
+      '조작 숙달 묶음은 관측 임무로 구성합니다. 다른 임무를 생성하려면 숙달 묶음을 꺼 주세요.',
     );
   const count = mastery ? mastery.groups * mastery.perGroup : value.count;
   if (!Number.isInteger(count) || count < 1 || count > 12) throw Error('생성 개수는 1~12개입니다.');
@@ -77,6 +90,16 @@ export function validateRequest(value: GenerationRequest): GenerationRequest {
     throw Error('생성 난이도를 선택하세요.');
   if (!['auto', 1, 2, 3].includes(planetCount)) throw Error('천체 수는 자동 또는 1~3개입니다.');
   const environment = value.environment ?? 'planetary';
+  if (['gravity-assist', 'free-return'].includes(value.kind)) {
+    if (planetCount !== 'auto' && planetCount !== 2)
+      throw Error(
+        '중력 도움과 자유 귀환은 출발 행성과 공전 천체, 총 2개로 생성합니다. 천체 수를 자동 또는 2개로 고르세요.',
+      );
+    if (!['planetary', 'moon', 'mixed'].includes(environment))
+      throw Error(
+        '두 새 임무의 천체 구성은 행성들의 중력권·행성과 공전하는 달·여러 구성 섞기에서 선택하세요.',
+      );
+  }
   if (environment !== 'mixed' && !Object.hasOwn(environmentNames, environment))
     throw Error('천체 구성을 선택하세요.');
   if (environment === 'binary' && planetCount !== 'auto' && planetCount !== 3)

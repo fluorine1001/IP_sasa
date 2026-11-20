@@ -47,7 +47,7 @@ export function flightSoundDirector(stage: Stage) {
     observe(view: View | undefined, o: { audible: boolean; ambient: boolean }) {
       if (!view) {
         engineVoice(0);
-        ambienceVoice(o.ambient);
+        ambienceVoice(true); // 👈 50번째 줄: o.ambient -> true 로 변경
         prev = undefined;
         return;
       }
@@ -56,7 +56,7 @@ export function flightSoundDirector(stage: Stage) {
       const airNorm = Math.min(1, air.density / 0.5);
       const flying = view.status === 'running' || view.status === 'impact';
       engineVoice(o.audible && flying ? now.throttle : 0, airNorm);
-      ambienceVoice(o.ambient, airNorm, air.speed);
+      ambienceVoice(true, airNorm, air.speed); // 👈 59번째 줄: o.ambient -> true 로 변경
       const jumped = !prev || now.time < prev.time - 1e-6 || now.time - prev.time > 0.75;
       if (o.audible && prev && !jumped) {
         if (now.throttle > 0 && prev.throttle === 0) eventSound('ignite', 0.6 + now.throttle * 0.6);

@@ -452,7 +452,7 @@ export function engineVoice(throttle: number, air = 0) {
     };
   }
   const e = g.engine;
-  const level = 0.18 + 0.42 * throttle;
+  const level = 0.08 + 0.22 * throttle;
   e.gain.gain.setTargetAtTime(level, t, 0.06);
   // In vacuum the roar is a muffled hull rumble; in thick air it opens up.
   e.roar.frequency.setTargetAtTime(220 + throttle * (500 + 2200 * air), t, 0.08);
@@ -461,6 +461,8 @@ export function engineVoice(throttle: number, air = 0) {
 }
 
 /** Background: a low space drone, plus wind while inside an atmosphere. */
+/** Background: 몽환적인 우주 패드 화음 + 잔잔한 별빛 멜로디 + 대기권 바람 소리 */
+/** Background: 잔잔한 일렉트릭 피아노 스타일 우주 BGM + 대기권 바람 소리 */
 export function ambienceVoice(on: boolean, air = 0, speed = 0) {
   const g = graph;
   if (!g) return;
@@ -477,29 +479,85 @@ export function ambienceVoice(on: boolean, air = 0, speed = 0) {
   if (!g.drone) {
     const gain = g.ctx.createGain();
     gain.gain.value = 0.0001;
+
+    // 공간감(리버브)을 넉넉히 주어 콘서트홀/우주 공간처럼 은은하게 퍼지게 함
+    const roomSend = g.ctx.createGain();
+    roomSend.gain.value = 0.8;
     gain.connect(g.ambience);
+    gain.connect(roomSend).connect(g.room);
+
     const nodes: AudioScheduledSourceNode[] = [];
-    // 수정 코드 (주파수를 2배 높이고 triangle 파형으로 변경)
-    for (const [f, p, rate] of [
-      [110, 0.22, 0.05],
-      [164.8, 0.12, 0.07],
-      [220.6, 0.05, 0.11],
-    ] as const) {
+    let stopped = false;
+
+    // 4마디 감성 코드 진행 (Fmaj7 -> Em7 -> Dm7 -> Cmaj7)
+    const chords = [
+      [174.61, 220.0, 261.63, 329.63], // Fmaj7 (파, 라, 도, 미)
+      [164.81, 196.0, 246.94, 293.66], // Em7   (미, 솔, 시, 레)
+      [146.83, 174.61, 220.0, 261.63], // Dm7   (레, 파, 라, 도)
+      [130.81, 196.0, 246.94, 329.63], // Cmaj7 (도, 솔, 시, 미)
+    ];
+
+    // 각 코드에 어울리는 잔잔한 멜로디 음표
+    const melodies = [
+      [659.25, 587.33, 523.25], // 미 - 레 - 도
+      [493.88, 587.33, 493.88], // 시 - 레 - 시
+      [440.0, 523.25, 659.25],  // 라 - 도 - 미
+      [587.33, 523.25, 392.0],  // 레 - 도 - 솔
+    ];
+
+    // 피아노 건반을 누르는 듯한 부드러운 단일 음 생성 함수
+    const playSoftKey = (freq: number, delay: number, duration: number, peak: number) => {
+      if (stopped || !graph) return;
+      const start = g.ctx.currentTime + delay;
+
       const osc = g.ctx.createOscillator();
-      osc.type = 'triangle'; // 이 한 줄 추가!
-      osc.frequency.value = f;
-      const level = g.ctx.createGain();
-      level.gain.value = p;
-      const lfo = g.ctx.createOscillator();
-      lfo.frequency.value = rate;
-      const lfoDepth = g.ctx.createGain();
-      lfoDepth.gain.value = 3;
-      lfo.connect(lfoDepth).connect(osc.detune);
-      osc.connect(level).connect(gain);
-      osc.start(t);
-      lfo.start(t);
-      nodes.push(osc, lfo);
-    }
+      osc.type = 'sine'; // 가장 맑고 깨끗한 순수 음색
+      osc.frequency.setValueAtTime(freq, start);
+
+      // 아주 미세한 2배음(배음)을 살짝 섞어 따뜻한 피아노 느낌 추가
+      const overtone = g.ctx.createOscillator();
+      overtone.type = 'sine';
+      overtone.frequency.setValueAtTime(freq * 2, start);
+      const overGain = g.ctx.createGain();
+      overGain.gain.value = 0.08;
+
+      const env = g.ctx.createGain();
+      env.gain.setValueAtTime(0.0001, start);
+      env.gain.exponentialRampToValueAtTime(peak, start + 0.08); // 부드러운 어택
+      env.gain.exponentialRampToValueAtTime(0.0001, start + duration); // 자연스러운 잔향 감쇠
+
+      osc.connect(env);
+      overtone.connect(overGain).connect(env);
+      env.connect(gain);
+
+      osc.start(start);
+      overtone.start(start);
+      osc.stop(start + duration + 0.1);
+      overtone.stop(start + duration + 0.1);
+    };
+
+    let bar = 0;
+    const playBar = () => {
+      if (stopped || !graph) return;
+      const chord = chords[bar % chords.length];
+      const melody = melodies[bar % melodies.length];
+      bar++;
+
+      // 1. 화음 아르페지오 (건반을 0.12초 간격으로 훑듯이 부드럽게 연주)
+      chord.forEach((freq, i) => {
+        playSoftKey(freq, i * 0.12, 3.6, 0.055);
+      });
+
+      // 2. 위에서 흐르는 멜로디 (박자에 맞춰 3음 연주)
+      melody.forEach((freq, i) => {
+        playSoftKey(freq, 0.5 + i * 1.1, 2.2, 0.045);
+      });
+    };
+
+    playBar();
+    const timer = window.setInterval(playBar, 3800); // 3.8초마다 다음 마디 연주
+
+    // 대기권 바람 소리 (기존 기능 유지)
     const src = g.ctx.createBufferSource();
     src.buffer = g.noise;
     src.loop = true;
@@ -512,11 +570,14 @@ export function ambienceVoice(on: boolean, air = 0, speed = 0) {
     src.connect(windFilter).connect(wind).connect(gain);
     src.start(t);
     nodes.push(src);
+
     g.drone = {
       gain,
       wind,
       windFilter,
       stop: () => {
+        stopped = true;
+        clearInterval(timer);
         for (const n of nodes)
           try {
             n.stop();
@@ -527,7 +588,8 @@ export function ambienceVoice(on: boolean, air = 0, speed = 0) {
       },
     };
   }
-  g.drone.gain.gain.setTargetAtTime(0.5, t, 0.8);
+
+  g.drone.gain.gain.setTargetAtTime(0.75, t, 0.8);
   const gust = air * Math.min(1, speed * 3);
   g.drone.wind.gain.setTargetAtTime(0.5 * gust, t, 0.2);
   g.drone.windFilter.frequency.setTargetAtTime(300 + 1400 * gust, t, 0.3);

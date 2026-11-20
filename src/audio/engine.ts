@@ -133,6 +133,7 @@ export function installAudio(initial: Volumes) {
     unlocked = true;
     const g = build();
     void g?.ctx.resume();
+    ambienceVoice(true);
   };
   addEventListener('pointerdown', unlock, { capture: true });
   addEventListener('keydown', unlock, { capture: true });
